@@ -1,26 +1,169 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0A0A0A;
+  --card: #161616;
+  --panel: #1C1C1C;
+  --foreground: #FFFFFF;
+  --muted: #9B9B9B;
+
+  /* Brand gold — single accent color across the app */
+  --gold: #F0B94A;
+  --gold-light: #F7CE7C;
+  --gold-dim: #B98A2E;
+
+  /* Status colors — used only for request/payment status pills */
+  --status-pending: #F2994A;
+  --status-approved: #34C759;
+  --status-played: #4C86FF;
+  --status-declined: #FF5A5F;
+
+  /* Legacy aliases so existing components keep working under the new palette */
+  --neon-cyan: var(--gold);
+  --neon-purple: var(--gold);
+  --neon-pink: var(--gold);
+  --neon-lime: var(--status-approved);
+  --neon-orange: var(--status-pending);
+  --neon-blue: var(--status-played);
+  --neon-gold: var(--gold);
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-card: var(--card);
+  --color-panel: var(--panel);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-dim: var(--gold-dim);
+
+  --color-status-pending: var(--status-pending);
+  --color-status-approved: var(--status-approved);
+  --color-status-played: var(--status-played);
+  --color-status-declined: var(--status-declined);
+
+  --color-neon-cyan: var(--neon-cyan);
+  --color-neon-purple: var(--neon-purple);
+  --color-neon-pink: var(--neon-pink);
+  --color-neon-lime: var(--neon-lime);
+  --color-neon-orange: var(--neon-orange);
+  --color-neon-blue: var(--neon-blue);
+  --color-neon-gold: var(--neon-gold);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Card */
+.glass-card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0) 40%), var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 1.1rem;
+  box-shadow: 0 1px 0 0 rgba(255,255,255,0.04) inset, 0 8px 20px -12px rgba(0,0,0,0.6);
+}
+
+/* Gold-outlined emphasis card */
+.neon-border {
+  position: relative;
+  border-radius: 1.1rem;
+  padding: 1px;
+  background: linear-gradient(155deg, var(--gold), var(--gold-dim) 60%, rgba(255,255,255,0.05));
+}
+.neon-border > * {
+  border-radius: calc(1.1rem - 1px);
+  background: var(--card);
+}
+
+/* Button */
+.btn-glow {
+  transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-glow:hover {
+  filter: brightness(1.08);
+}
+.btn-glow:active {
+  transform: scale(0.97);
+}
+
+/* Solid gold CTA gets a soft lift shadow to read as "premium," not flat */
+.btn-gold-solid {
+  box-shadow: 0 6px 16px -6px rgba(240, 185, 74, 0.45);
+}
+
+/* Solid-fill status badges (matches reference: filled pill, dark bold text) */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 9999px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #0A0A0A;
+}
+.status-badge.pending { background: var(--status-pending); }
+.status-badge.approved { background: var(--status-approved); }
+.status-badge.played { background: var(--status-played); color: #fff; }
+.status-badge.declined { background: var(--status-declined); color: #fff; }
+.status-badge.paid { background: var(--gold); }
+
+/* Sidebar active pill (gold fill, dark text/icon) */
+.sidebar-active {
+  background: var(--gold);
+  color: #0A0A0A !important;
+  font-weight: 600;
+}
+.sidebar-active svg { color: #0A0A0A; }
+
+/* Equalizer bars */
+.eq-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 16px;
+}
+.eq-bars span {
+  width: 3px;
+  background: var(--gold);
+  border-radius: 2px;
+  animation: eq-bounce 1s ease-in-out infinite;
+}
+.eq-bars span:nth-child(1) { animation-delay: 0s; }
+.eq-bars span:nth-child(2) { animation-delay: 0.15s; }
+.eq-bars span:nth-child(3) { animation-delay: 0.3s; }
+.eq-bars span:nth-child(4) { animation-delay: 0.45s; }
+
+@keyframes eq-bounce {
+  0%, 100% { height: 4px; }
+  50% { height: 16px; }
+}
+
+/* Floating particles background */
+@keyframes float-up {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  10% { opacity: 0.5; }
+  90% { opacity: 0.5; }
+  100% { transform: translateY(-120vh) translateX(20px); opacity: 0; }
+}
+.particle {
+  position: absolute;
+  bottom: -10px;
+  border-radius: 9999px;
+  animation: float-up linear infinite;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: var(--panel); border-radius: 4px; }
