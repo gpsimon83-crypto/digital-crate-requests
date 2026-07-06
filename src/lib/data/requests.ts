@@ -53,6 +53,8 @@ export async function createSongRequest(input: {
     artist: input.artist,
   });
 
+  if (input.customerId) await awardPoints(input.customerId, 10);
+
   return data;
 }
 
@@ -65,6 +67,13 @@ export async function upvoteRequest(requestId: string, customerId?: string) {
       customer_id: customerId,
     });
     if (voteError && voteError.code !== "23505") throw voteError; // ignore duplicate vote
+    if (voteError) {
+      // Already voted — return the request unchanged instead of inflating vote_count again.
+      const { data: existing, error: fetchError } = await db.from("song_requests").select("*").eq("id", requestId).single();
+      if (fetchError) throw fetchError;
+      return existing;
+    }
+    await awardPoints(customerId, 5);
   }
 
   const { data, error } = await db.rpc("increment_vote_count", { req_id: requestId }).select().single();
@@ -166,7 +175,17 @@ export async function createTip(input: { eventId: string; djId?: string; custome
   if (error) throw error;
 
   await logFeedEvent(input.eventId, "tip", { amountCents: input.amountCents });
+  if (input.customerId) await awardPoints(input.customerId, 25);
   return data;
+}
+
+export async function awardPoints(customerId: string, points: number) {
+  const db = createAdminClient();
+  const { data: current } = await db.from("customers").select("reward_points").eq("id", customerId).single();
+  await db
+    .from("customers")
+    .update({ reward_points: (current?.reward_points ?? 0) + points })
+    .eq("id", customerId);
 }
 
 export async function logFeedEvent(eventId: string, type: string, payload: Record<string, unknown>) {

@@ -13,6 +13,7 @@ create table if not exists djs (
   top_genres text[] default '{}',
   tip_link text,
   socials jsonb default '{}',
+  auth_user_id uuid unique references auth.users(id) on delete set null,
   created_at timestamptz default now()
 );
 
@@ -39,7 +40,7 @@ create table if not exists events (
   title text,
   starts_at timestamptz,
   ends_at timestamptz,
-  status text default 'upcoming', -- upcoming | live | ended
+  status text default 'pending_confirmation', -- pending_confirmation | confirmed | declined | live | ended
   must_play jsonb default '[]',
   do_not_play jsonb default '[]',
   guest_request_settings jsonb default '{}',
@@ -151,6 +152,35 @@ create table if not exists reward_redemptions (
   points_spent integer not null,
   redeemed_at timestamptz default now()
 );
+
+-- ============ ADMIN / PLATFORM SETTINGS ============
+
+create table if not exists invite_codes (
+  id uuid primary key default uuid_generate_v4(),
+  code text unique not null,
+  assigned_dj_id uuid references djs(id) on delete set null,
+  used boolean default false,
+  created_at timestamptz default now()
+);
+
+create table if not exists platform_settings (
+  id boolean primary key default true, -- single-row table
+  allow_dj_self_registration boolean default true,
+  require_disclaimer_acceptance boolean default true,
+  crowd_vote_boosts_enabled boolean default true,
+  push_notifications_enabled boolean default false,
+  constraint platform_settings_singleton check (id)
+);
+
+create table if not exists pricing_settings (
+  id boolean primary key default true, -- single-row table
+  config jsonb not null default '{}',
+  constraint pricing_settings_singleton check (id)
+);
+
+insert into pricing_settings (id) values (true) on conflict (id) do nothing;
+
+insert into platform_settings (id) values (true) on conflict (id) do nothing;
 
 -- ============ INDEXES ============
 

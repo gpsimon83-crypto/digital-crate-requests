@@ -1,56 +1,96 @@
+"use client";
+
+import { use, useEffect, useState } from "react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { DisclaimerBanner } from "@/components/ui/disclaimer-banner";
-import { MOCK_REQUESTS, BOOST_PRESETS_CENTS } from "@/lib/mock-data";
 import { ArrowBigUp, Zap } from "lucide-react";
 
-export default function CrowdVotePage() {
-  const sorted = [...MOCK_REQUESTS]
-    .filter((r) => r.status !== "played")
-    .sort((a, b) => b.votes - a.votes);
+interface RequestRow {
+  id: string;
+  song_title: string;
+  artist: string | null;
+  status: string;
+  vote_count: number;
+  boost_total_cents: number;
+}
+
+export default function CrowdVotePage({ params }: { params: Promise<{ eventCode: string }> }) {
+  const { eventCode } = use(params);
+  const [requests, setRequests] = useState<RequestRow[]>([]);
+  const [votedIds, setVotedIds] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    try {
+      const eventRes = await fetch(`/api/events/code/${eventCode}`);
+      const eventData = await eventRes.json();
+      if (!eventRes.ok) throw new Error(eventData.error || "Failed to load event");
+
+      const reqRes = await fetch(`/api/events/${eventData.event.id}/requests`);
+      const reqData = await reqRes.json();
+      if (!reqRes.ok) throw new Error(reqData.error || "Failed to load requests");
+      setRequests(reqData.requests ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, [eventCode]);
+
+  async function upvote(id: string) {
+    if (votedIds.includes(id)) return;
+    setVotedIds((v) => [...v, id]);
+    const customerId = localStorage.getItem("dcdj_guest_id") || undefined;
+    try {
+      await fetch(`/api/requests/${id}/vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId }),
+      });
+      await load();
+    } catch {
+      setVotedIds((v) => v.filter((x) => x !== id));
+    }
+  }
+
+  const sorted = [...requests]
+    .filter((r) => r.status !== "played" && r.status !== "declined")
+    .sort((a, b) => b.vote_count - a.vote_count);
 
   return (
     <main className="flex flex-col gap-5 px-5 pt-10">
       <header>
-        <h1 className="text-xl font-bold">Crowd Vote</h1>
+        <h1 className="gold-text-gradient text-xl font-extrabold">Crowd Vote</h1>
         <p className="mt-1 text-sm text-muted">
-          Upvote a song already requested instead of creating a duplicate. Boost it to
-          increase visibility — the DJ still has final control.
+          Upvote a song already requested instead of creating a duplicate — the DJ still has final control.
         </p>
       </header>
 
+      {error && <p className="text-sm text-status-declined">{error}</p>}
+      {!error && sorted.length === 0 && <p className="text-sm text-muted">No requests to vote on yet.</p>}
+
       <div className="flex flex-col gap-3">
         {sorted.map((r) => (
-          <GlassCard key={r.id} className="flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate font-semibold">{r.songTitle}</p>
-                <p className="truncate text-xs text-muted">{r.artist}</p>
-              </div>
-              <button className="flex flex-col items-center gap-0.5 rounded-xl border border-neon-cyan/40 px-3 py-2 text-neon-cyan min-h-[48px] min-w-[56px]">
-                <ArrowBigUp size={20} />
-                <span className="text-xs font-bold">{r.votes}</span>
-              </button>
+          <GlassCard key={r.id} className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate font-semibold">{r.song_title}</p>
+              <p className="truncate text-xs text-muted">{r.artist}</p>
+              {r.boost_total_cents > 0 && (
+                <p className="mt-1 flex items-center gap-1 text-[11px] text-status-pending">
+                  <Zap size={12} /> Boosted ${(r.boost_total_cents / 100).toFixed(0)}
+                </p>
+              )}
             </div>
-
-            {r.boostCents > 0 && (
-              <p className="flex items-center gap-1 text-[11px] text-neon-orange">
-                <Zap size={12} /> Boosted ${(r.boostCents / 100).toFixed(0)}
-              </p>
-            )}
-
-            <div className="flex gap-2">
-              {BOOST_PRESETS_CENTS.map((cents) => (
-                <button
-                  key={cents}
-                  className="flex-1 rounded-lg border border-white/10 bg-panel py-2 text-xs font-medium text-muted transition-colors hover:border-neon-pink hover:text-neon-pink min-h-[40px]"
-                >
-                  Boost ${(cents / 100).toFixed(0)}
-                </button>
-              ))}
-              <button className="flex-1 rounded-lg border border-white/10 bg-panel py-2 text-xs font-medium text-muted min-h-[40px]">
-                Custom
-              </button>
-            </div>
+            <button
+              onClick={() => upvote(r.id)}
+              disabled={votedIds.includes(r.id)}
+              className="flex min-h-[48px] min-w-[56px] flex-col items-center gap-0.5 rounded-xl border border-gold/40 px-3 py-2 text-gold transition-colors disabled:opacity-50"
+            >
+              <ArrowBigUp size={20} />
+              <span className="text-xs font-bold">{r.vote_count}</span>
+            </button>
           </GlassCard>
         ))}
       </div>

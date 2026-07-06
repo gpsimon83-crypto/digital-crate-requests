@@ -17,7 +17,7 @@ export default async function ReviewPayPage({
   return (
     <main className="flex flex-col gap-5 px-5 pt-10">
       <header>
-        <h1 className="text-xl font-bold">Review &amp; Pay</h1>
+        <h1 className="gold-text-gradient text-xl font-extrabold">Review &amp; Pay</h1>
         <p className="mt-1 text-sm text-muted">
           {isTip
             ? "Your tip is captured immediately and sent to the DJ."

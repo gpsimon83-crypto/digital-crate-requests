@@ -14,18 +14,20 @@ export default async function ConfirmationPage({
   return (
     <main className="flex flex-col items-center gap-6 px-5 pt-16 text-center">
       <ConfettiBurst />
-      <div className="flex h-20 w-20 items-center justify-center rounded-full neon-border">
-        <PartyPopper size={36} className="text-neon-gold" />
-      </div>
-      <div>
-        <h1 className="text-2xl font-bold">You&apos;re In!</h1>
-        <p className="mt-1 text-sm text-muted">
-          Your request has been sent to the DJ. Keep an eye on the live feed.
-        </p>
+      <div className="hero-surface flex w-full flex-col items-center gap-3 px-6 py-10">
+        <span className="glow-ring flex h-20 w-20 items-center justify-center rounded-full bg-gold/10">
+          <PartyPopper size={36} className="text-gold" />
+        </span>
+        <div>
+          <h1 className="gold-text-gradient text-2xl font-extrabold">You&apos;re In!</h1>
+          <p className="mt-1 text-sm text-muted">
+            Your request has been sent to the DJ. Keep an eye on the live feed.
+          </p>
+        </div>
       </div>
 
       <GlassCard className="w-full text-left text-xs text-muted">
-        You earned <span className="font-semibold text-neon-lime">+10 points</span> toward
+        You earned <span className="font-semibold text-gold">+10 points</span> toward
         rewards for this action.
       </GlassCard>
 

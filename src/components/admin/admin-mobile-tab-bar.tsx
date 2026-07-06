@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Disc3, MapPin, KeyRound, Settings } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Disc3, KeyRound, Settings } from "lucide-react";
 
 const ITEMS = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
+  { href: "/admin/events", label: "Events", icon: CalendarDays },
   { href: "/admin/djs", label: "DJs", icon: Disc3 },
-  { href: "/admin/venues", label: "Venues", icon: MapPin },
   { href: "/admin/invite-codes", label: "Codes", icon: KeyRound },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];

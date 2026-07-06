@@ -2,7 +2,7 @@ export const MOCK_EVENT = {
   eventCode: "CASEY-0704",
   title: "Casey Keys — Saturday Nights",
   venue: "Casey Keys",
-  dj: { id: "dj-1", name: "DJ Omertà", photo: "" },
+  dj: { id: "dj-gmo", name: "DJ GMO", photo: "" },
   startsAt: "2026-07-04T21:00:00-05:00",
   crowdEnergy: 78,
 };
@@ -56,10 +56,10 @@ export const MOCK_REQUESTS = [
 
 export const MOCK_FEED = [
   { id: "f1", type: "request", text: "Someone requested Blinding Lights", time: "2m ago" },
-  { id: "f2", type: "tip", text: "$10 tip sent to DJ Omertà", time: "4m ago" },
+  { id: "f2", type: "tip", text: "$10 tip sent to DJ GMO", time: "4m ago" },
   { id: "f3", type: "boost", text: "SICKO MODE boosted +$5", time: "6m ago" },
   { id: "f4", type: "played", text: "Get Lucky marked as played", time: "9m ago" },
-  { id: "f5", type: "announcement", text: "DJ Omertà: \"Last call for requests before the set!\"", time: "12m ago" },
+  { id: "f5", type: "announcement", text: "DJ GMO: \"Last call for requests before the set!\"", time: "12m ago" },
   { id: "f6", type: "crowd_favorite", text: "Levitating is trending as a crowd favorite", time: "15m ago" },
 ];
 
@@ -156,7 +156,7 @@ export const MOCK_ANALYTICS = {
   totalRequests: 1284,
   totalTipsCents: 218500,
   avgCrowdEnergy: 74,
-  topDJ: "DJ Omertà",
+  topDJ: "DJ GMO",
   weeklyRequests: [120, 145, 132, 168, 190, 175, 210],
   revenueByType: [
     { label: "Tips", amountCents: 128500, color: "pink" as const },
@@ -181,7 +181,7 @@ export const MOCK_CLIENT_EVENT = {
   eventType: "Wedding Reception",
   date: "2026-09-12",
   venue: "Casey Keys",
-  dj: "DJ Omertà",
+  dj: "DJ GMO",
   guestCount: 140,
   status: "Confirmed",
 };
@@ -208,64 +208,33 @@ export const MOCK_CLIENT_PAYMENTS = [
 ];
 
 // ============ MARKETING SITE MOCK DATA ============
-
-export const MOCK_DJS = [
-  {
-    id: "dj-omerta",
-    name: "DJ Omertà",
-    bio: "10+ years spinning weddings, clubs, and private events across Wisconsin. Known for reading a room and never letting the energy drop.",
-    eventTypes: ["Weddings", "Clubs", "Private Events"],
-    topGenres: ["Hip-Hop", "House", "Top 40"],
-    rating: 4.9,
-    reviewCount: 128,
-    tipLink: "#",
-  },
-  {
-    id: "dj-bubblz",
-    name: "DJ Bubblz",
-    bio: "High-energy open format DJ specializing in Latin, pop, and crowd-favorite mashups for weddings and corporate events.",
-    eventTypes: ["Weddings", "Corporate"],
-    topGenres: ["Latin", "Pop", "R&B"],
-    rating: 4.8,
-    reviewCount: 94,
-    tipLink: "#",
-  },
-  {
-    id: "dj-gmo",
-    name: "DJ GMO",
-    bio: "Club resident turned event specialist. Deep house and techno sets that keep the dance floor packed all night.",
-    eventTypes: ["Clubs", "Private Events"],
-    topGenres: ["House", "Techno", "Deep House"],
-    rating: 4.9,
-    reviewCount: 76,
-    tipLink: "#",
-  },
-];
+// Note: this is display-only fallback content for the public /venues pages.
+// The source of truth for DJs/venues/events is Supabase (see /admin).
 
 export const MOCK_VENUES = [
   {
     id: "casey-keys",
     name: "Casey Keys",
     location: "Cedarburg, WI",
-    djs: ["DJ Omertà", "DJ J Prime"],
-    topRequests: ["Blinding Lights", "SICKO MODE", "Levitating"],
-    upcomingEvents: 27,
+    djs: ["DJ Omertà", "DJ JPrime"],
   },
   {
     id: "schooners-pub",
     name: "Schooner's Pub",
     location: "Port Washington, WI",
-    djs: ["DJ Bubblz"],
-    topRequests: ["Mr. Brightside", "Uptown Funk"],
-    upcomingEvents: 26,
+    djs: ["DJ Rushie", "DJ JPrime"],
   },
   {
     id: "brass-boars-den",
     name: "Brass Boar's Den",
     location: "Grafton, WI",
-    djs: ["DJ GMO", "DJ Omertà"],
-    topRequests: ["One More Time", "Sandstorm"],
-    upcomingEvents: 26,
+    djs: ["DJ JPrime", "DJ Omertà"],
+  },
+  {
+    id: "north-48",
+    name: "North 48",
+    location: "Wauwatosa / Oconomowoc / Cedarburg, WI",
+    djs: ["DJ Omertà", "DJ GMO", "DJ Peace"],
   },
 ];
 
@@ -309,8 +278,8 @@ export const MOCK_PRICING = [
 // ============ TEAM HUB MOCK DATA ============
 
 export const MOCK_TEAM = [
-  { id: "u1", name: "DJ Omertà", role: "Lead DJ", eventsThisMonth: 9, status: "Available" as const },
-  { id: "u2", name: "DJ Bubblz", role: "DJ", eventsThisMonth: 6, status: "Booked" as const },
+  { id: "u1", name: "DJ GMO", role: "Lead DJ", eventsThisMonth: 9, status: "Available" as const },
+  { id: "u2", name: "DJ Que", role: "DJ", eventsThisMonth: 6, status: "Booked" as const },
   { id: "u3", name: "DJ GMO", role: "DJ", eventsThisMonth: 5, status: "Available" as const },
   { id: "u4", name: "Peace Simon", role: "Owner / Operations", eventsThisMonth: 12, status: "Available" as const },
   { id: "u5", name: "Maria Chen", role: "Event Coordinator", eventsThisMonth: 14, status: "Booked" as const },
@@ -319,12 +288,12 @@ export const MOCK_TEAM = [
 export const MOCK_ANNOUNCEMENTS = [
   { id: "a1", author: "Peace Simon", text: "New gold sound system arriving next week — training session Sunday.", time: "2h ago" },
   { id: "a2", author: "Maria Chen", text: "Reminder: submit next month's availability by Friday.", time: "1d ago" },
-  { id: "a3", author: "DJ Omertà", text: "Casey Keys crowd was incredible last night — Crate Requests numbers were the best yet.", time: "3d ago" },
+  { id: "a3", author: "DJ GMO", text: "Casey Keys crowd was incredible last night — Crate Requests numbers were the best yet.", time: "3d ago" },
 ];
 
 export const MOCK_UPCOMING_ASSIGNMENTS = [
-  { id: "as1", dj: "DJ Omertà", event: "Casey Keys — Saturday Nights", date: "2026-07-04" },
-  { id: "as2", dj: "DJ Bubblz", event: "Anderson Wedding", date: "2026-09-12" },
+  { id: "as1", dj: "DJ GMO", event: "Casey Keys — Saturday Nights", date: "2026-07-04" },
+  { id: "as2", dj: "DJ Que", event: "Anderson Wedding", date: "2026-09-12" },
   { id: "as3", dj: "DJ GMO", event: "Brass Boar's Den — Club Night", date: "2026-07-05" },
 ];
 
@@ -339,7 +308,7 @@ export const MOCK_ADMIN_STATS = {
 
 export const MOCK_INVITE_CODES = [
   { id: "ic1", code: "DCDJ-7F2A", assignedTo: "New DJ", used: false },
-  { id: "ic2", code: "DCDJ-91XR", assignedTo: "DJ Bubblz", used: true },
+  { id: "ic2", code: "DCDJ-91XR", assignedTo: "DJ Que", used: true },
   { id: "ic3", code: "DCDJ-K3M8", assignedTo: "New DJ", used: false },
   { id: "ic4", code: "DCDJ-Q7ZP", assignedTo: "New DJ", used: false },
 ];

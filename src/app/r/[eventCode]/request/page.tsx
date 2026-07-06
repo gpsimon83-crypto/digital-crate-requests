@@ -1,17 +1,13 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
 import { DisclaimerBanner } from "@/components/ui/disclaimer-banner";
 import { SongSearch, type SelectedTrack } from "@/components/guest/song-search";
-
-const SUBMIT_TYPES = [
-  { id: "free", label: "Free Request", hint: "No payment" },
-  { id: "paid", label: "Paid Request", hint: "$10.00 minimum" },
-] as const;
+import { DEFAULT_PRICING_CONFIG, type PricingConfig } from "@/lib/pricing";
 
 export default function RequestSongPage({
   params,
@@ -20,13 +16,21 @@ export default function RequestSongPage({
 }) {
   const { eventCode } = use(params);
   const router = useRouter();
+  const [config, setConfig] = useState<PricingConfig>(DEFAULT_PRICING_CONFIG);
   const [track, setTrack] = useState<SelectedTrack | null>(null);
   const [manualTitle, setManualTitle] = useState("");
   const [manualArtist, setManualArtist] = useState("");
   const [note, setNote] = useState("");
-  const [submitType, setSubmitType] = useState<(typeof SUBMIT_TYPES)[number]["id"]>("free");
+  const [amountCents, setAmountCents] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/pricing")
+      .then((r) => r.json())
+      .then((data) => setConfig(data.config))
+      .catch(() => {});
+  }, []);
 
   const songTitle = track?.title || manualTitle;
   const artist = track?.artist || manualArtist;
@@ -36,9 +40,9 @@ export default function RequestSongPage({
       setError("Enter or select a song first.");
       return;
     }
-    if (submitType === "paid") {
+    if (amountCents > 0) {
       router.push(
-        `/r/${eventCode}/review?type=request&songTitle=${encodeURIComponent(songTitle)}&artist=${encodeURIComponent(artist)}&amount=1000`
+        `/r/${eventCode}/review?type=request&songTitle=${encodeURIComponent(songTitle)}&artist=${encodeURIComponent(artist)}&amount=${amountCents}`
       );
       return;
     }
@@ -46,14 +50,15 @@ export default function RequestSongPage({
     setSubmitting(true);
     setError(null);
     try {
-      const eventRes = await fetch(`/api/events/${eventCode}`);
+      const eventRes = await fetch(`/api/events/code/${eventCode}`);
       if (!eventRes.ok) throw new Error("Could not find this event. Connect Supabase and add an event with this code.");
       const { event } = await eventRes.json();
 
+      const customerId = localStorage.getItem("dcdj_guest_id") || undefined;
       const res = await fetch("/api/requests/create-intent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId: event.id, songTitle, artist, amountCents: 0 }),
+        body: JSON.stringify({ eventId: event.id, songTitle, artist, amountCents: 0, customerId }),
       });
       if (!res.ok) throw new Error("Failed to submit request.");
 
@@ -68,7 +73,7 @@ export default function RequestSongPage({
   return (
     <main className="flex flex-col gap-5 px-5 pt-10">
       <header>
-        <h1 className="text-xl font-bold">Request a Song</h1>
+        <h1 className="gold-text-gradient text-xl font-extrabold">Request a Song</h1>
         <p className="mt-1 text-sm text-muted">Search or type a song and artist below.</p>
       </header>
 
@@ -94,19 +99,20 @@ export default function RequestSongPage({
 
         <div className="flex flex-col gap-2">
           <span className="text-xs uppercase tracking-wide text-muted">How would you like to submit?</span>
-          {SUBMIT_TYPES.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setSubmitType(t.id)}
-              className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-colors ${
-                submitType === t.id ? "border-gold bg-gold/10" : "border-white/10 bg-panel"
-              }`}
-            >
-              <span className="font-medium">{t.label}</span>
-              <span className="text-xs text-muted">{t.hint}</span>
-            </button>
-          ))}
+          <div className="grid grid-cols-3 gap-2">
+            {config.requestPricing.presetCents.map((cents) => (
+              <button
+                key={cents}
+                type="button"
+                onClick={() => setAmountCents(cents)}
+                className={`rounded-xl border px-3 py-3 text-sm font-semibold transition-colors ${
+                  amountCents === cents ? "border-gold bg-gold/10 text-gold" : "border-white/10 bg-panel"
+                }`}
+              >
+                {cents === 0 ? "Free" : `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`}
+              </button>
+            ))}
+          </div>
         </div>
 
         <label className="block">
@@ -128,8 +134,8 @@ export default function RequestSongPage({
       <DisclaimerBanner />
 
       <div className="flex flex-col gap-3 pb-4">
-        <NeonButton color="cyan" className="w-full" onClick={handleSubmit} disabled={submitting}>
-          {submitting ? "Submitting..." : submitType === "paid" ? "Continue to Payment" : "Submit Request"}
+        <NeonButton color="gold" className="w-full" onClick={handleSubmit} disabled={submitting}>
+          {submitting ? "Submitting..." : amountCents > 0 ? "Continue to Payment" : "Submit Request"}
         </NeonButton>
         <Link
           href={`/r/${eventCode}/vote`}

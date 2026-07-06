@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { createSongRequest } from "@/lib/data/requests";
 
 /**
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ request });
   }
 
-  const intent = await stripe.paymentIntents.create({
+  const intent = await getStripe().paymentIntents.create({
     amount: amountCents,
     currency: "usd",
     capture_method: "manual",
