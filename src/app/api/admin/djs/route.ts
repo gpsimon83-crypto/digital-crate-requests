@@ -12,7 +12,7 @@ export async function GET() {
     const db = createAdminClient();
     const { data, error } = await db
       .from("djs")
-      .select("id, display_name, auth_user_id")
+      .select("id, display_name, auth_user_id, photo_url, hero_settings")
       .order("display_name");
     if (error) throw error;
     return NextResponse.json({ djs: data });

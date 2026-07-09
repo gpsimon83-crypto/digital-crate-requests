@@ -3,6 +3,13 @@ import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/require-admin";
 
+const DEFAULT_SETTINGS = {
+  allow_dj_self_registration: true,
+  require_disclaimer_acceptance: true,
+  crowd_vote_boosts_enabled: true,
+  push_notifications_enabled: false,
+};
+
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
@@ -11,9 +18,10 @@ export async function GET() {
     const db = createAdminClient();
     const { data, error } = await db.from("platform_settings").select("*").eq("id", true).maybeSingle();
     if (error) throw error;
-    return NextResponse.json({ settings: data });
-  } catch (err) {
-    return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
+    return NextResponse.json({ settings: data ?? DEFAULT_SETTINGS });
+  } catch {
+    // Table may not exist yet — fall back to defaults rather than break the settings page.
+    return NextResponse.json({ settings: DEFAULT_SETTINGS });
   }
 }
 

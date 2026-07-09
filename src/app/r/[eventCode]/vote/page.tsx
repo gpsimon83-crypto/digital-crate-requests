@@ -19,6 +19,14 @@ export default function CrowdVotePage({ params }: { params: Promise<{ eventCode:
   const [requests, setRequests] = useState<RequestRow[]>([]);
   const [votedIds, setVotedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [boostsEnabled, setBoostsEnabled] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((data) => setBoostsEnabled(data.settings?.crowd_vote_boosts_enabled ?? true))
+      .catch(() => {});
+  }, []);
 
   async function load() {
     try {
@@ -77,7 +85,7 @@ export default function CrowdVotePage({ params }: { params: Promise<{ eventCode:
             <div className="min-w-0">
               <p className="truncate font-semibold">{r.song_title}</p>
               <p className="truncate text-xs text-muted">{r.artist}</p>
-              {r.boost_total_cents > 0 && (
+              {boostsEnabled && r.boost_total_cents > 0 && (
                 <p className="mt-1 flex items-center gap-1 text-[11px] text-status-pending">
                   <Zap size={12} /> Boosted ${(r.boost_total_cents / 100).toFixed(0)}
                 </p>

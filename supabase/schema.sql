@@ -14,6 +14,7 @@ create table if not exists djs (
   tip_link text,
   socials jsonb default '{}',
   auth_user_id uuid unique references auth.users(id) on delete set null,
+  hero_settings jsonb default '{"xPosition":75,"yPosition":50,"zoom":100,"overlayDarkness":40}',
   created_at timestamptz default now()
 );
 
@@ -44,6 +45,7 @@ create table if not exists events (
   must_play jsonb default '[]',
   do_not_play jsonb default '[]',
   guest_request_settings jsonb default '{}',
+  hero_image_url text,
   created_at timestamptz default now()
 );
 

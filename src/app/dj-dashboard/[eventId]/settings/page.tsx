@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
@@ -36,6 +37,7 @@ export default function EventSettingsPage({
 
   const [dbId, setDbId] = useState<string | null>(null);
   const [dj, setDj] = useState<EventDj | null>(null);
+  const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
   const [mustPlay, setMustPlay] = useState<string[]>([]);
   const [doNotPlay, setDoNotPlay] = useState<string[]>([]);
   const [settings, setSettings] = useState<GuestSettings>(DEFAULT_SETTINGS);
@@ -43,29 +45,69 @@ export default function EventSettingsPage({
   const [newDoNotPlay, setNewDoNotPlay] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const heroFileInput = useRef<HTMLInputElement>(null);
+
+  async function load() {
+    try {
+      const res = await fetch(`/api/events/code/${eventCode}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load event");
+
+      setDbId(data.event.id);
+      setDj(data.event.djs ?? null);
+      setHeroImageUrl(data.event.hero_image_url ?? null);
+      setMustPlay(data.event.must_play ?? []);
+      setDoNotPlay(data.event.do_not_play ?? []);
+      setSettings({ ...DEFAULT_SETTINGS, ...(data.event.guest_request_settings ?? {}) });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    async function load() {
-      try {
-        const res = await fetch(`/api/events/code/${eventCode}`);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to load event");
-
-        setDbId(data.event.id);
-        setDj(data.event.djs ?? null);
-        setMustPlay(data.event.must_play ?? []);
-        setDoNotPlay(data.event.do_not_play ?? []);
-        setSettings({ ...DEFAULT_SETTINGS, ...(data.event.guest_request_settings ?? {}) });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Something went wrong.");
-      } finally {
-        setLoading(false);
-      }
-    }
     load();
   }, [eventCode]);
+
+  async function handleHeroPhotoSelected(file: File) {
+    if (!dbId) return;
+    setUploadingHero(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("heroPhoto", file);
+      const res = await fetch(`/api/events/${dbId}/settings`, { method: "PATCH", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to upload hero photo");
+      setHeroImageUrl(data.event.hero_image_url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setUploadingHero(false);
+    }
+  }
+
+  async function handleClearHero() {
+    if (!dbId) return;
+    setUploadingHero(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("clearHero", "true");
+      const res = await fetch(`/api/events/${dbId}/settings`, { method: "PATCH", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to reset hero photo");
+      setHeroImageUrl(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setUploadingHero(false);
+    }
+  }
 
   async function handleSave() {
     if (!dbId) return;
@@ -104,6 +146,63 @@ export default function EventSettingsPage({
 
         {!loading && dbId && (
           <>
+            <GlassCard className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">Event Hero Photo</p>
+                {heroImageUrl ? (
+                  <span className="status-badge approved">Custom Photo</span>
+                ) : (
+                  <span className="status-badge pending">Using DJ&apos;s Photo</span>
+                )}
+              </div>
+              <p className="text-xs text-muted">
+                By default, guests see your DJ&apos;s photo as the event hero. Upload a custom photo (holiday theme,
+                wedding branding, venue shot, etc.) to override it just for this event — your DJ profile stays
+                untouched.
+              </p>
+
+              <div className="relative h-40 w-full overflow-hidden rounded-xl border border-white/10 bg-panel">
+                {heroImageUrl ? (
+                  <Image src={heroImageUrl} alt="Event hero" fill sizes="500px" className="object-cover" />
+                ) : dj?.photo_url ? (
+                  <Image src={dj.photo_url} alt={dj.display_name} fill sizes="500px" className="object-cover opacity-60" />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-xs text-muted">No photo set</div>
+                )}
+              </div>
+
+              <input
+                ref={heroFileInput}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleHeroPhotoSelected(file);
+                  e.target.value = "";
+                }}
+              />
+              <div className="flex gap-2">
+                <NeonButton
+                  color="gold"
+                  onClick={() => heroFileInput.current?.click()}
+                  disabled={uploadingHero}
+                  className="px-4 py-2 text-xs"
+                >
+                  {uploadingHero ? "Uploading..." : "Upload Custom Photo"}
+                </NeonButton>
+                {heroImageUrl && (
+                  <button
+                    onClick={handleClearHero}
+                    disabled={uploadingHero}
+                    className="rounded-full border border-white/15 px-4 py-2 text-xs text-muted hover:text-foreground disabled:opacity-50"
+                  >
+                    Use DJ&apos;s Photo Instead
+                  </button>
+                )}
+              </div>
+            </GlassCard>
+
             <div className="grid gap-6 lg:grid-cols-2">
               <ListEditor
                 title="Must-Play List"
