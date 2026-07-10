@@ -7,7 +7,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
 import { Logo } from "@/components/site/logo";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
-import { Check, X, LogOut, ShieldCheck, CalendarClock, MapPin, Plus, PartyPopper, UserCircle } from "lucide-react";
+import { Check, X, LogOut, ShieldCheck, CalendarClock, MapPin, Plus, PartyPopper, UserCircle, Boxes } from "lucide-react";
 
 interface VenueOption {
   id: string;
@@ -175,6 +175,12 @@ export default function DjBookingsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/dj-dashboard/library"
+            className="flex items-center gap-1.5 rounded-full border border-white/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
+          >
+            <Boxes size={14} /> Crate Builder
+          </Link>
           {!isAdmin && (
             <Link
               href="/dj-dashboard/profile"
