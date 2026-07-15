@@ -2,9 +2,10 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 const LOGIN_PATH = "/dj-dashboard/login";
+const SIGNUP_PATH = "/dj-dashboard/signup";
 const DJ_PREFIX = "/dj-dashboard";
 const STAFF_PREFIXES = ["/admin", "/analytics"];
-const PUBLIC_EXCEPTIONS = [LOGIN_PATH];
+const PUBLIC_EXCEPTIONS = [LOGIN_PATH, SIGNUP_PATH];
 const STAFF_ROLES = ["owner", "admin", "manager"];
 
 export async function middleware(request: NextRequest) {
