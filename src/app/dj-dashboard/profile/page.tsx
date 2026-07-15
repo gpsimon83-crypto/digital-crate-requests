@@ -2,11 +2,24 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { DEFAULT_HERO_SETTINGS, mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
+
+function BackToBookings() {
+  return (
+    <Link
+      href="/dj-dashboard/bookings"
+      className="flex items-center gap-1.5 rounded-full border border-white/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-white/25 hover:text-foreground"
+    >
+      <ArrowLeft size={14} /> Back to Bookings
+    </Link>
+  );
+}
 
 interface DjRecord {
   id: string;
@@ -80,7 +93,11 @@ export default function DjProfilePage() {
   if (!dj) {
     return (
       <>
-        <PageHeader title="My Profile" subtitle="Manage your photo and how your hero appears on event pages." />
+        <PageHeader
+          title="My Profile"
+          subtitle="Manage your photo and how your hero appears on event pages."
+          action={<BackToBookings />}
+        />
         <p className="p-6 text-sm text-muted">{error ?? "Loading..."}</p>
       </>
     );
@@ -88,7 +105,11 @@ export default function DjProfilePage() {
 
   return (
     <>
-      <PageHeader title="My Profile" subtitle="Manage your photo and how your hero appears on event pages." />
+      <PageHeader
+        title="My Profile"
+        subtitle="Manage your photo and how your hero appears on event pages."
+        action={<BackToBookings />}
+      />
       <div className="flex flex-col gap-6 p-6">
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
