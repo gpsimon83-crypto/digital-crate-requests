@@ -41,36 +41,42 @@ export default function DjPortalHomePage() {
     router.refresh();
   }
 
-  const tiles: Tile[] = [
-    {
-      href: "/dj-dashboard/bookings",
-      label: isAdmin ? "All Bookings" : "My Bookings",
-      desc: "See and manage your upcoming events.",
-      icon: CalendarClock,
-    },
-  ];
-  if (!isAdmin) {
-    tiles.push({
-      href: "/dj-dashboard/library",
-      label: "Crate Builder",
-      desc: "Organize your music library and build crates.",
-      icon: Boxes,
-    });
-  }
-  tiles.push({
-    href: "/dj-dashboard/profile",
-    label: "My Profile",
-    desc: isAdmin ? "Every admin control, in one place." : "Update your photo and hero settings.",
-    icon: UserCircle,
-  });
-  if (isAdmin) {
-    tiles.push({
-      href: "/admin",
-      label: "Admin Panel",
-      desc: "Manage DJs, venues, events, and invite codes.",
-      icon: ShieldCheck,
-    });
-  }
+  const tiles: Tile[] = loaded
+    ? [
+        {
+          href: "/dj-dashboard/bookings",
+          label: isAdmin ? "All Bookings" : "My Bookings",
+          desc: "See and manage your upcoming events.",
+          icon: CalendarClock,
+        },
+        ...(!isAdmin
+          ? [
+              {
+                href: "/dj-dashboard/library",
+                label: "Crate Builder",
+                desc: "Organize your music library and build crates.",
+                icon: Boxes,
+              },
+            ]
+          : []),
+        {
+          href: "/dj-dashboard/profile",
+          label: "My Profile",
+          desc: isAdmin ? "Every admin control, in one place." : "Update your photo and hero settings.",
+          icon: UserCircle,
+        },
+        ...(isAdmin
+          ? [
+              {
+                href: "/admin",
+                label: "Admin Panel",
+                desc: "Manage DJs, venues, events, and invite codes.",
+                icon: ShieldCheck,
+              },
+            ]
+          : []),
+      ]
+    : [];
 
   return (
     <div className="min-h-dvh bg-background">

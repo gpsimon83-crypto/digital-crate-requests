@@ -32,6 +32,7 @@ export default function DjBookingsPage() {
   const [djName, setDjName] = useState<string | null>(null);
   const [djPhoto, setDjPhoto] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [roleReady, setRoleReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actingId, setActingId] = useState<string | null>(null);
   const [venues, setVenues] = useState<VenueOption[]>([]);
@@ -53,6 +54,7 @@ export default function DjBookingsPage() {
 
       const admin = isStaffRole(meData.user?.role);
       setIsAdmin(admin);
+      setRoleReady(true);
 
       if (!admin && !meData.dj) {
         setError("Your login isn't linked to a DJ profile yet. Ask your admin to link it.");
@@ -74,6 +76,7 @@ export default function DjBookingsPage() {
       if (venuesRes.ok) setVenues(venuesData.venues ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+      setRoleReady(true);
     }
   }
 
@@ -176,7 +179,7 @@ export default function DjBookingsPage() {
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          {!isAdmin && (
+          {roleReady && !isAdmin && (
             <Link
               href="/dj-dashboard/library"
               className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
@@ -190,7 +193,7 @@ export default function DjBookingsPage() {
           >
             <UserCircle size={14} /> My Profile
           </Link>
-          {isAdmin && (
+          {roleReady && isAdmin && (
             <Link
               href="/admin"
               className="flex items-center gap-1.5 rounded-full border border-gold/40 px-3.5 py-2 text-xs font-semibold text-gold transition-colors hover:bg-gold/10"
