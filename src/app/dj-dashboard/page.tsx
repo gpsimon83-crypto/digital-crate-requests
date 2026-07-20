@@ -48,13 +48,15 @@ export default function DjPortalHomePage() {
       desc: "See and manage your upcoming events.",
       icon: CalendarClock,
     },
-    {
+  ];
+  if (!isAdmin) {
+    tiles.push({
       href: "/dj-dashboard/library",
       label: "Crate Builder",
       desc: "Organize your music library and build crates.",
       icon: Boxes,
-    },
-  ];
+    });
+  }
   tiles.push({
     href: "/dj-dashboard/profile",
     label: "My Profile",

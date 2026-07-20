@@ -176,12 +176,14 @@ export default function DjBookingsPage() {
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          <Link
-            href="/dj-dashboard/library"
-            className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
-          >
-            <Boxes size={14} /> Crate Builder
-          </Link>
+          {!isAdmin && (
+            <Link
+              href="/dj-dashboard/library"
+              className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
+            >
+              <Boxes size={14} /> Crate Builder
+            </Link>
+          )}
           <Link
             href="/dj-dashboard/profile"
             className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
