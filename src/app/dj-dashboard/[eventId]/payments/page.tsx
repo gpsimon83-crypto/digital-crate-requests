@@ -85,7 +85,7 @@ export default function PaymentsPage({ params }: { params: Promise<{ eventId: st
         <GlassCard className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
-              <tr className="border-b border-white/10 text-left text-xs text-muted">
+              <tr className="border-b border-black/10 text-left text-xs text-muted">
                 <th className="pb-2 font-medium">Guest</th>
                 <th className="pb-2 font-medium">Type</th>
                 <th className="pb-2 font-medium">Song</th>
@@ -103,7 +103,7 @@ export default function PaymentsPage({ params }: { params: Promise<{ eventId: st
                 </tr>
               )}
               {payments.map((p) => (
-                <tr key={p.id} className="border-b border-white/5 last:border-0">
+                <tr key={p.id} className="border-b border-black/5 last:border-0">
                   <td className="py-2.5">{p.guest}</td>
                   <td className="py-2.5 text-muted">{TYPE_LABEL[p.type]}</td>
                   <td className="py-2.5 text-muted">{p.song ?? "—"}</td>

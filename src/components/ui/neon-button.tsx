@@ -33,7 +33,7 @@ export function NeonButton({
   const variantClasses =
     variant === "solid"
       ? "text-black btn-gold-solid"
-      : "bg-transparent border-2 text-foreground hover:bg-white/[0.04]";
+      : "bg-transparent border-2 text-foreground hover:bg-black/[0.03]";
 
   return (
     <button

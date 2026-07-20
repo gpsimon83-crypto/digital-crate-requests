@@ -93,16 +93,16 @@ function LoginForm() {
       <div className="gl-card-wrap">
         <div className="gl-card">
           <div className="mb-7 flex flex-col items-center gap-3 text-center">
-            <Logo variant="full" color="gold" size={44} />
+            <Logo variant="icon" size={52} />
             <div>
-              <h1 className="text-xl font-bold text-white">Welcome Back</h1>
-              <p className="mt-1 text-xs text-[#9299A3]">Sign in to manage your bookings and events</p>
+              <h1 className="text-xl font-bold text-foreground">Welcome Back</h1>
+              <p className="mt-1 text-xs text-muted">Sign in to manage your bookings and events</p>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <label className="block">
-              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-[#8a8f98]">
+              <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                 Email Address
               </span>
               <div className="gl-input-wrap">
@@ -120,8 +120,8 @@ function LoginForm() {
 
             <label className="block">
               <div className="mb-1.5 flex items-center justify-between">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-[#8a8f98]">Password</span>
-                <Link href="/auth/forgot-password" className="text-[11px] text-[#d6a84b] hover:text-[#ffd978]">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">Password</span>
+                <Link href="/auth/forgot-password" className="text-[11px] text-gold hover:text-gold-light">
                   Forgot password?
                 </Link>
               </div>
@@ -146,12 +146,12 @@ function LoginForm() {
               </div>
             </label>
 
-            <label className="flex items-center gap-2 text-[11px] text-[#9299A3]">
+            <label className="flex items-center gap-2 text-[11px] text-muted">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-white/20 bg-transparent accent-[#d6a84b]"
+                className="h-3.5 w-3.5 rounded border-black/20 bg-transparent accent-gold"
               />
               Remember me
             </label>
@@ -165,9 +165,9 @@ function LoginForm() {
           </form>
 
           <div className="my-5 flex items-center gap-3">
-            <div className="h-px flex-1 bg-white/10" />
-            <span className="text-[10px] uppercase tracking-wide text-[#6b7078]">Or continue with</span>
-            <div className="h-px flex-1 bg-white/10" />
+            <div className="h-px flex-1 bg-black/10" />
+            <span className="text-[10px] uppercase tracking-wide text-muted">Or continue with</span>
+            <div className="h-px flex-1 bg-black/10" />
           </div>
 
           <div className="flex gap-3">
@@ -175,7 +175,7 @@ function LoginForm() {
               type="button"
               onClick={() => handleOAuth("google")}
               disabled={oauthLoading !== null}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] py-2.5 text-xs font-medium text-[#e5e7eb] transition-colors hover:bg-white/[0.06] disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-black/10 bg-black/[0.02] py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-black/[0.04] disabled:opacity-50"
             >
               <GoogleIcon /> Google
             </button>
@@ -183,14 +183,14 @@ function LoginForm() {
               type="button"
               onClick={() => handleOAuth("apple")}
               disabled={oauthLoading !== null}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] py-2.5 text-xs font-medium text-[#e5e7eb] transition-colors hover:bg-white/[0.06] disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-black/10 bg-black/[0.02] py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-black/[0.04] disabled:opacity-50"
             >
               <AppleIcon /> Apple
             </button>
           </div>
 
-          <p className="mt-6 text-center text-[11px] text-[#6b7078]">
-            Don&apos;t have an account? <Link href="/dj-dashboard/signup" className="text-[#d6a84b] hover:text-[#ffd978]">Sign up</Link> with your invite code.
+          <p className="mt-6 text-center text-[11px] text-muted">
+            Don&apos;t have an account? <Link href="/dj-dashboard/signup" className="text-gold hover:text-gold-light">Sign up</Link> with your invite code.
           </p>
         </div>
       </div>

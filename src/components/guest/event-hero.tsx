@@ -126,7 +126,7 @@ export function EventHero({
                 className="h-full w-full"
                 style={{
                   background:
-                    "radial-gradient(120% 140% at 85% 0%, rgba(240,185,74,0.16), transparent 60%), radial-gradient(80% 100% at 10% 100%, rgba(240,185,74,0.08), transparent 55%), linear-gradient(160deg, #1a1610 0%, #0d0d0d 55%, #0a0a0a 100%)",
+                    "radial-gradient(120% 140% at 85% 0%, rgba(186,139,75,0.16), transparent 60%), radial-gradient(80% 100% at 10% 100%, rgba(186,139,75,0.08), transparent 55%), linear-gradient(160deg, #1a1610 0%, #0d0d0d 55%, #0a0a0a 100%)",
                 }}
               />
             )}
@@ -140,7 +140,7 @@ export function EventHero({
           {/* Layer 4: gold glow behind subject */}
           <div
             className="pointer-events-none absolute inset-0"
-            style={{ background: "radial-gradient(45% 60% at 75% 40%, rgba(240,185,74,0.22), transparent 70%)" }}
+            style={{ background: "radial-gradient(45% 60% at 75% 40%, rgba(186,139,75,0.22), transparent 70%)" }}
           />
           {/* Layer 3: dark overlay */}
           <div

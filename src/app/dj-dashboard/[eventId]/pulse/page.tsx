@@ -40,7 +40,7 @@ function EnergyGauge({ value }: { value: number }) {
           cy={size / 2}
           r={radius}
           fill="none"
-          stroke="rgba(255,255,255,0.08)"
+          stroke="rgba(33,31,26,0.1)"
           strokeWidth={stroke}
         />
         <circle
@@ -190,7 +190,7 @@ export default function PartyPulsePage({ params }: { params: Promise<{ eventId: 
                     <span className="font-medium">{g.genre}</span>
                     <span className="text-muted">{g.pct}%</span>
                   </div>
-                  <div className="h-1.5 rounded-full bg-white/8">
+                  <div className="h-1.5 rounded-full bg-black/8">
                     <div
                       className="h-1.5 rounded-full bg-gradient-to-r from-[var(--gold-dim)] to-[var(--gold)]"
                       style={{ width: `${g.pct}%` }}

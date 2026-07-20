@@ -26,7 +26,7 @@ export function ActionTile({
       )}
       style={
         solid
-          ? { background: "linear-gradient(155deg, var(--gold-light), var(--gold) 55%)", boxShadow: "0 6px 16px -6px rgba(240,185,74,0.45)" }
+          ? { background: "linear-gradient(155deg, var(--gold-light), var(--gold) 55%)" }
           : undefined
       }
     >

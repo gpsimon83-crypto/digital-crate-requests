@@ -19,7 +19,7 @@ export function MobileTabBar() {
   ];
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-20 flex border-t border-white/10 bg-panel/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)] md:hidden">
+    <nav className="fixed bottom-0 inset-x-0 z-20 flex border-t border-black/10 bg-panel/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)] md:hidden">
       {items.map(({ href, label, icon: Icon }) => {
         const active = pathname === href;
         return (

@@ -191,7 +191,7 @@ export default function EventOverviewPage({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => updateSettings({ priceAdjustmentCents: (settings.priceAdjustmentCents ?? 0) - 100 })}
-                  className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
+                  className="rounded-full border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
                 >
                   − $1
                 </button>
@@ -201,7 +201,7 @@ export default function EventOverviewPage({
                 </span>
                 <button
                   onClick={() => updateSettings({ priceAdjustmentCents: (settings.priceAdjustmentCents ?? 0) + 100 })}
-                  className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
+                  className="rounded-full border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
                 >
                   + $1
                 </button>
@@ -216,7 +216,7 @@ export default function EventOverviewPage({
                 defaultValue={settings.welcomeMessage ?? ""}
                 onBlur={(e) => updateSettings({ welcomeMessage: e.target.value })}
                 placeholder="Welcome! Request your song below..."
-                className="w-full rounded-xl border border-white/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
               />
             </label>
           </div>
@@ -305,7 +305,7 @@ function ControlButton({
       ? "border-status-approved/40 text-status-approved"
       : accent === "declined"
         ? "border-status-declined/40 text-status-declined"
-        : "border-white/15 text-muted hover:text-foreground";
+        : "border-black/15 text-muted hover:text-foreground";
   return (
     <button
       onClick={onClick}

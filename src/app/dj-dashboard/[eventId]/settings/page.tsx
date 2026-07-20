@@ -161,7 +161,7 @@ export default function EventSettingsPage({
                 untouched.
               </p>
 
-              <div className="relative h-40 w-full overflow-hidden rounded-xl border border-white/10 bg-panel">
+              <div className="relative h-40 w-full overflow-hidden rounded-xl border border-black/10 bg-panel">
                 {heroImageUrl ? (
                   <Image src={heroImageUrl} alt="Event hero" fill sizes="500px" className="object-cover" />
                 ) : dj?.photo_url ? (
@@ -195,7 +195,7 @@ export default function EventSettingsPage({
                   <button
                     onClick={handleClearHero}
                     disabled={uploadingHero}
-                    className="rounded-full border border-white/15 px-4 py-2 text-xs text-muted hover:text-foreground disabled:opacity-50"
+                    className="rounded-full border border-black/15 px-4 py-2 text-xs text-muted hover:text-foreground disabled:opacity-50"
                   >
                     Use DJ&apos;s Photo Instead
                   </button>
@@ -251,7 +251,7 @@ export default function EventSettingsPage({
                   onChange={(e) =>
                     setSettings((s) => ({ ...s, maxRequestPriceCents: Math.round(Number(e.target.value) * 100) }))
                   }
-                  className="w-40 rounded-xl border border-white/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                  className="w-40 rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                 />
               </label>
             </GlassCard>
@@ -298,7 +298,7 @@ function ListEditor({
       <p className={`text-sm font-semibold ${titleClass}`}>{title}</p>
       <ul className="flex flex-col gap-2 text-sm text-muted">
         {items.map((s, i) => (
-          <li key={`${s}-${i}`} className="flex items-center justify-between rounded-lg border border-white/10 bg-panel px-3 py-2">
+          <li key={`${s}-${i}`} className="flex items-center justify-between rounded-lg border border-black/10 bg-panel px-3 py-2">
             {s}
             <button onClick={() => setItems(items.filter((_, idx) => idx !== i))} className="text-muted hover:text-status-declined">
               <X size={14} />
@@ -313,9 +313,9 @@ function ListEditor({
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), add())}
           placeholder={placeholder}
-          className="flex-1 rounded-xl border border-white/10 bg-panel px-4 py-2 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
+          className="flex-1 rounded-xl border border-black/10 bg-panel px-4 py-2 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
         />
-        <button onClick={add} className="rounded-xl border border-white/15 px-3 text-xs text-muted hover:text-foreground">
+        <button onClick={add} className="rounded-xl border border-black/15 px-3 text-xs text-muted hover:text-foreground">
           Add
         </button>
       </div>
@@ -335,7 +335,7 @@ function ToggleRow({
   return (
     <button onClick={() => onChange(!checked)} className="flex items-center justify-between text-sm">
       <span>{label}</span>
-      <span className={`relative h-6 w-11 rounded-full transition-colors ${checked ? "bg-gold" : "bg-white/10"}`}>
+      <span className={`relative h-6 w-11 rounded-full transition-colors ${checked ? "bg-gold" : "bg-black/10"}`}>
         <span
           className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"}`}
         />

@@ -138,9 +138,9 @@ export function ManualCrateBuilder({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Type at least 2 characters — artist, title, or folder"
-            className="rounded-xl border border-white/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
+            className="rounded-xl border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
           />
-          <div className="max-h-72 overflow-y-auto rounded-xl border border-white/8 bg-panel/30">
+          <div className="max-h-72 overflow-y-auto rounded-xl border border-black/8 bg-panel/30">
             {query.trim().length < 2 ? (
               <p className="p-3 text-xs text-muted">Start typing to search.</p>
             ) : results.length === 0 ? (
@@ -150,10 +150,10 @@ export function ManualCrateBuilder({
                 const key = trackKey(f);
                 const isPlaying = player.isPlaying(key);
                 return (
-                  <div key={key} className="flex items-center gap-2 border-b border-white/5 px-3 py-2 last:border-0 hover:bg-white/5">
+                  <div key={key} className="flex items-center gap-2 border-b border-black/5 px-3 py-2 last:border-0 hover:bg-black/5">
                     <button
                       onClick={() => togglePreview(f)}
-                      className="flex size-7 shrink-0 items-center justify-center rounded-full border border-white/12 text-muted hover:border-gold/40 hover:text-gold"
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full border border-black/12 text-muted hover:border-gold/40 hover:text-gold"
                       title="Preview"
                     >
                       {isPlaying ? <Pause size={12} /> : <Play size={12} />}
@@ -164,7 +164,7 @@ export function ManualCrateBuilder({
                     </div>
                     <button
                       onClick={() => setTaggingFile(f)}
-                      className="flex size-7 shrink-0 items-center justify-center rounded-full border border-white/12 text-muted hover:border-gold/40 hover:text-gold"
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full border border-black/12 text-muted hover:border-gold/40 hover:text-gold"
                       title="Tag Song"
                     >
                       <Tag size={12} />
@@ -187,7 +187,7 @@ export function ManualCrateBuilder({
           <label className="text-xs font-medium text-muted">
             Crate in progress <span className="text-muted/70">({staged.length} tracks)</span>
           </label>
-          <div className="max-h-72 min-h-[3rem] overflow-y-auto rounded-xl border border-white/8 bg-panel/30">
+          <div className="max-h-72 min-h-[3rem] overflow-y-auto rounded-xl border border-black/8 bg-panel/30">
             {staged.length === 0 ? (
               <p className="p-3 text-xs text-muted">Add tracks from the search results.</p>
             ) : (
@@ -195,10 +195,10 @@ export function ManualCrateBuilder({
                 const key = trackKey(f);
                 const isPlaying = player.isPlaying(key);
                 return (
-                  <div key={key} className="flex items-center gap-2 border-b border-white/5 px-3 py-2 last:border-0 hover:bg-white/5">
+                  <div key={key} className="flex items-center gap-2 border-b border-black/5 px-3 py-2 last:border-0 hover:bg-black/5">
                     <button
                       onClick={() => togglePreview(f)}
-                      className="flex size-7 shrink-0 items-center justify-center rounded-full border border-white/12 text-muted hover:border-gold/40 hover:text-gold"
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full border border-black/12 text-muted hover:border-gold/40 hover:text-gold"
                       title="Preview"
                     >
                       {isPlaying ? <Pause size={12} /> : <Play size={12} />}
@@ -209,7 +209,7 @@ export function ManualCrateBuilder({
                     </div>
                     <button
                       onClick={() => removeTrack(f)}
-                      className="flex size-7 shrink-0 items-center justify-center rounded-full border border-white/12 text-muted hover:border-status-declined/60 hover:text-status-declined"
+                      className="flex size-7 shrink-0 items-center justify-center rounded-full border border-black/12 text-muted hover:border-status-declined/60 hover:text-status-declined"
                       title="Remove from crate"
                     >
                       <X size={13} />
@@ -225,7 +225,7 @@ export function ManualCrateBuilder({
               value={crateName}
               onChange={(e) => setCrateName(e.target.value)}
               placeholder="Crate name"
-              className="min-w-0 flex-1 rounded-xl border border-white/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
+              className="min-w-0 flex-1 rounded-xl border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
             />
             <button
               onClick={saveCrate}

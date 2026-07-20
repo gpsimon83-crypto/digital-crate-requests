@@ -82,7 +82,7 @@ export default function LoginPage({ params }: { params: Promise<{ eventCode: str
                   key={g}
                   onClick={() => toggleGenre(g)}
                   className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
-                    genres.includes(g) ? "border-gold text-gold" : "border-white/10 bg-panel text-muted"
+                    genres.includes(g) ? "border-gold text-gold" : "border-black/10 bg-panel text-muted"
                   }`}
                 >
                   {g}
@@ -133,7 +133,7 @@ function Field({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-white/10 bg-panel px-4 py-3 text-sm text-foreground placeholder:text-muted/60 focus:border-neon-cyan focus:outline-none"
+        className="w-full rounded-xl border border-black/10 bg-panel px-4 py-3 text-sm text-foreground placeholder:text-muted/60 focus:border-neon-cyan focus:outline-none"
       />
     </label>
   );

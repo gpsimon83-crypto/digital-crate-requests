@@ -30,7 +30,7 @@ export function CrateScorePanel({ tracks, guidedSetup }: { tracks: ResolvedTrack
   const result = tracks ? computeCrateScore(tracks, guidedSetup) : null;
 
   return (
-    <div className="rounded-xl border border-white/8 bg-panel/40">
+    <div className="rounded-xl border border-black/8 bg-panel/40">
       <button
         onClick={() => setExpanded((e) => !e)}
         className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
@@ -43,7 +43,7 @@ export function CrateScorePanel({ tracks, guidedSetup }: { tracks: ResolvedTrack
       </button>
 
       {expanded && (
-        <div className="border-t border-white/8 p-3">
+        <div className="border-t border-black/8 p-3">
           {!result ? (
             <p className="text-xs text-muted">Analyzing…</p>
           ) : result.categories.length === 0 ? (
@@ -60,7 +60,7 @@ export function CrateScorePanel({ tracks, guidedSetup }: { tracks: ResolvedTrack
 
               <div className="flex flex-col gap-1.5 text-xs">
                 {result.categories.map((c) => (
-                  <div key={c.label} className="rounded-lg border border-white/8">
+                  <div key={c.label} className="rounded-lg border border-black/8">
                     <button
                       onClick={() => setOpenCategory((cur) => (cur === c.label ? null : c.label))}
                       className="flex w-full flex-col gap-1.5 px-2.5 py-2 text-left"
@@ -71,7 +71,7 @@ export function CrateScorePanel({ tracks, guidedSetup }: { tracks: ResolvedTrack
                         <span className={`font-bold ${scoreColor(c.score)}`}>{c.score}</span>
                       </span>
                       {/* Bar mark: rounded data-end, square at the baseline, capped thickness. */}
-                      <span className="h-2 w-full overflow-hidden rounded-r-full bg-white/8">
+                      <span className="h-2 w-full overflow-hidden rounded-r-full bg-black/8">
                         <span
                           className={`block h-full rounded-r-full ${scoreBarColor(c.score)}`}
                           style={{ width: `${c.score}%` }}
@@ -79,7 +79,7 @@ export function CrateScorePanel({ tracks, guidedSetup }: { tracks: ResolvedTrack
                       </span>
                     </button>
                     {openCategory === c.label && c.recommendations.length > 0 && (
-                      <div className="border-t border-white/8 px-2.5 py-2 text-[11px] text-muted">
+                      <div className="border-t border-black/8 px-2.5 py-2 text-[11px] text-muted">
                         {c.recommendations.map((r, i) => <p key={i}>{r}</p>)}
                       </div>
                     )}

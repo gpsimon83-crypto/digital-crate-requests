@@ -84,7 +84,7 @@ export default function InviteCodesPage() {
                 </span>
                 <button
                   onClick={() => handleDelete(c.id)}
-                  className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
+                  className="rounded-full border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
                 >
                   Delete
                 </button>

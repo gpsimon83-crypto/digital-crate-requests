@@ -88,10 +88,10 @@ function ResetForm() {
       <div className="gl-card-wrap">
         <div className="gl-card">
           <div className="mb-7 flex flex-col items-center gap-3 text-center">
-            <Logo variant="full" color="gold" size={44} />
+            <Logo variant="icon" size={52} />
             <div>
-              <h1 className="text-xl font-bold text-white">Set New Password</h1>
-              <p className="mt-1 text-xs text-[#9299A3]">Choose a new password for your account.</p>
+              <h1 className="text-xl font-bold text-foreground">Set New Password</h1>
+              <p className="mt-1 text-xs text-muted">Choose a new password for your account.</p>
             </div>
           </div>
 
@@ -100,11 +100,11 @@ function ResetForm() {
           ) : done ? (
             <p className="text-center text-xs text-status-approved">Password updated — signing you in...</p>
           ) : !ready ? (
-            <p className="text-center text-xs text-[#9299A3]">Verifying link...</p>
+            <p className="text-center text-xs text-muted">Verifying link...</p>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-[#8a8f98]">
+                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                   New Password
                 </span>
                 <div className="gl-input-wrap">
@@ -129,7 +129,7 @@ function ResetForm() {
               </label>
 
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-[#8a8f98]">
+                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                   Confirm Password
                 </span>
                 <div className="gl-input-wrap">

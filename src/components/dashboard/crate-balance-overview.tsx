@@ -72,7 +72,7 @@ export function CrateBalanceOverview({
   }
 
   return (
-    <div className="rounded-xl border border-white/8 bg-panel/40">
+    <div className="rounded-xl border border-black/8 bg-panel/40">
       <button
         onClick={() => setExpanded((e) => !e)}
         className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
@@ -85,7 +85,7 @@ export function CrateBalanceOverview({
       </button>
 
       {expanded && (
-        <div className="border-t border-white/8 p-3">
+        <div className="border-t border-black/8 p-3">
           {!tracks ? (
             <p className="text-xs text-muted">Analyzing {crate.paths.length} tracks…</p>
           ) : (
@@ -195,7 +195,7 @@ function BalanceBody({
 
 function Stat({ label, value, action }: { label: string; value: string; action?: { label: string; onClick: () => void } }) {
   return (
-    <div className="rounded-lg border border-white/8 bg-panel/50 p-2">
+    <div className="rounded-lg border border-black/8 bg-panel/50 p-2">
       <p className="text-[15px] font-bold">{value}</p>
       <p className="text-[10px] text-muted">{label}</p>
       {action && (

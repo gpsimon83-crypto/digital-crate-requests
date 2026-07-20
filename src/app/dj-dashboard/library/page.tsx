@@ -35,6 +35,7 @@ import { GuidedCrateSetup, type GuidedSetup } from "@/components/dashboard/guide
 import { EliteCrateBrowser } from "@/components/dashboard/elite-crate-browser";
 import { NewBadge } from "@/components/dashboard/new-badge";
 import type { CrateProfileSummary } from "@/lib/crate-profile-types";
+import { isStaffRole } from "@/lib/roles";
 
 const ENERGY_OPTIONS = [
   { value: "warmup", label: "Warm Up" },
@@ -138,7 +139,7 @@ export default function LibraryDashboardPage() {
   useEffect(() => {
     fetch("/api/me")
       .then((r) => r.json())
-      .then((d) => setIsStaff(["owner", "admin", "manager"].includes(d.user?.role)))
+      .then((d) => setIsStaff(isStaffRole(d.user?.role)))
       .catch(() => {});
   }, []);
 
@@ -460,26 +461,26 @@ export default function LibraryDashboardPage() {
           fixed descendant at the root stacking context, hiding the
           backdrop entirely. Verified this the hard way; don't remove. */}
       <PageBackdrop section="hero" />
-      <header className="relative z-10 flex items-center justify-between border-b border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0))] px-6 py-4 sm:px-8">
-        <div className="flex items-center gap-3">
+      <header className="relative z-10 flex items-center justify-between border-b border-black/8 bg-[linear-gradient(180deg,rgba(33,31,26,0.015),rgba(255,255,255,0))] px-6 py-4 sm:px-8">
+        <Link href="/dj-dashboard" className="flex items-center gap-3">
           <span className="glow-ring">
-            <Logo variant="icon" color="gold" size={30} />
+            <Logo variant="icon" size={28} />
           </span>
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[2.5px] text-muted">Digital Crate DJs</p>
             <p className="gold-text-gradient text-base font-extrabold tracking-tight">Crate Builder</p>
           </div>
-        </div>
+        </Link>
         <div className="flex items-center gap-2">
           <a
             href="https://digitalcratedjs.com/members"
-            className="flex items-center gap-1.5 rounded-full border border-white/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-white/25 hover:text-foreground"
+            className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
           >
             <ArrowLeft size={14} /> Back to Digital Crate DJs
           </a>
           <Link
             href="/dj-dashboard/bookings"
-            className="flex items-center gap-1.5 rounded-full border border-white/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-white/25 hover:text-foreground"
+            className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
           >
             <UserCircle size={14} /> My Bookings
           </Link>
@@ -513,7 +514,7 @@ export default function LibraryDashboardPage() {
               <button
                 onClick={scanLibrary}
                 disabled={loading}
-                className="flex items-center gap-1.5 rounded-full border border-white/12 px-3.5 py-2 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold"
+                className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold"
               >
                 <RefreshCw size={13} /> {loading ? (progressMsg ?? "Scanning…") : "Scan Library"}
               </button>
@@ -585,9 +586,9 @@ export default function LibraryDashboardPage() {
                 <GlassCard neon className="flex flex-col gap-3">
                   <p className="text-sm font-semibold uppercase tracking-wide text-muted">Quick Tools</p>
 
-                  <div className="flex flex-col gap-2 rounded-xl border border-white/8 p-3">
+                  <div className="flex flex-col gap-2 rounded-xl border border-black/8 p-3">
                     <p className="flex items-center gap-2 text-sm font-semibold"><Copy size={14} /> Scan Duplicates</p>
-                    <button onClick={previewDedupe} disabled={busyAction !== null} className="rounded-full border border-white/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold">
+                    <button onClick={previewDedupe} disabled={busyAction !== null} className="rounded-full border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold">
                       Preview
                     </button>
                     {dedupePlan && (
@@ -605,10 +606,10 @@ export default function LibraryDashboardPage() {
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-2 rounded-xl border border-white/8 p-3">
+                  <div className="flex flex-col gap-2 rounded-xl border border-black/8 p-3">
                     <p className="flex items-center gap-2 text-sm font-semibold"><Pencil size={14} /> Clean Up Filenames</p>
                     <p className="text-xs text-muted">Strips leading track numbers like &quot;01. Artist - Song&quot; -&gt; &quot;Artist - Song&quot;. Never touches real artist names like &quot;50 Cent&quot; or &quot;3-6 Mafia&quot;.</p>
-                    <button onClick={previewRename} disabled={busyAction !== null} className="rounded-full border border-white/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold">
+                    <button onClick={previewRename} disabled={busyAction !== null} className="rounded-full border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold">
                       Preview
                     </button>
                     {renamePlan && (
@@ -636,12 +637,12 @@ export default function LibraryDashboardPage() {
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-2 rounded-xl border border-white/8 p-3">
+                  <div className="flex flex-col gap-2 rounded-xl border border-black/8 p-3">
                     <p className="flex items-center gap-2 text-sm font-semibold"><Wand2 size={14} /> Build Crates from Folders</p>
                     <button
                       onClick={runBuildCrates}
                       disabled={busyAction !== null || !seratoFound}
-                      className="rounded-full border border-white/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold disabled:opacity-40"
+                      className="rounded-full border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold disabled:opacity-40"
                     >
                       {busyAction === "build-live" ? "Building…" : "Build New Crates"}
                     </button>
@@ -669,7 +670,7 @@ export default function LibraryDashboardPage() {
                     </div>
                   )}
 
-                  <button onClick={scanLibrary} disabled={loading} className="flex items-center justify-center gap-1.5 rounded-full border border-white/12 px-3.5 py-2 text-xs font-medium text-muted hover:border-white/25 hover:text-foreground">
+                  <button onClick={scanLibrary} disabled={loading} className="flex items-center justify-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:border-black/25 hover:text-foreground">
                     <RefreshCw size={13} /> Refresh
                   </button>
                 </GlassCard>
@@ -687,7 +688,7 @@ export default function LibraryDashboardPage() {
                   <NewBadge />
                   <button
                     onClick={() => setCategoryFilter(null)}
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${!categoryFilter ? "border-gold bg-gold/10 text-gold" : "border-white/12 text-muted hover:border-white/25 hover:text-foreground"}`}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${!categoryFilter ? "border-gold bg-gold/10 text-gold" : "border-black/12 text-muted hover:border-black/25 hover:text-foreground"}`}
                   >
                     All
                   </button>
@@ -695,7 +696,7 @@ export default function LibraryDashboardPage() {
                     <button
                       key={cat}
                       onClick={() => setCategoryFilter(cat)}
-                      className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${categoryFilter === cat ? "border-gold bg-gold/10 text-gold" : "border-white/12 text-muted hover:border-white/25 hover:text-foreground"}`}
+                      className={`rounded-full border px-2.5 py-1 text-[11px] font-medium ${categoryFilter === cat ? "border-gold bg-gold/10 text-gold" : "border-black/12 text-muted hover:border-black/25 hover:text-foreground"}`}
                     >
                       {cat}
                     </button>
@@ -741,7 +742,7 @@ export default function LibraryDashboardPage() {
               )}
 
               {!selectedCrate && categoryFilter === "Elite Crates" && (
-                <div className="border-t border-white/8 pt-4">
+                <div className="border-t border-black/8 pt-4">
                   <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
                     Elite Packs From Other DJs <NewBadge />
                   </p>
@@ -798,13 +799,13 @@ export default function LibraryDashboardPage() {
                     <span className="text-muted">Match</span>
                     <button
                       onClick={() => setSmartMatchType("all")}
-                      className={`rounded-full border px-2.5 py-1 font-medium ${smartMatchType === "all" ? "border-gold bg-gold/10 text-gold" : "border-white/12 text-muted"}`}
+                      className={`rounded-full border px-2.5 py-1 font-medium ${smartMatchType === "all" ? "border-gold bg-gold/10 text-gold" : "border-black/12 text-muted"}`}
                     >
                       All
                     </button>
                     <button
                       onClick={() => setSmartMatchType("any")}
-                      className={`rounded-full border px-2.5 py-1 font-medium ${smartMatchType === "any" ? "border-gold bg-gold/10 text-gold" : "border-white/12 text-muted"}`}
+                      className={`rounded-full border px-2.5 py-1 font-medium ${smartMatchType === "any" ? "border-gold bg-gold/10 text-gold" : "border-black/12 text-muted"}`}
                     >
                       Any
                     </button>
@@ -813,11 +814,11 @@ export default function LibraryDashboardPage() {
 
                   <div className="flex flex-col gap-2">
                     {smartRules.map((rule) => (
-                      <div key={rule.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-white/8 bg-panel/50 p-2.5">
+                      <div key={rule.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-black/8 bg-panel/50 p-2.5">
                         <select
                           value={rule.field}
                           onChange={(e) => updateRule(rule.id, { field: e.target.value as RuleField })}
-                          className="rounded-lg border border-white/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
+                          className="rounded-lg border border-black/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
                         >
                           {Object.entries(FIELD_LABELS).map(([field, label]) => (
                             <option key={field} value={field}>{label}</option>
@@ -827,7 +828,7 @@ export default function LibraryDashboardPage() {
                         <select
                           value={rule.comparator}
                           onChange={(e) => updateRule(rule.id, { comparator: e.target.value as RuleComparator })}
-                          className="rounded-lg border border-white/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
+                          className="rounded-lg border border-black/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
                         >
                           {COMPARATORS_FOR_FIELD[rule.field].map((c) => (
                             <option key={c.value} value={c.value}>{c.label}</option>
@@ -838,7 +839,7 @@ export default function LibraryDashboardPage() {
                           <select
                             value={rule.value}
                             onChange={(e) => updateRule(rule.id, { value: e.target.value })}
-                            className="min-w-[140px] rounded-lg border border-white/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
+                            className="min-w-[140px] rounded-lg border border-black/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
                           >
                             <option value="">Choose…</option>
                             {availableGenres.map((g) => (
@@ -849,7 +850,7 @@ export default function LibraryDashboardPage() {
                           <select
                             value={rule.value}
                             onChange={(e) => updateRule(rule.id, { value: e.target.value })}
-                            className="min-w-[140px] rounded-lg border border-white/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
+                            className="min-w-[140px] rounded-lg border border-black/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
                           >
                             <option value="">Choose…</option>
                             {ENERGY_OPTIONS.map((o) => (
@@ -860,7 +861,7 @@ export default function LibraryDashboardPage() {
                           <select
                             value={rule.value}
                             onChange={(e) => updateRule(rule.id, { value: e.target.value })}
-                            className="min-w-[140px] rounded-lg border border-white/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
+                            className="min-w-[140px] rounded-lg border border-black/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
                           >
                             <option value="">Choose…</option>
                             {SONG_FUNCTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -869,7 +870,7 @@ export default function LibraryDashboardPage() {
                           <select
                             value={rule.value}
                             onChange={(e) => updateRule(rule.id, { value: e.target.value })}
-                            className="min-w-[140px] rounded-lg border border-white/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
+                            className="min-w-[140px] rounded-lg border border-black/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
                           >
                             <option value="">Choose…</option>
                             {CROWD_FIT_TAGS.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -878,7 +879,7 @@ export default function LibraryDashboardPage() {
                           <select
                             value={rule.value}
                             onChange={(e) => updateRule(rule.id, { value: e.target.value })}
-                            className="min-w-[140px] rounded-lg border border-white/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
+                            className="min-w-[140px] rounded-lg border border-black/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
                           >
                             <option value="">Choose…</option>
                             {CONTENT_RATINGS.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -887,7 +888,7 @@ export default function LibraryDashboardPage() {
                           <select
                             value={rule.value}
                             onChange={(e) => updateRule(rule.id, { value: e.target.value })}
-                            className="min-w-[140px] rounded-lg border border-white/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
+                            className="min-w-[140px] rounded-lg border border-black/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
                           >
                             <option value="">Choose…</option>
                             {CRATE_STATUSES.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -896,7 +897,7 @@ export default function LibraryDashboardPage() {
                           <select
                             value={rule.value}
                             onChange={(e) => updateRule(rule.id, { value: e.target.value })}
-                            className="min-w-[140px] rounded-lg border border-white/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
+                            className="min-w-[140px] rounded-lg border border-black/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
                           >
                             <option value="">Choose…</option>
                             <option value="yes">Yes</option>
@@ -909,7 +910,7 @@ export default function LibraryDashboardPage() {
                               onChange={(e) => updateRule(rule.id, { value: e.target.value })}
                               type={NUMERIC_FIELDS.includes(rule.field) ? "number" : "text"}
                               placeholder={rule.field === "year" ? "e.g. 1990" : rule.field === "bpm" ? "e.g. 120" : "value"}
-                              className="w-28 rounded-lg border border-white/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
+                              className="w-28 rounded-lg border border-black/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
                             />
                             {rule.comparator === "between" && (
                               <>
@@ -919,7 +920,7 @@ export default function LibraryDashboardPage() {
                                   onChange={(e) => updateRule(rule.id, { value2: e.target.value })}
                                   type="number"
                                   placeholder={rule.field === "year" ? "e.g. 1999" : "e.g. 128"}
-                                  className="w-28 rounded-lg border border-white/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
+                                  className="w-28 rounded-lg border border-black/10 bg-panel px-2.5 py-1.5 text-xs focus:border-gold focus:outline-none"
                                 />
                               </>
                             )}
@@ -938,7 +939,7 @@ export default function LibraryDashboardPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setSmartRules((rules) => [...rules, newRule()])}
-                        className="flex items-center gap-1.5 self-start rounded-full border border-white/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold"
+                        className="flex items-center gap-1.5 self-start rounded-full border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold"
                       >
                         <Plus size={13} /> Add Rule
                       </button>
@@ -968,14 +969,14 @@ export default function LibraryDashboardPage() {
                     </div>
                   )}
 
-                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-white/8 bg-panel/50 p-3">
+                  <div className="flex flex-wrap items-center gap-3 rounded-xl border border-black/8 bg-panel/50 p-3">
                     <p className="text-sm">
                       <span className="font-bold text-gold">{smartMatches.length.toLocaleString()}</span> tracks match
                     </p>
                     <button
                       onClick={() => setShowPreview((v) => !v)}
                       disabled={smartMatches.length === 0}
-                      className="flex items-center gap-1.5 rounded-full border border-white/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold disabled:opacity-40"
+                      className="flex items-center gap-1.5 rounded-full border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold disabled:opacity-40"
                     >
                       <Eye size={13} /> {showPreview ? "Hide Preview" : "Preview Songs"}
                     </button>
@@ -983,7 +984,7 @@ export default function LibraryDashboardPage() {
                       value={smartCrateName}
                       onChange={(e) => setSmartCrateName(e.target.value)}
                       placeholder="Crate name, e.g. Warm Up 90s R&B"
-                      className="min-w-[220px] flex-1 rounded-xl border border-white/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
+                      className="min-w-[220px] flex-1 rounded-xl border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
                     />
                     <button
                       onClick={runBuildSmartCrate}
@@ -995,9 +996,9 @@ export default function LibraryDashboardPage() {
                   </div>
 
                   {showPreview && smartMatches.length > 0 && (
-                    <div className="max-h-72 overflow-y-auto rounded-xl border border-white/8 bg-panel/30 p-2">
+                    <div className="max-h-72 overflow-y-auto rounded-xl border border-black/8 bg-panel/30 p-2">
                       {smartMatches.slice(0, 300).map((t, i) => (
-                        <div key={`${t.key}-${i}`} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs hover:bg-white/5">
+                        <div key={`${t.key}-${i}`} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs hover:bg-black/5">
                           <span className="truncate">{t.artist} — {t.resolvedTitle}</span>
                           <span className="shrink-0 text-muted">
                             {t.genre ?? "—"}{t.year ? ` · ${t.year}` : ""}{t.bpm ? ` · ${t.bpm} BPM` : ""}

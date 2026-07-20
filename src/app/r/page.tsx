@@ -9,9 +9,8 @@ export default function EnterEventPage() {
       <FloatingParticles />
       <main className="relative z-10 mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 px-6">
         <header className="flex flex-col items-center gap-3 text-center">
-          <Logo variant="full" color="white" size={64} />
+          <Logo variant="full" size={230} className="w-[220px] sm:w-[276px]" />
           <p className="text-xs uppercase tracking-[3px] text-muted">Powered by Digital Crate DJs</p>
-          <h1 className="text-2xl font-bold">Request. Tip. Enjoy.</h1>
         </header>
 
         <GlassCard className="flex flex-col gap-4">
@@ -19,12 +18,12 @@ export default function EnterEventPage() {
             Scanned a QR code at your event? It should have opened your event page directly.
             Otherwise, enter the event code below.
           </p>
-          <div className="h-px bg-white/10" />
+          <div className="h-px bg-black/10" />
           <form action="/r" className="flex flex-col gap-3">
             <input
               name="code"
               placeholder="Enter event code"
-              className="w-full rounded-xl border border-white/10 bg-panel px-4 py-3 text-center text-sm tracking-widest placeholder:text-muted/60 focus:border-gold focus:outline-none"
+              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-3 text-center text-sm tracking-widest placeholder:text-muted/60 focus:border-gold focus:outline-none"
             />
             <NeonButton type="submit" color="cyan" className="w-full">
               Join Event

@@ -201,7 +201,7 @@ export function CrateDetailView({
                 onClick={toggleElite}
                 disabled={eliteSaving}
                 className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold disabled:opacity-40 ${
-                  profile?.is_elite ? "border-gold bg-gold/10 text-gold" : "border-white/12 text-muted hover:border-gold/40 hover:text-gold"
+                  profile?.is_elite ? "border-gold bg-gold/10 text-gold" : "border-black/12 text-muted hover:border-gold/40 hover:text-gold"
                 }`}
               >
                 <Star size={13} /> {eliteSaving ? "Saving…" : profile?.is_elite ? "Elite (Shared)" : "Mark as Elite"}
@@ -235,13 +235,13 @@ export function CrateDetailView({
 
       {error && <p className="text-xs text-status-declined">{error}</p>}
 
-      <div className="flex flex-wrap gap-1.5 border-b border-white/8 pb-2">
+      <div className="flex flex-wrap gap-1.5 border-b border-black/8 pb-2">
         {TABS.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-              tab === t.id ? "border-gold bg-gold/10 text-gold" : "border-white/12 text-muted hover:border-white/25 hover:text-foreground"
+              tab === t.id ? "border-gold bg-gold/10 text-gold" : "border-black/12 text-muted hover:border-black/25 hover:text-foreground"
             }`}
           >
             {t.label}
@@ -255,14 +255,14 @@ export function CrateDetailView({
             Tracks <span className="normal-case text-muted/70">— tap the tag icon to categorize a song</span>
             <NewBadge />
           </p>
-          <div className="max-h-96 overflow-y-auto rounded-xl border border-white/8">
+          <div className="max-h-96 overflow-y-auto rounded-xl border border-black/8">
             {crate.paths.map((p, i) => {
               const isPlaying = player.isPlaying(p);
               return (
-                <div key={`${p}-${i}`} className="flex items-center gap-2 border-b border-white/5 px-3 py-2 text-sm last:border-0 hover:bg-white/5">
+                <div key={`${p}-${i}`} className="flex items-center gap-2 border-b border-black/5 px-3 py-2 text-sm last:border-0 hover:bg-black/5">
                   <button
                     onClick={() => togglePreview(p)}
-                    className="flex size-7 shrink-0 items-center justify-center rounded-full border border-white/12 text-muted hover:border-gold/40 hover:text-gold"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full border border-black/12 text-muted hover:border-gold/40 hover:text-gold"
                     title="Preview"
                   >
                     {isPlaying ? <Pause size={12} /> : <Play size={12} />}
@@ -270,7 +270,7 @@ export function CrateDetailView({
                   <span className="min-w-0 flex-1 truncate">{trackLabel(p)}</span>
                   <button
                     onClick={() => setTaggingPath(p)}
-                    className="flex size-7 shrink-0 items-center justify-center rounded-full border border-white/12 text-muted hover:border-gold/40 hover:text-gold"
+                    className="flex size-7 shrink-0 items-center justify-center rounded-full border border-black/12 text-muted hover:border-gold/40 hover:text-gold"
                     title="Tag Song"
                   >
                     <Tag size={12} />

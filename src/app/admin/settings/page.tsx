@@ -121,7 +121,7 @@ function ToggleRow({
   return (
     <button onClick={() => onChange(!checked)} className="flex items-center justify-between text-sm">
       <span>{label}</span>
-      <span className={`relative h-6 w-11 rounded-full transition-colors ${checked ? "bg-gold" : "bg-white/10"}`}>
+      <span className={`relative h-6 w-11 rounded-full transition-colors ${checked ? "bg-gold" : "bg-black/10"}`}>
         <span
           className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"}`}
         />

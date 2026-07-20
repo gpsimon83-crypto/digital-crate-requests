@@ -157,13 +157,13 @@ export default function DjBookingsPage() {
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="flex items-center justify-between border-b border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0))] px-6 py-4 sm:px-8">
-        <div className="flex items-center gap-3">
+      <header className="flex items-center justify-between border-b border-black/8 bg-[linear-gradient(180deg,rgba(33,31,26,0.015),rgba(255,255,255,0))] px-6 py-4 sm:px-8">
+        <Link href="/dj-dashboard" className="flex items-center gap-3">
           {!isAdmin && djName ? (
             <DjAvatar name={djName} photoUrl={djPhoto} size={38} />
           ) : (
             <span className="glow-ring">
-              <Logo variant="icon" color="gold" size={30} />
+              <Logo variant="icon" size={28} />
             </span>
           )}
           <div>
@@ -174,18 +174,18 @@ export default function DjBookingsPage() {
               {isAdmin ? "All Bookings" : "My Bookings"}
             </p>
           </div>
-        </div>
+        </Link>
         <div className="flex items-center gap-2">
           <Link
             href="/dj-dashboard/library"
-            className="flex items-center gap-1.5 rounded-full border border-white/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
+            className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
           >
             <Boxes size={14} /> Crate Builder
           </Link>
           {!isAdmin && (
             <Link
               href="/dj-dashboard/profile"
-              className="flex items-center gap-1.5 rounded-full border border-white/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
+              className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
             >
               <UserCircle size={14} /> My Profile
             </Link>
@@ -200,7 +200,7 @@ export default function DjBookingsPage() {
           )}
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 rounded-full border border-white/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-white/25 hover:text-foreground"
+            className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
           >
             <LogOut size={14} /> Sign Out
           </button>
@@ -228,14 +228,14 @@ export default function DjBookingsPage() {
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="Event title"
-                  className="w-full rounded-xl border border-white/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                  className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                 />
                 <div className="grid gap-3 sm:grid-cols-2">
                   <input
                     type="datetime-local"
                     value={newStartsAt}
                     onChange={(e) => setNewStartsAt(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                    className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                   />
                   <select
                     value={newVenueId}
@@ -246,7 +246,7 @@ export default function DjBookingsPage() {
                       }
                       setNewVenueId(e.target.value);
                     }}
-                    className="w-full rounded-xl border border-white/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                    className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                   >
                     <option value="">No venue</option>
                     {venues.map((v) => (
@@ -264,13 +264,13 @@ export default function DjBookingsPage() {
                       value={newVenueName}
                       onChange={(e) => setNewVenueName(e.target.value)}
                       placeholder="Venue name"
-                      className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                      className="w-full rounded-lg border border-black/10 bg-background px-3 py-2 text-sm focus:border-gold focus:outline-none"
                     />
                     <input
                       value={newVenueLocation}
                       onChange={(e) => setNewVenueLocation(e.target.value)}
                       placeholder="Location (city, state)"
-                      className="w-full rounded-lg border border-white/10 bg-background px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                      className="w-full rounded-lg border border-black/10 bg-background px-3 py-2 text-sm focus:border-gold focus:outline-none"
                     />
                     <div className="flex gap-2">
                       <button
@@ -282,7 +282,7 @@ export default function DjBookingsPage() {
                       </button>
                       <button
                         onClick={() => setAddingVenue(false)}
-                        className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-muted"
+                        className="rounded-full border border-black/15 px-3 py-1.5 text-xs text-muted"
                       >
                         Cancel
                       </button>
@@ -296,7 +296,7 @@ export default function DjBookingsPage() {
                   </NeonButton>
                   <button
                     onClick={() => setShowCreate(false)}
-                    className="rounded-full border border-white/15 px-4 py-2 text-xs text-muted hover:text-foreground"
+                    className="rounded-full border border-black/15 px-4 py-2 text-xs text-muted hover:text-foreground"
                   >
                     Cancel
                   </button>
@@ -363,7 +363,7 @@ function SectionHeading({ label, count }: { label: string; count: number }) {
   return (
     <div className="mb-4 flex items-center gap-2.5">
       <p className="text-sm font-semibold uppercase tracking-wide text-muted">{label}</p>
-      <span className="rounded-full border border-white/10 px-2 py-0.5 text-[11px] font-semibold text-gold">
+      <span className="rounded-full border border-black/10 px-2 py-0.5 text-[11px] font-semibold text-gold">
         {count}
       </span>
     </div>

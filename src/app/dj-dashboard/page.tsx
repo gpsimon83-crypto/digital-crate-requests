@@ -82,7 +82,7 @@ export default function DjPortalHomePage() {
             {djName && <DjAvatar name={djName} photoUrl={djPhoto} size={36} />}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-full border border-white/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-white/25 hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
             >
               <LogOut size={14} /> Sign Out
             </button>
@@ -90,8 +90,13 @@ export default function DjPortalHomePage() {
         }
       />
       <main className="mx-auto grid max-w-3xl grid-cols-1 gap-4 px-6 py-10 sm:grid-cols-2 sm:px-8">
-        {tiles.map(({ href, label, desc, icon: Icon }) => (
-          <Link key={href} href={href}>
+        {tiles.map(({ href, label, desc, icon: Icon }, i) => (
+          <Link
+            key={href}
+            href={href}
+            style={{ "--menu-fade-delay": `${i * 60}ms` } as React.CSSProperties}
+            className="menu-fade-item"
+          >
             <GlassCard neon className="flex h-full flex-col gap-3 transition-transform hover:-translate-y-0.5">
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold/15 text-gold">
                 <Icon size={20} />

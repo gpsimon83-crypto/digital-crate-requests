@@ -32,7 +32,7 @@ export function EventQrCode({ eventCode }: { eventCode: string }) {
       <div className="flex shrink-0 gap-2">
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-xs text-muted hover:text-foreground"
+          className="flex items-center gap-1.5 rounded-full border border-black/15 px-4 py-2 text-xs text-muted hover:text-foreground"
         >
           {copied ? <Check size={14} className="text-status-approved" /> : <Copy size={14} />}
           {copied ? "Copied" : "Copy Link"}
@@ -40,7 +40,7 @@ export function EventQrCode({ eventCode }: { eventCode: string }) {
         <a
           href={qrSrc}
           download={`crate-requests-${eventCode}.png`}
-          className="flex items-center gap-1.5 rounded-full border border-white/15 px-4 py-2 text-xs text-muted hover:text-foreground"
+          className="flex items-center gap-1.5 rounded-full border border-black/15 px-4 py-2 text-xs text-muted hover:text-foreground"
         >
           <Download size={14} />
           Download

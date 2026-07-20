@@ -30,23 +30,24 @@ export function AdminSidebarNav() {
   }
 
   return (
-    <nav className="hidden w-60 shrink-0 flex-col gap-1 border-r border-white/10 bg-panel/60 p-4 md:flex">
-      <div className="mb-4 flex items-center gap-2 px-2">
-        <Logo variant="icon" color="white" size={26} />
+    <nav className="hidden w-60 shrink-0 flex-col gap-1 border-r border-black/10 bg-panel/60 p-4 md:flex">
+      <Link href="/admin" className="mb-4 flex items-center gap-2 px-2">
+        <Logo variant="icon" size={28} />
         <div>
           <p className="text-[10px] uppercase tracking-[2px] text-muted">Digital Crate DJs</p>
           <p className="text-sm font-semibold">Admin</p>
         </div>
-      </div>
-      {ITEMS.map(({ href, label, icon: Icon }) => {
+      </Link>
+      {ITEMS.map(({ href, label, icon: Icon }, i) => {
         const active = pathname === href;
         return (
           <Link
             key={href}
             href={href}
+            style={{ "--menu-fade-delay": `${i * 40}ms` } as React.CSSProperties}
             className={cn(
-              "flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
-              active ? "sidebar-active" : "text-muted hover:bg-white/5 hover:text-foreground"
+              "menu-fade-item flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
+              active ? "sidebar-active" : "text-muted hover:bg-black/5 hover:text-foreground"
             )}
           >
             <Icon size={18} />
@@ -55,32 +56,36 @@ export function AdminSidebarNav() {
         );
       })}
 
-      <div className="my-2 h-px bg-white/10" />
+      <div className="my-2 h-px bg-black/10" />
 
       <a
         href="https://digitalcratedjs.com/members"
-        className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-white/5 hover:text-foreground"
+        style={{ "--menu-fade-delay": `${ITEMS.length * 40}ms` } as React.CSSProperties}
+        className="menu-fade-item flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
         <ArrowLeft size={18} />
         DJ Portal
       </a>
       <Link
         href="/dj-dashboard/bookings"
-        className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-white/5 hover:text-foreground"
+        style={{ "--menu-fade-delay": `${(ITEMS.length + 1) * 40}ms` } as React.CSSProperties}
+        className="menu-fade-item flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
         <ListMusic size={18} />
         All Bookings
       </Link>
       <Link
         href="/analytics"
-        className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-white/5 hover:text-foreground"
+        style={{ "--menu-fade-delay": `${(ITEMS.length + 2) * 40}ms` } as React.CSSProperties}
+        className="menu-fade-item flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
         <BarChart3 size={18} />
         Analytics
       </Link>
       <button
         onClick={handleLogout}
-        className="flex items-center gap-3 rounded-full px-4 py-2.5 text-left text-sm font-medium text-muted transition-colors hover:bg-white/5 hover:text-foreground"
+        style={{ "--menu-fade-delay": `${(ITEMS.length + 3) * 40}ms` } as React.CSSProperties}
+        className="menu-fade-item flex items-center gap-3 rounded-full px-4 py-2.5 text-left text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
         <LogOut size={18} />
         Sign Out

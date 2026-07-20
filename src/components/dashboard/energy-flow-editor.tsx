@@ -164,7 +164,7 @@ export function EnergyFlowEditor({
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {!showCompare && (
-            <button onClick={suggestOrder} className="flex items-center gap-1.5 rounded-full border border-white/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold">
+            <button onClick={suggestOrder} className="flex items-center gap-1.5 rounded-full border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold">
               <Wand2 size={13} /> Suggest Energy Order
             </button>
           )}
@@ -173,13 +173,13 @@ export function EnergyFlowEditor({
               <button onClick={applySuggested} className="flex items-center gap-1.5 rounded-full bg-gold px-3 py-1.5 text-xs font-bold text-black">
                 <Check size={13} /> Apply Suggested Order
               </button>
-              <button onClick={() => setSuggested(null)} className="rounded-full border border-white/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-white/25 hover:text-foreground">
+              <button onClick={() => setSuggested(null)} className="rounded-full border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-black/25 hover:text-foreground">
                 Keep Manual Order
               </button>
             </>
           )}
           {previous && !showCompare && (
-            <button onClick={undo} className="flex items-center gap-1.5 rounded-full border border-white/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-status-declined/60 hover:text-status-declined">
+            <button onClick={undo} className="flex items-center gap-1.5 rounded-full border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-status-declined/60 hover:text-status-declined">
               <Undo2 size={13} /> Undo
             </button>
           )}
@@ -213,7 +213,7 @@ export function EnergyFlowEditor({
                     if (key) moveTrack(key, sec, null);
                     setDragKey(null);
                   }}
-                  className="rounded-lg border border-white/8 bg-panel/30 p-2"
+                  className="rounded-lg border border-black/8 bg-panel/30 p-2"
                 >
                   <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted">
                     {sec} <span className="normal-case text-muted/60">({col.data[sec].length})</span>
@@ -238,7 +238,7 @@ export function EnergyFlowEditor({
                             if (droppedKey && droppedKey !== key) moveTrack(droppedKey, sec, key);
                             setDragKey(null);
                           }}
-                          className={`flex items-center gap-1.5 rounded-md border border-white/8 bg-panel/60 px-2 py-1 text-xs ${
+                          className={`flex items-center gap-1.5 rounded-md border border-black/8 bg-panel/60 px-2 py-1 text-xs ${
                             !col.readOnly ? "cursor-grab active:cursor-grabbing" : ""
                           } ${dragKey === key ? "opacity-40" : ""}`}
                         >

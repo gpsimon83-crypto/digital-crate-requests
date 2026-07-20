@@ -57,21 +57,21 @@ export default function AnalyticsPage() {
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="flex items-center justify-between border-b border-white/10 px-6 py-4">
-        <div className="flex items-center gap-2">
-          <Logo variant="icon" color="white" size={26} />
+      <header className="flex items-center justify-between border-b border-black/10 px-6 py-4">
+        <Link href="/admin" className="flex items-center gap-2">
+          <Logo variant="icon" size={28} />
           <div>
             <p className="text-[10px] uppercase tracking-[2px] text-muted">Digital Crate DJs</p>
             <p className="text-sm font-semibold">Analytics</p>
           </div>
-        </div>
+        </Link>
         <div className="flex items-center gap-2">
-          <Link href="/admin" className="rounded-full border border-white/15 px-3 py-1.5 text-xs text-muted hover:text-foreground">
+          <Link href="/admin" className="rounded-full border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground">
             Admin Panel
           </Link>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 rounded-full border border-white/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
+            className="flex items-center gap-1.5 rounded-full border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
           >
             <LogOut size={13} /> Sign Out
           </button>

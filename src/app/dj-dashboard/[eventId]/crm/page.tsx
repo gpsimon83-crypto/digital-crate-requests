@@ -66,7 +66,7 @@ export default function GuestCrmPage({ params }: { params: Promise<{ eventId: st
               </p>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {c.favoriteGenres.map((g) => (
-                  <span key={g} className="rounded-full border border-white/10 px-2 py-0.5 text-[10px] text-muted">
+                  <span key={g} className="rounded-full border border-black/10 px-2 py-0.5 text-[10px] text-muted">
                     {g}
                   </span>
                 ))}

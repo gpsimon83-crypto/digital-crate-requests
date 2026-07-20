@@ -30,7 +30,7 @@ export function ExpandableChip({
       className={`flex flex-col rounded-lg border transition-all duration-300 ${
         isOpen
           ? "col-span-full border-gold/40 bg-panel/70 shadow-lg shadow-black/30"
-          : "border-white/8 bg-panel/40 hover:bg-white/5"
+          : "border-black/8 bg-panel/40 hover:bg-black/5"
       } ${dimmed ? "opacity-30" : "opacity-100"}`}
     >
       <button
@@ -48,7 +48,7 @@ export function ExpandableChip({
       </button>
 
       {isOpen && (
-        <div className="max-h-96 overflow-y-auto border-t border-white/8 px-4 py-3">
+        <div className="max-h-96 overflow-y-auto border-t border-black/8 px-4 py-3">
           {tracks.length === 0 ? (
             <p className="text-xs text-muted">No tracks.</p>
           ) : (

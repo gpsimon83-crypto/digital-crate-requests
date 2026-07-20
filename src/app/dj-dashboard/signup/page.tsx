@@ -62,24 +62,24 @@ export default function SignupPage() {
       <div className="gl-card-wrap">
         <div className="gl-card">
           <div className="mb-7 flex flex-col items-center gap-3 text-center">
-            <Logo variant="full" color="gold" size={44} />
+            <Logo variant="icon" size={52} />
             <div>
-              <h1 className="text-xl font-bold text-white">DJ Sign Up</h1>
-              <p className="mt-1 text-xs text-[#9299A3]">
+              <h1 className="text-xl font-bold text-foreground">DJ Sign Up</h1>
+              <p className="mt-1 text-xs text-muted">
                 {checking ? "Checking availability..." : "Enter your invite code to create your account."}
               </p>
             </div>
           </div>
 
           {!checking && !enabled ? (
-            <p className="text-center text-xs text-[#9299A3]">
+            <p className="text-center text-xs text-muted">
               Self-registration is currently closed. Ask your Digital Crate DJs admin to set up your account
               instead.
             </p>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-[#8a8f98]">
+                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                   Invite Code
                 </span>
                 <div className="gl-input-wrap">
@@ -97,7 +97,7 @@ export default function SignupPage() {
               </label>
 
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-[#8a8f98]">
+                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                   DJ Name
                 </span>
                 <div className="gl-input-wrap">
@@ -114,7 +114,7 @@ export default function SignupPage() {
               </label>
 
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-[#8a8f98]">
+                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                   Email Address
                 </span>
                 <div className="gl-input-wrap">
@@ -131,7 +131,7 @@ export default function SignupPage() {
               </label>
 
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-[#8a8f98]">
+                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                   Password
                 </span>
                 <div className="gl-input-wrap">
@@ -167,7 +167,7 @@ export default function SignupPage() {
 
           <Link
             href="/dj-dashboard/login"
-            className="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-[#8a8f98] hover:text-[#d6a84b]"
+            className="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-muted hover:text-gold"
           >
             <ArrowLeft size={12} /> Back to login
           </Link>

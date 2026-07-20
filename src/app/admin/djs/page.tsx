@@ -192,7 +192,7 @@ export default function AdminDjsPage() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="DJ Example"
-              className="w-full rounded-xl border border-white/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <NeonButton color="gold" onClick={handleAdd} disabled={adding} className="shrink-0">
@@ -263,7 +263,7 @@ export default function AdminDjsPage() {
                       <input
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        className="rounded-lg border border-white/10 bg-panel px-3 py-1.5 text-sm focus:border-gold focus:outline-none"
+                        className="rounded-lg border border-black/10 bg-panel px-3 py-1.5 text-sm focus:border-gold focus:outline-none"
                         autoFocus
                       />
                       <button
@@ -275,7 +275,7 @@ export default function AdminDjsPage() {
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
-                        className="rounded-full border border-white/15 px-3 py-1 text-xs text-muted"
+                        className="rounded-full border border-black/15 px-3 py-1 text-xs text-muted"
                       >
                         Cancel
                       </button>
@@ -304,7 +304,7 @@ export default function AdminDjsPage() {
                 {!dj.auth_user_id && loginTarget !== dj.id && (
                   <button
                     onClick={() => setLoginTarget(dj.id)}
-                    className="w-fit rounded-full border border-white/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
+                    className="w-fit rounded-full border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
                   >
                     Create Login
                   </button>
@@ -318,7 +318,7 @@ export default function AdminDjsPage() {
                       setHeroDraft(mergeHeroSettings(dj.hero_settings));
                     }
                   }}
-                  className="w-fit rounded-full border border-white/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
+                  className="w-fit rounded-full border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
                 >
                   Hero Settings
                 </button>
@@ -340,7 +340,7 @@ export default function AdminDjsPage() {
                     <NeonButton color="gold" onClick={() => handleSaveHero(dj.id)} disabled={savingId === dj.id} className="px-4 py-2 text-xs">
                       {savingId === dj.id ? "Saving..." : "Save"}
                     </NeonButton>
-                    <button onClick={() => setHeroTarget(null)} className="rounded-full border border-white/15 px-4 py-2 text-xs text-muted">
+                    <button onClick={() => setHeroTarget(null)} className="rounded-full border border-black/15 px-4 py-2 text-xs text-muted">
                       Cancel
                     </button>
                   </div>
@@ -354,7 +354,7 @@ export default function AdminDjsPage() {
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="dj@email.com"
-                    className="flex-1 rounded-xl border border-white/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
+                    className="flex-1 rounded-xl border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
                   />
                   <NeonButton
                     color="gold"

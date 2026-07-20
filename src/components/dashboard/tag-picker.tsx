@@ -33,7 +33,7 @@ export function TagPicker({
             className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
               active
                 ? "border-gold bg-gold/15 text-gold"
-                : "border-white/12 text-muted hover:border-white/25 hover:text-foreground"
+                : "border-black/12 text-muted hover:border-black/25 hover:text-foreground"
             }`}
           >
             {option}

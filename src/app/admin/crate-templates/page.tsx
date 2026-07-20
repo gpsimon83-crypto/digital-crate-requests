@@ -117,7 +117,7 @@ export default function AdminCrateTemplatesPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Wedding Reception"
-                className="w-full rounded-xl border border-white/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
               />
             </label>
             <label className="block">
@@ -125,7 +125,7 @@ export default function AdminCrateTemplatesPage() {
               <select
                 value={eventType}
                 onChange={(e) => setEventType(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
               >
                 <option value="">None</option>
                 {EVENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -138,7 +138,7 @@ export default function AdminCrateTemplatesPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Short description"
-              className="w-full rounded-xl border border-white/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <label className="block">
@@ -146,7 +146,7 @@ export default function AdminCrateTemplatesPage() {
             <select
               value={cleanRequirement}
               onChange={(e) => setCleanRequirement(e.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             >
               <option value="">None</option>
               {CLEAN_MUSIC_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}

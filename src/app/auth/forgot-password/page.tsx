@@ -38,10 +38,10 @@ export default function ForgotPasswordPage() {
       <div className="gl-card-wrap">
         <div className="gl-card">
           <div className="mb-7 flex flex-col items-center gap-3 text-center">
-            <Logo variant="full" color="gold" size={44} />
+            <Logo variant="icon" size={52} />
             <div>
-              <h1 className="text-xl font-bold text-white">Reset Password</h1>
-              <p className="mt-1 text-xs text-[#9299A3]">
+              <h1 className="text-xl font-bold text-foreground">Reset Password</h1>
+              <p className="mt-1 text-xs text-muted">
                 {sent ? "Check your inbox for a reset link." : "We'll email you a link to set a new password."}
               </p>
             </div>
@@ -50,14 +50,14 @@ export default function ForgotPasswordPage() {
           {sent ? (
             <div className="flex flex-col items-center gap-3 py-2 text-center">
               <CheckCircle2 size={32} className="text-status-approved" />
-              <p className="text-xs text-[#9299A3]">
-                Sent to <span className="text-white">{email}</span>. Click the link there to choose a new password.
+              <p className="text-xs text-muted">
+                Sent to <span className="text-foreground">{email}</span>. Click the link there to choose a new password.
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
               <label className="block">
-                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-[#8a8f98]">
+                <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                   Email Address
                 </span>
                 <div className="gl-input-wrap">
@@ -84,7 +84,7 @@ export default function ForgotPasswordPage() {
 
           <Link
             href="/dj-dashboard/login"
-            className="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-[#8a8f98] hover:text-[#d6a84b]"
+            className="mt-6 flex items-center justify-center gap-1.5 text-[11px] text-muted hover:text-gold"
           >
             <ArrowLeft size={12} /> Back to login
           </Link>

@@ -1,16 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0A0A0A;
-  --card: #161616;
-  --panel: #1C1C1C;
-  --foreground: #FFFFFF;
-  --muted: #9B9B9B;
+  /* Warm cream/white theme mirroring the WordPress DJ Members Portal
+     (page-members.php's .tab-panel light-mode tokens), so the two apps
+     feel like one product instead of a dark tool + a light one. */
+  --background: #F7F4EE;
+  --card: #FFFFFF;
+  --panel: #F1EEE6;
+  --foreground: #211F1A;
+  --muted: #7A7669;
+  --border: #E6E1D5;
 
-  /* Brand gold — single accent color across the app */
-  --gold: #F0B94A;
-  --gold-light: #F7CE7C;
-  --gold-dim: #B98A2E;
+  /* Brand gold — sampled directly from the Crate Request logo (public/brand/crate-request-logo.png) */
+  --gold: #BA8B4B;
+  --gold-light: #D6B993;
+  --gold-dim: #795A31;
+  --gold-soft: #F3E9D8;
 
   /* Status colors — used only for request/payment status pills */
   --status-pending: #F2994A;
@@ -34,10 +39,12 @@
   --color-panel: var(--panel);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
+  --color-border: var(--border);
 
   --color-gold: var(--gold);
   --color-gold-light: var(--gold-light);
   --color-gold-dim: var(--gold-dim);
+  --color-gold-soft: var(--gold-soft);
 
   --color-status-pending: var(--status-pending);
   --color-status-approved: var(--status-approved);
@@ -57,7 +64,7 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
@@ -67,14 +74,14 @@ body {
 
 /* Card */
 .glass-card {
-  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0) 45%), var(--card);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(33,31,26,0.015), rgba(33,31,26,0) 45%), var(--card);
+  border: 1px solid var(--border);
   border-radius: 1.25rem;
-  box-shadow: 0 1px 0 0 rgba(255,255,255,0.05) inset, 0 10px 28px -14px rgba(0,0,0,0.7);
+  box-shadow: 0 1px 2px rgba(33,31,26,0.04), 0 10px 24px -16px rgba(33,31,26,0.12);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .glass-card:hover {
-  border-color: rgba(240, 185, 74, 0.18);
+  border-color: rgba(186, 139, 75, 0.35);
 }
 
 /* Gold-outlined emphasis card */
@@ -82,30 +89,26 @@ body {
   position: relative;
   border-radius: 1.25rem;
   padding: 1px;
-  background: linear-gradient(155deg, var(--gold), var(--gold-dim) 55%, rgba(255,255,255,0.06));
-  box-shadow: 0 12px 32px -16px rgba(240, 185, 74, 0.35);
+  background: linear-gradient(155deg, var(--gold), var(--gold-dim) 55%, var(--border));
 }
 .neon-border > * {
   border-radius: calc(1.25rem - 1px);
-  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0) 40%), var(--card);
+  background: var(--card);
 }
 
-/* Premium hero surface — matte black with a soft gold radial glow, for Party Pulse-style hero cards */
+/* Hero surface — flat warm cream card, for Party Pulse-style hero cards */
 .hero-surface {
   position: relative;
   border-radius: 1.5rem;
   overflow: hidden;
-  border: 1px solid rgba(240, 185, 74, 0.16);
-  background:
-    radial-gradient(120% 140% at 85% 0%, rgba(240, 185, 74, 0.16), transparent 60%),
-    radial-gradient(80% 100% at 10% 100%, rgba(240, 185, 74, 0.08), transparent 55%),
-    linear-gradient(160deg, #1a1610 0%, #0d0d0d 55%, #0a0a0a 100%);
-  box-shadow: 0 20px 60px -24px rgba(0,0,0,0.8), inset 0 1px 0 0 rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  background: #FBF9F4;
 }
 
-/* Soft gold glow ring, used behind circular meters/icons */
+/* Kept as a no-op class (existing markup references it) — the glow was
+   removed per feedback in favor of a flatter, cleaner look. */
 .glow-ring {
-  filter: drop-shadow(0 0 18px rgba(240, 185, 74, 0.45));
+  filter: none;
 }
 
 .gold-text-gradient {
@@ -126,9 +129,8 @@ body {
   transform: scale(0.97);
 }
 
-/* Solid gold CTA gets a soft lift shadow to read as "premium," not flat */
 .btn-gold-solid {
-  box-shadow: 0 6px 16px -6px rgba(240, 185, 74, 0.45);
+  box-shadow: none;
 }
 
 /* Solid-fill status badges (matches reference: filled pill, dark bold text) */
@@ -150,12 +152,11 @@ body {
 .status-badge.declined { background: var(--status-declined); color: #fff; }
 .status-badge.paid { background: var(--gold); }
 
-/* Sidebar active pill (gold fill, dark text/icon) */
+/* Sidebar active pill (flat gold fill, dark text/icon) */
 .sidebar-active {
-  background: linear-gradient(155deg, var(--gold-light), var(--gold) 65%);
+  background: var(--gold);
   color: #0A0A0A !important;
   font-weight: 600;
-  box-shadow: 0 8px 20px -8px rgba(240, 185, 74, 0.5);
 }
 .sidebar-active svg { color: #0A0A0A; }
 
@@ -197,12 +198,30 @@ body {
 }
 
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-thumb { background: var(--panel); border-radius: 4px; }
+::-webkit-scrollbar-thumb { background: rgba(122,118,105,0.35); border-radius: 4px; }
 
-/* ── DJ Login: Graphite + Liquid Gold ──
-   Visual-only design system for the DJ login screen. Colors are scoped to
-   this page (not merged into the app-wide --gold tokens above) since this
-   is a deliberately distinct "cockpit" material, not the general brand gold. */
+/* Menu items fade in on mount instead of appearing instantly — apply
+   with an incrementing --menu-fade-delay (in ms) per item for a cascade. */
+@keyframes menu-fade-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.menu-fade-item {
+  opacity: 0;
+  animation: menu-fade-in 0.35s ease forwards;
+  animation-delay: var(--menu-fade-delay, 0ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-fade-item { animation: none; opacity: 1; }
+}
+
+/* ── DJ Login: clean, flat, warm-light (matches the rest of the app) ──
+   Previously a dark "Graphite + Liquid Gold" cockpit with grain texture,
+   a drifting blurred glow, and an animated conic sweep border — replaced
+   with a plain white card on the same cream background as everywhere
+   else, per explicit feedback: no glow, keep it clean. .gl-grain and
+   .gl-glow are kept as no-op classes since existing pages still render
+   those divs; they just no longer draw anything. */
 .gl-page {
   position: relative;
   min-height: 100dvh;
@@ -211,69 +230,23 @@ body {
   justify-content: center;
   overflow: hidden;
   padding: 1.5rem;
-  background:
-    radial-gradient(120% 90% at 50% 6%, rgba(214, 168, 75, 0.12), transparent 55%),
-    radial-gradient(90% 70% at 12% 105%, rgba(143, 100, 30, 0.10), transparent 60%),
-    radial-gradient(70% 60% at 92% 92%, rgba(255, 217, 120, 0.07), transparent 60%),
-    linear-gradient(160deg, #101216 0%, #171a1f 45%, #0d0f13 75%, #090a0c 100%);
+  background: var(--background);
 }
-.gl-grain {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.5;
-  mix-blend-mode: overlay;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='matrix' values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.025 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
-}
-.gl-glow {
-  position: absolute;
-  width: 640px;
-  height: 640px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 217, 120, 0.26) 0%, rgba(214, 168, 75, 0.13) 38%, transparent 70%);
-  filter: blur(70px);
-  pointer-events: none;
-  animation: gl-drift 11s ease-in-out infinite alternate;
-}
-@keyframes gl-drift {
-  0% { transform: translate(-6%, -5%) scale(1); }
-  100% { transform: translate(6%, 5%) scale(1.07); }
-}
+.gl-grain { display: none; }
+.gl-glow { display: none; }
 
 .gl-card-wrap {
   position: relative;
   z-index: 1;
   border-radius: 1.75rem;
-  padding: 1px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.02) 40%, rgba(255, 255, 255, 0.06));
-  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.85);
-}
-.gl-card-wrap::after {
-  content: '';
-  position: absolute;
-  inset: -1px;
-  border-radius: inherit;
-  padding: 1px;
-  background: conic-gradient(from 200deg at 50% 0%, transparent 0deg, rgba(255, 217, 120, 0.95) 25deg, transparent 60deg, transparent 360deg);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  animation: gl-sweep 8s ease-in-out infinite;
-  pointer-events: none;
-}
-@keyframes gl-sweep {
-  0%, 15% { transform: rotate(0deg); opacity: 0; }
-  30% { opacity: 0.9; }
-  50% { opacity: 0.15; }
-  58%, 100% { transform: rotate(360deg); opacity: 0; }
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(33,31,26,0.04), 0 10px 24px -16px rgba(33,31,26,0.12);
 }
 
 .gl-card {
   position: relative;
   border-radius: calc(1.75rem - 1px);
-  background: rgba(20, 23, 28, 0.72);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
+  background: var(--card);
   padding: 2.5rem 2.25rem;
   width: 100%;
   max-width: 380px;
@@ -287,30 +260,30 @@ body {
 .gl-input-wrap > svg:first-child {
   position: absolute;
   left: 14px;
-  color: #8a8f98;
+  color: var(--muted);
   pointer-events: none;
 }
 .gl-input {
   width: 100%;
   border-radius: 0.9rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  background: var(--panel);
   padding: 0.85rem 2.75rem 0.85rem 2.75rem;
   font-size: 0.875rem;
-  color: #f2f2f2;
+  color: var(--foreground);
   transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
-.gl-input::placeholder { color: #6b7078; }
+.gl-input::placeholder { color: var(--muted); }
 .gl-input:focus {
   outline: none;
-  border-color: rgba(214, 168, 75, 0.55);
-  background: rgba(255, 255, 255, 0.045);
-  box-shadow: 0 0 0 3px rgba(214, 168, 75, 0.12);
+  border-color: var(--gold);
+  background: var(--card);
+  box-shadow: 0 0 0 3px rgba(186, 139, 75, 0.15);
 }
 .gl-eye-btn {
   position: absolute;
   right: 10px;
-  color: #8a8f98;
+  color: var(--muted);
   background: none;
   border: none;
   cursor: pointer;
@@ -318,7 +291,7 @@ body {
   align-items: center;
   padding: 6px;
 }
-.gl-eye-btn:hover { color: #d6a84b; }
+.gl-eye-btn:hover { color: var(--gold); }
 
 .gl-submit {
   width: 100%;
@@ -330,8 +303,7 @@ body {
   color: #14100a;
   border: none;
   cursor: pointer;
-  background: linear-gradient(135deg, #ffd978 0%, #d6a84b 55%, #8f641e 100%);
-  box-shadow: 0 10px 28px -10px rgba(214, 168, 75, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  background: var(--gold);
   transition: filter 0.15s ease, transform 0.15s ease;
   display: flex;
   align-items: center;

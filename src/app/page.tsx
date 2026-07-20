@@ -25,16 +25,10 @@ export default function Home() {
   return (
     <div className="min-h-dvh bg-background">
       <main className="mx-auto flex max-w-3xl flex-col items-center gap-10 px-6 py-16 text-center sm:px-8">
-        <div className="hero-surface flex w-full flex-col items-center gap-4 px-6 py-14 sm:px-10">
+        <div className="hero-surface flex w-full flex-col items-center gap-6 px-6 py-16 sm:px-10">
           <span className="glow-ring">
-            <Logo variant="full" color="gold" size={64} />
+            <Logo variant="full" size={230} className="w-[220px] sm:w-[276px]" />
           </span>
-          <h1 className="max-w-xl text-3xl font-extrabold leading-tight sm:text-4xl">
-            Digital Crate Requests<sup className="text-lg">™</sup>
-          </h1>
-          <p className="gold-text-gradient text-sm font-semibold uppercase tracking-[3px]">
-            Request. Tip. Vote. Connect.
-          </p>
           <p className="max-w-md text-sm text-muted">
             At your Digital Crate DJs event, scan the QR code on display to request songs, tip your DJ, and vote
             on what plays next — straight from your phone.
@@ -53,7 +47,7 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="flex w-full flex-col items-center gap-3 border-t border-white/8 pt-8">
+        <div className="flex w-full flex-col items-center gap-3 border-t border-black/8 pt-8">
           <p className="text-xs text-muted">Are you a Digital Crate DJ or staff member?</p>
           <Link
             href="/dj-dashboard/login"

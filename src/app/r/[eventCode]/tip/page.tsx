@@ -75,7 +75,7 @@ export default function TipDjPage({
               className={`rounded-xl border py-4 text-lg font-bold transition-colors min-h-[56px] ${
                 selectedCents === cents
                   ? "border-gold bg-gold/10 text-gold"
-                  : "border-white/10 bg-panel hover:border-gold hover:text-gold"
+                  : "border-black/10 bg-panel hover:border-gold hover:text-gold"
               }`}
             >
               ${(cents / 100).toFixed(0)}
@@ -96,7 +96,7 @@ export default function TipDjPage({
                 setSelectedCents(null);
               }}
               placeholder="$0.00"
-              className="w-full rounded-xl border border-white/10 bg-panel px-4 py-3 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
+              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-3 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
             />
           </label>
         )}
@@ -109,7 +109,7 @@ export default function TipDjPage({
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={config.tipSettings.suggestedMessages[0] ?? "Great set tonight!"}
-            className="w-full rounded-xl border border-white/10 bg-panel px-4 py-3 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
+            className="w-full rounded-xl border border-black/10 bg-panel px-4 py-3 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
           />
         </label>
       </GlassCard>

@@ -1,9 +1,15 @@
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
+/**
+ * The `color` prop is kept for backward compatibility with existing call
+ * sites, but the current brand mark (public/brand/crate-request-logo.png)
+ * is a single fixed-color asset (brass gold + near-black, transparent
+ * background) rather than the old per-theme gold/white/black variants, so
+ * it's a no-op now.
+ */
 export function Logo({
   variant = "full",
-  color = "gold",
   size = 32,
   className,
 }: {
@@ -12,16 +18,13 @@ export function Logo({
   size?: number;
   className?: string;
 }) {
-  const src =
-    variant === "icon"
-      ? `/brand/wing-icon-${color}.png`
-      : `/brand/wing-logo-${color}.png`;
-  const aspect = variant === "icon" ? 800 / 400 : 839 / 600;
+  const src = variant === "icon" ? "/brand/crate-request-icon.png" : "/brand/crate-request-logo.png";
+  const aspect = variant === "icon" ? 330 / 250 : 881 / 765;
 
   return (
     <Image
       src={src}
-      alt="Digital Crate DJs"
+      alt="Crate Request"
       width={Math.round(size * aspect)}
       height={size}
       className={cn("object-contain", className)}

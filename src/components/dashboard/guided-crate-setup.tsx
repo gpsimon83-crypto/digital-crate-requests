@@ -147,7 +147,7 @@ export function GuidedCrateSetup({
               <input
                 value={setup.crateName}
                 onChange={(e) => update({ crateName: e.target.value })}
-                className="w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-xl border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
               />
             </label>
             <label className="block">
@@ -155,7 +155,7 @@ export function GuidedCrateSetup({
               <select
                 value={setup.eventType}
                 onChange={(e) => update({ eventType: e.target.value })}
-                className="w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-xl border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
               >
                 <option value="">Choose…</option>
                 {EVENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -166,7 +166,7 @@ export function GuidedCrateSetup({
               <select
                 value={setup.venueId ?? ""}
                 onChange={(e) => update({ venueId: e.target.value || null })}
-                className="w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-xl border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
               >
                 <option value="">None</option>
                 {venues.map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
@@ -177,7 +177,7 @@ export function GuidedCrateSetup({
               <select
                 value={setup.crowdAgeRange}
                 onChange={(e) => update({ crowdAgeRange: e.target.value })}
-                className="w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-xl border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
               >
                 <option value="">Choose…</option>
                 {CROWD_AGE_RANGES.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -189,7 +189,7 @@ export function GuidedCrateSetup({
                 value={setup.expectedAttendance}
                 onChange={(e) => update({ expectedAttendance: e.target.value })}
                 placeholder="e.g. 150"
-                className="w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-xl border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
               />
             </label>
             <label className="block">
@@ -197,7 +197,7 @@ export function GuidedCrateSetup({
               <select
                 value={setup.cleanRequirement}
                 onChange={(e) => update({ cleanRequirement: e.target.value })}
-                className="w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-xl border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
               >
                 <option value="">Choose…</option>
                 {CLEAN_MUSIC_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -208,7 +208,7 @@ export function GuidedCrateSetup({
               <select
                 value={setup.desiredEnergy}
                 onChange={(e) => update({ desiredEnergy: e.target.value })}
-                className="w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-xl border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
               >
                 <option value="">Choose…</option>
                 {ENERGY_CHOICES.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -220,7 +220,7 @@ export function GuidedCrateSetup({
                 value={setup.crateSize}
                 onChange={(e) => update({ crateSize: e.target.value })}
                 placeholder="e.g. 60"
-                className="w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-xl border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
               />
             </label>
             <label className="block">
@@ -229,7 +229,7 @@ export function GuidedCrateSetup({
                 value={setup.eventDurationMinutes}
                 onChange={(e) => update({ eventDurationMinutes: e.target.value })}
                 placeholder="e.g. 240"
-                className="w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-xl border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
               />
             </label>
             {isStaff && (
@@ -238,7 +238,7 @@ export function GuidedCrateSetup({
                 <select
                   value={setup.assignedDjId ?? ""}
                   onChange={(e) => update({ assignedDjId: e.target.value || null })}
-                  className="w-full rounded-xl border border-white/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                  className="w-full rounded-xl border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
                 >
                   <option value="">Me</option>
                   {djs.map((d) => <option key={d.id} value={d.id}>{d.display_name}</option>)}
@@ -259,7 +259,7 @@ export function GuidedCrateSetup({
           <div className="flex items-center gap-2">
             <button
               onClick={() => onChange(null)}
-              className="rounded-full border border-white/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-white/25 hover:text-foreground"
+              className="rounded-full border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-black/25 hover:text-foreground"
             >
               Skip / Clear Guided Setup
             </button>

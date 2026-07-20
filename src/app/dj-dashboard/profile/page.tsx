@@ -14,7 +14,7 @@ function BackToBookings() {
   return (
     <Link
       href="/dj-dashboard/bookings"
-      className="flex items-center gap-1.5 rounded-full border border-white/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-white/25 hover:text-foreground"
+      className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
     >
       <ArrowLeft size={14} /> Back to Bookings
     </Link>
@@ -157,7 +157,7 @@ export default function DjProfilePage() {
                 className="h-full w-full"
                 style={{
                   background:
-                    "radial-gradient(120% 140% at 85% 0%, rgba(240,185,74,0.16), transparent 60%), linear-gradient(160deg, #1a1610 0%, #0d0d0d 55%, #0a0a0a 100%)",
+                    "radial-gradient(120% 140% at 85% 0%, rgba(186,139,75,0.16), transparent 60%), linear-gradient(160deg, #1a1610 0%, #0d0d0d 55%, #0a0a0a 100%)",
                 }}
               />
             )}
@@ -220,7 +220,7 @@ export default function DjProfilePage() {
             {saved && <span className="text-xs text-status-approved">Saved</span>}
             <button
               onClick={() => setSettings(DEFAULT_HERO_SETTINGS)}
-              className="ml-auto rounded-full border border-white/15 px-4 py-2 text-xs text-muted hover:text-foreground"
+              className="ml-auto rounded-full border border-black/15 px-4 py-2 text-xs text-muted hover:text-foreground"
             >
               Restore Default
             </button>

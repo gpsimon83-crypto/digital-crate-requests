@@ -48,27 +48,28 @@ export function SidebarNav() {
   ];
 
   return (
-    <nav className="hidden w-64 shrink-0 flex-col border-r border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0)_30%),var(--background)] p-4 md:flex">
-      <div className="mb-6 flex flex-col items-center gap-2 px-2 pt-2 pb-4 text-center">
+    <nav className="hidden w-64 shrink-0 flex-col border-r border-black/8 bg-[linear-gradient(180deg,rgba(33,31,26,0.015),rgba(255,255,255,0)_30%),var(--background)] p-4 md:flex">
+      <Link href="/dj-dashboard" className="mb-6 flex flex-col items-center gap-2 px-2 pt-2 pb-4 text-center">
         <span className="glow-ring">
-          <Logo variant="icon" color="gold" size={40} />
+          <Logo variant="icon" size={36} />
         </span>
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[3px] text-muted">Digital Crate DJs</p>
           <p className="gold-text-gradient text-lg font-extrabold tracking-tight">DJ Dashboard</p>
         </div>
-      </div>
+      </Link>
 
       <div className="flex flex-1 flex-col gap-1">
-        {items.map(({ href, label, icon: Icon }) => {
+        {items.map(({ href, label, icon: Icon }, i) => {
           const active = pathname === href;
           return (
             <Link
               key={href}
               href={href}
+              style={{ "--menu-fade-delay": `${i * 40}ms` } as React.CSSProperties}
               className={cn(
-                "flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
-                active ? "sidebar-active" : "text-muted hover:bg-white/5 hover:text-foreground"
+                "menu-fade-item flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
+                active ? "sidebar-active" : "text-muted hover:bg-black/5 hover:text-foreground"
               )}
             >
               <Icon size={18} />
@@ -80,13 +81,14 @@ export function SidebarNav() {
 
       <a
         href="https://digitalcratedjs.com/members"
-        className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-white/5 hover:text-foreground"
+        style={{ "--menu-fade-delay": `${items.length * 40}ms` } as React.CSSProperties}
+        className="menu-fade-item flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
         <ArrowLeft size={18} />
         DJ Portal
       </a>
 
-      <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-white/8 bg-panel/70 px-3 py-2.5">
+      <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-black/8 bg-panel/70 px-3 py-2.5">
         <DjAvatar name={djName} photoUrl={djPhoto} size={36} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{djName}</p>

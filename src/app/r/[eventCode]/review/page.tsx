@@ -107,7 +107,7 @@ export default function ReviewPayPage({
           <Row label="Song" value={artist ? `${songTitle} — ${artist}` : songTitle} />
         )}
         <Row label={isTip ? "Tip amount" : "Request fee"} value={`$${(amountCents / 100).toFixed(2)}`} />
-        <div className="h-px bg-white/10" />
+        <div className="h-px bg-black/10" />
         <Row label="Total" value={`$${(amountCents / 100).toFixed(2)}`} bold />
       </GlassCard>
 

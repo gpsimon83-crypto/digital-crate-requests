@@ -164,7 +164,7 @@ export function SuggestedSongs({
   }
 
   return (
-    <div className="rounded-xl border border-white/8 bg-panel/40">
+    <div className="rounded-xl border border-black/8 bg-panel/40">
       <button onClick={() => setExpanded((e) => !e)} className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left">
         <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
           <Lightbulb size={13} /> Suggested Songs <NewBadge />
@@ -173,7 +173,7 @@ export function SuggestedSongs({
       </button>
 
       {expanded && (
-        <div className="flex flex-col gap-4 border-t border-white/8 p-3">
+        <div className="flex flex-col gap-4 border-t border-black/8 p-3">
           {error && <p className="text-xs text-status-declined">{error}</p>}
 
           {buckets.length === 0 ? (
@@ -186,8 +186,8 @@ export function SuggestedSongs({
                   {bucket.items.map(({ track, reason }) => {
                     const isPlaying = player.isPlaying(track.key);
                     return (
-                      <div key={track.key} className="flex items-center gap-2 rounded-lg border border-white/8 bg-panel/30 px-2.5 py-2 text-xs">
-                        <button onClick={() => preview(track)} className="flex size-7 shrink-0 items-center justify-center rounded-full border border-white/12 text-muted hover:border-gold/40 hover:text-gold">
+                      <div key={track.key} className="flex items-center gap-2 rounded-lg border border-black/8 bg-panel/30 px-2.5 py-2 text-xs">
+                        <button onClick={() => preview(track)} className="flex size-7 shrink-0 items-center justify-center rounded-full border border-black/12 text-muted hover:border-gold/40 hover:text-gold">
                           {isPlaying ? <Pause size={12} /> : <Play size={12} />}
                         </button>
                         <div className="min-w-0 flex-1">

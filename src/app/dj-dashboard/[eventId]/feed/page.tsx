@@ -85,7 +85,7 @@ export default function LivePartyFeedPage({ params }: { params: Promise<{ eventI
           const Icon = meta.icon;
           return (
             <GlassCard key={f.id} className="flex items-center gap-3">
-              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/5 ${meta.color}`}>
+              <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/5 ${meta.color}`}>
                 <Icon size={16} />
               </span>
               <p className="flex-1 text-sm text-muted">{describeFeedEvent(f)}</p>

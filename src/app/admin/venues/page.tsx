@@ -79,7 +79,7 @@ export default function AdminVenuesPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Venue name"
-              className="w-full rounded-xl border border-white/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <label className="block flex-1">
@@ -88,7 +88,7 @@ export default function AdminVenuesPage() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="City, State"
-              className="w-full rounded-xl border border-white/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <NeonButton color="gold" onClick={handleAdd} disabled={adding} className="shrink-0">
