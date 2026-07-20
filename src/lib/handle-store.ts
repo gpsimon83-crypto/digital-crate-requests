@@ -38,8 +38,8 @@ export async function loadRootHandle(): Promise<FileSystemDirectoryHandle | null
   });
   if (!handle) return null;
 
-  const perm = await (handle as any).queryPermission({ mode: "readwrite" });
+  const perm = await handle.queryPermission({ mode: "readwrite" });
   if (perm === "granted") return handle;
-  const requested = await (handle as any).requestPermission({ mode: "readwrite" });
+  const requested = await handle.requestPermission({ mode: "readwrite" });
   return requested === "granted" ? handle : null;
 }

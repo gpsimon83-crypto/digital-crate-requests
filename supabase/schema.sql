@@ -206,3 +206,117 @@ begin
   return updated;
 end;
 $$;
+
+-- ============ CRATE BUILDER: shared track metadata cache ============
+-- Populated by the Crate Builder metadata agent (ID3 tags read client-side,
+-- gaps filled via Spotify search). Shared across DJs/computers so the same
+-- track is never re-looked-up twice. Keyed by a normalized "artist - title"
+-- string, not a track file, since the same song can live in many files.
+
+create table if not exists track_metadata (
+  key text primary key,
+  artist text,
+  title text,
+  genre text,
+  year int,
+  energy_tier text, -- 'warmup' | 'smooth' | 'moderate' | 'high_energy' | 'unknown'
+  energy_score int,  -- 0-100 heuristic estimate, not measured
+  source text not null default 'heuristic', -- 'id3' | 'spotify' | 'heuristic'
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_track_metadata_genre on track_metadata(genre);
+create index if not exists idx_track_metadata_year on track_metadata(year);
+
+-- ============ CRATE BUILDER: song tags (Phase 1) ============
+-- Flexible per-song tagging, keyed the same way as track_metadata (normalized
+-- "artist::title"), so a song's genre/era/function/etc. tags are shared
+-- across every DJ's drive that has that song, same as the existing ID3/
+-- Spotify metadata cache. No foreign key to track_metadata (a tag can be
+-- added before that row exists); same key format enforced by convention.
+
+create table if not exists track_tags (
+  id uuid primary key default uuid_generate_v4(),
+  track_key text not null,
+  tag_type text not null,   -- 'genre' | 'era' | 'song_function' | 'crowd_fit' | 'vocal_type' | 'content_rating' | 'crate_status'
+  tag_value text not null,
+  created_at timestamptz not null default now(),
+  unique (track_key, tag_type, tag_value)
+);
+
+create index if not exists idx_track_tags_key on track_tags(track_key);
+create index if not exists idx_track_tags_type_value on track_tags(tag_type, tag_value);
+
+-- ============ CRATE BUILDER: crate profiles (Phase 1) ============
+-- A crate's real track list always lives in the DJ's local .crate file.
+-- This table is a "shadow" record (matched by DJ + crate name) holding the
+-- new metadata layered on top: guided-setup answers, organization category,
+-- and Elite status/sharing. song_keys is a snapshot (artist/title keys) of
+-- what was in the crate at last save, used only for cross-DJ Elite Pack
+-- matching — never the source of truth for a DJ's own crate.
+
+create table if not exists crate_profiles (
+  id uuid primary key default uuid_generate_v4(),
+  dj_id uuid references djs(id) on delete cascade,
+  name text not null,               -- matches the local .crate filename, no extension
+  category text,                    -- Elite Crates | Event Crates | Genre Crates | Era Crates |
+                                     -- Energy Crates | Venue Crates | DJ Tool Crates |
+                                     -- Request-Based Crates | Seasonal Crates | Personal DJ Crates |
+                                     -- Shared Team Crates | Archived Crates
+  subcategory text,                 -- optional, e.g. "Warm-Up" under Energy Crates
+  is_elite boolean not null default false,
+  elite_category text,              -- e.g. "Elite Wedding Weapons"
+  elite_source text not null default 'dj_curated', -- 'dj_curated' | 'admin_curated' | 'system_suggested' (Phase 2)
+  is_shared boolean not null default false,         -- owner opted in to share with the team
+  guided_setup jsonb,               -- event_type, venue_id, crowd_age_range, clean_requirement,
+                                     -- preferred_genres[], preferred_eras[], desired_energy,
+                                     -- crate_size, event_duration_minutes, dj_id_assigned
+  song_keys jsonb not null default '[]', -- [{key, artist, title}], snapshot at last save
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (dj_id, name)
+);
+
+create index if not exists idx_crate_profiles_dj on crate_profiles(dj_id);
+create index if not exists idx_crate_profiles_category on crate_profiles(category);
+create index if not exists idx_crate_profiles_shared_elite on crate_profiles(is_elite, is_shared);
+
+-- ============ CRATE BUILDER: Phase 2 additions ============
+
+-- Energy Flow section assignment ([{key, section}] in order) and
+-- suggestion dismissals ("never suggest for this crate") layered onto the
+-- existing crate_profiles shadow record.
+alter table crate_profiles add column if not exists energy_sections jsonb not null default '[]';
+alter table crate_profiles add column if not exists dismissed_keys jsonb not null default '[]';
+
+-- Per-DJ private song ratings/performance notes, keyed the same way as
+-- track_tags (normalized "artist::title"). Not shared across DJs yet —
+-- visibility controls are a later phase.
+create table if not exists song_ratings (
+  id uuid primary key default uuid_generate_v4(),
+  dj_id uuid references djs(id) on delete cascade,
+  track_key text not null,
+  stars int,                 -- 1-5
+  crowd_reaction int,        -- 1-10
+  feedback_tags text[] not null default '{}', -- 'Strong Opener' | 'Overplayed' | 'Retire Song' | etc.
+  notes text,
+  updated_at timestamptz not null default now(),
+  unique (dj_id, track_key)
+);
+create index if not exists idx_song_ratings_dj on song_ratings(dj_id);
+
+-- Admin-manageable crate templates: recommended genre/era/energy balance
+-- to guide a new crate, never actual songs (no copyrighted content is
+-- auto-added by picking a template).
+create table if not exists crate_templates (
+  id uuid primary key default uuid_generate_v4(),
+  name text not null,
+  description text,
+  event_type text,
+  target_genres text[] not null default '{}',
+  target_eras text[] not null default '{}',
+  target_energy_distribution jsonb not null default '{}', -- {"Warm-Up":20,"Groove":30,"Peak":30,"Closing":20}
+  clean_requirement text,
+  active boolean not null default true,
+  created_at timestamptz not null default now()
+);

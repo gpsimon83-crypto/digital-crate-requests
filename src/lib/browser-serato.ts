@@ -50,7 +50,7 @@ export async function walkAudioFiles(
   const files: AudioFileEntry[] = [];
 
   async function walk(dir: FileSystemDirectoryHandle, path: string[], top: string | null) {
-    for await (const [name, handle] of (dir as any).entries()) {
+    for await (const [name, handle] of dir.entries()) {
       if (handle.kind === "directory") {
         if (DEFAULT_EXCLUDE_DIRS.has(name)) continue;
         await walk(handle as FileSystemDirectoryHandle, [...path, name], top ?? name);
@@ -188,7 +188,7 @@ export async function executeDedupe(
       const file = await item.move.handle.getFile();
       const destDir = await getOrCreateSubdir(quarantineRoot, item.move.path.slice(0, -1));
       const destHandle = await destDir.getFileHandle(item.move.path[item.move.path.length - 1], { create: true });
-      const writable = await (destHandle as any).createWritable();
+      const writable = await destHandle.createWritable();
       await writable.write(file);
       await writable.close();
       await removeFromDir(musicDirHandle, item.move.path);
@@ -200,6 +200,95 @@ export async function executeDedupe(
   }
 
   return { moved, errors };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Filename cleanup: strip leading track-number prefixes like "01. " / "01) "
+// / "01 - " so pool-tagged files read as clean "Artist - Song" names.
+// ─────────────────────────────────────────────────────────────────────────
+
+export interface RenamePlanItem {
+  file: AudioFileEntry;
+  oldName: string;
+  newName: string;
+}
+
+// Deliberately conservative: only strips a leading number followed by a
+// period, closing paren, underscore, or a space-dash-space — NOT a bare
+// space or a tight dash — so real artist names like "50 Cent" or
+// "3-6 Mafia" are never mistaken for a track-number prefix. Tried first,
+// against real files, so a compound "disc_track" prefix like "00_01 " is
+// fully stripped rather than leaving a residual "01 " behind.
+const COMPOUND_NUMBER_PREFIX = /^\d{1,3}[._]\d{1,3}\s+/;
+const TRACK_NUMBER_PREFIX = /^\d{1,3}(?:[.)_]|\s+-\s+)\s*/;
+
+function stripTrackNumberPrefix(stem: string): string | null {
+  if (COMPOUND_NUMBER_PREFIX.test(stem)) return stem.replace(COMPOUND_NUMBER_PREFIX, "").trim();
+  if (TRACK_NUMBER_PREFIX.test(stem)) return stem.replace(TRACK_NUMBER_PREFIX, "").trim();
+  return null;
+}
+
+export function planFilenameCleanup(files: AudioFileEntry[]): RenamePlanItem[] {
+  const plan: RenamePlanItem[] = [];
+  for (const f of files) {
+    const dot = f.name.lastIndexOf(".");
+    const ext = dot === -1 ? "" : f.name.slice(dot);
+    const stem = dot === -1 ? f.name : f.name.slice(0, dot);
+
+    const cleanedStem = stripTrackNumberPrefix(stem);
+    if (!cleanedStem) continue;
+    const newName = `${cleanedStem}${ext}`;
+    if (newName === f.name) continue;
+
+    plan.push({ file: f, oldName: f.name, newName });
+  }
+  return plan;
+}
+
+/** Renames each file in the plan (copy to the clean name, delete the
+ * original — File System Access API has no native rename). Skips any
+ * item whose clean name would collide with an existing file, rather
+ * than silently overwriting it. */
+export async function executeFilenameCleanup(
+  musicDirHandle: FileSystemDirectoryHandle,
+  plan: RenamePlanItem[],
+  onProgress?: (done: number, total: number) => void
+): Promise<{ renamed: number; errors: string[] }> {
+  let renamed = 0;
+  const errors: string[] = [];
+
+  for (const item of plan) {
+    try {
+      const parentSegs = item.file.path.slice(0, -1);
+      let dir = musicDirHandle;
+      for (const seg of parentSegs) dir = await dir.getDirectoryHandle(seg);
+
+      let collision = false;
+      try {
+        await dir.getFileHandle(item.newName);
+        collision = true;
+      } catch {
+        // doesn't exist yet — good
+      }
+      if (collision) {
+        errors.push(`${item.oldName}: "${item.newName}" already exists, skipped`);
+        continue;
+      }
+
+      const file = await item.file.handle.getFile();
+      const destHandle = await dir.getFileHandle(item.newName, { create: true });
+      const writable = await destHandle.createWritable();
+      await writable.write(file);
+      await writable.close();
+      await dir.removeEntry(item.oldName);
+      renamed++;
+    } catch (e) {
+      errors.push(`${item.oldName}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+    onProgress?.(renamed + errors.length, plan.length);
+  }
+
+  return { renamed, errors };
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -287,6 +376,7 @@ function concatBytes(chunks: Uint8Array[]): Uint8Array {
 export interface CrateRow {
   name: string;
   trackCount: number;
+  paths: string[];
   error: string | null;
 }
 
@@ -295,7 +385,7 @@ export async function listCrates(subcratesHandle: FileSystemDirectoryHandle): Pr
   const results: CrateRow[] = [];
 
   async function walk(dir: FileSystemDirectoryHandle, prefix: string[]) {
-    for await (const [name, handle] of (dir as any).entries()) {
+    for await (const [name, handle] of dir.entries()) {
       if (handle.kind === "directory") {
         await walk(handle as FileSystemDirectoryHandle, [...prefix, name]);
       } else if (name.toLowerCase().endsWith(".crate")) {
@@ -304,9 +394,9 @@ export async function listCrates(subcratesHandle: FileSystemDirectoryHandle): Pr
           const file = await (handle as FileSystemFileHandle).getFile();
           const buf = new Uint8Array(await file.arrayBuffer());
           const paths = readCrateTrackPaths(buf);
-          results.push({ name: relName, trackCount: paths.length, error: null });
+          results.push({ name: relName, trackCount: paths.length, paths, error: null });
         } catch (e) {
-          results.push({ name: relName, trackCount: 0, error: e instanceof Error ? e.message : String(e) });
+          results.push({ name: relName, trackCount: 0, paths: [], error: e instanceof Error ? e.message : String(e) });
         }
       }
     }
@@ -318,16 +408,19 @@ export async function listCrates(subcratesHandle: FileSystemDirectoryHandle): Pr
 
 /** Groups files by top-level MUSIC subfolder and writes one new .crate
  * per group under Subcrates, skipping any crate name that already
- * exists. Paths stored are relative to the drive root, matching what
- * Serato itself writes (validated against a real crate file). */
+ * exists. Paths stored are relative to the VOLUME ROOT with no drive-name
+ * segment — verified directly against a real Serato-written crate, whose
+ * track paths look like "MUSIC/QUE DROP/Song.mp3", not
+ * "<drive name>/MUSIC/...". Pass literally "MUSIC" here (or whatever the
+ * music folder's own name is), never the drive's name. */
 export async function buildCratesFromFolders(
-  musicRootName: string,
+  musicFolderName: string,
   files: AudioFileEntry[],
   subcratesHandle: FileSystemDirectoryHandle
 ): Promise<{ created: string[]; skipped: string[] }> {
   const groups = new Map<string, string[]>();
   for (const f of files) {
-    const relPath = [musicRootName, ...f.path].join("/");
+    const relPath = [musicFolderName, ...f.path].join("/");
     if (!groups.has(f.top)) groups.set(f.top, []);
     groups.get(f.top)!.push(relPath);
   }
@@ -349,8 +442,8 @@ export async function buildCratesFromFolders(
       continue;
     }
     const fileHandle = await subcratesHandle.getFileHandle(fileName, { create: true });
-    const writable = await (fileHandle as any).createWritable();
-    await writable.write(buildCrateBytes(paths));
+    const writable = await fileHandle.createWritable();
+    await writable.write(new Blob([new Uint8Array(buildCrateBytes(paths))]));
     await writable.close();
     created.push(fileName);
   }

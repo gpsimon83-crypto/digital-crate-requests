@@ -24,6 +24,8 @@ export default function AdminDjsPage() {
   const [loginEmail, setLoginEmail] = useState("");
   const [credentials, setCredentials] = useState<{ djId: string; email: string; tempPassword: string } | null>(null);
   const [creatingLogin, setCreatingLogin] = useState(false);
+  const [invited, setInvited] = useState<{ djId: string; email: string } | null>(null);
+  const [sendingInvite, setSendingInvite] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -90,6 +92,7 @@ export default function AdminDjsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to create login");
       setCredentials({ djId, email: data.email, tempPassword: data.tempPassword });
+      setInvited(null);
       setLoginTarget(null);
       setLoginEmail("");
       await load();
@@ -97,6 +100,29 @@ export default function AdminDjsPage() {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setCreatingLogin(false);
+    }
+  }
+
+  async function handleSendInvite(djId: string) {
+    if (!loginEmail.trim()) return;
+    setSendingInvite(true);
+    try {
+      const res = await fetch(`/api/admin/djs/${djId}/send-invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send invite");
+      setInvited({ djId, email: data.email });
+      setCredentials(null);
+      setLoginTarget(null);
+      setLoginEmail("");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSendingInvite(false);
     }
   }
 
@@ -187,6 +213,16 @@ export default function AdminDjsPage() {
             </p>
             <p className="mt-2 text-xs text-muted">
               They can sign in at <span className="font-mono">/dj-dashboard/login</span>. This password won&apos;t be shown again.
+            </p>
+          </GlassCard>
+        )}
+
+        {invited && (
+          <GlassCard className="border border-gold/40 text-sm">
+            <p className="mb-2 font-semibold text-gold">Invite sent</p>
+            <p>
+              An email went to <span className="font-mono">{invited.email}</span> with a link to set their own
+              password — nothing to share manually.
             </p>
           </GlassCard>
         )}
@@ -322,11 +358,21 @@ export default function AdminDjsPage() {
                   />
                   <NeonButton
                     color="gold"
-                    onClick={() => handleCreateLogin(dj.id)}
-                    disabled={creatingLogin}
+                    onClick={() => handleSendInvite(dj.id)}
+                    disabled={sendingInvite || creatingLogin}
                     className="px-4 py-2 text-xs"
+                    title="Email the DJ a link to set their own password"
                   >
-                    {creatingLogin ? "Creating..." : "Create"}
+                    {sendingInvite ? "Sending..." : "Send Invite Email"}
+                  </NeonButton>
+                  <NeonButton
+                    color="gold"
+                    onClick={() => handleCreateLogin(dj.id)}
+                    disabled={creatingLogin || sendingInvite}
+                    className="px-4 py-2 text-xs"
+                    title="Generate a temp password to hand the DJ yourself"
+                  >
+                    {creatingLogin ? "Creating..." : "Create (temp password)"}
                   </NeonButton>
                 </div>
               )}

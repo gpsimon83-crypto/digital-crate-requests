@@ -5,13 +5,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/site/logo";
 import { createClient } from "@/lib/supabase/client";
-import { LayoutDashboard, CalendarDays, Disc3, MapPin, KeyRound, Settings, ListMusic, BarChart3, DollarSign, LogOut } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Disc3, MapPin, KeyRound, Settings, ListMusic, BarChart3, DollarSign, LogOut, LayoutTemplate, ArrowLeft } from "lucide-react";
 
 const ITEMS = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/events", label: "Events", icon: CalendarDays },
   { href: "/admin/djs", label: "DJs", icon: Disc3 },
   { href: "/admin/venues", label: "Venues", icon: MapPin },
+  { href: "/admin/crate-templates", label: "Crate Templates", icon: LayoutTemplate },
   { href: "/admin/monetization", label: "Monetization", icon: DollarSign },
   { href: "/admin/invite-codes", label: "Invite Codes", icon: KeyRound },
   { href: "/admin/settings", label: "Settings", icon: Settings },
@@ -56,6 +57,13 @@ export function AdminSidebarNav() {
 
       <div className="my-2 h-px bg-white/10" />
 
+      <a
+        href="https://digitalcratedjs.com/members"
+        className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-white/5 hover:text-foreground"
+      >
+        <ArrowLeft size={18} />
+        DJ Portal
+      </a>
       <Link
         href="/dj-dashboard/bookings"
         className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-white/5 hover:text-foreground"

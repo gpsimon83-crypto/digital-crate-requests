@@ -15,6 +15,7 @@ import {
   Users,
   Settings,
   ChevronsUpDown,
+  ArrowLeft,
 } from "lucide-react";
 
 export function SidebarNav() {
@@ -75,6 +76,14 @@ export function SidebarNav() {
           );
         })}
       </div>
+
+      <a
+        href="https://digitalcratedjs.com/members"
+        className="flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-white/5 hover:text-foreground"
+      >
+        <ArrowLeft size={18} />
+        DJ Portal
+      </a>
 
       <div className="mt-4 flex items-center gap-2.5 rounded-2xl border border-white/8 bg-panel/70 px-3 py-2.5">
         <DjAvatar name={djName} photoUrl={djPhoto} size={36} />

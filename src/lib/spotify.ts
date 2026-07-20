@@ -50,3 +50,26 @@ interface SpotifyTrack {
   explicit: boolean;
   duration_ms: number;
 }
+
+/**
+ * Looks up a track's release year via Spotify search. This is the only
+ * enrichment field Spotify can still reliably provide for this app —
+ * genre (via track or artist objects) and audio-features (energy, BPM)
+ * both return stripped/403 responses at this app's access tier, verified
+ * directly against the live API rather than assumed.
+ */
+export async function lookupTrackYear(artist: string, title: string): Promise<number | null> {
+  const token = await getAccessToken();
+  const url = new URL("https://api.spotify.com/v1/search");
+  url.searchParams.set("q", `track:${title} artist:${artist}`);
+  url.searchParams.set("type", "track");
+  url.searchParams.set("limit", "1");
+
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return null;
+  const data = await res.json();
+  const releaseDate: string | undefined = data.tracks?.items?.[0]?.album?.release_date;
+  if (!releaseDate) return null;
+  const year = parseInt(releaseDate.slice(0, 4), 10);
+  return Number.isNaN(year) ? null : year;
+}

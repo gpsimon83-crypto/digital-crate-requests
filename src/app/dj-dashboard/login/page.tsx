@@ -62,7 +62,7 @@ function LoginForm() {
       return;
     }
 
-    const next = searchParams.get("next") || "/dj-dashboard/bookings";
+    const next = searchParams.get("next") || "/dj-dashboard";
     router.push(next);
     router.refresh();
   }
@@ -72,7 +72,7 @@ function LoginForm() {
     setOauthLoading(provider);
     setRememberPreference(true);
     const supabase = createClient();
-    const next = searchParams.get("next") || "/dj-dashboard/bookings";
+    const next = searchParams.get("next") || "/dj-dashboard";
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
