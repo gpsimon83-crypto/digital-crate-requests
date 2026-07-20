@@ -55,14 +55,12 @@ export default function DjPortalHomePage() {
       icon: Boxes,
     },
   ];
-  if (!isAdmin) {
-    tiles.push({
-      href: "/dj-dashboard/profile",
-      label: "My Profile",
-      desc: "Update your photo and hero settings.",
-      icon: UserCircle,
-    });
-  }
+  tiles.push({
+    href: "/dj-dashboard/profile",
+    label: "My Profile",
+    desc: isAdmin ? "Every admin control, in one place." : "Update your photo and hero settings.",
+    icon: UserCircle,
+  });
   if (isAdmin) {
     tiles.push({
       href: "/admin",

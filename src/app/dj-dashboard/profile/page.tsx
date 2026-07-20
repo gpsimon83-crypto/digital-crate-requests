@@ -3,12 +3,29 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import {
+  ArrowLeft, LayoutDashboard, CalendarDays, Disc3, MapPin, KeyRound, Settings,
+  ListMusic, BarChart3, DollarSign, LayoutTemplate, type LucideIcon,
+} from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { DEFAULT_HERO_SETTINGS, mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
+import { isStaffRole } from "@/lib/roles";
+
+const ADMIN_SECTIONS: { href: string; label: string; desc: string; icon: LucideIcon }[] = [
+  { href: "/admin", label: "Overview", desc: "Revenue, activity, and at-a-glance stats.", icon: LayoutDashboard },
+  { href: "/admin/events", label: "Events", desc: "Create and manage every event.", icon: CalendarDays },
+  { href: "/admin/djs", label: "DJs", desc: "Add DJs, photos, and logins.", icon: Disc3 },
+  { href: "/admin/venues", label: "Venues", desc: "Manage the venue list.", icon: MapPin },
+  { href: "/admin/crate-templates", label: "Crate Templates", desc: "Reusable crate starting points.", icon: LayoutTemplate },
+  { href: "/admin/monetization", label: "Monetization", desc: "Pricing for tips, boosts, and requests.", icon: DollarSign },
+  { href: "/admin/invite-codes", label: "Invite Codes", desc: "Generate DJ signup codes.", icon: KeyRound },
+  { href: "/admin/settings", label: "Settings", desc: "App-wide configuration.", icon: Settings },
+  { href: "/dj-dashboard/bookings", label: "All Bookings", desc: "Every DJ's events in one list.", icon: ListMusic },
+  { href: "/analytics", label: "Analytics", desc: "Revenue and top DJs/venues.", icon: BarChart3 },
+];
 
 function BackToBookings() {
   return (
@@ -35,6 +52,8 @@ export default function DjProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingRole, setCheckingRole] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
 
   async function load() {
@@ -50,7 +69,15 @@ export default function DjProfilePage() {
   }
 
   useEffect(() => {
-    load();
+    fetch("/api/me")
+      .then((r) => r.json())
+      .then((d) => {
+        const staff = isStaffRole(d?.user?.role);
+        setIsAdmin(staff);
+        if (!staff) load();
+      })
+      .catch(() => load())
+      .finally(() => setCheckingRole(false));
   }, []);
 
   async function handleSave() {
@@ -88,6 +115,42 @@ export default function DjProfilePage() {
     } finally {
       setUploading(false);
     }
+  }
+
+  if (checkingRole) {
+    return (
+      <>
+        <PageHeader title="My Profile" action={<BackToBookings />} />
+        <p className="p-6 text-sm text-muted">Loading...</p>
+      </>
+    );
+  }
+
+  if (isAdmin) {
+    return (
+      <>
+        <PageHeader
+          title="My Profile"
+          subtitle="Every admin control, in one place."
+          action={<BackToBookings />}
+        />
+        <div className="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3">
+          {ADMIN_SECTIONS.map(({ href, label, desc, icon: Icon }) => (
+            <Link key={href} href={href}>
+              <GlassCard className="flex h-full flex-col gap-3 transition-transform hover:-translate-y-0.5">
+                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold/15 text-gold">
+                  <Icon size={20} />
+                </span>
+                <div>
+                  <p className="font-semibold">{label}</p>
+                  <p className="mt-1 text-sm text-muted">{desc}</p>
+                </div>
+              </GlassCard>
+            </Link>
+          ))}
+        </div>
+      </>
+    );
   }
 
   if (!dj) {

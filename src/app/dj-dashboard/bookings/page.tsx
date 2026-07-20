@@ -182,14 +182,12 @@ export default function DjBookingsPage() {
           >
             <Boxes size={14} /> Crate Builder
           </Link>
-          {!isAdmin && (
-            <Link
-              href="/dj-dashboard/profile"
-              className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
-            >
-              <UserCircle size={14} /> My Profile
-            </Link>
-          )}
+          <Link
+            href="/dj-dashboard/profile"
+            className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
+          >
+            <UserCircle size={14} /> My Profile
+          </Link>
           {isAdmin && (
             <Link
               href="/admin"
