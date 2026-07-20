@@ -8,6 +8,7 @@ import { NeonButton } from "@/components/ui/neon-button";
 import { Logo } from "@/components/site/logo";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { Check, X, LogOut, ShieldCheck, CalendarClock, MapPin, Plus, PartyPopper, UserCircle, Boxes } from "lucide-react";
+import { isStaffRole } from "@/lib/roles";
 
 interface VenueOption {
   id: string;
@@ -50,7 +51,7 @@ export default function DjBookingsPage() {
       const meData = await meRes.json();
       if (!meRes.ok) throw new Error(meData.error || "Not signed in");
 
-      const admin = meData.user?.role === "admin";
+      const admin = isStaffRole(meData.user?.role);
       setIsAdmin(admin);
 
       if (!admin && !meData.dj) {

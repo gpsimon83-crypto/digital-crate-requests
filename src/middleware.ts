@@ -1,12 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isStaffRole } from "@/lib/roles";
 
 const LOGIN_PATH = "/dj-dashboard/login";
 const SIGNUP_PATH = "/dj-dashboard/signup";
 const DJ_PREFIX = "/dj-dashboard";
 const STAFF_PREFIXES = ["/admin", "/analytics"];
 const PUBLIC_EXCEPTIONS = [LOGIN_PATH, SIGNUP_PATH];
-const STAFF_ROLES = ["owner", "admin", "manager"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -52,7 +52,7 @@ export async function middleware(request: NextRequest) {
   // allows any authenticated user (DJs manage their own bookings; staff see everything).
   if (needsStaffAuth) {
     const role = user.user_metadata?.role;
-    if (!STAFF_ROLES.includes(role)) {
+    if (!isStaffRole(role)) {
       const loginUrl = new URL(LOGIN_PATH, request.url);
       loginUrl.searchParams.set("next", pathname);
       loginUrl.searchParams.set("error", "admin_only");

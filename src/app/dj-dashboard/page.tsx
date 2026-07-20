@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { CalendarClock, Boxes, UserCircle, ShieldCheck, LogOut } from "lucide-react";
+import { isStaffRole } from "@/lib/roles";
 
 interface Tile {
   href: string;
@@ -26,7 +27,7 @@ export default function DjPortalHomePage() {
     fetch("/api/me")
       .then((r) => r.json())
       .then((data) => {
-        setIsAdmin(data?.user?.role === "admin");
+        setIsAdmin(isStaffRole(data?.user?.role));
         setDjName(data?.dj?.display_name ?? null);
         setDjPhoto(data?.dj?.photo_url ?? null);
       })

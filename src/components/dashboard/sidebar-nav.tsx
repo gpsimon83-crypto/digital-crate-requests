@@ -17,6 +17,7 @@ import {
   ChevronsUpDown,
   ArrowLeft,
 } from "lucide-react";
+import { isStaffRole } from "@/lib/roles";
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -29,7 +30,7 @@ export function SidebarNav() {
     fetch("/api/me")
       .then((r) => r.json())
       .then((data) => {
-        const name = data?.dj?.display_name || (data?.user?.role === "admin" ? "Admin" : null);
+        const name = data?.dj?.display_name || (isStaffRole(data?.user?.role) ? "Admin" : null);
         if (name) setDjName(name);
         if (data?.dj?.photo_url) setDjPhoto(data.dj.photo_url);
       })
