@@ -55,12 +55,9 @@ export default async function Home() {
 
       {/* HERO */}
       <section className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-6 py-20 text-center sm:px-8">
-        <Logo variant="full" brand="crates-djs" size={140} className="w-[220px] sm:w-[280px]" />
+        <Logo variant="full" brand="crates-djs" size={220} className="w-[320px] sm:w-[420px]" />
         <p className="-mt-2 text-xs font-semibold uppercase tracking-[0.3em] text-muted">Events Portal</p>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Wisconsin&rsquo;s Premier DJ Collective</p>
-        <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
-          If music makes the event, <span className="text-gold">we add an experience.</span>
-        </h1>
         <p className="max-w-md text-sm text-muted">
           Open-format DJs for clubs, weddings, corporate events & more — serving the greater Wisconsin area and beyond.
         </p>
