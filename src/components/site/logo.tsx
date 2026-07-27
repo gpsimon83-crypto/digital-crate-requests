@@ -2,11 +2,11 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 /**
- * Two distinct marks live under this one component: "crate-request" is the
+ * Three marks live under this one component: "crate-request" is the
  * guest-facing song-request product (QR flow, DJ dashboard) — the original
- * default. "wing" is Digital Crate DJs' actual business logo (the winged
- * mark from cratesdjs.com), for surfaces that represent the business
- * itself rather than the request product, like the marketing homepage.
+ * default. "wing" is the winged icon-only mark. "crates-djs" is the actual
+ * primary business wordmark (the "CRATES DJS" stamped logo) — the current
+ * choice for the marketing homepage's nav and hero.
  *
  * The `color` prop is kept for backward compatibility with existing
  * crate-request call sites, which use a single fixed-color asset, so it's
@@ -19,11 +19,25 @@ export function Logo({
   className,
 }: {
   variant?: "full" | "icon";
-  brand?: "crate-request" | "wing";
+  brand?: "crate-request" | "wing" | "crates-djs";
   color?: "gold" | "white" | "black";
   size?: number;
   className?: string;
 }) {
+  if (brand === "crates-djs") {
+    const aspect = 1731 / 909;
+    return (
+      <Image
+        src="/brand/crates-djs-wordmark.png"
+        alt="Crates DJs"
+        width={Math.round(size * aspect)}
+        height={size}
+        className={cn("object-contain", className)}
+        priority
+      />
+    );
+  }
+
   if (brand === "wing") {
     const src = variant === "icon" ? "/brand/wing-icon-gold.png" : "/brand/wing-logo-black.png";
     const aspect = variant === "icon" ? 800 / 400 : 839 / 600;

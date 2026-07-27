@@ -38,7 +38,7 @@ export default async function Home() {
       {/* NAV */}
       <nav className="sticky top-0 z-50 flex items-center justify-between border-b border-black/8 bg-background/90 px-6 py-4 backdrop-blur sm:px-10">
         <div className="flex items-center gap-2">
-          <Logo variant="icon" brand="wing" size={32} />
+          <Logo variant="icon" brand="crates-djs" size={32} />
           <span className="text-sm font-semibold tracking-wide">Digital Crate DJs</span>
         </div>
         <div className="hidden gap-6 text-xs font-medium uppercase tracking-widest text-muted sm:flex">
@@ -55,7 +55,8 @@ export default async function Home() {
 
       {/* HERO */}
       <section className="mx-auto flex max-w-3xl flex-col items-center gap-6 px-6 py-20 text-center sm:px-8">
-        <Logo variant="full" brand="wing" size={200} className="w-[180px] sm:w-[220px]" />
+        <Logo variant="full" brand="crates-djs" size={140} className="w-[220px] sm:w-[280px]" />
+        <p className="-mt-2 text-xs font-semibold uppercase tracking-[0.3em] text-muted">Events Portal</p>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Wisconsin&rsquo;s Premier DJ Collective</p>
         <h1 className="text-4xl font-bold leading-tight sm:text-5xl">
           If music makes the event, <span className="text-gold">we add an experience.</span>
