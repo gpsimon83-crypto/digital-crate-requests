@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
@@ -46,6 +46,18 @@ function LoginForm() {
   );
   const [submitting, setSubmitting] = useState(false);
   const [oauthLoading, setOauthLoading] = useState<"google" | "apple" | null>(null);
+
+  // A successful sign-in can still land back here — middleware redirects to
+  // this same route (with ?error=admin_only) when the account isn't staff.
+  // That's a client-side navigation to the same component, not a fresh
+  // mount, so the useState initializer above never re-runs; without this,
+  // the button stays stuck on "Signing in..." and no error ever shows.
+  useEffect(() => {
+    if (searchParams.get("error") === "admin_only") {
+      setError("That page requires an admin account.");
+      setSubmitting(false);
+    }
+  }, [searchParams]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

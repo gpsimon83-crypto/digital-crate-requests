@@ -11,8 +11,10 @@ interface EventRow {
   title: string;
   starts_at: string | null;
   status: string;
+  quoted_amount: number | null;
   djs: { display_name: string } | null;
   venues: { name: string } | null;
+  clients: { company_name: string | null; first_name: string | null; last_name: string | null } | null;
 }
 
 interface Option {
@@ -40,30 +42,43 @@ export default function AdminEventsPage() {
   const [events, setEvents] = useState<EventRow[] | null>(null);
   const [djs, setDjs] = useState<Option[]>([]);
   const [venues, setVenues] = useState<Option[]>([]);
+  const [clients, setClients] = useState<Option[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [title, setTitle] = useState("");
   const [djId, setDjId] = useState("");
   const [venueId, setVenueId] = useState("");
+  const [clientId, setClientId] = useState("");
   const [startsAt, setStartsAt] = useState("");
+  const [eventType, setEventType] = useState("");
+  const [expectedGuests, setExpectedGuests] = useState("");
+  const [quotedAmount, setQuotedAmount] = useState("");
 
   async function loadAll() {
     try {
-      const [eventsRes, djsRes, venuesRes] = await Promise.all([
+      const [eventsRes, djsRes, venuesRes, clientsRes] = await Promise.all([
         fetch("/api/admin/events"),
         fetch("/api/admin/djs"),
         fetch("/api/admin/venues"),
+        fetch("/api/admin/clients"),
       ]);
       const eventsData = await eventsRes.json();
       const djsData = await djsRes.json();
       const venuesData = await venuesRes.json();
+      const clientsData = await clientsRes.json();
 
       if (!eventsRes.ok) throw new Error(eventsData.error || "Failed to load events");
 
       setEvents(eventsData.events ?? []);
       setDjs((djsData.djs ?? []).map((d: { id: string; display_name: string }) => ({ id: d.id, label: d.display_name })));
       setVenues((venuesData.venues ?? []).map((v: { id: string; name: string }) => ({ id: v.id, label: v.name })));
+      setClients(
+        (clientsData.clients ?? []).map((c: { id: string; company_name: string | null; first_name: string | null; last_name: string | null }) => ({
+          id: c.id,
+          label: c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed client",
+        }))
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     }
@@ -88,7 +103,11 @@ export default function AdminEventsPage() {
           title,
           djId: djId || undefined,
           venueId: venueId || undefined,
+          clientId: clientId || undefined,
           startsAt: new Date(startsAt).toISOString(),
+          eventType: eventType || undefined,
+          expectedGuests: expectedGuests ? Number(expectedGuests) : undefined,
+          quotedAmount: quotedAmount ? Number(quotedAmount) : undefined,
         }),
       });
       const data = await res.json();
@@ -97,7 +116,11 @@ export default function AdminEventsPage() {
       setTitle("");
       setDjId("");
       setVenueId("");
+      setClientId("");
       setStartsAt("");
+      setEventType("");
+      setExpectedGuests("");
+      setQuotedAmount("");
       await loadAll();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -117,6 +140,10 @@ export default function AdminEventsPage() {
             <Field label="Date & Time" value={startsAt} onChange={setStartsAt} type="datetime-local" />
             <SelectField label="Assign DJ" value={djId} onChange={setDjId} options={djs} placeholder="Unassigned" />
             <SelectField label="Venue" value={venueId} onChange={setVenueId} options={venues} placeholder="No venue" />
+            <SelectField label="Client" value={clientId} onChange={setClientId} options={clients} placeholder="No client linked" />
+            <Field label="Event Type" value={eventType} onChange={setEventType} placeholder="wedding, corporate, club..." />
+            <Field label="Expected Guests" value={expectedGuests} onChange={setExpectedGuests} type="number" />
+            <Field label="Quoted Amount ($)" value={quotedAmount} onChange={setQuotedAmount} type="number" />
           </div>
           {error && <p className="text-xs text-status-declined">{error}</p>}
           <NeonButton color="gold" onClick={handleCreate} disabled={submitting} className="w-full sm:w-fit">
@@ -142,6 +169,13 @@ export default function AdminEventsPage() {
                 <p className="text-xs text-muted">
                   {e.starts_at ? new Date(e.starts_at).toLocaleString() : "No date set"}
                 </p>
+                {(e.clients || e.quoted_amount) && (
+                  <p className="text-xs text-muted">
+                    {e.clients && (e.clients.company_name || [e.clients.first_name, e.clients.last_name].filter(Boolean).join(" "))}
+                    {e.clients && e.quoted_amount ? " · " : ""}
+                    {e.quoted_amount ? `Quoted $${e.quoted_amount}` : ""}
+                  </p>
+                )}
               </div>
               <span className={STATUS_CLASS[e.status] ?? "status-badge pending"}>
                 {STATUS_LABEL[e.status] ?? e.status}

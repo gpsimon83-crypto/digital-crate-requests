@@ -14,7 +14,7 @@ export async function listEvents() {
   const db = createAdminClient();
   const { data, error } = await db
     .from("events")
-    .select("*, djs(display_name, photo_url), venues(name)")
+    .select("*, djs(display_name, photo_url), venues(name), clients(company_name, first_name, last_name)")
     .order("starts_at", { ascending: true });
   if (error) throw error;
   return data;
@@ -24,9 +24,14 @@ export async function createEvent(input: {
   title: string;
   djId?: string;
   venueId?: string;
+  clientId?: string;
   startsAt: string;
   endsAt?: string;
   status?: string;
+  eventType?: string;
+  serviceType?: string;
+  expectedGuests?: number;
+  quotedAmount?: number;
 }) {
   const db = createAdminClient();
   const { data, error } = await db
@@ -36,9 +41,14 @@ export async function createEvent(input: {
       title: input.title,
       dj_id: input.djId || null,
       venue_id: input.venueId || null,
+      client_id: input.clientId || null,
       starts_at: input.startsAt,
       ends_at: input.endsAt || null,
       status: input.status ?? "pending_confirmation",
+      event_type: input.eventType || null,
+      service_type: input.serviceType || null,
+      expected_guests: input.expectedGuests ?? null,
+      quoted_amount: input.quotedAmount ?? null,
     })
     .select()
     .single();

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
-import { listEvents, createEvent } from "@/lib/data/events";
+import { listEquipment, createEquipment } from "@/lib/data/equipment";
 import { requireAuth } from "@/lib/require-auth";
 import { requireAdmin } from "@/lib/require-admin";
 
@@ -9,8 +9,8 @@ export async function GET() {
   if (denied) return denied;
 
   try {
-    const events = await listEvents();
-    return NextResponse.json({ events });
+    const equipment = await listEquipment();
+    return NextResponse.json({ equipment });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }
@@ -21,26 +21,14 @@ export async function POST(req: NextRequest) {
   if (denied) return denied;
 
   const body = await req.json();
-  const { title, djId, venueId, clientId, startsAt, endsAt, eventType, serviceType, expectedGuests, quotedAmount } = body;
-
-  if (!title || !startsAt) {
-    return NextResponse.json({ error: "title and startsAt are required" }, { status: 400 });
+  const { category, name } = body;
+  if (!category || !name) {
+    return NextResponse.json({ error: "category and name are required" }, { status: 400 });
   }
 
   try {
-    const event = await createEvent({
-      title,
-      djId,
-      venueId,
-      clientId,
-      startsAt,
-      endsAt,
-      eventType,
-      serviceType,
-      expectedGuests,
-      quotedAmount,
-    });
-    return NextResponse.json({ event });
+    const item = await createEquipment(body);
+    return NextResponse.json({ item });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }

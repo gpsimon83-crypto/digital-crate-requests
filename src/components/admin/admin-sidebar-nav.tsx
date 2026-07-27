@@ -5,13 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/site/logo";
 import { createClient } from "@/lib/supabase/client";
-import { LayoutDashboard, CalendarDays, Disc3, MapPin, KeyRound, Settings, ListMusic, BarChart3, DollarSign, LogOut, LayoutTemplate, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, CalendarDays, Disc3, MapPin, KeyRound, Settings, ListMusic, BarChart3, DollarSign, LogOut, LayoutTemplate, ArrowLeft, Users, Boxes } from "lucide-react";
 
 const ITEMS = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard },
   { href: "/admin/events", label: "Events", icon: CalendarDays },
+  { href: "/admin/clients", label: "Clients", icon: Users },
   { href: "/admin/djs", label: "DJs", icon: Disc3 },
   { href: "/admin/venues", label: "Venues", icon: MapPin },
+  { href: "/admin/equipment", label: "Equipment", icon: Boxes },
   { href: "/admin/crate-templates", label: "Crate Templates", icon: LayoutTemplate },
   { href: "/admin/monetization", label: "Monetization", icon: DollarSign },
   { href: "/admin/invite-codes", label: "Invite Codes", icon: KeyRound },
