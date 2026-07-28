@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
@@ -198,7 +199,9 @@ export default function AdminEventsPage() {
                 className="flex flex-col gap-2 px-1 py-3 transition-colors hover:bg-gold/[0.04] sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
-                  <p className="font-semibold">{e.title}</p>
+                  <Link href={`/admin/events/${e.id}`} className="font-semibold hover:text-gold hover:underline">
+                    {e.title}
+                  </Link>
                   <p className="text-xs text-muted">
                     {e.event_code} &middot; {e.djs?.display_name ?? "Unassigned"} &middot; {e.venues?.name ?? "No venue"}
                   </p>

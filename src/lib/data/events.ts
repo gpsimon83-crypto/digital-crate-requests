@@ -33,6 +33,24 @@ export async function listEvents() {
   return data.map((event) => ({ ...event, paid_cents: paidByEvent.get(event.id) ?? 0 }));
 }
 
+export async function getEvent(eventId: string) {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("events")
+    .select("*, djs(display_name, photo_url), venues(name), clients(*)")
+    .eq("id", eventId)
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateEvent(eventId: string, updates: Record<string, unknown>) {
+  const db = createAdminClient();
+  const { data, error } = await db.from("events").update(updates).eq("id", eventId).select().single();
+  if (error) throw error;
+  return data;
+}
+
 export async function createEvent(input: {
   title: string;
   djId?: string;
