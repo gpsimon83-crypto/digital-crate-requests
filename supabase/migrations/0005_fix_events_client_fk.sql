@@ -1,0 +1,19 @@
+-- Fix: events.client_id was never actually constrained to clients(id).
+--
+-- 0002_crm_foundation.sql ran `alter table events add column if not
+-- exists client_id uuid references clients(id) on delete set null` —
+-- but events.client_id already existed as a bare, unconstrained uuid
+-- column from the original schema (never populated). `add column if
+-- not exists` skips the ENTIRE clause, including `references`, when the
+-- column already exists — so the foreign key was silently never
+-- created. PostgREST's embedded-resource joins (`clients(...)` in a
+-- select) require a real FK constraint to exist, so every query
+-- joining events to clients has been failing with PGRST200 since that
+-- migration — confirmed via the DJ dashboard's My Bookings page and a
+-- direct REST query, both returning "Could not find a relationship
+-- between 'events' and 'clients'".
+--
+-- Safe to add now: any existing client_id values are either null or
+-- point at genuine clients rows (there was never a working path to set
+-- this column to anything else).
+alter table events add constraint events_client_id_fkey foreign key (client_id) references clients(id) on delete set null;
