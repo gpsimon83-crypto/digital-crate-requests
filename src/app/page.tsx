@@ -73,7 +73,7 @@ export default async function Home() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Wisconsin&rsquo;s Premier DJ Collective</p>
 
         <p
-          className="fade-in-up mt-4 font-display text-3xl tracking-wide text-foreground sm:text-4xl"
+          className="fade-in-up mt-4 font-display text-4xl font-light text-foreground sm:text-5xl"
           style={{ animationDelay: "0.1s" }}
         >
           What brings you here today?
@@ -108,7 +108,7 @@ export default async function Home() {
       <section className="border-t border-black/8 px-6 py-16 sm:px-10">
         <div className="mx-auto max-w-5xl">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">At your event</p>
-          <h2 className="mt-2 font-display text-4xl tracking-wide">Request songs, live</h2>
+          <h2 className="mt-2 font-display text-5xl font-light">Request songs, live</h2>
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             {STEPS.map((step) => (
               <GlassCard key={step.title} className="flex flex-col items-center gap-2 text-center">
@@ -128,7 +128,7 @@ export default async function Home() {
         <div className="mx-auto grid max-w-5xl gap-10 lg:grid-cols-[1fr_2fr]">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Reserve your date</p>
-            <h2 className="mt-2 font-display text-3xl tracking-wide">Let&rsquo;s create something unforgettable together.</h2>
+            <h2 className="mt-2 font-display text-4xl font-light">Let&rsquo;s create something unforgettable together.</h2>
             <p className="mt-3 text-sm text-muted">
               Fill out the request form and a member of our team will respond within 24 hours to confirm availability and discuss the details of your event.
             </p>

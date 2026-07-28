@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Bebas_Neue } from "next/font/google";
+import { Geist, Geist_Mono, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 
@@ -13,12 +13,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Display face for headlines only — tall, bold, condensed, the same family
-// of energy as the stamped "CRATES DJS" wordmark. Body copy stays on
-// Geist app-wide so admin/DJ tooling stays plainly readable.
-const bebasNeue = Bebas_Neue({
+// Display face for headlines only — matches digitalcratedjs.com's own
+// heading font (light-weight Cormorant Garamond) so this site reads as
+// the same brand, not a third, different-looking property. Body copy
+// stays on Geist app-wide so admin/DJ tooling stays plainly readable.
+const cormorantGaramond = Cormorant_Garamond({
   variable: "--font-display",
-  weight: "400",
+  weight: ["300", "500"],
+  style: ["normal", "italic"],
   subsets: ["latin"],
 });
 
@@ -53,7 +55,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${bebasNeue.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${cormorantGaramond.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
