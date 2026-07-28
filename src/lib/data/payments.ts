@@ -22,6 +22,17 @@ export async function listEventPayments(eventId: string): Promise<PaymentRow[]> 
   return data;
 }
 
+export async function listSucceededPayments() {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("payments")
+    .select("id, event_id, kind, amount_cents, paid_at, events(title)")
+    .eq("status", "succeeded")
+    .order("paid_at", { ascending: false });
+  if (error) throw error;
+  return data;
+}
+
 /**
  * "Owed" is always computed from events.final_amount (or quoted_amount if
  * no final amount has been set yet) minus the sum of succeeded payments —

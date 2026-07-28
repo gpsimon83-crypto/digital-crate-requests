@@ -71,6 +71,14 @@ const FOOTER_ITEMS = [
   { href: "/admin/settings", label: "Settings", icon: Settings }
 ];
 
+function NavLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="whitespace-nowrap opacity-0 transition-opacity delay-75 duration-150 group-hover:opacity-100">
+      {children}
+    </span>
+  );
+}
+
 export function AdminSidebarNav() {
   const pathname = usePathname();
   const router = useRouter();
@@ -92,12 +100,16 @@ export function AdminSidebarNav() {
   }
 
   return (
-    <nav className="hidden w-60 shrink-0 flex-col gap-1 overflow-y-auto border-r border-black/10 bg-panel/60 p-4 md:flex">
-      <Link href="/admin" className="mb-4 flex items-center gap-2 px-2">
+    <nav className="group fixed inset-y-0 left-0 z-40 hidden w-16 flex-col gap-1 overflow-x-hidden overflow-y-auto border-r border-black/10 bg-panel/95 p-3 backdrop-blur transition-[width] duration-200 hover:w-60 hover:shadow-xl md:flex">
+      <Link href="/admin" className="mb-4 flex items-center gap-2 px-1">
         <Logo variant="icon" brand="wing" size={28} />
         <div>
-          <p className="text-[10px] uppercase tracking-[2px] text-muted">Digital Crate DJs</p>
-          <p className="text-sm font-semibold">Admin</p>
+          <NavLabel>
+            <p className="text-[10px] uppercase tracking-[2px] text-muted">Digital Crate DJs</p>
+          </NavLabel>
+          <NavLabel>
+            <p className="text-sm font-semibold">Admin</p>
+          </NavLabel>
         </div>
       </Link>
 
@@ -109,18 +121,20 @@ export function AdminSidebarNav() {
             href={href}
             style={fadeDelay(i)}
             className={cn(
-              "menu-fade-item flex items-center gap-3 rounded-[2px] px-4 py-2.5 text-sm font-medium transition-colors",
+              "menu-fade-item flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm font-medium transition-colors",
               active ? "sidebar-active" : "text-muted hover:bg-black/5 hover:text-foreground"
             )}
           >
-            <Icon size={18} />
-            {label}
+            <Icon size={18} className="shrink-0" />
+            <NavLabel>{label}</NavLabel>
           </Link>
         );
       })}
 
       <div className="my-2 h-px bg-black/10" />
-      <p className="px-4 pb-1 text-[10px] uppercase tracking-[2px] text-muted">CratesDJ Operations</p>
+      <p className="px-3 pb-1 text-[10px] uppercase tracking-[2px] text-muted">
+        <NavLabel>CratesDJ Operations</NavLabel>
+      </p>
 
       {OPERATIONS_ITEMS.map(({ href, label, icon: Icon }, i) => {
         const active = pathname === href;
@@ -130,12 +144,12 @@ export function AdminSidebarNav() {
             href={href}
             style={fadeDelay(operationsOffset + i)}
             className={cn(
-              "menu-fade-item flex items-center gap-3 rounded-[2px] px-4 py-2.5 text-sm font-medium transition-colors",
+              "menu-fade-item flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm font-medium transition-colors",
               active ? "sidebar-active" : "text-muted hover:bg-black/5 hover:text-foreground"
             )}
           >
-            <Icon size={18} />
-            {label}
+            <Icon size={18} className="shrink-0" />
+            <NavLabel>{label}</NavLabel>
           </Link>
         );
       })}
@@ -150,12 +164,12 @@ export function AdminSidebarNav() {
             href={href}
             style={fadeDelay(footerOffset + i)}
             className={cn(
-              "menu-fade-item flex items-center gap-3 rounded-[2px] px-4 py-2.5 text-sm font-medium transition-colors",
+              "menu-fade-item flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm font-medium transition-colors",
               active ? "sidebar-active" : "text-muted hover:bg-black/5 hover:text-foreground"
             )}
           >
-            <Icon size={18} />
-            {label}
+            <Icon size={18} className="shrink-0" />
+            <NavLabel>{label}</NavLabel>
           </Link>
         );
       })}
@@ -163,18 +177,18 @@ export function AdminSidebarNav() {
       <a
         href="https://digitalcratedjs.com/members"
         style={fadeDelay(djPortalOffset)}
-        className="menu-fade-item flex items-center gap-3 rounded-[2px] px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
+        className="menu-fade-item flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
-        <ArrowLeft size={18} />
-        DJ Portal
+        <ArrowLeft size={18} className="shrink-0" />
+        <NavLabel>DJ Portal</NavLabel>
       </a>
       <button
         onClick={handleLogout}
         style={fadeDelay(signOutOffset)}
-        className="menu-fade-item flex items-center gap-3 rounded-[2px] px-4 py-2.5 text-left text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
+        className="menu-fade-item flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-left text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
-        <LogOut size={18} />
-        Sign Out
+        <LogOut size={18} className="shrink-0" />
+        <NavLabel>Sign Out</NavLabel>
       </button>
     </nav>
   );
