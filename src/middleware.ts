@@ -6,16 +6,22 @@ const LOGIN_PATH = "/dj-dashboard/login";
 const SIGNUP_PATH = "/dj-dashboard/signup";
 const DJ_PREFIX = "/dj-dashboard";
 const STAFF_PREFIXES = ["/admin", "/analytics"];
-const PUBLIC_EXCEPTIONS = [LOGIN_PATH, SIGNUP_PATH];
+
+const PORTAL_LOGIN_PATH = "/portal/login";
+const PORTAL_SIGNUP_PATH = "/portal/signup";
+const PORTAL_PREFIX = "/portal";
+
+const PUBLIC_EXCEPTIONS = [LOGIN_PATH, SIGNUP_PATH, PORTAL_LOGIN_PATH, PORTAL_SIGNUP_PATH];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const needsDjAuth = pathname.startsWith(DJ_PREFIX);
   const needsStaffAuth = STAFF_PREFIXES.some((p) => pathname.startsWith(p));
+  const needsPortalAuth = pathname.startsWith(PORTAL_PREFIX);
   const isPublicException = PUBLIC_EXCEPTIONS.some((p) => pathname.startsWith(p));
 
-  if ((!needsDjAuth && !needsStaffAuth) || isPublicException) {
+  if ((!needsDjAuth && !needsStaffAuth && !needsPortalAuth) || isPublicException) {
     return NextResponse.next();
   }
 
@@ -43,7 +49,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    const loginUrl = new URL(LOGIN_PATH, request.url);
+    const loginUrl = new URL(needsPortalAuth ? PORTAL_LOGIN_PATH : LOGIN_PATH, request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -64,5 +70,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dj-dashboard/:path*", "/admin/:path*", "/analytics/:path*"],
+  matcher: ["/dj-dashboard/:path*", "/admin/:path*", "/analytics/:path*", "/portal/:path*"],
 };

@@ -3,7 +3,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Logo } from "@/components/site/logo";
 import { BookingForm } from "@/components/site/booking-form";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { QrCode, Music2, Heart, LogIn } from "lucide-react";
+import { QrCode, Music2, Heart, LogIn, PartyPopper, UserCircle, Disc3 } from "lucide-react";
 
 const SERVICES = [
   { num: "01", title: "Clubs & Bars", body: "Resident and guest DJ sets that command the dance floor. We build momentum, sustain energy, and keep crowds coming back." },
@@ -20,9 +20,26 @@ const STEPS = [
   { icon: Heart, title: "Tip your DJ", body: "Show love for a great set, right from your phone." }
 ];
 
-const GOLD_BUTTON =
-  "btn-glow btn-gold-solid inline-flex min-h-[50px] items-center justify-center gap-2 rounded-full px-7 py-3.5 text-sm font-bold tracking-wide text-black transition-colors";
-const GOLD_BUTTON_STYLE = { background: "linear-gradient(155deg, var(--gold-light), var(--neon-gold) 55%)" };
+const HELPER_PATHS = [
+  {
+    icon: PartyPopper,
+    title: "Plan an Event",
+    body: "Get a quote and book your date",
+    href: "#booking"
+  },
+  {
+    icon: UserCircle,
+    title: "My Event Portal",
+    body: "Already booked? Manage your night",
+    href: "/portal/login"
+  },
+  {
+    icon: Disc3,
+    title: "DJ / Staff",
+    body: "Team sign in",
+    href: "/dj-dashboard/login"
+  }
+];
 
 async function getDjs() {
   const db = createAdminClient();
@@ -58,17 +75,24 @@ export default async function Home() {
         <Logo variant="full" brand="crates-djs" size={220} className="w-[320px] sm:w-[420px]" />
         <p className="-mt-2 text-xs font-semibold uppercase tracking-[0.3em] text-muted">Events Portal</p>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Wisconsin&rsquo;s Premier DJ Collective</p>
-        <p className="max-w-md text-sm text-muted">
-          Open-format DJs for clubs, weddings, corporate events & more — serving the greater Wisconsin area and beyond.
-        </p>
-        <div className="mt-2 flex flex-wrap justify-center gap-3">
-          <a href="#booking" className={GOLD_BUTTON} style={GOLD_BUTTON_STYLE}>
-            Book a DJ
-          </a>
-          <a href="#roster" className="inline-flex min-h-[50px] items-center justify-center rounded-full border-2 border-border px-7 text-sm font-bold tracking-wide hover:border-gold hover:text-gold">
-            Meet the DJs
-          </a>
+
+        <p className="mt-4 text-sm font-medium text-muted">What brings you here today?</p>
+        <div className="grid w-full gap-3 sm:grid-cols-3">
+          {HELPER_PATHS.map((path) => (
+            <Link
+              key={path.title}
+              href={path.href}
+              className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card px-5 py-6 text-center transition-colors hover:border-gold"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold/15 text-gold">
+                <path.icon size={20} />
+              </span>
+              <p className="text-sm font-semibold group-hover:text-gold">{path.title}</p>
+              <p className="text-xs text-muted">{path.body}</p>
+            </Link>
+          ))}
         </div>
+
         <div className="mt-8 grid w-full grid-cols-2 gap-6 border-t border-black/8 pt-8 sm:grid-cols-4">
           <Stat value="10+" label="Professional DJs" />
           <Stat value="WI" label="& Beyond" />
