@@ -98,28 +98,30 @@ export default function AdminVenuesPage() {
 
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
-        <div className="flex flex-col gap-3">
-          {venues === null && <p className="text-sm text-muted">Loading...</p>}
-          {venues?.length === 0 && <p className="text-sm text-muted">No venues yet.</p>}
-          {venues?.map((v) => (
-            <GlassCard key={v.id} className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold">{v.name}</p>
-                {v.location && (
-                  <p className="flex items-center gap-1 text-xs text-muted">
-                    <MapPin size={11} /> {v.location}
-                  </p>
-                )}
+        {venues === null && <p className="text-sm text-muted">Loading...</p>}
+        {venues?.length === 0 && <p className="text-sm text-muted">No venues yet.</p>}
+        {venues && venues.length > 0 && (
+          <div className="flex flex-col divide-y divide-border border-y border-border">
+            {venues.map((v) => (
+              <div key={v.id} className="flex items-center justify-between px-1 py-3 transition-colors hover:bg-gold/[0.04]">
+                <div>
+                  <p className="font-semibold">{v.name}</p>
+                  {v.location && (
+                    <p className="flex items-center gap-1 text-xs text-muted">
+                      <MapPin size={11} /> {v.location}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => handleDelete(v.id)}
+                  className="rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
+                >
+                  Remove
+                </button>
               </div>
-              <button
-                onClick={() => handleDelete(v.id)}
-                className="rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
-              >
-                Remove
-              </button>
-            </GlassCard>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

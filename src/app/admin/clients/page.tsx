@@ -142,41 +142,43 @@ export default function AdminClientsPage() {
 
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
-        <div className="flex flex-col gap-3">
-          {clients === null && <p className="text-sm text-muted">Loading...</p>}
-          {clients?.length === 0 && <p className="text-sm text-muted">No clients yet.</p>}
-          {clients?.map((c) => {
-            const name = c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed client";
-            return (
-              <GlassCard key={c.id} className="flex items-center justify-between">
-                <div>
-                  <p className="flex items-center gap-1.5 font-semibold">
-                    {c.company_name && <Building2 size={14} />}
-                    {name}
-                  </p>
-                  <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
-                    {c.email && (
-                      <span className="flex items-center gap-1">
-                        <Mail size={11} /> {c.email}
-                      </span>
-                    )}
-                    {c.phone && (
-                      <span className="flex items-center gap-1">
-                        <Phone size={11} /> {c.phone}
-                      </span>
-                    )}
+        {clients === null && <p className="text-sm text-muted">Loading...</p>}
+        {clients?.length === 0 && <p className="text-sm text-muted">No clients yet.</p>}
+        {clients && clients.length > 0 && (
+          <div className="flex flex-col divide-y divide-border border-y border-border">
+            {clients.map((c) => {
+              const name = c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed client";
+              return (
+                <div key={c.id} className="flex items-center justify-between px-1 py-3 transition-colors hover:bg-gold/[0.04]">
+                  <div>
+                    <p className="flex items-center gap-1.5 font-semibold">
+                      {c.company_name && <Building2 size={14} />}
+                      {name}
+                    </p>
+                    <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
+                      {c.email && (
+                        <span className="flex items-center gap-1">
+                          <Mail size={11} /> {c.email}
+                        </span>
+                      )}
+                      {c.phone && (
+                        <span className="flex items-center gap-1">
+                          <Phone size={11} /> {c.phone}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  <button
+                    onClick={() => handleDelete(c.id)}
+                    className="rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
+                  >
+                    Remove
+                  </button>
                 </div>
-                <button
-                  onClick={() => handleDelete(c.id)}
-                  className="rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
-                >
-                  Remove
-                </button>
-              </GlassCard>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </>
   );

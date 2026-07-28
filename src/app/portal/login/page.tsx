@@ -47,7 +47,7 @@ function LoginForm() {
       <div className="mb-8 flex flex-col items-center gap-3 text-center">
         <Logo variant="icon" brand="crates-djs" size={44} />
         <div>
-          <h1 className="text-xl font-bold">Events Portal</h1>
+          <h1 className="font-display text-3xl font-light">Events Portal</h1>
           <p className="mt-1 text-xs text-muted">Sign in to manage your event.</p>
         </div>
       </div>

@@ -167,28 +167,30 @@ export default function AdminCrateTemplatesPage() {
 
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
-        <div className="flex flex-col gap-3">
-          {templates === null && <p className="text-sm text-muted">Loading...</p>}
-          {templates?.length === 0 && <p className="text-sm text-muted">No templates yet.</p>}
-          {templates?.map((t) => (
-            <GlassCard key={t.id} className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="font-semibold">{t.name}</p>
-                <p className="text-xs text-muted">
-                  {t.event_type ?? "Any event"}
-                  {t.clean_requirement ? ` · ${t.clean_requirement}` : ""}
-                  {t.target_genres.length > 0 ? ` · ${t.target_genres.join(", ")}` : ""}
-                </p>
+        {templates === null && <p className="text-sm text-muted">Loading...</p>}
+        {templates?.length === 0 && <p className="text-sm text-muted">No templates yet.</p>}
+        {templates && templates.length > 0 && (
+          <div className="flex flex-col divide-y divide-border border-y border-border">
+            {templates.map((t) => (
+              <div key={t.id} className="flex items-center justify-between gap-3 px-1 py-3 transition-colors hover:bg-gold/[0.04]">
+                <div className="min-w-0">
+                  <p className="font-semibold">{t.name}</p>
+                  <p className="text-xs text-muted">
+                    {t.event_type ?? "Any event"}
+                    {t.clean_requirement ? ` · ${t.clean_requirement}` : ""}
+                    {t.target_genres.length > 0 ? ` · ${t.target_genres.join(", ")}` : ""}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDelete(t.id)}
+                  className="shrink-0 rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
+                >
+                  Remove
+                </button>
               </div>
-              <button
-                onClick={() => handleDelete(t.id)}
-                className="shrink-0 rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
-              >
-                Remove
-              </button>
-            </GlassCard>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

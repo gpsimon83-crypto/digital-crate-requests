@@ -100,7 +100,7 @@ export default function PortalEventPage({ params }: { params: Promise<{ id: stri
         <ArrowLeft size={14} /> Your events
       </Link>
 
-      <h1 className="text-2xl font-bold">{event.title}</h1>
+      <h1 className="font-display text-4xl font-light">{event.title}</h1>
       <p className="mt-1 flex items-center gap-1 text-sm text-muted">
         <CalendarDays size={13} />
         {event.starts_at ? new Date(event.starts_at).toLocaleString() : "Date TBD"}

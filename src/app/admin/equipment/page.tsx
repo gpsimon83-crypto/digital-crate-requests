@@ -148,30 +148,32 @@ export default function AdminEquipmentPage() {
 
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
-        <div className="flex flex-col gap-3">
-          {items === null && <p className="text-sm text-muted">Loading...</p>}
-          {items?.length === 0 && <p className="text-sm text-muted">No equipment yet.</p>}
-          {items?.map((item) => (
-            <GlassCard key={item.id} className="flex items-center justify-between">
-              <div>
-                <p className="flex items-center gap-1.5 font-semibold">
-                  <Boxes size={14} />
-                  {item.name}
-                </p>
-                <p className="mt-1 text-xs text-muted">
-                  {item.category} {item.brand ? `· ${item.brand}` : ""} · qty {item.quantity_owned} · {item.status}
-                  {item.storage_location ? ` · ${item.storage_location}` : ""}
-                </p>
+        {items === null && <p className="text-sm text-muted">Loading...</p>}
+        {items?.length === 0 && <p className="text-sm text-muted">No equipment yet.</p>}
+        {items && items.length > 0 && (
+          <div className="flex flex-col divide-y divide-border border-y border-border">
+            {items.map((item) => (
+              <div key={item.id} className="flex items-center justify-between px-1 py-3 transition-colors hover:bg-gold/[0.04]">
+                <div>
+                  <p className="flex items-center gap-1.5 font-semibold">
+                    <Boxes size={14} />
+                    {item.name}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    {item.category} {item.brand ? `· ${item.brand}` : ""} · qty {item.quantity_owned} · {item.status}
+                    {item.storage_location ? ` · ${item.storage_location}` : ""}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
+                >
+                  Remove
+                </button>
               </div>
-              <button
-                onClick={() => handleDelete(item.id)}
-                className="rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
-              >
-                Remove
-              </button>
-            </GlassCard>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

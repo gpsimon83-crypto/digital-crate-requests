@@ -43,7 +43,7 @@ export default function PortalSignupPage() {
   if (needsConfirmation) {
     return (
       <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-4 text-center">
-        <h1 className="mb-2 text-xl font-bold">Check your email</h1>
+        <h1 className="mb-2 font-display text-3xl font-light">Check your email</h1>
         <p className="text-sm text-muted">
           We sent a confirmation link to {email}. Confirm it, then{" "}
           <Link href="/portal/login" className="text-gold">sign in</Link> to reach your event.
@@ -57,7 +57,7 @@ export default function PortalSignupPage() {
       <div className="mb-8 flex flex-col items-center gap-3 text-center">
         <Logo variant="icon" brand="crates-djs" size={44} />
         <div>
-          <h1 className="text-xl font-bold">Create your account</h1>
+          <h1 className="font-display text-3xl font-light">Create your account</h1>
           <p className="mt-1 text-xs text-muted">Use the same email you booked with — we&rsquo;ll connect it to your event.</p>
         </div>
       </div>

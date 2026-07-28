@@ -69,29 +69,31 @@ export default function InviteCodesPage() {
 
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
-        <div className="flex flex-col gap-3">
-          {codes === null && <p className="text-sm text-muted">Loading...</p>}
-          {codes?.length === 0 && <p className="text-sm text-muted">No invite codes yet.</p>}
-          {codes?.map((c) => (
-            <GlassCard key={c.id} className="flex items-center justify-between">
-              <div>
-                <p className="font-mono font-semibold">{c.code}</p>
-                <p className="text-xs text-muted">{c.djs?.display_name ?? "Unassigned"}</p>
+        {codes === null && <p className="text-sm text-muted">Loading...</p>}
+        {codes?.length === 0 && <p className="text-sm text-muted">No invite codes yet.</p>}
+        {codes && codes.length > 0 && (
+          <div className="flex flex-col divide-y divide-border border-y border-border">
+            {codes.map((c) => (
+              <div key={c.id} className="flex items-center justify-between px-1 py-3 transition-colors hover:bg-gold/[0.04]">
+                <div>
+                  <p className="font-mono font-semibold">{c.code}</p>
+                  <p className="text-xs text-muted">{c.djs?.display_name ?? "Unassigned"}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={c.used ? "status-badge declined" : "status-badge approved"}>
+                    {c.used ? "Used" : "Available"}
+                  </span>
+                  <button
+                    onClick={() => handleDelete(c.id)}
+                    className="rounded-[2px] border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={c.used ? "status-badge declined" : "status-badge approved"}>
-                  {c.used ? "Used" : "Available"}
-                </span>
-                <button
-                  onClick={() => handleDelete(c.id)}
-                  className="rounded-[2px] border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
-                >
-                  Delete
-                </button>
-              </div>
-            </GlassCard>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

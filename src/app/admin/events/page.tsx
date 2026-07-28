@@ -158,44 +158,49 @@ export default function AdminEventsPage() {
           )}
         </GlassCard>
 
-        <div className="flex flex-col gap-3">
-          {events === null && <p className="text-sm text-muted">Loading events...</p>}
-          {events?.length === 0 && <p className="text-sm text-muted">No events yet.</p>}
-          {events?.map((e) => (
-            <GlassCard key={e.id} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="font-semibold">{e.title}</p>
-                <p className="text-xs text-muted">
-                  {e.event_code} &middot; {e.djs?.display_name ?? "Unassigned"} &middot; {e.venues?.name ?? "No venue"}
-                </p>
-                <p className="text-xs text-muted">
-                  {e.starts_at ? new Date(e.starts_at).toLocaleString() : "No date set"}
-                </p>
-                {(e.clients || e.quoted_amount) && (
+        {events === null && <p className="text-sm text-muted">Loading events...</p>}
+        {events?.length === 0 && <p className="text-sm text-muted">No events yet.</p>}
+        {events && events.length > 0 && (
+          <div className="flex flex-col divide-y divide-border border-y border-border">
+            {events.map((e) => (
+              <div
+                key={e.id}
+                className="flex flex-col gap-2 px-1 py-3 transition-colors hover:bg-gold/[0.04] sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div>
+                  <p className="font-semibold">{e.title}</p>
                   <p className="text-xs text-muted">
-                    {e.clients && (e.clients.company_name || [e.clients.first_name, e.clients.last_name].filter(Boolean).join(" "))}
-                    {e.clients && e.quoted_amount ? " · " : ""}
-                    {e.quoted_amount ? `Quoted $${e.quoted_amount}` : ""}
+                    {e.event_code} &middot; {e.djs?.display_name ?? "Unassigned"} &middot; {e.venues?.name ?? "No venue"}
                   </p>
-                )}
-                {(() => {
-                  const totalDue = e.final_amount ?? e.quoted_amount;
-                  if (!totalDue) return null;
-                  const totalDueCents = Math.round(totalDue * 100);
-                  const paid = e.paid_cents;
-                  return (
-                    <p className={`text-xs ${paid >= totalDueCents ? "text-status-approved" : paid > 0 ? "text-status-pending" : "text-muted"}`}>
-                      {paid >= totalDueCents ? "Paid in full" : `$${(paid / 100).toFixed(2)} of $${totalDue.toFixed(2)} paid`}
+                  <p className="text-xs text-muted">
+                    {e.starts_at ? new Date(e.starts_at).toLocaleString() : "No date set"}
+                  </p>
+                  {(e.clients || e.quoted_amount) && (
+                    <p className="text-xs text-muted">
+                      {e.clients && (e.clients.company_name || [e.clients.first_name, e.clients.last_name].filter(Boolean).join(" "))}
+                      {e.clients && e.quoted_amount ? " · " : ""}
+                      {e.quoted_amount ? `Quoted $${e.quoted_amount}` : ""}
                     </p>
-                  );
-                })()}
+                  )}
+                  {(() => {
+                    const totalDue = e.final_amount ?? e.quoted_amount;
+                    if (!totalDue) return null;
+                    const totalDueCents = Math.round(totalDue * 100);
+                    const paid = e.paid_cents;
+                    return (
+                      <p className={`text-xs ${paid >= totalDueCents ? "text-status-approved" : paid > 0 ? "text-status-pending" : "text-muted"}`}>
+                        {paid >= totalDueCents ? "Paid in full" : `$${(paid / 100).toFixed(2)} of $${totalDue.toFixed(2)} paid`}
+                      </p>
+                    );
+                  })()}
+                </div>
+                <span className={STATUS_CLASS[e.status] ?? "status-badge pending"}>
+                  {STATUS_LABEL[e.status] ?? e.status}
+                </span>
               </div>
-              <span className={STATUS_CLASS[e.status] ?? "status-badge pending"}>
-                {STATUS_LABEL[e.status] ?? e.status}
-              </span>
-            </GlassCard>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </>
   );

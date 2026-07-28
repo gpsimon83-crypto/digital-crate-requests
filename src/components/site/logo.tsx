@@ -5,8 +5,11 @@ import { cn } from "@/lib/utils";
  * Three marks live under this one component: "crate-request" is the
  * guest-facing song-request product (QR flow, DJ dashboard) — the original
  * default. "wing" is the winged icon-only mark. "crates-djs" is the actual
- * primary business wordmark (the "CRATES DJS" stamped logo) — the current
- * choice for the marketing homepage's nav and hero.
+ * primary business mark — a gold-gradient cursive signature with a "CD"
+ * monogram and "EST. 2013" — the elegant direction the owner settled on
+ * for the marketing homepage's nav and hero (replaced the earlier bold
+ * stamped "CRATES DJS" wordmark, which read as too street/gritty next to
+ * the Cormorant Garamond headline type).
  *
  * The `color` prop is kept for backward compatibility with existing
  * crate-request call sites, which use a single fixed-color asset, so it's
@@ -25,12 +28,11 @@ export function Logo({
   className?: string;
 }) {
   if (brand === "crates-djs") {
-    const aspect = 1731 / 909;
     return (
       <Image
-        src="/brand/crates-djs-wordmark.png"
+        src="/brand/crates-djs-signature.png"
         alt="Crates DJs"
-        width={Math.round(size * aspect)}
+        width={size}
         height={size}
         className={cn("object-contain", className)}
         priority

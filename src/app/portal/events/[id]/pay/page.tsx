@@ -68,7 +68,7 @@ export default function PortalPayPage({
         <ArrowLeft size={14} /> Back to your event
       </Link>
 
-      <h1 className="text-xl font-bold">{kind === "deposit" ? "Pay Deposit" : "Pay Remaining Balance"}</h1>
+      <h1 className="font-display text-3xl font-light">{kind === "deposit" ? "Pay Deposit" : "Pay Remaining Balance"}</h1>
       <p className="mt-1 text-sm text-muted">${(amountCents / 100).toFixed(2)}</p>
 
       {error && <p className="mt-4 text-sm text-status-declined">{error}</p>}

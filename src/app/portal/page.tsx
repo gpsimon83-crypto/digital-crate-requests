@@ -51,7 +51,7 @@ export default function PortalHomePage() {
       <div className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Logo variant="icon" brand="crates-djs" size={28} />
-          <h1 className="text-xl font-bold">Events Portal</h1>
+          <h1 className="font-display text-3xl font-light">Events Portal</h1>
         </div>
         <button onClick={handleSignOut} className="flex items-center gap-1.5 text-sm text-muted hover:text-foreground">
           <LogOut size={14} /> Sign out
@@ -77,10 +77,14 @@ export default function PortalHomePage() {
         </GlassCard>
       )}
 
-      <div className="flex flex-col gap-3">
-        {events?.map((e) => (
-          <Link key={e.id} href={`/portal/events/${e.id}`}>
-            <GlassCard className="flex items-center justify-between hover:bg-black/[0.02]">
+      {events && events.length > 0 && (
+        <div className="flex flex-col divide-y divide-border border-y border-border">
+          {events.map((e) => (
+            <Link
+              key={e.id}
+              href={`/portal/events/${e.id}`}
+              className="flex items-center justify-between px-1 py-4 transition-colors hover:bg-gold/[0.04]"
+            >
               <div>
                 <p className="font-semibold">{e.title}</p>
                 <p className="mt-1 flex items-center gap-1 text-xs text-muted">
@@ -91,10 +95,10 @@ export default function PortalHomePage() {
                 </p>
               </div>
               <span className="text-xs uppercase tracking-wide text-gold">{e.status.replace(/_/g, " ")}</span>
-            </GlassCard>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
