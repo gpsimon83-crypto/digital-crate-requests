@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, use as usePromise } from "react";
+import { Suspense, useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
+import { cn } from "@/lib/utils";
 import { ArrowLeft, X, CalendarDays, FileText } from "lucide-react";
 
 interface EventDetail {
@@ -11,6 +13,9 @@ interface EventDetail {
   title: string;
   starts_at: string | null;
   status: string;
+  event_type: string | null;
+  service_type: string | null;
+  expected_guests: number | null;
   must_play: string[] | null;
   do_not_play: string[] | null;
   special_requests: string | null;
@@ -31,8 +36,28 @@ interface Balance {
   balanceCents: number;
 }
 
+const TABS = [
+  { key: "overview", label: "Overview" },
+  { key: "files", label: "Files" },
+  { key: "payment", label: "Payment" },
+  { key: "services", label: "Services" }
+] as const;
+
+type TabKey = (typeof TABS)[number]["key"];
+
 export default function PortalEventPage({ params }: { params: Promise<{ id: string }> }) {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-2xl px-4 py-12 text-sm text-muted">Loading...</div>}>
+      <PortalEventPageInner params={params} />
+    </Suspense>
+  );
+}
+
+function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params);
+  const searchParams = useSearchParams();
+  const activeTab = (searchParams.get("tab") as TabKey | null) ?? "overview";
+
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -126,7 +151,7 @@ export default function PortalEventPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-12">
+    <div className="mx-auto max-w-2xl px-4 py-10 md:py-12">
       <Link href="/portal" className="mb-6 flex items-center gap-1.5 text-sm text-muted hover:text-foreground">
         <ArrowLeft size={14} /> Your events
       </Link>
@@ -139,151 +164,220 @@ export default function PortalEventPage({ params }: { params: Promise<{ id: stri
         {event.djs?.display_name ? ` · ${event.djs.display_name}` : ""}
       </p>
 
-      {event.contract_document_url && (
-        <GlassCard neon className="mt-6 flex flex-col gap-3">
-          <p className="text-sm font-semibold">Contract</p>
-          <a
-            href={event.contract_document_url}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center gap-1.5 text-sm text-gold hover:underline"
+      <div className="mt-6 flex gap-1 overflow-x-auto border-b border-border">
+        {TABS.map((t) => (
+          <Link
+            key={t.key}
+            href={`/portal/events/${id}?tab=${t.key}`}
+            className={cn(
+              "whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
+              activeTab === t.key ? "border-gold text-foreground" : "border-transparent text-muted hover:text-foreground"
+            )}
           >
-            <FileText size={14} /> View contract document
-          </a>
+            {t.label}
+          </Link>
+        ))}
+      </div>
 
-          {event.contract_signed_at ? (
-            <p className="text-sm text-status-approved">
-              Signed by {event.contract_signed_by} on {new Date(event.contract_signed_at).toLocaleDateString()}
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              <p className="text-xs text-muted">
-                Typing your full legal name below and clicking Sign counts as your electronic signature on this
-                contract.
-              </p>
-              <input
-                value={signName}
-                onChange={(e) => setSignName(e.target.value)}
-                placeholder="Your full legal name"
-                className="rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
-              />
-              {signError && <p className="text-xs text-status-declined">{signError}</p>}
-              <NeonButton color="gold" onClick={handleSign} disabled={signing} className="w-fit">
-                {signing ? "Signing..." : "Sign Contract"}
-              </NeonButton>
-            </div>
+      {activeTab === "overview" && (
+        <div className="mt-6 flex flex-col gap-4">
+          <GlassCard className="flex flex-col gap-2">
+            <p className="text-sm font-semibold">At a glance</p>
+            <Row
+              label="Contract"
+              value={event.contract_signed_at ? "Signed" : event.contract_sent_at ? "Awaiting signature" : "Not sent yet"}
+            />
+            <Row
+              label="Balance due"
+              value={balance ? `$${(balance.balanceCents / 100).toFixed(2)}` : "—"}
+            />
+            <Row label="Night plan" value={`${mustPlay.length} must-play · ${doNotPlay.length} do-not-play`} />
+          </GlassCard>
+          {event.djs?.display_name && (
+            <GlassCard className="flex flex-col gap-2">
+              <p className="text-sm font-semibold">Your DJ</p>
+              <p className="text-sm text-muted">{event.djs.display_name}</p>
+            </GlassCard>
           )}
-        </GlassCard>
+        </div>
       )}
 
-      {balance && balance.totalDueCents > 0 && (
-        <GlassCard neon className="mt-6 flex flex-col gap-3">
-          <p className="text-sm font-semibold">Payment</p>
-          <div className="flex flex-col gap-1 text-sm">
-            <Row label="Total" value={`$${(balance.totalDueCents / 100).toFixed(2)}`} />
-            <Row label="Paid so far" value={`$${(balance.paidCents / 100).toFixed(2)}`} />
-            <Row label="Balance due" value={`$${(balance.balanceCents / 100).toFixed(2)}`} bold />
-          </div>
-          {balance.balanceCents > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {event.deposit_amount && balance.paidCents === 0 && (
-                <Link
-                  href={`/portal/events/${id}/pay?kind=deposit&amount=${Math.min(Math.round(event.deposit_amount * 100), balance.balanceCents)}`}
-                >
-                  <NeonButton color="gold">Pay Deposit (${event.deposit_amount.toFixed(2)})</NeonButton>
-                </Link>
+      {activeTab === "files" && (
+        <div className="mt-6">
+          {event.contract_document_url ? (
+            <GlassCard neon className="flex flex-col gap-3">
+              <p className="text-sm font-semibold">Contract</p>
+              <a
+                href={event.contract_document_url}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1.5 text-sm text-gold hover:underline"
+              >
+                <FileText size={14} /> View contract document
+              </a>
+
+              {event.contract_signed_at ? (
+                <p className="text-sm text-status-approved">
+                  Signed by {event.contract_signed_by} on {new Date(event.contract_signed_at).toLocaleDateString()}
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-muted">
+                    Typing your full legal name below and clicking Sign counts as your electronic signature on this
+                    contract.
+                  </p>
+                  <input
+                    value={signName}
+                    onChange={(e) => setSignName(e.target.value)}
+                    placeholder="Your full legal name"
+                    className="rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                  />
+                  {signError && <p className="text-xs text-status-declined">{signError}</p>}
+                  <NeonButton color="gold" onClick={handleSign} disabled={signing} className="w-fit">
+                    {signing ? "Signing..." : "Sign Contract"}
+                  </NeonButton>
+                </div>
               )}
-              <Link href={`/portal/events/${id}/pay?kind=balance&amount=${balance.balanceCents}`}>
-                <NeonButton color="gold">Pay Full Balance (${(balance.balanceCents / 100).toFixed(2)})</NeonButton>
-              </Link>
-            </div>
+            </GlassCard>
+          ) : (
+            <GlassCard className="flex flex-col gap-1">
+              <p className="text-sm font-semibold">No files yet</p>
+              <p className="text-sm text-muted">Your contract will show up here once it&rsquo;s sent.</p>
+            </GlassCard>
           )}
-        </GlassCard>
+        </div>
       )}
 
-      <p className="mt-6 text-sm text-muted">
-        Build your night — tell your DJ exactly what to play and what to skip. Changes save to your event automatically
-        for the DJ to see.
-      </p>
-
-      <GlassCard neon className="mt-6 flex flex-col gap-3">
-        <p className="text-sm font-semibold">Must-Play List</p>
-        <SongList items={mustPlay} onRemove={(i) => setMustPlay(mustPlay.filter((_, idx) => idx !== i))} />
-        <div className="flex gap-2">
-          <input
-            value={newMustPlay}
-            onChange={(e) => setNewMustPlay(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && newMustPlay.trim()) {
-                e.preventDefault();
-                setMustPlay([...mustPlay, newMustPlay.trim()]);
-                setNewMustPlay("");
-              }
-            }}
-            placeholder="Song title — Artist"
-            className="flex-1 rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
-          />
-          <button
-            onClick={() => {
-              if (newMustPlay.trim()) {
-                setMustPlay([...mustPlay, newMustPlay.trim()]);
-                setNewMustPlay("");
-              }
-            }}
-            className="rounded-[2px] border border-black/10 px-4 text-sm font-medium hover:border-gold"
-          >
-            Add
-          </button>
+      {activeTab === "payment" && (
+        <div className="mt-6">
+          {balance && balance.totalDueCents > 0 ? (
+            <GlassCard neon className="flex flex-col gap-3">
+              <p className="text-sm font-semibold">Payment</p>
+              <div className="flex flex-col gap-1 text-sm">
+                <Row label="Total" value={`$${(balance.totalDueCents / 100).toFixed(2)}`} />
+                <Row label="Paid so far" value={`$${(balance.paidCents / 100).toFixed(2)}`} />
+                <Row label="Balance due" value={`$${(balance.balanceCents / 100).toFixed(2)}`} bold />
+              </div>
+              {balance.balanceCents > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {event.deposit_amount && balance.paidCents === 0 && (
+                    <Link
+                      href={`/portal/events/${id}/pay?kind=deposit&amount=${Math.min(Math.round(event.deposit_amount * 100), balance.balanceCents)}`}
+                    >
+                      <NeonButton color="gold">Pay Deposit (${event.deposit_amount.toFixed(2)})</NeonButton>
+                    </Link>
+                  )}
+                  <Link href={`/portal/events/${id}/pay?kind=balance&amount=${balance.balanceCents}`}>
+                    <NeonButton color="gold">Pay Full Balance (${(balance.balanceCents / 100).toFixed(2)})</NeonButton>
+                  </Link>
+                </div>
+              )}
+            </GlassCard>
+          ) : (
+            <GlassCard className="flex flex-col gap-1">
+              <p className="text-sm font-semibold">Nothing due</p>
+              <p className="text-sm text-muted">You&rsquo;re all paid up, or a total hasn&rsquo;t been set yet.</p>
+            </GlassCard>
+          )}
         </div>
-      </GlassCard>
+      )}
 
-      <GlassCard className="mt-4 flex flex-col gap-3">
-        <p className="text-sm font-semibold">Do-Not-Play List</p>
-        <SongList items={doNotPlay} onRemove={(i) => setDoNotPlay(doNotPlay.filter((_, idx) => idx !== i))} />
-        <div className="flex gap-2">
-          <input
-            value={newDoNotPlay}
-            onChange={(e) => setNewDoNotPlay(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && newDoNotPlay.trim()) {
-                e.preventDefault();
-                setDoNotPlay([...doNotPlay, newDoNotPlay.trim()]);
-                setNewDoNotPlay("");
-              }
-            }}
-            placeholder="Song title — Artist"
-            className="flex-1 rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
-          />
-          <button
-            onClick={() => {
-              if (newDoNotPlay.trim()) {
-                setDoNotPlay([...doNotPlay, newDoNotPlay.trim()]);
-                setNewDoNotPlay("");
-              }
-            }}
-            className="rounded-[2px] border border-black/10 px-4 text-sm font-medium hover:border-gold"
-          >
-            Add
-          </button>
+      {activeTab === "services" && (
+        <div className="mt-6 flex flex-col gap-4">
+          {(event.event_type || event.service_type || event.expected_guests) && (
+            <GlassCard className="flex flex-col gap-2">
+              <p className="text-sm font-semibold">Your booking</p>
+              {event.event_type && <Row label="Event type" value={event.event_type} />}
+              {event.service_type && <Row label="Service" value={event.service_type} />}
+              {event.expected_guests != null && <Row label="Expected guests" value={String(event.expected_guests)} />}
+            </GlassCard>
+          )}
+
+          <p className="text-sm text-muted">
+            Build your night — tell your DJ exactly what to play and what to skip. Changes save to your event
+            automatically for the DJ to see.
+          </p>
+
+          <GlassCard neon className="flex flex-col gap-3">
+            <p className="text-sm font-semibold">Must-Play List</p>
+            <SongList items={mustPlay} onRemove={(i) => setMustPlay(mustPlay.filter((_, idx) => idx !== i))} />
+            <div className="flex gap-2">
+              <input
+                value={newMustPlay}
+                onChange={(e) => setNewMustPlay(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newMustPlay.trim()) {
+                    e.preventDefault();
+                    setMustPlay([...mustPlay, newMustPlay.trim()]);
+                    setNewMustPlay("");
+                  }
+                }}
+                placeholder="Song title — Artist"
+                className="flex-1 rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              />
+              <button
+                onClick={() => {
+                  if (newMustPlay.trim()) {
+                    setMustPlay([...mustPlay, newMustPlay.trim()]);
+                    setNewMustPlay("");
+                  }
+                }}
+                className="rounded-[2px] border border-black/10 px-4 text-sm font-medium hover:border-gold"
+              >
+                Add
+              </button>
+            </div>
+          </GlassCard>
+
+          <GlassCard className="flex flex-col gap-3">
+            <p className="text-sm font-semibold">Do-Not-Play List</p>
+            <SongList items={doNotPlay} onRemove={(i) => setDoNotPlay(doNotPlay.filter((_, idx) => idx !== i))} />
+            <div className="flex gap-2">
+              <input
+                value={newDoNotPlay}
+                onChange={(e) => setNewDoNotPlay(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && newDoNotPlay.trim()) {
+                    e.preventDefault();
+                    setDoNotPlay([...doNotPlay, newDoNotPlay.trim()]);
+                    setNewDoNotPlay("");
+                  }
+                }}
+                placeholder="Song title — Artist"
+                className="flex-1 rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              />
+              <button
+                onClick={() => {
+                  if (newDoNotPlay.trim()) {
+                    setDoNotPlay([...doNotPlay, newDoNotPlay.trim()]);
+                    setNewDoNotPlay("");
+                  }
+                }}
+                className="rounded-[2px] border border-black/10 px-4 text-sm font-medium hover:border-gold"
+              >
+                Add
+              </button>
+            </div>
+          </GlassCard>
+
+          <GlassCard className="flex flex-col gap-2">
+            <p className="text-sm font-semibold">Notes for your DJ</p>
+            <textarea
+              value={specialRequests}
+              onChange={(e) => setSpecialRequests(e.target.value)}
+              placeholder="First dance song, timeline details, anything else your DJ should know..."
+              className="min-h-[100px] w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+            />
+          </GlassCard>
+
+          {error && <p className="text-sm text-status-declined">{error}</p>}
+          {saved && <p className="text-sm text-status-approved">Saved.</p>}
+
+          <NeonButton color="gold" onClick={handleSave} disabled={saving} className="w-fit">
+            {saving ? "Saving..." : "Save changes"}
+          </NeonButton>
         </div>
-      </GlassCard>
-
-      <GlassCard className="mt-4 flex flex-col gap-2">
-        <p className="text-sm font-semibold">Notes for your DJ</p>
-        <textarea
-          value={specialRequests}
-          onChange={(e) => setSpecialRequests(e.target.value)}
-          placeholder="First dance song, timeline details, anything else your DJ should know..."
-          className="min-h-[100px] w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
-        />
-      </GlassCard>
-
-      {error && <p className="mt-3 text-sm text-status-declined">{error}</p>}
-      {saved && <p className="mt-3 text-sm text-status-approved">Saved.</p>}
-
-      <NeonButton color="gold" onClick={handleSave} disabled={saving} className="mt-4">
-        {saving ? "Saving..." : "Save changes"}
-      </NeonButton>
+      )}
     </div>
   );
 }
