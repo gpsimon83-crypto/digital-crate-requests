@@ -3,16 +3,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Logo } from "@/components/site/logo";
 import { BookingForm } from "@/components/site/booking-form";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { QrCode, Music2, Heart, LogIn, PartyPopper, UserCircle, Disc3 } from "lucide-react";
-
-const SERVICES = [
-  { num: "01", title: "Clubs & Bars", body: "Resident and guest DJ sets that command the dance floor. We build momentum, sustain energy, and keep crowds coming back." },
-  { num: "02", title: "Weddings", body: "From ceremony to last dance — personalized playlists, seamless transitions, and professional MC services tailored to your perfect day." },
-  { num: "03", title: "Corporate Events", body: "Sophisticated entertainment for galas, launch parties, and company celebrations. We set the tone for every moment." },
-  { num: "04", title: "Holiday Events", body: "Festive, curated sets that bring seasonal energy to your party — from holiday classics to crowd-favorite hits." },
-  { num: "05", title: "Private Parties", body: "Birthdays, anniversaries, and private celebrations — fully customized music experiences built around your crowd and vibe." },
-  { num: "06", title: "Open Format", body: "Hip-hop, R&B, Afrobeats, house, Latin, top 40 — our DJs move effortlessly across genres and blend them into one seamless journey." }
-];
+import { QrCode, Music2, Heart, LogIn, PartyPopper, UserCircle, Disc3, ExternalLink } from "lucide-react";
 
 const STEPS = [
   { icon: QrCode, title: "Scan at your event", body: "Look for the Digital Crate QR code near the DJ booth — no app or account needed." },
@@ -58,12 +49,17 @@ export default async function Home() {
           <Logo variant="icon" brand="crates-djs" size={32} />
           <span className="text-sm font-semibold tracking-wide">Digital Crate DJs</span>
         </div>
-        <div className="hidden gap-6 text-xs font-medium uppercase tracking-widest text-muted sm:flex">
-          <a href="#about" className="hover:text-gold">About</a>
-          <a href="#services" className="hover:text-gold">Services</a>
-          <a href="#roster" className="hover:text-gold">Our DJs</a>
+        <div className="hidden items-center gap-6 text-xs font-medium uppercase tracking-widest text-muted sm:flex">
           <a href="#booking" className="hover:text-gold">Booking</a>
           <a href="#contact" className="hover:text-gold">Contact</a>
+          <a
+            href="https://digitalcratedjs.com"
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1 hover:text-gold"
+          >
+            About Us <ExternalLink size={11} />
+          </a>
         </div>
         <Link href="/dj-dashboard/login" className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-gold">
           <LogIn size={14} /> DJ / Staff Login
@@ -76,19 +72,26 @@ export default async function Home() {
         <p className="-mt-2 text-xs font-semibold uppercase tracking-[0.3em] text-muted">Events Portal</p>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Wisconsin&rsquo;s Premier DJ Collective</p>
 
-        <p className="mt-4 text-sm font-medium text-muted">What brings you here today?</p>
-        <div className="grid w-full gap-3 sm:grid-cols-3">
-          {HELPER_PATHS.map((path) => (
+        <p
+          className="fade-in-up mt-4 font-display text-3xl tracking-wide text-foreground sm:text-4xl"
+          style={{ animationDelay: "0.1s" }}
+        >
+          What brings you here today?
+        </p>
+        <div className="flex w-full flex-col divide-y divide-border border-y border-border sm:flex-row sm:divide-x sm:divide-y-0">
+          {HELPER_PATHS.map((path, i) => (
             <Link
               key={path.title}
               href={path.href}
-              className="group flex flex-col items-center gap-2 rounded-2xl border border-border bg-card px-5 py-6 text-center transition-colors hover:border-gold"
+              style={{ animationDelay: `${0.25 + i * 0.12}s` }}
+              className="fade-in-up group relative flex flex-1 flex-col items-center gap-2 px-5 py-8 text-center transition-colors hover:bg-gold/[0.04]"
             >
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold/15 text-gold">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold/15 text-gold transition-transform group-hover:scale-110">
                 <path.icon size={20} />
               </span>
               <p className="text-sm font-semibold group-hover:text-gold">{path.title}</p>
               <p className="text-xs text-muted">{path.body}</p>
+              <span className="absolute inset-x-0 bottom-0 h-[2px] origin-left scale-x-0 bg-gold transition-transform duration-300 group-hover:scale-x-100" />
             </Link>
           ))}
         </div>
@@ -101,72 +104,11 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ABOUT */}
-      <section id="about" className="border-t border-black/8 px-6 py-16 sm:px-10">
-        <div className="mx-auto max-w-4xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Who we are</p>
-          <h2 className="mt-2 text-3xl font-bold">A collective built on music & experience</h2>
-          <div className="mt-6 grid gap-10 sm:grid-cols-2">
-            <div className="flex flex-col gap-4 text-sm leading-7 text-muted">
-              <p>Digital Crate DJs is Wisconsin&rsquo;s premier DJ collective — a hand-picked roster of open-format artists who bring versatility, professionalism, and an undeniable energy to every event they touch.</p>
-              <p>From intimate bar residencies to high-energy club nights, elegant weddings, and corporate galas — our DJs read the room, move the crowd, and create moments that last long after the music stops.</p>
-              <p>We don&rsquo;t just play music. We craft experiences. And that makes all the difference.</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <Stat value="10+" label="DJs on roster" boxed />
-              <Stat value="100%" label="Open format" boxed />
-              <Stat value="WI+" label="Service area" boxed />
-              <Stat value="Any" label="Event size" boxed />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* SERVICES */}
-      <section id="services" className="border-t border-black/8 px-6 py-16 sm:px-10">
-        <div className="mx-auto max-w-5xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">What we offer</p>
-          <h2 className="mt-2 text-3xl font-bold">DJ services for every occasion</h2>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {SERVICES.map((s) => (
-              <GlassCard key={s.num} className="flex flex-col gap-2">
-                <span className="text-3xl font-bold text-border">{s.num}</span>
-                <p className="font-semibold">{s.title}</p>
-                <p className="text-sm text-muted">{s.body}</p>
-              </GlassCard>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ROSTER */}
-      <section id="roster" className="border-t border-black/8 px-6 py-16 sm:px-10">
-        <div className="mx-auto max-w-5xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">The collective</p>
-          <h2 className="mt-2 text-3xl font-bold">Meet the Digital Crate DJs</h2>
-          <p className="mt-2 max-w-lg text-sm text-muted">
-            Every DJ brings their own signature style — united by a shared standard of excellence.
-          </p>
-          <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5">
-            {djs.length === 0 && <p className="text-sm text-muted">DJ roster coming soon.</p>}
-            {djs.map((dj) => (
-              <GlassCard key={dj.id} className="flex flex-col items-center gap-2 text-center">
-                <span className="flex h-12 w-12 items-center justify-center rounded-full border border-gold-dim text-lg font-semibold text-gold">
-                  {dj.display_name.charAt(0)}
-                </span>
-                <p className="text-sm font-semibold">{dj.display_name}</p>
-                <p className="text-[10px] uppercase tracking-widest text-muted">Open Format</p>
-              </GlassCard>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* HOW REQUESTS WORK */}
       <section className="border-t border-black/8 px-6 py-16 sm:px-10">
         <div className="mx-auto max-w-5xl">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">At your event</p>
-          <h2 className="mt-2 text-3xl font-bold">Request songs, live</h2>
+          <h2 className="mt-2 font-display text-4xl tracking-wide">Request songs, live</h2>
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
             {STEPS.map((step) => (
               <GlassCard key={step.title} className="flex flex-col items-center gap-2 text-center">
@@ -186,7 +128,7 @@ export default async function Home() {
         <div className="mx-auto grid max-w-5xl gap-10 lg:grid-cols-[1fr_2fr]">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">Reserve your date</p>
-            <h2 className="mt-2 text-2xl font-bold leading-snug">Let&rsquo;s create something unforgettable together.</h2>
+            <h2 className="mt-2 font-display text-3xl tracking-wide">Let&rsquo;s create something unforgettable together.</h2>
             <p className="mt-3 text-sm text-muted">
               Fill out the request form and a member of our team will respond within 24 hours to confirm availability and discuss the details of your event.
             </p>

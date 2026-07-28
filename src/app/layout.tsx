@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Bebas_Neue } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 
@@ -10,6 +10,15 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+// Display face for headlines only — tall, bold, condensed, the same family
+// of energy as the stamped "CRATES DJS" wordmark. Body copy stays on
+// Geist app-wide so admin/DJ tooling stays plainly readable.
+const bebasNeue = Bebas_Neue({
+  variable: "--font-display",
+  weight: "400",
   subsets: ["latin"],
 });
 
@@ -44,7 +53,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${bebasNeue.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
