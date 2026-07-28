@@ -79,7 +79,7 @@ export default function AdminVenuesPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Venue name"
-              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <label className="block flex-1">
@@ -88,7 +88,7 @@ export default function AdminVenuesPage() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="City, State"
-              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <NeonButton color="gold" onClick={handleAdd} disabled={adding} className="shrink-0">
@@ -113,7 +113,7 @@ export default function AdminVenuesPage() {
               </div>
               <button
                 onClick={() => handleDelete(v.id)}
-                className="rounded-full border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
+                className="rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
               >
                 Remove
               </button>

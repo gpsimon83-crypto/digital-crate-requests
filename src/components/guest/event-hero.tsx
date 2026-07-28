@@ -90,7 +90,7 @@ export function EventHero({
           {!paused && (
             <Link
               href={`/r/${eventCode}/request`}
-              className="shrink-0 rounded-full bg-gold px-3 py-1.5 text-[10px] font-bold text-black"
+              className="shrink-0 rounded-[2px] bg-gold px-3 py-1.5 text-[10px] font-bold text-black"
             >
               Request
             </Link>
@@ -160,7 +160,7 @@ export function EventHero({
 
           {/* Content */}
           <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 px-5 pb-12">
-            <span className="w-fit rounded-full border border-gold/50 bg-black/30 px-3 py-1 text-[10px] font-bold uppercase tracking-[2px] text-gold backdrop-blur-sm">
+            <span className="w-fit rounded-[2px] border border-gold/50 bg-black/30 px-3 py-1 text-[10px] font-bold uppercase tracking-[2px] text-gold backdrop-blur-sm">
               {statusLabel}
             </span>
             <h1 className="gold-text-gradient text-4xl font-extrabold leading-[1.05] sm:text-5xl">{title}</h1>
@@ -174,18 +174,18 @@ export function EventHero({
               {!paused ? (
                 <Link
                   href={`/r/${eventCode}/request`}
-                  className="flex items-center gap-2 rounded-full bg-gradient-to-r from-[var(--gold-light)] to-[var(--gold)] px-5 py-3 text-sm font-bold text-black btn-gold-solid"
+                  className="flex items-center gap-2 rounded-[2px] bg-gradient-to-r from-[var(--gold-light)] to-[var(--gold)] px-5 py-3 text-sm font-bold text-black btn-gold-solid"
                 >
                   <Music4 size={16} /> Request a Song
                 </Link>
               ) : (
-                <span className="flex items-center gap-2 rounded-full border border-white/20 bg-black/40 px-5 py-3 text-sm font-semibold text-muted backdrop-blur-sm">
+                <span className="flex items-center gap-2 rounded-[2px] border border-white/20 bg-black/40 px-5 py-3 text-sm font-semibold text-muted backdrop-blur-sm">
                   <Music4 size={16} /> Requests Paused
                 </span>
               )}
               <Link
                 href={`/r/${eventCode}/tip`}
-                className="flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/15"
+                className="flex items-center gap-2 rounded-[2px] border border-white/25 bg-white/10 px-5 py-3 text-sm font-semibold text-white backdrop-blur-md transition-colors hover:bg-white/15"
               >
                 <Heart size={16} /> Tip the DJ
               </Link>

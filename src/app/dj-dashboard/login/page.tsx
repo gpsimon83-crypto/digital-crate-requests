@@ -187,7 +187,7 @@ function LoginForm() {
               type="button"
               onClick={() => handleOAuth("google")}
               disabled={oauthLoading !== null}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-black/10 bg-black/[0.02] py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-black/[0.04] disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-[2px] border border-black/10 bg-black/[0.02] py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-black/[0.04] disabled:opacity-50"
             >
               <GoogleIcon /> Google
             </button>
@@ -195,7 +195,7 @@ function LoginForm() {
               type="button"
               onClick={() => handleOAuth("apple")}
               disabled={oauthLoading !== null}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-black/10 bg-black/[0.02] py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-black/[0.04] disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-2 rounded-[2px] border border-black/10 bg-black/[0.02] py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-black/[0.04] disabled:opacity-50"
             >
               <AppleIcon /> Apple
             </button>

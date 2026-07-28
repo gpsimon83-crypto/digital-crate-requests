@@ -200,7 +200,7 @@ function Stat({ value, label, boxed = false }: { value: string; label: string; b
     </>
   );
   if (boxed) {
-    return <div className="rounded-xl border border-border bg-panel py-6 text-center">{content}</div>;
+    return <div className="rounded-[2px] border border-border bg-panel py-6 text-center">{content}</div>;
   }
   return <div className="text-center">{content}</div>;
 }

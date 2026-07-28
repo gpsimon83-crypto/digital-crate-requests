@@ -164,22 +164,22 @@ export function EnergyFlowEditor({
         </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {!showCompare && (
-            <button onClick={suggestOrder} className="flex items-center gap-1.5 rounded-full border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold">
+            <button onClick={suggestOrder} className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold">
               <Wand2 size={13} /> Suggest Energy Order
             </button>
           )}
           {showCompare && (
             <>
-              <button onClick={applySuggested} className="flex items-center gap-1.5 rounded-full bg-gold px-3 py-1.5 text-xs font-bold text-black">
+              <button onClick={applySuggested} className="flex items-center gap-1.5 rounded-[2px] bg-gold px-3 py-1.5 text-xs font-bold text-black">
                 <Check size={13} /> Apply Suggested Order
               </button>
-              <button onClick={() => setSuggested(null)} className="rounded-full border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-black/25 hover:text-foreground">
+              <button onClick={() => setSuggested(null)} className="rounded-[2px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-black/25 hover:text-foreground">
                 Keep Manual Order
               </button>
             </>
           )}
           {previous && !showCompare && (
-            <button onClick={undo} className="flex items-center gap-1.5 rounded-full border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-status-declined/60 hover:text-status-declined">
+            <button onClick={undo} className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-status-declined/60 hover:text-status-declined">
               <Undo2 size={13} /> Undo
             </button>
           )}
@@ -187,7 +187,7 @@ export function EnergyFlowEditor({
             <button
               onClick={saveOrderToCrate}
               disabled={saving}
-              className="flex items-center gap-1.5 rounded-full border border-gold/40 px-3 py-1.5 text-xs font-semibold text-gold hover:bg-gold/10 disabled:opacity-40"
+              className="flex items-center gap-1.5 rounded-[2px] border border-gold/40 px-3 py-1.5 text-xs font-semibold text-gold hover:bg-gold/10 disabled:opacity-40"
             >
               <Save size={13} /> {saving ? "Saving…" : "Save Order to Crate"}
             </button>

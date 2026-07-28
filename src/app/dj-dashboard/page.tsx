@@ -88,7 +88,7 @@ export default function DjPortalHomePage() {
             {djName && <DjAvatar name={djName} photoUrl={djPhoto} size={36} />}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
             >
               <LogOut size={14} /> Sign Out
             </button>

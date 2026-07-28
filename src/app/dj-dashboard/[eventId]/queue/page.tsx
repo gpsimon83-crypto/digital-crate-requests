@@ -108,14 +108,14 @@ export default function LiveQueuePage({ params }: { params: Promise<{ eventId: s
                   <button
                     disabled={actingId === r.id}
                     onClick={() => act(r.id, "approve")}
-                    className="flex items-center gap-1 rounded-full bg-status-approved px-4 py-2 text-xs font-bold text-black disabled:opacity-50"
+                    className="flex items-center gap-1 rounded-[2px] bg-status-approved px-4 py-2 text-xs font-bold text-black disabled:opacity-50"
                   >
                     <Check size={14} /> Approve
                   </button>
                   <button
                     disabled={actingId === r.id}
                     onClick={() => act(r.id, "decline")}
-                    className="flex items-center gap-1 rounded-full bg-status-declined px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
+                    className="flex items-center gap-1 rounded-[2px] bg-status-declined px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
                   >
                     <X size={14} /> Decline
                   </button>
@@ -125,7 +125,7 @@ export default function LiveQueuePage({ params }: { params: Promise<{ eventId: s
                 <button
                   disabled={actingId === r.id}
                   onClick={() => act(r.id, "mark-played")}
-                  className="flex items-center gap-1 rounded-full bg-status-played px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
+                  className="flex items-center gap-1 rounded-[2px] bg-status-played px-4 py-2 text-xs font-bold text-white disabled:opacity-50"
                 >
                   <PlayCircle size={14} /> Mark Played
                 </button>

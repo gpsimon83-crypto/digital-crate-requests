@@ -90,7 +90,7 @@ export default function MonetizationPage() {
               <button
                 key={m.value}
                 onClick={() => setConfig((c) => ({ ...c, paymentMode: m.value }))}
-                className={`rounded-xl border px-3 py-2.5 text-xs font-medium transition-colors ${
+                className={`rounded-[2px] border px-3 py-2.5 text-xs font-medium transition-colors ${
                   config.paymentMode === m.value ? "border-gold bg-gold/10 text-gold" : "border-black/10 text-muted"
                 }`}
               >
@@ -203,7 +203,7 @@ export default function MonetizationPage() {
           <p className="text-xs uppercase tracking-wide text-muted">Credit Packs</p>
           <div className="grid gap-3 sm:grid-cols-4">
             {config.jukebox.creditPacks.map((pack, i) => (
-              <div key={i} className="flex flex-col gap-2 rounded-xl border border-black/10 bg-panel p-3">
+              <div key={i} className="flex flex-col gap-2 rounded-[2px] border border-black/10 bg-panel p-3">
                 <label className="block">
                   <span className="mb-1 block text-[10px] uppercase text-muted">Credits</span>
                   <input
@@ -254,7 +254,7 @@ function PriceField({ label, cents, onChange }: { label: string; cents: number; 
         type="number"
         value={(cents / 100).toString()}
         onChange={(e) => onChange(Math.round(Number(e.target.value) * 100))}
-        className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+        className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
       />
     </label>
   );
@@ -268,7 +268,7 @@ function CreditField({ label, value, onChange }: { label: string; value: number;
         type="number"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+        className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
       />
     </label>
   );
@@ -290,7 +290,7 @@ function PresetEditor({
       <p className="mb-2 text-xs uppercase tracking-wide text-muted">{label}</p>
       <div className="flex flex-wrap gap-2">
         {values.map((v, i) => (
-          <span key={i} className="flex items-center gap-1.5 rounded-full border border-black/10 bg-panel px-3 py-1.5 text-xs">
+          <span key={i} className="flex items-center gap-1.5 rounded-[2px] border border-black/10 bg-panel px-3 py-1.5 text-xs">
             {v === 0 ? "Free" : `$${(v / 100).toFixed(v % 100 === 0 ? 0 : 2)}`}
             <button onClick={() => onChange(values.filter((_, idx) => idx !== i))} className="text-muted hover:text-status-declined">
               <X size={12} />
@@ -303,7 +303,7 @@ function PresetEditor({
             value={newValue}
             onChange={(e) => setNewValue(e.target.value)}
             placeholder="$ amount"
-            className="w-24 rounded-full border border-black/10 bg-panel px-3 py-1.5 text-xs focus:border-gold focus:outline-none"
+            className="w-24 rounded-[2px] border border-black/10 bg-panel px-3 py-1.5 text-xs focus:border-gold focus:outline-none"
           />
           <button
             onClick={() => {
@@ -311,7 +311,7 @@ function PresetEditor({
               onChange([...values, Math.round(Number(newValue) * 100)]);
               setNewValue("");
             }}
-            className="rounded-full border border-black/15 px-2.5 py-1.5 text-xs text-muted hover:text-foreground"
+            className="rounded-[2px] border border-black/15 px-2.5 py-1.5 text-xs text-muted hover:text-foreground"
           >
             Add
           </button>

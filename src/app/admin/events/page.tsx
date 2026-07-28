@@ -12,6 +12,8 @@ interface EventRow {
   starts_at: string | null;
   status: string;
   quoted_amount: number | null;
+  final_amount: number | null;
+  paid_cents: number;
   djs: { display_name: string } | null;
   venues: { name: string } | null;
   clients: { company_name: string | null; first_name: string | null; last_name: string | null } | null;
@@ -176,6 +178,17 @@ export default function AdminEventsPage() {
                     {e.quoted_amount ? `Quoted $${e.quoted_amount}` : ""}
                   </p>
                 )}
+                {(() => {
+                  const totalDue = e.final_amount ?? e.quoted_amount;
+                  if (!totalDue) return null;
+                  const totalDueCents = Math.round(totalDue * 100);
+                  const paid = e.paid_cents;
+                  return (
+                    <p className={`text-xs ${paid >= totalDueCents ? "text-status-approved" : paid > 0 ? "text-status-pending" : "text-muted"}`}>
+                      {paid >= totalDueCents ? "Paid in full" : `$${(paid / 100).toFixed(2)} of $${totalDue.toFixed(2)} paid`}
+                    </p>
+                  );
+                })()}
               </div>
               <span className={STATUS_CLASS[e.status] ?? "status-badge pending"}>
                 {STATUS_LABEL[e.status] ?? e.status}
@@ -209,7 +222,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
+        className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
       />
     </label>
   );
@@ -234,7 +247,7 @@ function SelectField({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+        className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
       >
         <option value="">{placeholder}</option>
         {options.map((o) => (

@@ -89,7 +89,7 @@ export function EliteCrateBrowser({
       {packs.map((pack) => {
         const result = copyResult[pack.id];
         return (
-          <div key={pack.id} className="flex items-center justify-between gap-3 rounded-xl border border-gold/20 bg-gold/5 p-3">
+          <div key={pack.id} className="flex items-center justify-between gap-3 rounded-[2px] border border-gold/20 bg-gold/5 p-3">
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
                 <Star size={13} className="shrink-0 text-gold" /> {pack.name}

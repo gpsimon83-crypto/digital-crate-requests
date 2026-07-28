@@ -142,7 +142,7 @@ export function PhotoBanner({
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="flex items-center gap-1.5 rounded-full border border-gold/40 px-3 py-1.5 text-xs font-semibold text-gold hover:bg-gold/10 disabled:opacity-40"
+            className="flex items-center gap-1.5 rounded-[2px] border border-gold/40 px-3 py-1.5 text-xs font-semibold text-gold hover:bg-gold/10 disabled:opacity-40"
           >
             <Plus size={13} /> {uploading ? "Uploading…" : "Add Photo"}
           </button>

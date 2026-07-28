@@ -164,7 +164,7 @@ export function SuggestedSongs({
   }
 
   return (
-    <div className="rounded-xl border border-black/8 bg-panel/40">
+    <div className="rounded-[2px] border border-black/8 bg-panel/40">
       <button onClick={() => setExpanded((e) => !e)} className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left">
         <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
           <Lightbulb size={13} /> Suggested Songs <NewBadge />
@@ -197,7 +197,7 @@ export function SuggestedSongs({
                         <button
                           onClick={() => addSong(track)}
                           disabled={addingKey !== null}
-                          className="flex shrink-0 items-center gap-1 rounded-full border border-gold/40 px-2 py-1 text-[11px] font-semibold text-gold hover:bg-gold/10 disabled:opacity-40"
+                          className="flex shrink-0 items-center gap-1 rounded-[2px] border border-gold/40 px-2 py-1 text-[11px] font-semibold text-gold hover:bg-gold/10 disabled:opacity-40"
                           title="Add Song"
                         >
                           <Plus size={11} /> {addingKey === track.key ? "Adding…" : "Add"}

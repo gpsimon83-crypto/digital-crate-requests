@@ -17,7 +17,22 @@ export async function listEvents() {
     .select("*, djs(display_name, photo_url), venues(name), clients(company_name, first_name, last_name)")
     .order("starts_at", { ascending: true });
   if (error) throw error;
-  return data;
+
+  // One extra query for all succeeded payments rather than N+1 per event —
+  // cheap at this scale (a handful of events), and keeps listEvents a
+  // single round trip beyond it.
+  const { data: payments, error: paymentsError } = await db
+    .from("payments")
+    .select("event_id, amount_cents")
+    .eq("status", "succeeded");
+  if (paymentsError) throw paymentsError;
+
+  const paidByEvent = new Map<string, number>();
+  for (const p of payments ?? []) {
+    paidByEvent.set(p.event_id, (paidByEvent.get(p.event_id) ?? 0) + p.amount_cents);
+  }
+
+  return data.map((event) => ({ ...event, paid_cents: paidByEvent.get(event.id) ?? 0 }));
 }
 
 export async function createEvent(input: {

@@ -26,7 +26,7 @@ export function EventBreadcrumb() {
     <div className="flex items-center gap-2.5 border-b border-black/8 bg-panel/40 px-4 py-2.5 text-xs sm:px-8">
       <Link
         href="/dj-dashboard/bookings"
-        className="flex items-center gap-1 rounded-full border border-black/10 px-2.5 py-1 font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
+        className="flex items-center gap-1 rounded-[2px] border border-black/10 px-2.5 py-1 font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
       >
         <ChevronLeft size={13} /> All Events
       </Link>

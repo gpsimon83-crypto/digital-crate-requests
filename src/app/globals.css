@@ -94,34 +94,35 @@ body {
   color: var(--foreground);
 }
 
-/* Card */
+/* Card — flat, structured, sharp corners; a defined border does the work
+   a soft shadow used to, matching the thin-line-divided grid look used
+   on the homepage hero and event steps. */
 .glass-card {
-  background: linear-gradient(180deg, rgba(33,31,26,0.015), rgba(33,31,26,0) 45%), var(--card);
+  background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 1.25rem;
-  box-shadow: 0 1px 2px rgba(33,31,26,0.04), 0 10px 24px -16px rgba(33,31,26,0.12);
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  border-radius: 2px;
+  transition: border-color 0.2s ease;
 }
 .glass-card:hover {
-  border-color: rgba(186, 139, 75, 0.35);
+  border-color: var(--gold);
 }
 
 /* Gold-outlined emphasis card */
 .neon-border {
   position: relative;
-  border-radius: 1.25rem;
+  border-radius: 2px;
   padding: 1px;
   background: linear-gradient(155deg, var(--gold), var(--gold-dim) 55%, var(--border));
 }
 .neon-border > * {
-  border-radius: calc(1.25rem - 1px);
+  border-radius: 1px;
   background: var(--card);
 }
 
 /* Hero surface — flat warm cream card, for Party Pulse-style hero cards */
 .hero-surface {
   position: relative;
-  border-radius: 1.5rem;
+  border-radius: 2px;
   overflow: hidden;
   border: 1px solid var(--border);
   background: #FBF9F4;
@@ -155,12 +156,12 @@ body {
   box-shadow: none;
 }
 
-/* Solid-fill status badges (matches reference: filled pill, dark bold text) */
+/* Solid-fill status badges */
 .status-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border-radius: 9999px;
+  border-radius: 2px;
   padding: 4px 12px;
   font-size: 11px;
   font-weight: 700;
@@ -260,14 +261,13 @@ body {
 .gl-card-wrap {
   position: relative;
   z-index: 1;
-  border-radius: 1.75rem;
+  border-radius: 2px;
   border: 1px solid var(--border);
-  box-shadow: 0 1px 2px rgba(33,31,26,0.04), 0 10px 24px -16px rgba(33,31,26,0.12);
 }
 
 .gl-card {
   position: relative;
-  border-radius: calc(1.75rem - 1px);
+  border-radius: 1px;
   background: var(--card);
   padding: 2.5rem 2.25rem;
   width: 100%;
@@ -287,7 +287,7 @@ body {
 }
 .gl-input {
   width: 100%;
-  border-radius: 0.9rem;
+  border-radius: 2px;
   border: 1px solid var(--border);
   background: var(--panel);
   padding: 0.85rem 2.75rem 0.85rem 2.75rem;
@@ -317,7 +317,7 @@ body {
 
 .gl-submit {
   width: 100%;
-  border-radius: 0.9rem;
+  border-radius: 2px;
   padding: 0.95rem 1.5rem;
   font-size: 0.875rem;
   font-weight: 700;

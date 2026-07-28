@@ -59,7 +59,7 @@ export function CrateArtGrid({
           <button
             key={c.name}
             onClick={() => onSelect(c)}
-            className="group flex flex-col overflow-hidden rounded-xl border border-white/8 bg-panel/40 text-left transition-colors hover:border-gold/40"
+            className="group flex flex-col overflow-hidden rounded-[2px] border border-white/8 bg-panel/40 text-left transition-colors hover:border-gold/40"
           >
             <div className="relative aspect-square w-full overflow-hidden bg-panel">
               {art?.url ? (
@@ -70,16 +70,16 @@ export function CrateArtGrid({
                   {art?.source === "none" ? <ImageOff size={28} /> : <Music2 size={28} className="animate-pulse" />}
                 </div>
               )}
-              <div className="absolute right-1.5 top-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white">
+              <div className="absolute right-1.5 top-1.5 rounded-[2px] bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white">
                 {c.trackCount} tracks
               </div>
               {art?.source && art.source !== "none" && (
-                <div className="absolute left-1.5 top-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white/80">
+                <div className="absolute left-1.5 top-1.5 rounded-[2px] bg-black/60 px-2 py-0.5 text-[9px] font-medium uppercase tracking-wide text-white/80">
                   {art.source}
                 </div>
               )}
               {profile?.is_elite && (
-                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-full bg-gold px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-black">
+                <div className="absolute bottom-1.5 left-1.5 flex items-center gap-1 rounded-[2px] bg-gold px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-black">
                   <Star size={9} /> Elite
                 </div>
               )}

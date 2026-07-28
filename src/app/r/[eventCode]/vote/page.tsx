@@ -94,7 +94,7 @@ export default function CrowdVotePage({ params }: { params: Promise<{ eventCode:
             <button
               onClick={() => upvote(r.id)}
               disabled={votedIds.includes(r.id)}
-              className="flex min-h-[48px] min-w-[56px] flex-col items-center gap-0.5 rounded-xl border border-gold/40 px-3 py-2 text-gold transition-colors disabled:opacity-50"
+              className="flex min-h-[48px] min-w-[56px] flex-col items-center gap-0.5 rounded-[2px] border border-gold/40 px-3 py-2 text-gold transition-colors disabled:opacity-50"
             >
               <ArrowBigUp size={20} />
               <span className="text-xs font-bold">{r.vote_count}</span>

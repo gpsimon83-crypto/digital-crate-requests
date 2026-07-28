@@ -79,7 +79,7 @@ export function BookingForm({ djs }: { djs: { id: string; display_name: string }
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Venue, expected attendance, music preferences, start & end time..."
-          className="min-h-[100px] w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+          className="min-h-[100px] w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
         />
       </label>
 
@@ -116,7 +116,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
+        className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
       />
     </label>
   );
@@ -144,7 +144,7 @@ function SelectField({
         required={required}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+        className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
       >
         <option value="">{placeholder}</option>
         {options.map((o) => (

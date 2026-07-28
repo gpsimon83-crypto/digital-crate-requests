@@ -96,7 +96,7 @@ export default function AdminEquipmentPage() {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -111,7 +111,7 @@ export default function AdminEquipmentPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="QSC K12.2 Active Speaker"
-              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <label className="block">
@@ -119,7 +119,7 @@ export default function AdminEquipmentPage() {
             <input
               value={brand}
               onChange={(e) => setBrand(e.target.value)}
-              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <label className="block w-24">
@@ -129,7 +129,7 @@ export default function AdminEquipmentPage() {
               min={1}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <label className="block">
@@ -138,7 +138,7 @@ export default function AdminEquipmentPage() {
               value={storageLocation}
               onChange={(e) => setStorageLocation(e.target.value)}
               placeholder="Main Warehouse - Shelf A3"
-              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <NeonButton color="gold" onClick={handleAdd} disabled={adding} className="shrink-0">
@@ -165,7 +165,7 @@ export default function AdminEquipmentPage() {
               </div>
               <button
                 onClick={() => handleDelete(item.id)}
-                className="rounded-full border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
+                className="rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
               >
                 Remove
               </button>

@@ -48,7 +48,7 @@ export function AdminSidebarNav() {
             href={href}
             style={{ "--menu-fade-delay": `${i * 40}ms` } as React.CSSProperties}
             className={cn(
-              "menu-fade-item flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
+              "menu-fade-item flex items-center gap-3 rounded-[2px] px-4 py-2.5 text-sm font-medium transition-colors",
               active ? "sidebar-active" : "text-muted hover:bg-black/5 hover:text-foreground"
             )}
           >
@@ -63,7 +63,7 @@ export function AdminSidebarNav() {
       <a
         href="https://digitalcratedjs.com/members"
         style={{ "--menu-fade-delay": `${ITEMS.length * 40}ms` } as React.CSSProperties}
-        className="menu-fade-item flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
+        className="menu-fade-item flex items-center gap-3 rounded-[2px] px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
         <ArrowLeft size={18} />
         DJ Portal
@@ -71,7 +71,7 @@ export function AdminSidebarNav() {
       <Link
         href="/dj-dashboard/bookings"
         style={{ "--menu-fade-delay": `${(ITEMS.length + 1) * 40}ms` } as React.CSSProperties}
-        className="menu-fade-item flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
+        className="menu-fade-item flex items-center gap-3 rounded-[2px] px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
         <ListMusic size={18} />
         All Bookings
@@ -79,7 +79,7 @@ export function AdminSidebarNav() {
       <Link
         href="/analytics"
         style={{ "--menu-fade-delay": `${(ITEMS.length + 2) * 40}ms` } as React.CSSProperties}
-        className="menu-fade-item flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
+        className="menu-fade-item flex items-center gap-3 rounded-[2px] px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
         <BarChart3 size={18} />
         Analytics
@@ -87,7 +87,7 @@ export function AdminSidebarNav() {
       <button
         onClick={handleLogout}
         style={{ "--menu-fade-delay": `${(ITEMS.length + 3) * 40}ms` } as React.CSSProperties}
-        className="menu-fade-item flex items-center gap-3 rounded-full px-4 py-2.5 text-left text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
+        className="menu-fade-item flex items-center gap-3 rounded-[2px] px-4 py-2.5 text-left text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
         <LogOut size={18} />
         Sign Out

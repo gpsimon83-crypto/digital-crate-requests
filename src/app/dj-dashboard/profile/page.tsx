@@ -31,7 +31,7 @@ function BackToBookings() {
   return (
     <Link
       href="/dj-dashboard/bookings"
-      className="flex items-center gap-1.5 rounded-full border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
+      className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
     >
       <ArrowLeft size={14} /> Back to Bookings
     </Link>
@@ -234,7 +234,7 @@ export default function DjProfilePage() {
               style={{ background: "linear-gradient(to top, rgba(0,0,0,0.97) 0%, transparent 100%)" }}
             />
             <div className="absolute bottom-4 left-4">
-              <span className="w-fit rounded-full border border-gold/50 bg-black/30 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[2px] text-gold backdrop-blur-sm">
+              <span className="w-fit rounded-[2px] border border-gold/50 bg-black/30 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[2px] text-gold backdrop-blur-sm">
                 Live Preview
               </span>
               <p className="gold-text-gradient mt-2 text-2xl font-extrabold">Sample Event</p>
@@ -283,7 +283,7 @@ export default function DjProfilePage() {
             {saved && <span className="text-xs text-status-approved">Saved</span>}
             <button
               onClick={() => setSettings(DEFAULT_HERO_SETTINGS)}
-              className="ml-auto rounded-full border border-black/15 px-4 py-2 text-xs text-muted hover:text-foreground"
+              className="ml-auto rounded-[2px] border border-black/15 px-4 py-2 text-xs text-muted hover:text-foreground"
             >
               Restore Default
             </button>

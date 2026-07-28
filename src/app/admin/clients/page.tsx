@@ -96,7 +96,7 @@ export default function AdminClientsPage() {
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value)}
                 placeholder="Acme Corp"
-                className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
               />
             </label>
             <div className="grid grid-cols-2 gap-3">
@@ -105,7 +105,7 @@ export default function AdminClientsPage() {
                 <input
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                  className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                 />
               </label>
               <label className="block">
@@ -113,7 +113,7 @@ export default function AdminClientsPage() {
                 <input
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                  className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                 />
               </label>
             </div>
@@ -123,7 +123,7 @@ export default function AdminClientsPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
               />
             </label>
             <label className="block">
@@ -131,7 +131,7 @@ export default function AdminClientsPage() {
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
               />
             </label>
           </div>
@@ -169,7 +169,7 @@ export default function AdminClientsPage() {
                 </div>
                 <button
                   onClick={() => handleDelete(c.id)}
-                  className="rounded-full border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
+                  className="rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
                 >
                   Remove
                 </button>

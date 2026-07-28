@@ -18,7 +18,7 @@ export function ActionTile({
   return (
     <div
       className={cn(
-        "flex w-full items-center gap-4 rounded-2xl px-5 py-4 transition-transform active:scale-[0.98]",
+        "flex w-full items-center gap-4 rounded-[2px] px-5 py-4 transition-transform active:scale-[0.98]",
         solid
           ? "text-black"
           : "glass-card border-gold/30 text-foreground",

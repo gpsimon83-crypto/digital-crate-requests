@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
 import { createClient } from "@/lib/supabase/server";
 import { getClientForAuthUser, getClientEvent, updateClientEventNight } from "@/lib/data/portal";
+import { listEventPayments, computeBalance } from "@/lib/data/payments";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -18,7 +19,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const event = await getClientEvent(client.id, id);
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
-    return NextResponse.json({ event });
+    const payments = await listEventPayments(id);
+    const balance = computeBalance(event, payments);
+
+    return NextResponse.json({ event, payments, balance });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }

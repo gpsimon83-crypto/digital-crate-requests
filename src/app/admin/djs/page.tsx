@@ -192,7 +192,7 @@ export default function AdminDjsPage() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="DJ Example"
-              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <NeonButton color="gold" onClick={handleAdd} disabled={adding} className="shrink-0">
@@ -269,13 +269,13 @@ export default function AdminDjsPage() {
                       <button
                         onClick={() => handleSaveName(dj.id)}
                         disabled={savingId === dj.id}
-                        className="rounded-full bg-gold px-3 py-1 text-xs font-semibold text-black disabled:opacity-50"
+                        className="rounded-[2px] bg-gold px-3 py-1 text-xs font-semibold text-black disabled:opacity-50"
                       >
                         Save
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
-                        className="rounded-full border border-black/15 px-3 py-1 text-xs text-muted"
+                        className="rounded-[2px] border border-black/15 px-3 py-1 text-xs text-muted"
                       >
                         Cancel
                       </button>
@@ -304,7 +304,7 @@ export default function AdminDjsPage() {
                 {!dj.auth_user_id && loginTarget !== dj.id && (
                   <button
                     onClick={() => setLoginTarget(dj.id)}
-                    className="w-fit rounded-full border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
+                    className="w-fit rounded-[2px] border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
                   >
                     Create Login
                   </button>
@@ -318,20 +318,20 @@ export default function AdminDjsPage() {
                       setHeroDraft(mergeHeroSettings(dj.hero_settings));
                     }
                   }}
-                  className="w-fit rounded-full border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
+                  className="w-fit rounded-[2px] border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
                 >
                   Hero Settings
                 </button>
                 <button
                   onClick={() => handleDelete(dj.id)}
-                  className="w-fit rounded-full border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
+                  className="w-fit rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
                 >
                   Remove
                 </button>
               </div>
 
               {heroTarget === dj.id && (
-                <div className="flex flex-col gap-4 rounded-xl border border-gold/20 bg-panel p-4">
+                <div className="flex flex-col gap-4 rounded-[2px] border border-gold/20 bg-panel p-4">
                   <HeroSlider label="Horizontal Position" value={heroDraft.xPosition} min={0} max={100} onChange={(v) => setHeroDraft((s) => ({ ...s, xPosition: v }))} />
                   <HeroSlider label="Vertical Position" value={heroDraft.yPosition} min={0} max={100} onChange={(v) => setHeroDraft((s) => ({ ...s, yPosition: v }))} />
                   <HeroSlider label="Zoom" value={heroDraft.zoom} min={100} max={180} suffix="%" onChange={(v) => setHeroDraft((s) => ({ ...s, zoom: v }))} />
@@ -340,7 +340,7 @@ export default function AdminDjsPage() {
                     <NeonButton color="gold" onClick={() => handleSaveHero(dj.id)} disabled={savingId === dj.id} className="px-4 py-2 text-xs">
                       {savingId === dj.id ? "Saving..." : "Save"}
                     </NeonButton>
-                    <button onClick={() => setHeroTarget(null)} className="rounded-full border border-black/15 px-4 py-2 text-xs text-muted">
+                    <button onClick={() => setHeroTarget(null)} className="rounded-[2px] border border-black/15 px-4 py-2 text-xs text-muted">
                       Cancel
                     </button>
                   </div>
@@ -354,7 +354,7 @@ export default function AdminDjsPage() {
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="dj@email.com"
-                    className="flex-1 rounded-xl border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
+                    className="flex-1 rounded-[2px] border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
                   />
                   <NeonButton
                     color="gold"

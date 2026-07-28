@@ -136,7 +136,7 @@ export function TrackTagEditor({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
       <div
-        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-black/10 bg-background p-5 shadow-2xl"
+        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-[2px] border border-black/10 bg-background p-5 shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-start justify-between gap-3">
@@ -209,7 +209,7 @@ export function TrackTagEditor({
                   onBlur={() => saveRating({ notes })}
                   rows={2}
                   placeholder={'e.g. "Worked well after 2000s hip-hop." / "Use clean intro edit."'}
-                  className="w-full rounded-xl border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                  className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
                 />
               </label>
             </div>

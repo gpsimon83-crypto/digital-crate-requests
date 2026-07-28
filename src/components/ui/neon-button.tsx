@@ -28,7 +28,7 @@ export function NeonButton({
   const glow = COLOR_MAP[color];
 
   const base =
-    "btn-glow inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-sm font-bold tracking-wide min-h-[50px] transition-colors disabled:opacity-40 disabled:pointer-events-none";
+    "btn-glow inline-flex items-center justify-center gap-2 rounded-[2px] px-7 py-3.5 text-sm font-bold tracking-wide min-h-[50px] transition-colors disabled:opacity-40 disabled:pointer-events-none";
 
   const variantClasses =
     variant === "solid"

@@ -23,7 +23,7 @@ export default function EnterEventPage() {
             <input
               name="code"
               placeholder="Enter event code"
-              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-3 text-center text-sm tracking-widest placeholder:text-muted/60 focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-3 text-center text-sm tracking-widest placeholder:text-muted/60 focus:border-gold focus:outline-none"
             />
             <NeonButton type="submit" color="cyan" className="w-full">
               Join Event

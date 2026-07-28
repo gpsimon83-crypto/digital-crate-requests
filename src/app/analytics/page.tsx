@@ -66,12 +66,12 @@ export default function AnalyticsPage() {
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          <Link href="/admin" className="rounded-full border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground">
+          <Link href="/admin" className="rounded-[2px] border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground">
             Admin Panel
           </Link>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 rounded-full border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
+            className="flex items-center gap-1.5 rounded-[2px] border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
           >
             <LogOut size={13} /> Sign Out
           </button>

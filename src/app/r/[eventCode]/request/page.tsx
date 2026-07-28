@@ -86,13 +86,13 @@ export default function RequestSongPage({
               value={manualTitle}
               onChange={(e) => setManualTitle(e.target.value)}
               placeholder="Or type song title..."
-              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-3 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-3 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
             />
             <input
               value={manualArtist}
               onChange={(e) => setManualArtist(e.target.value)}
               placeholder="Artist"
-              className="w-full rounded-xl border border-black/10 bg-panel px-4 py-3 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-3 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
             />
           </div>
         )}
@@ -105,7 +105,7 @@ export default function RequestSongPage({
                 key={cents}
                 type="button"
                 onClick={() => setAmountCents(cents)}
-                className={`rounded-xl border px-3 py-3 text-sm font-semibold transition-colors ${
+                className={`rounded-[2px] border px-3 py-3 text-sm font-semibold transition-colors ${
                   amountCents === cents ? "border-gold bg-gold/10 text-gold" : "border-black/10 bg-panel"
                 }`}
               >
@@ -124,7 +124,7 @@ export default function RequestSongPage({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="e.g. play it for our anniversary dance"
-            className="w-full rounded-xl border border-black/10 bg-panel px-4 py-3 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
+            className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-3 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
           />
         </label>
       </GlassCard>
