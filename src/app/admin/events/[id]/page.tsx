@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState, use as usePromise } from "react";
+import { Suspense, useEffect, useRef, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -13,7 +13,8 @@ import {
   FileText,
   X,
   CalendarDays,
-  MapPin
+  MapPin,
+  Camera
 } from "lucide-react";
 
 interface ClientRow {
@@ -42,6 +43,7 @@ interface EventDetail {
   status: string;
   starts_at: string | null;
   created_at: string;
+  hero_image_url: string | null;
   event_type: string | null;
   service_type: string | null;
   expected_guests: number | null;
@@ -133,6 +135,8 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
   const [newTag, setNewTag] = useState("");
 
   const [copied, setCopied] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState(false);
+  const heroFileInput = useRef<HTMLInputElement | null>(null);
 
   async function load() {
     try {
@@ -251,6 +255,40 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
     }
   }
 
+  async function handleHeroPhotoSelected(file: File) {
+    setUploadingHero(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("heroPhoto", file);
+      const res = await fetch(`/api/events/${id}/settings`, { method: "PATCH", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to upload photo");
+      setEvent((prev) => (prev ? { ...prev, hero_image_url: data.event.hero_image_url } : prev));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setUploadingHero(false);
+    }
+  }
+
+  async function handleRemoveHeroPhoto() {
+    setUploadingHero(true);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append("clearHero", "true");
+      const res = await fetch(`/api/events/${id}/settings`, { method: "PATCH", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to remove photo");
+      setEvent((prev) => (prev ? { ...prev, hero_image_url: data.event.hero_image_url } : prev));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setUploadingHero(false);
+    }
+  }
+
   function copyPortalLink() {
     const url = `${window.location.origin}/portal`;
     navigator.clipboard.writeText(url);
@@ -294,11 +332,61 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
       </Link>
 
       <div
-        className="relative mx-6 mt-3 flex min-h-[160px] flex-col justify-end overflow-hidden border border-border p-6 sm:mx-8 sm:p-8"
-        style={{ background: "linear-gradient(135deg, var(--gold-dim), var(--gold) 70%, var(--gold-light))" }}
+        className={cn(
+          "relative mx-6 mt-3 flex min-h-[160px] flex-col justify-end overflow-hidden border border-border bg-cover bg-center p-6 sm:mx-8 sm:p-8",
+          !event.hero_image_url && "bg-none"
+        )}
+        style={
+          event.hero_image_url
+            ? { backgroundImage: `linear-gradient(0deg, rgba(0,0,0,0.55), rgba(0,0,0,0.15)), url(${event.hero_image_url})` }
+            : { background: "linear-gradient(135deg, var(--gold-dim), var(--gold) 70%, var(--gold-light))" }
+        }
       >
-        <p className="font-display text-4xl font-light text-[#1A140A] sm:text-5xl">{event.title}</p>
-        <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[#1A140A]/80">
+        <input
+          ref={heroFileInput}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleHeroPhotoSelected(file);
+          }}
+        />
+        <div className="absolute right-4 top-4 flex gap-1.5">
+          {event.hero_image_url && (
+            <button
+              onClick={handleRemoveHeroPhoto}
+              disabled={uploadingHero}
+              title="Remove banner photo"
+              className="rounded-[2px] bg-black/30 p-2 text-white backdrop-blur-sm hover:bg-black/50"
+            >
+              <X size={14} />
+            </button>
+          )}
+          <button
+            onClick={() => heroFileInput.current?.click()}
+            disabled={uploadingHero}
+            title={event.hero_image_url ? "Change banner photo" : "Add a banner photo"}
+            className="rounded-[2px] bg-black/30 p-2 text-white backdrop-blur-sm hover:bg-black/50"
+          >
+            <Camera size={14} />
+          </button>
+        </div>
+
+        <p
+          className={cn(
+            "font-display text-4xl font-light sm:text-5xl",
+            event.hero_image_url ? "text-white" : "text-[#1A140A]"
+          )}
+        >
+          {event.title}
+        </p>
+        <p
+          className={cn(
+            "mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm",
+            event.hero_image_url ? "text-white/85" : "text-[#1A140A]/80"
+          )}
+        >
           {event.event_type && <span className="capitalize">{event.event_type}</span>}
           <span className="flex items-center gap-1.5">
             <CalendarDays size={14} />
@@ -313,6 +401,9 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
           )}
         </p>
       </div>
+      <p className="mx-6 mt-2 text-[11px] text-muted sm:mx-8">
+        This banner photo also becomes the hero image guests see on the event&rsquo;s Crate Request page.
+      </p>
 
       <div className="mx-6 mt-6 flex flex-col gap-8 sm:mx-8 lg:flex-row">
         <div className="flex-1">
