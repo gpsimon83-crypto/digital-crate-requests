@@ -1,0 +1,120 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { PageHeader } from "@/components/dashboard/page-header";
+import { GlassCard } from "@/components/ui/glass-card";
+import { NeonButton } from "@/components/ui/neon-button";
+import { CalendarDays, Mail, Phone } from "lucide-react";
+
+interface EventRow {
+  id: string;
+  title: string;
+  status: string;
+  starts_at: string | null;
+  created_at: string;
+  quoted_amount: number | null;
+  event_type: string | null;
+  clients: {
+    company_name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    email: string | null;
+    phone: string | null;
+  } | null;
+}
+
+function clientName(c: EventRow["clients"]) {
+  if (!c) return "No client";
+  return c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed client";
+}
+
+export default function AdminLeadsPage() {
+  const [events, setEvents] = useState<EventRow[] | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    const res = await fetch("/api/admin/events");
+    const data = await res.json();
+    setEvents(res.ok ? data.events : []);
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function act(id: string, action: "confirm" | "decline") {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/events/${id}/${action}`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Failed to ${action}`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const leads = (events ?? [])
+    .filter((e) => e.status === "inquiry")
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+  return (
+    <>
+      <PageHeader title="Lead Capture" subtitle="New inquiries waiting on a response." />
+      <div className="flex flex-col gap-4 p-6">
+        {error && <p className="text-sm text-status-declined">{error}</p>}
+
+        <GlassCard className="p-0">
+          <div className="flex flex-col divide-y divide-border">
+            {events === null && <p className="p-6 text-sm text-muted">Loading...</p>}
+            {events !== null && leads.length === 0 && (
+              <p className="p-6 text-sm text-muted">No new leads right now.</p>
+            )}
+            {leads.map((e) => (
+              <div key={e.id} className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">{e.title}</p>
+                  <p className="text-sm text-muted">{clientName(e.clients)}</p>
+                  <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
+                    {e.starts_at && (
+                      <span className="flex items-center gap-1">
+                        <CalendarDays size={12} /> {new Date(e.starts_at).toLocaleDateString()}
+                      </span>
+                    )}
+                    {e.clients?.email && (
+                      <span className="flex items-center gap-1">
+                        <Mail size={12} /> {e.clients.email}
+                      </span>
+                    )}
+                    {e.clients?.phone && (
+                      <span className="flex items-center gap-1">
+                        <Phone size={12} /> {e.clients.phone}
+                      </span>
+                    )}
+                    {e.quoted_amount != null && <span>${e.quoted_amount.toLocaleString()} quoted</span>}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <NeonButton color="gold" disabled={busyId === e.id} onClick={() => act(e.id, "confirm")}>
+                    {busyId === e.id ? "..." : "Confirm"}
+                  </NeonButton>
+                  <button
+                    disabled={busyId === e.id}
+                    onClick={() => act(e.id, "decline")}
+                    className="rounded-[2px] border border-black/10 px-4 text-sm font-medium text-muted hover:border-status-declined hover:text-status-declined"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </GlassCard>
+      </div>
+    </>
+  );
+}
