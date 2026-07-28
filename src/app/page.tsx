@@ -109,15 +109,19 @@ export default async function Home() {
         <div className="mx-auto max-w-5xl">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gold">At your event</p>
           <h2 className="mt-2 font-display text-5xl font-light">Request songs, live</h2>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div className="mt-8 flex flex-col divide-y divide-border border-y border-border sm:flex-row sm:divide-x sm:divide-y-0">
             {STEPS.map((step) => (
-              <GlassCard key={step.title} className="flex flex-col items-center gap-2 text-center">
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold/15 text-gold">
+              <div
+                key={step.title}
+                className="group relative flex flex-1 flex-col items-center gap-2 px-5 py-8 text-center transition-colors hover:bg-gold/[0.04]"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-gold/15 text-gold transition-transform group-hover:scale-110">
                   <step.icon size={20} />
                 </span>
-                <p className="text-sm font-semibold">{step.title}</p>
+                <p className="text-sm font-semibold group-hover:text-gold">{step.title}</p>
                 <p className="text-xs text-muted">{step.body}</p>
-              </GlassCard>
+                <span className="absolute inset-x-0 bottom-0 h-[2px] origin-left scale-x-0 bg-gold transition-transform duration-300 group-hover:scale-x-100" />
+              </div>
             ))}
           </div>
         </div>
