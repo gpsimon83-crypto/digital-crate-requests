@@ -14,6 +14,10 @@ interface EventRow {
   quoted_amount: number | null;
   final_amount: number | null;
   paid_cents: number;
+  contract_sent_at: string | null;
+  contract_signed_at: string | null;
+  contract_signed_by: string | null;
+  contract_document_url: string | null;
   djs: { display_name: string } | null;
   venues: { name: string } | null;
   clients: { company_name: string | null; first_name: string | null; last_name: string | null } | null;
@@ -47,6 +51,10 @@ export default function AdminEventsPage() {
   const [clients, setClients] = useState<Option[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const [contractDraftFor, setContractDraftFor] = useState<string | null>(null);
+  const [contractUrlDraft, setContractUrlDraft] = useState("");
+  const [sendingContract, setSendingContract] = useState(false);
 
   const [title, setTitle] = useState("");
   const [djId, setDjId] = useState("");
@@ -131,6 +139,28 @@ export default function AdminEventsPage() {
     }
   }
 
+  async function handleSendContract(eventId: string) {
+    if (!contractUrlDraft.trim()) return;
+    setSendingContract(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contractDocumentUrl: contractUrlDraft.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send contract");
+      setContractDraftFor(null);
+      setContractUrlDraft("");
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSendingContract(false);
+    }
+  }
+
   return (
     <>
       <PageHeader title="Events" subtitle="Create events and assign a DJ. The DJ confirms the date from their dashboard." />
@@ -193,10 +223,53 @@ export default function AdminEventsPage() {
                       </p>
                     );
                   })()}
+                  <p className={`text-xs ${e.contract_signed_at ? "text-status-approved" : e.contract_sent_at ? "text-status-pending" : "text-muted"}`}>
+                    {e.contract_signed_at
+                      ? `Contract signed by ${e.contract_signed_by} on ${new Date(e.contract_signed_at).toLocaleDateString()}`
+                      : e.contract_sent_at
+                        ? "Contract sent — awaiting signature"
+                        : "Contract not sent"}
+                  </p>
+                  {contractDraftFor === e.id && (
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                      <input
+                        value={contractUrlDraft}
+                        onChange={(ev) => setContractUrlDraft(ev.target.value)}
+                        placeholder="Link to the contract document"
+                        className="flex-1 rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-xs focus:border-gold focus:outline-none"
+                      />
+                      <button
+                        onClick={() => handleSendContract(e.id)}
+                        disabled={sendingContract}
+                        className="rounded-[2px] bg-gold px-3 py-2 text-xs font-semibold text-black disabled:opacity-50"
+                      >
+                        {sendingContract ? "Sending..." : "Send"}
+                      </button>
+                      <button
+                        onClick={() => setContractDraftFor(null)}
+                        className="rounded-[2px] border border-black/15 px-3 py-2 text-xs text-muted"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <span className={STATUS_CLASS[e.status] ?? "status-badge pending"}>
-                  {STATUS_LABEL[e.status] ?? e.status}
-                </span>
+                <div className="flex flex-col items-end gap-2">
+                  <span className={STATUS_CLASS[e.status] ?? "status-badge pending"}>
+                    {STATUS_LABEL[e.status] ?? e.status}
+                  </span>
+                  {contractDraftFor !== e.id && !e.contract_signed_at && (
+                    <button
+                      onClick={() => {
+                        setContractDraftFor(e.id);
+                        setContractUrlDraft(e.contract_document_url ?? "");
+                      }}
+                      className="text-xs text-gold hover:underline"
+                    >
+                      {e.contract_sent_at ? "Update contract" : "Send contract"}
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>

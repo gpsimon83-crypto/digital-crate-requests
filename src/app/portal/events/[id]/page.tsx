@@ -4,7 +4,7 @@ import { useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
-import { ArrowLeft, X, CalendarDays } from "lucide-react";
+import { ArrowLeft, X, CalendarDays, FileText } from "lucide-react";
 
 interface EventDetail {
   id: string;
@@ -17,6 +17,10 @@ interface EventDetail {
   quoted_amount: number | null;
   final_amount: number | null;
   deposit_amount: number | null;
+  contract_sent_at: string | null;
+  contract_signed_at: string | null;
+  contract_signed_by: string | null;
+  contract_document_url: string | null;
   djs: { display_name: string } | null;
   venues: { name: string } | null;
 }
@@ -40,6 +44,10 @@ export default function PortalEventPage({ params }: { params: Promise<{ id: stri
   const [specialRequests, setSpecialRequests] = useState("");
   const [newMustPlay, setNewMustPlay] = useState("");
   const [newDoNotPlay, setNewDoNotPlay] = useState("");
+
+  const [signName, setSignName] = useState("");
+  const [signing, setSigning] = useState(false);
+  const [signError, setSignError] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -81,6 +89,29 @@ export default function PortalEventPage({ params }: { params: Promise<{ id: stri
     }
   }
 
+  async function handleSign() {
+    if (signName.trim().length < 2) {
+      setSignError("Enter your full legal name.");
+      return;
+    }
+    setSigning(true);
+    setSignError(null);
+    try {
+      const res = await fetch(`/api/portal/events/${id}/sign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fullName: signName.trim() })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to sign");
+      await load();
+    } catch (err) {
+      setSignError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSigning(false);
+    }
+  }
+
   if (error && !event) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-12">
@@ -107,6 +138,43 @@ export default function PortalEventPage({ params }: { params: Promise<{ id: stri
         {event.venues?.name ? ` · ${event.venues.name}` : ""}
         {event.djs?.display_name ? ` · ${event.djs.display_name}` : ""}
       </p>
+
+      {event.contract_document_url && (
+        <GlassCard neon className="mt-6 flex flex-col gap-3">
+          <p className="text-sm font-semibold">Contract</p>
+          <a
+            href={event.contract_document_url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 text-sm text-gold hover:underline"
+          >
+            <FileText size={14} /> View contract document
+          </a>
+
+          {event.contract_signed_at ? (
+            <p className="text-sm text-status-approved">
+              Signed by {event.contract_signed_by} on {new Date(event.contract_signed_at).toLocaleDateString()}
+            </p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p className="text-xs text-muted">
+                Typing your full legal name below and clicking Sign counts as your electronic signature on this
+                contract.
+              </p>
+              <input
+                value={signName}
+                onChange={(e) => setSignName(e.target.value)}
+                placeholder="Your full legal name"
+                className="rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              />
+              {signError && <p className="text-xs text-status-declined">{signError}</p>}
+              <NeonButton color="gold" onClick={handleSign} disabled={signing} className="w-fit">
+                {signing ? "Signing..." : "Sign Contract"}
+              </NeonButton>
+            </div>
+          )}
+        </GlassCard>
+      )}
 
       {balance && balance.totalDueCents > 0 && (
         <GlassCard neon className="mt-6 flex flex-col gap-3">
