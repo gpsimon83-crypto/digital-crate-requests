@@ -19,8 +19,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const event = await getClientEvent(client.id, id);
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
-    const payments = await listEventPayments(id);
-    const balance = computeBalance(event, payments);
+    // Payments is a separate concern from the rest of this page (contract,
+    // night-builder) — a failure here (e.g. the payments migration not
+    // applied yet) shouldn't take down the whole event page.
+    let payments: Awaited<ReturnType<typeof listEventPayments>> = [];
+    let balance = computeBalance(event, []);
+    try {
+      payments = await listEventPayments(id);
+      balance = computeBalance(event, payments);
+    } catch {
+      // leave payments/balance at their zeroed defaults
+    }
 
     return NextResponse.json({ event, payments, balance });
   } catch (err) {

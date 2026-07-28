@@ -20,14 +20,12 @@ export async function listEvents() {
 
   // One extra query for all succeeded payments rather than N+1 per event —
   // cheap at this scale (a handful of events), and keeps listEvents a
-  // single round trip beyond it.
-  const { data: payments, error: paymentsError } = await db
-    .from("payments")
-    .select("event_id, amount_cents")
-    .eq("status", "succeeded");
-  if (paymentsError) throw paymentsError;
-
+  // single round trip beyond it. Payments is a separate concern from the
+  // rest of this list (title, DJ, venue, contract) — if this table isn't
+  // there yet (migration not applied) or the query otherwise fails, the
+  // whole events list shouldn't go down over it.
   const paidByEvent = new Map<string, number>();
+  const { data: payments } = await db.from("payments").select("event_id, amount_cents").eq("status", "succeeded");
   for (const p of payments ?? []) {
     paidByEvent.set(p.event_id, (paidByEvent.get(p.event_id) ?? 0) + p.amount_cents);
   }
