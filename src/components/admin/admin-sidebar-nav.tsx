@@ -102,7 +102,7 @@ export function AdminSidebarNav() {
   return (
     <nav className="group fixed inset-y-0 left-0 z-40 hidden w-16 flex-col gap-1 overflow-x-hidden overflow-y-auto border-r border-black/10 bg-panel/95 p-3 backdrop-blur transition-[width] duration-200 hover:w-60 hover:shadow-xl md:flex">
       <Link href="/admin" className="mb-4 flex items-center gap-2 px-1">
-        <Logo variant="icon" brand="wing" size={28} />
+        <Logo variant="icon" brand="crates-djs" size={28} />
         <div>
           <NavLabel>
             <p className="text-[10px] uppercase tracking-[2px] text-muted">Digital Crate DJs</p>

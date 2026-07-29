@@ -28,9 +28,15 @@ export function Logo({
   className?: string;
 }) {
   if (brand === "crates-djs") {
+    // The full signature mark (cursive script + laurel + "EST. 2013") only
+    // reads at large sizes — used as-is for variant="full". At icon sizes
+    // (sidebars, login headers) it rendered as an illegible gold smudge,
+    // so variant="icon" uses a tight crop of just the "CD" monogram
+    // instead, which holds up down to ~24px.
+    const src = variant === "icon" ? "/brand/crates-djs-icon.png" : "/brand/crates-djs-signature.png";
     return (
       <Image
-        src="/brand/crates-djs-signature.png"
+        src={src}
         alt="Crates DJs"
         width={size}
         height={size}

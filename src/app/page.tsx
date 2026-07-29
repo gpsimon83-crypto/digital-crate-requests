@@ -183,7 +183,7 @@ export default async function Home() {
       {/* FOOTER */}
       <footer className="flex flex-col items-center justify-between gap-3 border-t border-black/8 px-6 py-8 text-xs text-muted sm:flex-row sm:px-10">
         <div className="flex items-center gap-2">
-          <Logo variant="icon" brand="wing" size={20} />
+          <Logo variant="icon" brand="crates-djs" size={20} />
           <span>Digital Crate DJs</span>
         </div>
         <p>&copy; 2026 Digital Crate DJs. All rights reserved. &middot; cratesdjs.com</p>
