@@ -12,7 +12,7 @@ export function SongSlotField({
 }: {
   label: string;
   value: string;
-  onChange: (v: string) => void;
+  onChange: (text: string, spotifyId?: string) => void;
   required?: boolean;
 }) {
   const [searching, setSearching] = useState(false);
@@ -35,14 +35,14 @@ export function SongSlotField({
       {searching ? (
         <SongSearch
           onSelect={(track) => {
-            onChange(`${track.artist} - ${track.title}`);
+            onChange(`${track.artist} - ${track.title}`, track.id);
             setSearching(false);
           }}
         />
       ) : (
         <input
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => onChange(e.target.value, undefined)}
           placeholder="Artist - Song"
           className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
         />

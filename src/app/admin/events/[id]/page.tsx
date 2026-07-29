@@ -17,7 +17,8 @@ import {
   CalendarDays,
   MapPin,
   Camera,
-  Music2
+  Music2,
+  ExternalLink
 } from "lucide-react";
 
 interface ClientRow {
@@ -53,7 +54,7 @@ interface EventDetail {
   special_requests: string | null;
   must_play: string[] | null;
   do_not_play: string[] | null;
-  wedding_music_plan: Record<string, string | string[] | undefined> | null;
+  wedding_music_plan: (Record<string, string | string[] | undefined> & { spotify_ids?: Record<string, string> }) | null;
   wedding_music_plan_sent_at: string | null;
   quoted_amount: number | null;
   final_amount: number | null;
@@ -107,6 +108,10 @@ const WEDDING_PLAN_FIELDS: { key: string; label: string }[] = [
   { key: "games", label: "Reception games" }
 ];
 
+const WEDDING_SONG_FIELDS = WEDDING_PLAN_FIELDS.filter(
+  ({ key }) => key.endsWith("_song") && key !== "special_dance_songs"
+);
+
 function clientName(c: ClientRow | null) {
   if (!c) return null;
   return c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed client";
@@ -157,6 +162,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
   const [newTag, setNewTag] = useState("");
 
   const [copied, setCopied] = useState(false);
+  const [copiedLinks, setCopiedLinks] = useState(false);
   const [uploadingHero, setUploadingHero] = useState(false);
   const heroFileInput = useRef<HTMLInputElement | null>(null);
 
@@ -328,6 +334,15 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  function copySpotifyLinks() {
+    const ids = event?.wedding_music_plan?.spotify_ids ?? {};
+    const links = WEDDING_SONG_FIELDS.map(({ key }) => ids[key]).filter(Boolean).map((trackId) => `https://open.spotify.com/track/${trackId}`);
+    if (links.length === 0) return;
+    navigator.clipboard.writeText(links.join("\n"));
+    setCopiedLinks(true);
+    setTimeout(() => setCopiedLinks(false), 1500);
   }
 
   if (error && !event) {
@@ -529,6 +544,58 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                   )}
                 </GlassCard>
               )}
+
+              {event.event_type?.toLowerCase() === "wedding" && event.wedding_music_plan_sent_at && (() => {
+                const plan = event.wedding_music_plan ?? {};
+                const spotifyIds = plan.spotify_ids ?? {};
+                const rows = WEDDING_SONG_FIELDS.map(({ key, label }) => ({
+                  key,
+                  label,
+                  text: plan[key] as string | undefined,
+                  spotifyId: spotifyIds[key]
+                })).filter((row) => row.text);
+                const linkCount = rows.filter((row) => row.spotifyId).length;
+
+                return (
+                  <GlassCard className="flex flex-col gap-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <Music2 size={16} className="text-gold" />
+                        <p className="text-sm font-medium">Wedding Playlist</p>
+                      </div>
+                      {linkCount > 0 && (
+                        <Button variant="secondary" size="sm" onClick={copySpotifyLinks}>
+                          {copiedLinks ? "Copied!" : `Copy ${linkCount} Spotify link${linkCount === 1 ? "" : "s"}`}
+                        </Button>
+                      )}
+                    </div>
+                    {rows.length === 0 ? (
+                      <p className="text-xs text-muted">The couple hasn&rsquo;t added any songs yet.</p>
+                    ) : (
+                      <div className="flex flex-col divide-y divide-border">
+                        {rows.map((row) => (
+                          <div key={row.key} className="flex items-center justify-between gap-3 py-2">
+                            <div className="min-w-0">
+                              <p className="text-[10px] uppercase tracking-wide text-muted">{row.label}</p>
+                              <p className="truncate text-sm">{row.text}</p>
+                            </div>
+                            {row.spotifyId && (
+                              <a
+                                href={`https://open.spotify.com/track/${row.spotifyId}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex shrink-0 items-center gap-1 text-xs text-gold hover:underline"
+                              >
+                                Open <ExternalLink size={11} />
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </GlassCard>
+                );
+              })()}
 
               <p className="text-xs text-muted">General file uploads beyond the contract aren&rsquo;t available yet.</p>
             </div>

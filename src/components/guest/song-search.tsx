@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Search, Music2, RefreshCw } from "lucide-react";
 
 export interface SelectedTrack {
+  id: string;
   title: string;
   artist: string;
   albumArt?: string | null;
