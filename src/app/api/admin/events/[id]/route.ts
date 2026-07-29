@@ -36,11 +36,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { contractDocumentUrl, status, internalNotes, clientId } = body as {
+  const { contractDocumentUrl, status, internalNotes, clientId, sendWeddingMusicPlan } = body as {
     contractDocumentUrl?: string;
     status?: string;
     internalNotes?: string;
     clientId?: string | null;
+    sendWeddingMusicPlan?: boolean;
   };
 
   if (status && !VALID_STATUSES.includes(status)) {
@@ -56,6 +57,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (status) updates.status = status;
     if (internalNotes !== undefined) updates.internal_notes = internalNotes;
     if (clientId !== undefined) updates.client_id = clientId || null;
+    if (sendWeddingMusicPlan) updates.wedding_music_plan_sent_at = new Date().toISOString();
 
     const event = Object.keys(updates).length > 0 ? await updateEvent(id, updates) : await getEvent(id);
     return NextResponse.json({ event });

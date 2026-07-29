@@ -6,7 +6,24 @@ import { useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
 import { Tabs } from "@/components/ui/tabs";
+import { TagPicker } from "@/components/dashboard/tag-picker";
+import { SongSlotField } from "@/components/portal/song-slot-field";
 import { ArrowLeft, X, CalendarDays, FileText } from "lucide-react";
+
+interface WeddingMusicPlan {
+  processional_song?: string;
+  wedding_party_entrance_song?: string;
+  bride_entrance_song?: string;
+  recessional_song?: string;
+  bridal_party_order?: string;
+  grand_march_song?: string;
+  first_dance_song?: string;
+  father_daughter_song?: string;
+  mother_son_song?: string;
+  special_dances?: string[];
+  special_dance_songs?: string;
+  games?: string[];
+}
 
 interface EventDetail {
   id: string;
@@ -19,6 +36,8 @@ interface EventDetail {
   must_play: string[] | null;
   do_not_play: string[] | null;
   special_requests: string | null;
+  wedding_music_plan: WeddingMusicPlan | null;
+  wedding_music_plan_sent_at: string | null;
   quoted_amount: number | null;
   final_amount: number | null;
   deposit_amount: number | null;
@@ -29,6 +48,23 @@ interface EventDetail {
   djs: { display_name: string } | null;
   venues: { name: string } | null;
 }
+
+const SPECIAL_DANCE_OPTIONS = ["Snowball Dance", "Anniversary Dance", "Surprise Guest First Dance", "None"] as const;
+const GAME_OPTIONS = ["Shoe Game", "Table Dash Game"] as const;
+
+const SPECIAL_DANCE_INFO: Record<string, string> = {
+  "Snowball Dance":
+    "An up-tempo song plays as the wedding party is called to the floor and starts dancing. When the music stops, the bridal party each bring back a guest partner — the fun continues until every able-bodied dancer is on the floor.",
+  "Anniversary Dance":
+    "Every married couple at the wedding takes the floor. The MC asks anyone married less than 12 hours to sit (that's you two), then 1 year, 5 years, 10 years, and so on until only the longest-married couple remains. The bride and groom usually give them a flower and sometimes dance together to one more song."
+};
+
+const GAME_INFO: Record<string, string> = {
+  "Shoe Game":
+    "A reception favorite that tests how well you know each other — you'll each answer questions (who's the better cook, who's funnier) without seeing the other's answer.",
+  "Table Dash Game":
+    "The wedding party visits every table for a photo within the length of two songs (three if it's a big guest list)."
+};
 
 interface Balance {
   totalDueCents: number;
@@ -69,6 +105,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const [specialRequests, setSpecialRequests] = useState("");
   const [newMustPlay, setNewMustPlay] = useState("");
   const [newDoNotPlay, setNewDoNotPlay] = useState("");
+  const [weddingPlan, setWeddingPlan] = useState<WeddingMusicPlan>({});
 
   const [signName, setSignName] = useState("");
   const [signing, setSigning] = useState(false);
@@ -84,6 +121,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       setMustPlay(data.event.must_play ?? []);
       setDoNotPlay(data.event.do_not_play ?? []);
       setSpecialRequests(data.event.special_requests ?? "");
+      setWeddingPlan(data.event.wedding_music_plan ?? {});
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     }
@@ -102,7 +140,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       const res = await fetch(`/api/portal/events/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mustPlay, doNotPlay, specialRequests })
+        body: JSON.stringify({ mustPlay, doNotPlay, specialRequests, weddingMusicPlan: weddingPlan })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
@@ -149,6 +187,12 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   if (!event) {
     return <div className="mx-auto max-w-2xl px-4 py-12 text-sm text-muted">Loading...</div>;
   }
+
+  function updatePlan<K extends keyof WeddingMusicPlan>(key: K, value: WeddingMusicPlan[K]) {
+    setWeddingPlan((prev) => ({ ...prev, [key]: value }));
+  }
+
+  const isWedding = event.event_type?.toLowerCase() === "wedding";
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 md:py-12">
@@ -280,9 +324,139 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
             </GlassCard>
           )}
 
+          {isWedding && !event.wedding_music_plan_sent_at && (
+            <div className="border border-border p-4">
+              <p className="text-sm font-medium">Wedding Music Plan</p>
+              <p className="mt-1 text-sm text-muted">
+                Your DJ sends this planning form once your deposit is in — check back after your first payment.
+              </p>
+            </div>
+          )}
+
+          {isWedding && event.wedding_music_plan_sent_at && (
+            <div className="flex flex-col gap-5 border border-border p-4">
+              <div>
+                <p className="text-sm font-semibold">Wedding Music Plan</p>
+                <p className="mt-1 text-xs text-muted">
+                  Type each song yourself, or search Spotify to fill it in for you.
+                </p>
+              </div>
+
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gold">Ceremony</p>
+                <div className="flex flex-col gap-3">
+                  <SongSlotField
+                    label="Processional Song"
+                    value={weddingPlan.processional_song ?? ""}
+                    onChange={(v) => updatePlan("processional_song", v)}
+                  />
+                  <SongSlotField
+                    label="Wedding Party Entrance Song"
+                    value={weddingPlan.wedding_party_entrance_song ?? ""}
+                    onChange={(v) => updatePlan("wedding_party_entrance_song", v)}
+                    required
+                  />
+                  <SongSlotField
+                    label="Bride Entrance Song"
+                    value={weddingPlan.bride_entrance_song ?? ""}
+                    onChange={(v) => updatePlan("bride_entrance_song", v)}
+                    required
+                  />
+                  <SongSlotField
+                    label="Recessional Song"
+                    value={weddingPlan.recessional_song ?? ""}
+                    onChange={(v) => updatePlan("recessional_song", v)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-gold">Reception</p>
+                <div className="flex flex-col gap-3">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">
+                      Bridal Party Order of Entry (bride &amp; groom last)
+                    </span>
+                    <textarea
+                      value={weddingPlan.bridal_party_order ?? ""}
+                      onChange={(e) => updatePlan("bridal_party_order", e.target.value)}
+                      placeholder="Names in order..."
+                      className="min-h-[70px] w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                    />
+                  </label>
+                  <SongSlotField
+                    label="Grand March Song"
+                    value={weddingPlan.grand_march_song ?? ""}
+                    onChange={(v) => updatePlan("grand_march_song", v)}
+                    required
+                  />
+                  <SongSlotField
+                    label="First Dance"
+                    value={weddingPlan.first_dance_song ?? ""}
+                    onChange={(v) => updatePlan("first_dance_song", v)}
+                    required
+                  />
+                  <SongSlotField
+                    label="Father/Daughter Dance"
+                    value={weddingPlan.father_daughter_song ?? ""}
+                    onChange={(v) => updatePlan("father_daughter_song", v)}
+                  />
+                  <SongSlotField
+                    label="Mother/Son Dance"
+                    value={weddingPlan.mother_son_song ?? ""}
+                    onChange={(v) => updatePlan("mother_son_song", v)}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="mb-1.5 text-xs uppercase tracking-wide text-muted">
+                  Special Dances <span className="text-muted/70">(at most 2 recommended)</span>
+                </p>
+                <TagPicker
+                  options={SPECIAL_DANCE_OPTIONS}
+                  selected={weddingPlan.special_dances ?? []}
+                  onChange={(v) => updatePlan("special_dances", v)}
+                />
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {(weddingPlan.special_dances ?? [])
+                    .filter((d) => SPECIAL_DANCE_INFO[d])
+                    .map((d) => (
+                      <p key={d} className="text-xs text-muted">
+                        <span className="font-medium text-foreground">{d}:</span> {SPECIAL_DANCE_INFO[d]}
+                      </p>
+                    ))}
+                </div>
+                {(weddingPlan.special_dances ?? []).some((d) => d !== "None") && (
+                  <textarea
+                    value={weddingPlan.special_dance_songs ?? ""}
+                    onChange={(e) => updatePlan("special_dance_songs", e.target.value)}
+                    placeholder="A song for each special dance picked above..."
+                    className="mt-2 min-h-[60px] w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                  />
+                )}
+              </div>
+
+              <div>
+                <p className="mb-1.5 text-xs uppercase tracking-wide text-muted">Reception Games</p>
+                <TagPicker options={GAME_OPTIONS} selected={weddingPlan.games ?? []} onChange={(v) => updatePlan("games", v)} />
+                <div className="mt-2 flex flex-col gap-1.5">
+                  {(weddingPlan.games ?? [])
+                    .filter((g) => GAME_INFO[g])
+                    .map((g) => (
+                      <p key={g} className="text-xs text-muted">
+                        <span className="font-medium text-foreground">{g}:</span> {GAME_INFO[g]}
+                      </p>
+                    ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           <p className="text-sm text-muted">
-            Build your night — tell your DJ exactly what to play and what to skip. Changes save to your event
-            automatically for the DJ to see.
+            {isWedding
+              ? "Open-dance must-plays and do-not-plays go below — this is what your DJ leans on once the dance floor opens."
+              : "Build your night — tell your DJ exactly what to play and what to skip. Changes save to your event automatically for the DJ to see."}
           </p>
 
           <GlassCard neon className="flex flex-col gap-3">

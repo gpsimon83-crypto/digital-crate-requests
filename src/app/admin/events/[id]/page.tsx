@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
@@ -15,7 +16,8 @@ import {
   X,
   CalendarDays,
   MapPin,
-  Camera
+  Camera,
+  Music2
 } from "lucide-react";
 
 interface ClientRow {
@@ -51,6 +53,8 @@ interface EventDetail {
   special_requests: string | null;
   must_play: string[] | null;
   do_not_play: string[] | null;
+  wedding_music_plan: Record<string, string | string[] | undefined> | null;
+  wedding_music_plan_sent_at: string | null;
   quoted_amount: number | null;
   final_amount: number | null;
   deposit_amount: number | null;
@@ -86,6 +90,21 @@ const STAGE_OPTIONS: { value: string; label: string }[] = [
   { value: "live", label: "Live" },
   { value: "ended", label: "Completed" },
   { value: "declined", label: "Declined" }
+];
+
+const WEDDING_PLAN_FIELDS: { key: string; label: string }[] = [
+  { key: "processional_song", label: "Processional" },
+  { key: "wedding_party_entrance_song", label: "Wedding party entrance" },
+  { key: "bride_entrance_song", label: "Bride entrance" },
+  { key: "recessional_song", label: "Recessional" },
+  { key: "bridal_party_order", label: "Bridal party order" },
+  { key: "grand_march_song", label: "Grand march" },
+  { key: "first_dance_song", label: "First dance" },
+  { key: "father_daughter_song", label: "Father/daughter dance" },
+  { key: "mother_son_song", label: "Mother/son dance" },
+  { key: "special_dances", label: "Special dances" },
+  { key: "special_dance_songs", label: "Special dance songs" },
+  { key: "games", label: "Reception games" }
 ];
 
 function clientName(c: ClientRow | null) {
@@ -128,6 +147,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
   const [changingContact, setChangingContact] = useState(false);
   const [savingStage, setSavingStage] = useState(false);
+  const [sendingMusicPlan, setSendingMusicPlan] = useState(false);
 
   const [notesDraft, setNotesDraft] = useState("");
   const [savingNotes, setSavingNotes] = useState(false);
@@ -190,6 +210,18 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSavingStage(false);
+    }
+  }
+
+  async function handleSendMusicPlan() {
+    setSendingMusicPlan(true);
+    try {
+      const updated = await patchEvent({ sendWeddingMusicPlan: true });
+      setEvent((prev) => (prev ? { ...prev, wedding_music_plan_sent_at: updated.wedding_music_plan_sent_at } : prev));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSendingMusicPlan(false);
     }
   }
 
@@ -465,7 +497,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
           )}
 
           {activeTab === "Files" && (
-            <div className="mt-6">
+            <div className="mt-6 flex flex-col gap-4">
               {event.contract_document_url ? (
                 <GlassCard className="flex items-center gap-2">
                   <FileText size={16} className="text-gold" />
@@ -476,7 +508,29 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               ) : (
                 <p className="text-sm text-muted">No files yet — send a contract from the Files tab of the client&rsquo;s portal link, or add one from Projects.</p>
               )}
-              <p className="mt-3 text-xs text-muted">General file uploads beyond the contract aren&rsquo;t available yet.</p>
+
+              {event.event_type?.toLowerCase() === "wedding" && (
+                <GlassCard className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Music2 size={16} className="text-gold" />
+                    <div>
+                      <p className="text-sm font-medium">Wedding Music Plan</p>
+                      <p className="text-xs text-muted">
+                        {event.wedding_music_plan_sent_at
+                          ? `Sent ${new Date(event.wedding_music_plan_sent_at).toLocaleDateString()}`
+                          : "Not sent yet — the client won't see this form until you send it."}
+                      </p>
+                    </div>
+                  </div>
+                  {!event.wedding_music_plan_sent_at && (
+                    <Button variant="primary" size="sm" onClick={handleSendMusicPlan} disabled={sendingMusicPlan}>
+                      {sendingMusicPlan ? "Sending…" : "Send"}
+                    </Button>
+                  )}
+                </GlassCard>
+              )}
+
+              <p className="text-xs text-muted">General file uploads beyond the contract aren&rsquo;t available yet.</p>
             </div>
           )}
 
@@ -549,6 +603,16 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 <Row label="Must-play songs" value={String(event.must_play?.length ?? 0)} />
                 <Row label="Do-not-play songs" value={String(event.do_not_play?.length ?? 0)} />
               </GlassCard>
+              {event.wedding_music_plan && Object.keys(event.wedding_music_plan).length > 0 && (
+                <GlassCard className="flex flex-col gap-1">
+                  <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Wedding music plan</p>
+                  {WEDDING_PLAN_FIELDS.map(({ key, label }) => {
+                    const value = event.wedding_music_plan?.[key];
+                    if (!value || (Array.isArray(value) && value.length === 0)) return null;
+                    return <Row key={key} label={label} value={Array.isArray(value) ? value.join(", ") : value} />;
+                  })}
+                </GlassCard>
+              )}
               {event.special_requests && (
                 <GlassCard className="flex flex-col gap-1">
                   <p className="text-xs uppercase tracking-[1.5px] text-muted">Client notes</p>

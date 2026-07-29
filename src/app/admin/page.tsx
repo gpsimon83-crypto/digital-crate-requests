@@ -17,7 +17,8 @@ import {
   ChevronRight,
   UserX,
   DollarSign,
-  Activity as ActivityIcon
+  Activity as ActivityIcon,
+  Music2
 } from "lucide-react";
 
 interface EventRow {
@@ -32,6 +33,7 @@ interface EventRow {
   paid_cents: number;
   contract_sent_at: string | null;
   contract_signed_at: string | null;
+  wedding_music_plan_sent_at: string | null;
   djs: { display_name: string; photo_url: string | null } | null;
   venues: { name: string } | null;
   clients: { company_name: string | null; first_name: string | null; last_name: string | null } | null;
@@ -138,6 +140,13 @@ export default function AdminOverviewPage() {
     [events]
   );
   const unassigned = useMemo(() => upcoming.filter((e) => !e.djs), [upcoming]);
+  const weddingsReadyForMusicPlan = useMemo(
+    () =>
+      (events ?? []).filter(
+        (e) => e.event_type?.toLowerCase() === "wedding" && e.paid_cents > 0 && !e.wedding_music_plan_sent_at
+      ),
+    [events]
+  );
   const outstanding = useMemo(
     () =>
       (events ?? []).filter((e) => {
@@ -266,6 +275,13 @@ export default function AdminOverviewPage() {
             <TaskRow icon={Magnet} label="New leads to follow up" count={leads.length} href="/admin/leads" tone={leads.length > 0 ? "urgent" : "default"} />
             <TaskRow icon={UserX} label="Upcoming events missing a DJ" count={unassigned.length} href="/admin/events" tone={unassigned.length > 0 ? "urgent" : "default"} />
             <TaskRow icon={DollarSign} label="Events with a balance due" count={outstanding.length} href="/admin/finance" tone={outstanding.length > 0 ? "urgent" : "default"} />
+            <TaskRow
+              icon={Music2}
+              label="Weddings ready for their music plan"
+              count={weddingsReadyForMusicPlan.length}
+              href="/admin/events"
+              tone={weddingsReadyForMusicPlan.length > 0 ? "urgent" : "default"}
+            />
           </div>
         </section>
       </div>

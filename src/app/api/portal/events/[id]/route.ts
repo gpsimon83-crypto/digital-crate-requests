@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { mustPlay, doNotPlay, specialRequests } = body;
+  const { mustPlay, doNotPlay, specialRequests, weddingMusicPlan } = body;
 
   try {
     const client = await getClientForAuthUser(user.id);
@@ -55,7 +55,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const event = await updateClientEventNight(client.id, id, {
       ...(mustPlay !== undefined ? { must_play: mustPlay } : {}),
       ...(doNotPlay !== undefined ? { do_not_play: doNotPlay } : {}),
-      ...(specialRequests !== undefined ? { special_requests: specialRequests } : {})
+      ...(specialRequests !== undefined ? { special_requests: specialRequests } : {}),
+      ...(weddingMusicPlan !== undefined ? { wedding_music_plan: weddingMusicPlan } : {})
     });
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
