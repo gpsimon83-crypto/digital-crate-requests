@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
+import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -76,6 +77,7 @@ interface ClientOption {
 
 const TABS = ["Activity", "Files", "Tasks", "Financials", "Notes", "Details"] as const;
 type Tab = (typeof TABS)[number];
+const TAB_ITEMS = TABS.map((t) => ({ key: t, label: t }));
 
 const STAGE_OPTIONS: { value: string; label: string }[] = [
   { value: "inquiry", label: "Inquiry" },
@@ -447,20 +449,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
             </div>
           )}
 
-          <div className="mt-6 flex gap-1 overflow-x-auto border-b border-border">
-            {TABS.map((t) => (
-              <Link
-                key={t}
-                href={`/admin/events/${id}?tab=${t}`}
-                className={cn(
-                  "whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
-                  activeTab === t ? "border-gold text-foreground" : "border-transparent text-muted hover:text-foreground"
-                )}
-              >
-                {t}
-              </Link>
-            ))}
-          </div>
+          <Tabs items={TAB_ITEMS} active={activeTab} hrefFor={(key) => `/admin/events/${id}?tab=${key}`} className="mt-6" />
 
           {error && <p className="mt-3 text-sm text-status-declined">{error}</p>}
 

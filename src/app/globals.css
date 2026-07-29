@@ -22,6 +22,15 @@
   --status-approved: #34C759;
   --status-played: #4C86FF;
   --status-declined: #FF5A5F;
+  /* Semantic alias, not a new color — "urgent" (overdue, needs action now)
+     reads as the same danger tone as "declined," just a different word for
+     dashboard/list contexts where "declined" wouldn't make sense. */
+  --status-urgent: var(--status-declined);
+
+  /* Disabled/inactive UI state — a step down from --muted, low enough
+     contrast to read as "not interactive" without failing on its own
+     (paired with reduced opacity + non-color cues, never color alone). */
+  --disabled: #C9C3B5;
 
   /* Legacy aliases so existing components keep working under the new palette */
   --neon-cyan: var(--gold);
@@ -50,6 +59,8 @@
   --color-status-approved: var(--status-approved);
   --color-status-played: var(--status-played);
   --color-status-declined: var(--status-declined);
+  --color-status-urgent: var(--status-urgent);
+  --color-disabled: var(--disabled);
 
   --color-neon-cyan: var(--neon-cyan);
   --color-neon-purple: var(--neon-purple);
@@ -173,7 +184,71 @@ body {
 .status-badge.approved { background: var(--status-approved); }
 .status-badge.played { background: var(--status-played); color: #fff; }
 .status-badge.declined { background: var(--status-declined); color: #fff; }
+.status-badge.urgent { background: var(--status-urgent); color: #fff; }
 .status-badge.paid { background: var(--gold); }
+.status-badge.muted { background: var(--panel); color: var(--muted); border: 1px solid var(--border); }
+
+/* Compact variant for dense table/list rows — a colored dot plus text
+   instead of a filled pill, so status is still never color-only (the
+   label carries the meaning; the dot is a scan aid). */
+.status-dot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.status-dot::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+.status-dot.pending::before { background: var(--status-pending); }
+.status-dot.approved::before { background: var(--status-approved); }
+.status-dot.played::before { background: var(--status-played); }
+.status-dot.declined::before { background: var(--status-declined); }
+.status-dot.urgent::before { background: var(--status-urgent); }
+.status-dot.paid::before { background: var(--gold); }
+
+/* Slim, semantic, connected-surface data table — the primary replacement
+   for vertically-stacked text blocks called out in the redesign brief. */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table thead th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.data-table tbody td {
+  padding: 10px 12px;
+  font-size: 13.5px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.data-table tbody tr {
+  transition: background-color 0.12s ease;
+}
+.data-table tbody tr.is-linked {
+  cursor: pointer;
+}
+.data-table tbody tr.is-linked:hover {
+  background: color-mix(in srgb, var(--gold) 5%, transparent);
+}
 
 /* Sidebar active pill (flat gold fill, dark text/icon) */
 .sidebar-active {

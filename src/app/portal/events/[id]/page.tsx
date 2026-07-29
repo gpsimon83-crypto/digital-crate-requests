@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
-import { cn } from "@/lib/utils";
+import { Tabs } from "@/components/ui/tabs";
 import { ArrowLeft, X, CalendarDays, FileText } from "lucide-react";
 
 interface EventDetail {
@@ -164,20 +164,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
         {event.djs?.display_name ? ` · ${event.djs.display_name}` : ""}
       </p>
 
-      <div className="mt-6 flex gap-1 overflow-x-auto border-b border-border">
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={`/portal/events/${id}?tab=${t.key}`}
-            className={cn(
-              "whitespace-nowrap border-b-2 px-3 py-2.5 text-sm font-medium transition-colors",
-              activeTab === t.key ? "border-gold text-foreground" : "border-transparent text-muted hover:text-foreground"
-            )}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </div>
+      <Tabs items={TABS} active={activeTab} hrefFor={(key) => `/portal/events/${id}?tab=${key}`} className="mt-6" />
 
       {activeTab === "overview" && (
         <div className="mt-6 flex flex-col gap-4">
