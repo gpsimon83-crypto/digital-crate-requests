@@ -2,6 +2,7 @@ import Link from "next/link";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Logo } from "@/components/site/logo";
 import { BookingForm } from "@/components/site/booking-form";
+import { HomepageGuide } from "@/components/site/homepage-guide";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { QrCode, Music2, Heart, LogIn, PartyPopper, UserCircle, Disc3, ExternalLink } from "lucide-react";
 
@@ -188,6 +189,8 @@ export default async function Home() {
         </div>
         <p>&copy; 2026 Digital Crate DJs. All rights reserved. &middot; cratesdjs.com</p>
       </footer>
+
+      <HomepageGuide />
     </div>
   );
 }
