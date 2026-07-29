@@ -59,7 +59,7 @@ export default function AnalyticsPage() {
     <div className="min-h-dvh bg-background">
       <header className="flex items-center justify-between border-b border-black/10 px-6 py-4">
         <Link href="/admin" className="flex items-center gap-2">
-          <Logo variant="icon" size={28} />
+          <Logo variant="icon" brand="crates-djs" size={28} />
           <div>
             <p className="text-[10px] uppercase tracking-[2px] text-muted">Digital Crate DJs</p>
             <p className="text-sm font-semibold">Analytics</p>

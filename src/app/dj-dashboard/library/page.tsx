@@ -464,7 +464,7 @@ export default function LibraryDashboardPage() {
       <header className="relative z-10 flex items-center justify-between border-b border-black/8 bg-[linear-gradient(180deg,rgba(33,31,26,0.015),rgba(255,255,255,0))] px-6 py-4 sm:px-8">
         <Link href="/dj-dashboard" className="flex items-center gap-3">
           <span className="glow-ring">
-            <Logo variant="icon" size={28} />
+            <Logo variant="icon" brand="crates-djs" size={28} />
           </span>
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[2.5px] text-muted">Digital Crate DJs</p>

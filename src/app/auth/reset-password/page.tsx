@@ -88,7 +88,7 @@ function ResetForm() {
       <div className="gl-card-wrap">
         <div className="gl-card">
           <div className="mb-7 flex flex-col items-center gap-3 text-center">
-            <Logo variant="icon" size={52} />
+            <Logo variant="icon" brand="crates-djs" size={52} />
             <div>
               <h1 className="text-xl font-bold text-foreground">Set New Password</h1>
               <p className="mt-1 text-xs text-muted">Choose a new password for your account.</p>

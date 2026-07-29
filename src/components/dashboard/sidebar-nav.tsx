@@ -51,7 +51,7 @@ export function SidebarNav() {
     <nav className="hidden w-64 shrink-0 flex-col border-r border-black/8 bg-[linear-gradient(180deg,rgba(33,31,26,0.015),rgba(255,255,255,0)_30%),var(--background)] p-4 md:flex">
       <Link href="/dj-dashboard" className="mb-6 flex flex-col items-center gap-2 px-2 pt-2 pb-4 text-center">
         <span className="glow-ring">
-          <Logo variant="icon" size={36} />
+          <Logo variant="icon" brand="crates-djs" size={36} />
         </span>
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[3px] text-muted">Digital Crate DJs</p>

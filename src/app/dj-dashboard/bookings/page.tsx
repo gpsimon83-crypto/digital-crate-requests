@@ -166,7 +166,7 @@ export default function DjBookingsPage() {
             <DjAvatar name={djName} photoUrl={djPhoto} size={38} />
           ) : (
             <span className="glow-ring">
-              <Logo variant="icon" size={28} />
+              <Logo variant="icon" brand="crates-djs" size={28} />
             </span>
           )}
           <div>
