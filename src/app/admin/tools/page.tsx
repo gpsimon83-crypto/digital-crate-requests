@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
-import { LayoutTemplate, Boxes, DollarSign, KeyRound, CreditCard, Database, ExternalLink } from "lucide-react";
+import { LayoutTemplate, Boxes, DollarSign, KeyRound, CreditCard, Database, ExternalLink, CalendarClock } from "lucide-react";
 
 const INTERNAL_TOOLS = [
+  { href: "/admin/tools/scheduler", label: "Scheduler", description: "Set weekly hours so leads can book a consultation call.", icon: CalendarClock },
   { href: "/admin/crate-templates", label: "Crate Templates", description: "Manage the DJ music-curation crates.", icon: LayoutTemplate },
   { href: "/admin/equipment", label: "Equipment", description: "Track gear inventory and maintenance.", icon: Boxes },
   { href: "/admin/monetization", label: "Monetization", description: "Pricing, tip splits, and Stripe settings.", icon: DollarSign },
