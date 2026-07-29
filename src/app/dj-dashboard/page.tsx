@@ -4,9 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { GlassCard } from "@/components/ui/glass-card";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
-import { CalendarClock, Boxes, UserCircle, ShieldCheck, LogOut } from "lucide-react";
+import { CalendarClock, Boxes, UserCircle, ShieldCheck, LogOut, ChevronRight } from "lucide-react";
 import { isStaffRole } from "@/lib/roles";
 
 interface Tile {
@@ -85,7 +84,7 @@ export default function DjPortalHomePage() {
         subtitle="Digital Crate Requests — pick where you want to go."
         action={
           <div className="flex items-center gap-3">
-            {djName && <DjAvatar name={djName} photoUrl={djPhoto} size={36} />}
+            {djName && <DjAvatar name={djName} photoUrl={djPhoto} size={32} />}
             <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
@@ -95,25 +94,28 @@ export default function DjPortalHomePage() {
           </div>
         }
       />
-      <main className="mx-auto grid max-w-3xl grid-cols-1 gap-4 px-6 py-10 sm:grid-cols-2 sm:px-8">
-        {tiles.map(({ href, label, desc, icon: Icon }, i) => (
-          <Link
-            key={href}
-            href={href}
-            style={{ "--menu-fade-delay": `${i * 60}ms` } as React.CSSProperties}
-            className="menu-fade-item"
-          >
-            <GlassCard neon className="flex h-full flex-col gap-3 transition-transform hover:-translate-y-0.5">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gold/15 text-gold">
-                <Icon size={20} />
-              </span>
-              <div>
-                <p className="font-semibold">{label}</p>
-                <p className="mt-1 text-sm text-muted">{desc}</p>
-              </div>
-            </GlassCard>
-          </Link>
-        ))}
+      <main className="mx-auto max-w-2xl px-6 py-8 sm:px-8">
+        {loaded && (
+          <div className="flex flex-col divide-y divide-border border-y border-border">
+            {tiles.map(({ href, label, desc, icon: Icon }, i) => (
+              <Link
+                key={href}
+                href={href}
+                style={{ "--menu-fade-delay": `${i * 60}ms` } as React.CSSProperties}
+                className="menu-fade-item group flex items-center gap-4 py-4 transition-colors hover:bg-gold/[0.04]"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-gold/30 text-gold">
+                  <Icon size={17} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium group-hover:text-gold">{label}</p>
+                  <p className="text-sm text-muted">{desc}</p>
+                </div>
+                <ChevronRight size={16} className="shrink-0 text-muted group-hover:text-gold" />
+              </Link>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );
