@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
 
 interface AvailabilityRow {
@@ -180,9 +180,9 @@ export default function AdminSchedulerPage() {
 
             {error && <p className="text-sm text-status-declined">{error}</p>}
             <div className="flex items-center gap-3">
-              <NeonButton color="gold" onClick={handleSave} disabled={saving} className="w-fit">
+              <Button variant="primary" onClick={handleSave} disabled={saving}>
                 {saving ? "Saving..." : "Save availability"}
-              </NeonButton>
+              </Button>
               {saved && <span className="text-xs text-status-approved">Saved.</span>}
             </div>
           </GlassCard>

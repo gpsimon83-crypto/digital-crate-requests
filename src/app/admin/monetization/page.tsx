@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { DEFAULT_PRICING_CONFIG, type PaymentMode, type PricingConfig } from "@/lib/pricing";
 import { X } from "lucide-react";
 
@@ -236,9 +236,9 @@ export default function MonetizationPage() {
         </GlassCard>
 
         <div className="flex items-center gap-3">
-          <NeonButton color="gold" onClick={handleSave} disabled={saving} className="w-full sm:w-fit">
+          <Button variant="primary" onClick={handleSave} disabled={saving}>
             {saving ? "Saving..." : "Save Pricing"}
-          </NeonButton>
+          </Button>
           {saved && <span className="text-xs text-status-approved">Saved</span>}
         </div>
       </div>

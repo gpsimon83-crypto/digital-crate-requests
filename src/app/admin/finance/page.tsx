@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { GlassCard } from "@/components/ui/glass-card";
+import { StatTile } from "@/components/ui/stat-tile";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Wallet, CheckCircle2, Clock } from "lucide-react";
 
 interface EventRow {
   id: string;
@@ -56,63 +58,63 @@ export default function AdminFinancePage() {
     .filter((e) => Math.round((e.final_amount ?? e.quoted_amount ?? 0) * 100) - e.paid_cents > 0)
     .sort((a, b) => new Date(a.starts_at ?? 0).getTime() - new Date(b.starts_at ?? 0).getTime());
 
+  const loading = events === null;
+
   return (
     <>
       <PageHeader title="Finance" subtitle="Booking value, payments collected, and what's still outstanding." />
       <div className="flex flex-col gap-6 p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <GlassCard>
-            <p className="text-xs text-muted">Total booked value</p>
-            <p className="mt-1 text-2xl font-semibold">{events === null ? "..." : money(totals.quotedCents)}</p>
-          </GlassCard>
-          <GlassCard>
-            <p className="text-xs text-muted">Collected</p>
-            <p className="mt-1 text-2xl font-semibold text-status-approved">
-              {events === null ? "..." : money(totals.paidCents)}
-            </p>
-          </GlassCard>
-          <GlassCard>
-            <p className="text-xs text-muted">Outstanding</p>
-            <p className="mt-1 text-2xl font-semibold text-gold">
-              {events === null ? "..." : money(totals.outstandingCents)}
-            </p>
-          </GlassCard>
+        <div className="flex flex-wrap border border-border">
+          <StatTile icon={Wallet} label="Total booked value" value={loading ? "…" : money(totals.quotedCents)} />
+          <StatTile icon={CheckCircle2} label="Collected" value={loading ? "…" : money(totals.paidCents)} />
+          <StatTile icon={Clock} label="Outstanding" value={loading ? "…" : money(totals.outstandingCents)} tone={totals.outstandingCents > 0 ? "urgent" : "default"} />
         </div>
 
-        <GlassCard className="p-0">
-          <p className="p-5 pb-0 text-sm font-semibold">Outstanding balances</p>
-          <div className="flex flex-col divide-y divide-border">
-            {events === null && <p className="p-5 text-sm text-muted">Loading...</p>}
-            {events !== null && outstanding.length === 0 && (
-              <p className="p-5 text-sm text-muted">Nothing outstanding — every booked event is paid in full.</p>
-            )}
-            {outstanding.map((e) => {
-              const total = Math.round((e.final_amount ?? e.quoted_amount ?? 0) * 100);
-              const balance = total - e.paid_cents;
-              return (
-                <Link
-                  key={e.id}
-                  href="/admin/events"
-                  className="group flex items-center justify-between gap-4 px-5 py-3.5"
-                >
-                  <div>
-                    <p className="text-sm font-medium group-hover:text-gold">{e.title}</p>
-                    <p className="text-xs text-muted">
-                      {clientName(e.clients)}
-                      {e.starts_at ? ` · ${new Date(e.starts_at).toLocaleDateString()}` : ""}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold">{money(balance)} due</p>
-                    <p className="text-xs text-muted">
-                      {money(e.paid_cents)} of {money(total)} paid
-                    </p>
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </GlassCard>
+        <div>
+          <p className="mb-2 text-sm font-semibold">Outstanding balances</p>
+          {loading && <p className="text-sm text-muted">Loading…</p>}
+          {!loading && outstanding.length === 0 && (
+            <EmptyState icon={CheckCircle2} title="Nothing outstanding" body="Every booked event is paid in full." />
+          )}
+          {outstanding.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Project</th>
+                    <th>Contact</th>
+                    <th>Date</th>
+                    <th>Paid</th>
+                    <th>Balance Due</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {outstanding.map((e) => {
+                    const total = Math.round((e.final_amount ?? e.quoted_amount ?? 0) * 100);
+                    const balance = total - e.paid_cents;
+                    return (
+                      <tr key={e.id} className="is-linked" onClick={() => (window.location.href = `/admin/events/${e.id}`)}>
+                        <td>
+                          <Link href={`/admin/events/${e.id}`} className="font-medium hover:text-gold hover:underline">
+                            {e.title}
+                          </Link>
+                        </td>
+                        <td className="text-muted">{clientName(e.clients)}</td>
+                        <td className="whitespace-nowrap tabular-nums text-muted">
+                          {e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—"}
+                        </td>
+                        <td className="tabular-nums text-muted">
+                          {money(e.paid_cents)} / {money(total)}
+                        </td>
+                        <td className="font-semibold tabular-nums">{money(balance)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </>
   );

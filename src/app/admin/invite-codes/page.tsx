@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { KeyRound } from "lucide-react";
 
 interface InviteCodeRow {
   id: string;
@@ -61,37 +62,48 @@ export default function InviteCodesPage() {
 
   return (
     <>
-      <PageHeader title="DJ Invite Codes" subtitle="One-time codes for new DJs to register into the platform." />
-      <div className="flex flex-col gap-6 p-6">
-        <NeonButton color="gold" onClick={handleGenerate} disabled={generating} className="w-full sm:w-fit">
-          {generating ? "Generating..." : "+ Generate Code"}
-        </NeonButton>
-
+      <PageHeader
+        title="Invite Codes"
+        subtitle="One-time codes for new DJs to register into the platform."
+        action={
+          <Button variant="primary" onClick={handleGenerate} disabled={generating}>
+            {generating ? "Generating…" : "Generate Code"}
+          </Button>
+        }
+      />
+      <div className="flex flex-col gap-4 p-6">
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
-        {codes === null && <p className="text-sm text-muted">Loading...</p>}
-        {codes?.length === 0 && <p className="text-sm text-muted">No invite codes yet.</p>}
+        {codes === null && <p className="text-sm text-muted">Loading…</p>}
+        {codes?.length === 0 && <EmptyState icon={KeyRound} title="No invite codes yet" body="Generate one to invite a new DJ." />}
         {codes && codes.length > 0 && (
-          <div className="flex flex-col divide-y divide-border border-y border-border">
-            {codes.map((c) => (
-              <div key={c.id} className="flex items-center justify-between px-1 py-3 transition-colors hover:bg-gold/[0.04]">
-                <div>
-                  <p className="font-mono font-semibold">{c.code}</p>
-                  <p className="text-xs text-muted">{c.djs?.display_name ?? "Unassigned"}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={c.used ? "status-badge declined" : "status-badge approved"}>
-                    {c.used ? "Used" : "Available"}
-                  </span>
-                  <button
-                    onClick={() => handleDelete(c.id)}
-                    className="rounded-[2px] border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
-                  >
-                    Delete
-                  </button>
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Assigned DJ</th>
+                  <th>Status</th>
+                  <th className="sr-only">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {codes.map((c) => (
+                  <tr key={c.id}>
+                    <td className="font-mono font-medium">{c.code}</td>
+                    <td className="text-muted">{c.djs?.display_name ?? "Unassigned"}</td>
+                    <td>
+                      <span className={`status-dot ${c.used ? "declined" : "approved"}`}>{c.used ? "Used" : "Available"}</span>
+                    </td>
+                    <td>
+                      <button onClick={() => handleDelete(c.id)} className="text-xs text-muted hover:text-status-declined">
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

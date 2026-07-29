@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { GlassCard } from "@/components/ui/glass-card";
+import { StatTile } from "@/components/ui/stat-tile";
+import { Percent, Trophy, XCircle } from "lucide-react";
 
 interface EventRow {
   id: string;
@@ -79,29 +80,20 @@ export default function AdminReportsPage() {
     <>
       <PageHeader title="Reports" subtitle="Booking performance and revenue trends." />
       <div className="flex flex-col gap-6 p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <GlassCard>
-            <p className="text-xs text-muted">Lead conversion rate</p>
-            <p className="mt-1 text-2xl font-semibold">{loading ? "..." : `${stats.conversionRate}%`}</p>
-          </GlassCard>
-          <GlassCard>
-            <p className="text-xs text-muted">Events won</p>
-            <p className="mt-1 text-2xl font-semibold text-status-approved">{loading ? "..." : stats.wonCount}</p>
-          </GlassCard>
-          <GlassCard>
-            <p className="text-xs text-muted">Events declined</p>
-            <p className="mt-1 text-2xl font-semibold text-status-declined">{loading ? "..." : stats.declinedCount}</p>
-          </GlassCard>
+        <div className="flex flex-wrap border border-border">
+          <StatTile icon={Percent} label="Lead conversion rate" value={loading ? "…" : `${stats.conversionRate}%`} />
+          <StatTile icon={Trophy} label="Events won" value={loading ? "…" : stats.wonCount} />
+          <StatTile icon={XCircle} label="Events declined" value={loading ? "…" : stats.declinedCount} tone={stats.declinedCount > 0 ? "urgent" : "default"} />
         </div>
 
-        <GlassCard>
-          <p className="mb-4 text-sm font-semibold">Revenue by month — {year}</p>
+        <div>
+          <p className="mb-3 text-sm font-semibold border-b border-border pb-2">Revenue by month — {year}</p>
           <div className="flex items-end gap-2 sm:gap-3">
             {stats.monthlyRevenueCents.map((cents, i) => (
               <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
                 <div className="flex h-32 w-full items-end">
                   <div
-                    className="w-full rounded-t-[2px] bg-gold/70"
+                    className="w-full bg-gold/70"
                     style={{ height: `${Math.max(2, (cents / stats.maxMonth) * 100)}%` }}
                     title={money(cents)}
                   />
@@ -110,11 +102,11 @@ export default function AdminReportsPage() {
               </div>
             ))}
           </div>
-        </GlassCard>
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
-          <GlassCard>
-            <p className="mb-3 text-sm font-semibold">DJ leaderboard</p>
+          <div>
+            <p className="mb-2 text-sm font-semibold border-b border-border pb-2">DJ leaderboard</p>
             <div className="flex flex-col divide-y divide-border">
               {loading && <p className="py-2 text-sm text-muted">Loading...</p>}
               {!loading && stats.djLeaderboard.length === 0 && (
@@ -129,10 +121,10 @@ export default function AdminReportsPage() {
                 </div>
               ))}
             </div>
-          </GlassCard>
+          </div>
 
-          <GlassCard>
-            <p className="mb-3 text-sm font-semibold">Event types</p>
+          <div>
+            <p className="mb-2 text-sm font-semibold border-b border-border pb-2">Event types</p>
             <div className="flex flex-col divide-y divide-border">
               {loading && <p className="py-2 text-sm text-muted">Loading...</p>}
               {!loading && stats.typeBreakdown.length === 0 && (
@@ -145,7 +137,7 @@ export default function AdminReportsPage() {
                 </div>
               ))}
             </div>
-          </GlassCard>
+          </div>
         </div>
       </div>
     </>

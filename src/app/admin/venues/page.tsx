@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { MapPin } from "lucide-react";
 
 interface VenueRow {
@@ -70,16 +70,16 @@ export default function AdminVenuesPage() {
 
   return (
     <>
-      <PageHeader title="Manage Venues" subtitle="Add, edit, or remove venue partners." />
-      <div className="flex flex-col gap-6 p-6">
-        <GlassCard neon className="flex flex-col gap-3 sm:flex-row sm:items-end">
+      <PageHeader title="Venues" subtitle="Add, edit, or remove venue partners." />
+      <div className="flex flex-col gap-4 p-6">
+        <div className="flex flex-col gap-3 border border-border p-4 sm:flex-row sm:items-end">
           <label className="block flex-1">
             <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Venue Name</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Venue name"
-              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <label className="block flex-1">
@@ -88,38 +88,42 @@ export default function AdminVenuesPage() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="City, State"
-              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
             />
           </label>
-          <NeonButton color="gold" onClick={handleAdd} disabled={adding} className="shrink-0">
-            {adding ? "Adding..." : "+ Add Venue"}
-          </NeonButton>
-        </GlassCard>
+          <Button variant="primary" onClick={handleAdd} disabled={adding} className="shrink-0">
+            {adding ? "Adding…" : "Add Venue"}
+          </Button>
+        </div>
 
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
-        {venues === null && <p className="text-sm text-muted">Loading...</p>}
-        {venues?.length === 0 && <p className="text-sm text-muted">No venues yet.</p>}
+        {venues === null && <p className="text-sm text-muted">Loading…</p>}
+        {venues?.length === 0 && <EmptyState icon={MapPin} title="No venues yet" body="Add your first venue partner." />}
         {venues && venues.length > 0 && (
-          <div className="flex flex-col divide-y divide-border border-y border-border">
-            {venues.map((v) => (
-              <div key={v.id} className="flex items-center justify-between px-1 py-3 transition-colors hover:bg-gold/[0.04]">
-                <div>
-                  <p className="font-semibold">{v.name}</p>
-                  {v.location && (
-                    <p className="flex items-center gap-1 text-xs text-muted">
-                      <MapPin size={11} /> {v.location}
-                    </p>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleDelete(v.id)}
-                  className="rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Location</th>
+                  <th className="sr-only">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {venues.map((v) => (
+                  <tr key={v.id}>
+                    <td className="font-medium">{v.name}</td>
+                    <td className="text-muted">{v.location ?? "—"}</td>
+                    <td>
+                      <button onClick={() => handleDelete(v.id)} className="text-xs text-status-declined hover:underline">
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Plus, X, LayoutTemplate } from "lucide-react";
 import { TagPicker } from "@/components/dashboard/tag-picker";
 import { EVENT_TYPES, GENRE_TAGS, ERA_OPTIONS, CLEAN_MUSIC_OPTIONS } from "@/lib/crate-taxonomy";
 
@@ -28,6 +29,7 @@ export default function AdminCrateTemplatesPage() {
   const [targetEras, setTargetEras] = useState<string[]>([]);
   const [cleanRequirement, setCleanRequirement] = useState("");
   const [adding, setAdding] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
   async function load() {
     try {
@@ -82,6 +84,7 @@ export default function AdminCrateTemplatesPage() {
       setTargetGenres([]);
       setTargetEras([]);
       setCleanRequirement("");
+      setShowCreate(false);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -105,11 +108,18 @@ export default function AdminCrateTemplatesPage() {
   return (
     <>
       <PageHeader
-        title="Manage Crate Templates"
+        title="Crate Templates"
         subtitle="Recommended genre/era/energy balance for common event types — never actual songs."
+        action={
+          <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
+            {showCreate ? <X size={15} /> : <Plus size={15} />}
+            {showCreate ? "Cancel" : "New Template"}
+          </Button>
+        }
       />
-      <div className="flex flex-col gap-6 p-6">
-        <GlassCard neon className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4 p-6">
+        {showCreate && (
+        <div className="flex flex-col gap-3 border border-border p-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Template Name</span>
@@ -160,15 +170,15 @@ export default function AdminCrateTemplatesPage() {
             <p className="mb-1.5 text-xs uppercase tracking-wide text-muted">Target Eras</p>
             <TagPicker options={ERA_OPTIONS} selected={targetEras} onChange={setTargetEras} />
           </div>
-          <NeonButton color="gold" onClick={handleAdd} disabled={adding} className="self-start">
-            {adding ? "Adding..." : "+ Add Template"}
-          </NeonButton>
-        </GlassCard>
-
-        {error && <p className="text-xs text-status-declined">{error}</p>}
+          {error && <p className="text-xs text-status-declined">{error}</p>}
+          <Button variant="primary" onClick={handleAdd} disabled={adding} className="self-start">
+            {adding ? "Adding…" : "Add Template"}
+          </Button>
+        </div>
+        )}
 
         {templates === null && <p className="text-sm text-muted">Loading...</p>}
-        {templates?.length === 0 && <p className="text-sm text-muted">No templates yet.</p>}
+        {templates?.length === 0 && <EmptyState icon={LayoutTemplate} title="No templates yet" body="Create your first crate template." />}
         {templates && templates.length > 0 && (
           <div className="flex flex-col divide-y divide-border border-y border-border">
             {templates.map((t) => (
