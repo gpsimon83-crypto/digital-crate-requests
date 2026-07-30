@@ -9,6 +9,8 @@ import { Logo } from "@/components/site/logo";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { Check, X, LogOut, ShieldCheck, CalendarClock, MapPin, Plus, PartyPopper, UserCircle, Boxes } from "lucide-react";
 import { isStaffRole } from "@/lib/roles";
+import { EVENT_CATEGORY_GROUPS } from "@/lib/event-types";
+import { cn } from "@/lib/utils";
 
 interface VenueOption {
   id: string;
@@ -21,6 +23,7 @@ interface EventRow {
   title: string;
   starts_at: string | null;
   status: string;
+  event_type: string | null;
   dj_id: string | null;
   djs: { display_name: string; photo_url: string | null } | null;
   venues: { name: string } | null;
@@ -45,6 +48,7 @@ export default function DjBookingsPage() {
   const [newVenueName, setNewVenueName] = useState("");
   const [newVenueLocation, setNewVenueLocation] = useState("");
   const [savingVenue, setSavingVenue] = useState(false);
+  const [category, setCategory] = useState("all");
 
   async function load() {
     try {
@@ -155,8 +159,10 @@ export default function DjBookingsPage() {
     router.refresh();
   }
 
-  const pending = events?.filter((e) => e.status === "pending_confirmation") ?? [];
-  const upcoming = events?.filter((e) => e.status === "confirmed") ?? [];
+  const categoryGroup = EVENT_CATEGORY_GROUPS.find((g) => g.key === category);
+  const categoryFiltered = (events ?? []).filter((e) => (categoryGroup ? categoryGroup.match(e.event_type) : true));
+  const pending = categoryFiltered.filter((e) => e.status === "pending_confirmation");
+  const upcoming = categoryFiltered.filter((e) => e.status === "confirmed");
 
   return (
     <div className="min-h-dvh bg-background">
@@ -214,6 +220,21 @@ export default function DjBookingsPage() {
         {error && (
           <GlassCard className="border-status-declined/30 text-sm text-status-declined">{error}</GlassCard>
         )}
+
+        <div className="-mb-4 flex flex-wrap gap-2">
+          {[{ key: "all", label: "All" }, ...EVENT_CATEGORY_GROUPS.map((g) => ({ key: g.key, label: g.label }))].map((c) => (
+            <button
+              key={c.key}
+              onClick={() => setCategory(c.key)}
+              className={cn(
+                "rounded-[2px] border px-3 py-1.5 text-xs font-medium transition-colors",
+                category === c.key ? "border-gold bg-gold/10 text-gold" : "border-black/12 text-muted hover:border-black/25 hover:text-foreground"
+              )}
+            >
+              {c.label}
+            </button>
+          ))}
+        </div>
 
         {!isAdmin && (
           <section>
