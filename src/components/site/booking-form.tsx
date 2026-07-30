@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
-
-const EVENT_TYPES = ["Club / Bar Night", "Wedding", "Corporate Event", "Holiday Party", "Birthday / Private Party", "Other"];
+import { EVENT_TYPES } from "@/lib/event-types";
 
 export function BookingForm({ djs }: { djs: { id: string; display_name: string }[] }) {
   const [name, setName] = useState("");

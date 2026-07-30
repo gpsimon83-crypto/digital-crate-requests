@@ -26,6 +26,9 @@ export async function POST(req: NextRequest) {
   if (!title || !startsAt) {
     return NextResponse.json({ error: "title and startsAt are required" }, { status: 400 });
   }
+  if (!clientId) {
+    return NextResponse.json({ error: "clientId is required — every project needs a linked contact" }, { status: 400 });
+  }
 
   try {
     const event = await createEvent({

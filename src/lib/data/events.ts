@@ -14,7 +14,7 @@ export async function listEvents() {
   const db = createAdminClient();
   const { data, error } = await db
     .from("events")
-    .select("*, djs(display_name, photo_url), venues(name), clients(company_name, first_name, last_name)")
+    .select("*, djs(display_name, photo_url), venues(name), clients(company_name, first_name, last_name, email, phone)")
     .order("starts_at", { ascending: true });
   if (error) throw error;
 

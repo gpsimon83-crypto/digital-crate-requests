@@ -1,12 +1,15 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { Plus, X, Briefcase, ChevronRight } from "lucide-react";
+import { EVENT_TYPES, EVENT_CATEGORY_GROUPS } from "@/lib/event-types";
+import { Plus, X, Briefcase, ChevronRight, Magnet, Mail, Phone, CalendarDays } from "lucide-react";
 
 interface EventRow {
   id: string;
@@ -24,7 +27,7 @@ interface EventRow {
   contract_document_url: string | null;
   djs: { display_name: string } | null;
   venues: { name: string } | null;
-  clients: { company_name: string | null; first_name: string | null; last_name: string | null } | null;
+  clients: { company_name: string | null; first_name: string | null; last_name: string | null; email: string | null; phone: string | null } | null;
 }
 
 interface Option {
@@ -50,12 +53,21 @@ const STATUS_LABEL: Record<string, string> = {
   ended: "Ended"
 };
 
+const STAGE_TABS = [
+  { key: "active", label: "Active Projects" },
+  { key: "inquiries", label: "Inquiries" }
+];
+
 function clientName(c: EventRow["clients"]) {
   if (!c) return null;
   return c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed contact";
 }
 
-export default function AdminEventsPage() {
+function AdminEventsPageContent() {
+  const searchParams = useSearchParams();
+  const stage = searchParams.get("stage") === "inquiries" ? "inquiries" : "active";
+  const category = searchParams.get("category") ?? "all";
+
   const [events, setEvents] = useState<EventRow[] | null>(null);
   const [djs, setDjs] = useState<Option[]>([]);
   const [venues, setVenues] = useState<Option[]>([]);
@@ -67,6 +79,7 @@ export default function AdminEventsPage() {
   const [contractDraftFor, setContractDraftFor] = useState<string | null>(null);
   const [contractUrlDraft, setContractUrlDraft] = useState("");
   const [sendingContract, setSendingContract] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [djId, setDjId] = useState("");
@@ -76,6 +89,13 @@ export default function AdminEventsPage() {
   const [eventType, setEventType] = useState("");
   const [expectedGuests, setExpectedGuests] = useState("");
   const [quotedAmount, setQuotedAmount] = useState("");
+
+  const [showQuickAddClient, setShowQuickAddClient] = useState(false);
+  const [qcFirstName, setQcFirstName] = useState("");
+  const [qcLastName, setQcLastName] = useState("");
+  const [qcEmail, setQcEmail] = useState("");
+  const [qcPhone, setQcPhone] = useState("");
+  const [savingClient, setSavingClient] = useState(false);
 
   async function loadAll() {
     try {
@@ -115,6 +135,10 @@ export default function AdminEventsPage() {
       setError("Title and date/time are required.");
       return;
     }
+    if (!clientId) {
+      setError("Select a client to create a project — every project needs a contact.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -125,7 +149,7 @@ export default function AdminEventsPage() {
           title,
           djId: djId || undefined,
           venueId: venueId || undefined,
-          clientId: clientId || undefined,
+          clientId,
           startsAt: new Date(startsAt).toISOString(),
           eventType: eventType || undefined,
           expectedGuests: expectedGuests ? Number(expectedGuests) : undefined,
@@ -152,6 +176,37 @@ export default function AdminEventsPage() {
     }
   }
 
+  async function handleQuickAddClient() {
+    if (!qcFirstName || !qcLastName) {
+      setError("First and last name are required to add a client.");
+      return;
+    }
+    setSavingClient(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstName: qcFirstName, lastName: qcLastName, email: qcEmail || undefined, phone: qcPhone || undefined })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to add client");
+
+      const newOption = { id: data.client.id, label: [qcFirstName, qcLastName].join(" ") };
+      setClients((prev) => [...prev, newOption]);
+      setClientId(newOption.id);
+      setShowQuickAddClient(false);
+      setQcFirstName("");
+      setQcLastName("");
+      setQcEmail("");
+      setQcPhone("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSavingClient(false);
+    }
+  }
+
   async function handleSendContract(eventId: string) {
     if (!contractUrlDraft.trim()) return;
     setSendingContract(true);
@@ -174,6 +229,40 @@ export default function AdminEventsPage() {
     }
   }
 
+  async function handleInquiryAction(id: string, action: "confirm" | "decline") {
+    setBusyId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/events/${id}/${action}`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Failed to ${action}`);
+      await loadAll();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const inquiryCount = (events ?? []).filter((e) => e.status === "inquiry").length;
+  const stageFiltered = (events ?? []).filter((e) => (stage === "inquiries" ? e.status === "inquiry" : e.status !== "inquiry"));
+  const categoryGroup = EVENT_CATEGORY_GROUPS.find((g) => g.key === category);
+  const visibleEvents = categoryGroup ? stageFiltered.filter((e) => categoryGroup.match(e.event_type)) : stageFiltered;
+
+  function stageHref(key: string) {
+    const params = new URLSearchParams();
+    params.set("stage", key);
+    if (category !== "all") params.set("category", category);
+    return `/admin/events?${params.toString()}`;
+  }
+
+  function categoryHref(key: string) {
+    const params = new URLSearchParams();
+    params.set("stage", stage);
+    if (key !== "all") params.set("category", key);
+    return `/admin/events?${params.toString()}`;
+  }
+
   return (
     <>
       <PageHeader
@@ -194,11 +283,41 @@ export default function AdminEventsPage() {
               <Field label="Date & Time" value={startsAt} onChange={setStartsAt} type="datetime-local" />
               <SelectField label="Assign DJ" value={djId} onChange={setDjId} options={djs} placeholder="Unassigned" />
               <SelectField label="Venue" value={venueId} onChange={setVenueId} options={venues} placeholder="No venue" />
-              <SelectField label="Client" value={clientId} onChange={setClientId} options={clients} placeholder="No client linked" />
-              <Field label="Event Type" value={eventType} onChange={setEventType} placeholder="wedding, corporate, club..." />
+              <div>
+                <SelectField label="Client *" value={clientId} onChange={setClientId} options={clients} placeholder="Select a client" />
+                <button
+                  type="button"
+                  onClick={() => setShowQuickAddClient((v) => !v)}
+                  className="mt-1.5 text-xs text-gold hover:underline"
+                >
+                  {showQuickAddClient ? "Cancel new client" : "+ Add new client"}
+                </button>
+              </div>
+              <SelectField
+                label="Event Type"
+                value={eventType}
+                onChange={setEventType}
+                options={EVENT_TYPES.map((t) => ({ id: t, label: t }))}
+                placeholder="Select type"
+              />
               <Field label="Expected Guests" value={expectedGuests} onChange={setExpectedGuests} type="number" />
               <Field label="Quoted Amount ($)" value={quotedAmount} onChange={setQuotedAmount} type="number" />
             </div>
+
+            {showQuickAddClient && (
+              <div className="mt-3 grid gap-3 border-t border-border pt-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Field label="First Name" value={qcFirstName} onChange={setQcFirstName} placeholder="Jamie" />
+                <Field label="Last Name" value={qcLastName} onChange={setQcLastName} placeholder="Anderson" />
+                <Field label="Email" value={qcEmail} onChange={setQcEmail} type="email" placeholder="jamie@email.com" />
+                <Field label="Phone" value={qcPhone} onChange={setQcPhone} type="tel" placeholder="(000) 000-0000" />
+                <div className="lg:col-span-4">
+                  <Button variant="secondary" size="sm" onClick={handleQuickAddClient} disabled={savingClient}>
+                    {savingClient ? "Adding…" : "Save Client"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {error && <p className="mt-3 text-xs text-status-declined">{error}</p>}
             <div className="mt-4 flex items-center gap-3">
               <Button variant="primary" onClick={handleCreate} disabled={submitting}>
@@ -211,9 +330,72 @@ export default function AdminEventsPage() {
           </div>
         )}
 
+        <div className="flex flex-col gap-3">
+          <Tabs
+            items={STAGE_TABS.map((t) => ({ key: t.key, label: t.key === "inquiries" && inquiryCount > 0 ? `${t.label} (${inquiryCount})` : t.label }))}
+            active={stage}
+            hrefFor={stageHref}
+          />
+          <Tabs
+            items={[{ key: "all", label: "All" }, ...EVENT_CATEGORY_GROUPS.map((g) => ({ key: g.key, label: g.label }))]}
+            active={category}
+            hrefFor={categoryHref}
+            className="border-b-0"
+          />
+        </div>
+
         {events === null && <p className="text-sm text-muted">Loading projects…</p>}
-        {events?.length === 0 && <EmptyState icon={Briefcase} title="No projects yet" body="Create your first project to get started." />}
-        {events && events.length > 0 && (
+
+        {events !== null && stage === "active" && visibleEvents.length === 0 && (
+          <EmptyState icon={Briefcase} title="No projects in this view" body="Create a project or adjust the filters above." />
+        )}
+
+        {events !== null && stage === "inquiries" && visibleEvents.length === 0 && (
+          <EmptyState icon={Magnet} title="No inquiries waiting" body="New booking requests from the website will show up here." />
+        )}
+
+        {stage === "inquiries" && visibleEvents.length > 0 && (
+          <div className="flex flex-col divide-y divide-border border-y border-border">
+            {visibleEvents.map((e) => (
+              <div key={e.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-medium">{e.title}</p>
+                  <p className="text-sm text-muted">{clientName(e.clients) ?? "No client"}</p>
+                  <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
+                    {e.starts_at && (
+                      <span className="flex items-center gap-1">
+                        <CalendarDays size={12} /> {new Date(e.starts_at).toLocaleDateString()}
+                      </span>
+                    )}
+                    {e.clients?.email && (
+                      <span className="flex items-center gap-1">
+                        <Mail size={12} /> {e.clients.email}
+                      </span>
+                    )}
+                    {e.clients?.phone && (
+                      <span className="flex items-center gap-1">
+                        <Phone size={12} /> {e.clients.phone}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="primary" size="sm" disabled={busyId === e.id} onClick={() => handleInquiryAction(e.id, "confirm")}>
+                    {busyId === e.id ? "…" : "Confirm"}
+                  </Button>
+                  <Button variant="destructive" size="sm" disabled={busyId === e.id} onClick={() => handleInquiryAction(e.id, "decline")}>
+                    Decline
+                  </Button>
+                  <Link href={`/admin/events/${e.id}`} className="flex items-center justify-center text-muted hover:text-gold">
+                    <ChevronRight size={15} />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {stage === "active" && visibleEvents.length > 0 && (
           <>
             {/* Desktop/tablet: full compact table */}
             <div className="hidden overflow-x-auto md:block">
@@ -232,7 +414,7 @@ export default function AdminEventsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {events.map((e) => {
+                  {visibleEvents.map((e) => {
                     const totalDue = e.final_amount ?? e.quoted_amount;
                     const totalDueCents = totalDue ? Math.round(totalDue * 100) : 0;
                     const name = clientName(e.clients);
@@ -246,11 +428,15 @@ export default function AdminEventsPage() {
                             <Link href={`/admin/events/${e.id}`} className="font-medium hover:text-gold hover:underline">
                               {e.title}
                             </Link>
-                            {name && <div className="text-xs text-muted">{name}</div>}
+                            {name ? (
+                              <div className="text-xs text-muted">{name}</div>
+                            ) : (
+                              <div className="text-xs text-status-urgent">No client linked</div>
+                            )}
                           </td>
                           <td className="text-muted">{e.venues?.name ?? "—"}</td>
                           <td className={e.djs ? "" : "text-status-urgent"}>{e.djs?.display_name ?? "Unassigned"}</td>
-                          <td className="capitalize text-muted">{e.event_type ?? "—"}</td>
+                          <td className="text-muted">{e.event_type ?? "—"}</td>
                           <td>
                             <span className={cn("status-dot", STATUS_DOT[e.status] ?? "")}>{STATUS_LABEL[e.status] ?? e.status}</span>
                           </td>
@@ -312,7 +498,7 @@ export default function AdminEventsPage() {
 
             {/* Mobile: structured compact rows instead of a squeezed table */}
             <div className="flex flex-col divide-y divide-border border-y border-border md:hidden">
-              {events.map((e) => {
+              {visibleEvents.map((e) => {
                 const totalDue = e.final_amount ?? e.quoted_amount;
                 const totalDueCents = totalDue ? Math.round(totalDue * 100) : 0;
                 const name = clientName(e.clients);
@@ -322,7 +508,7 @@ export default function AdminEventsPage() {
                       <span className="font-medium">{e.title}</span>
                       <ChevronRight size={15} className="shrink-0 text-muted" />
                     </Link>
-                    {name && <span className="text-xs text-muted">{name}</span>}
+                    {name ? <span className="text-xs text-muted">{name}</span> : <span className="text-xs text-status-urgent">No client linked</span>}
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                       <span className="tabular-nums text-muted">
                         {e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
@@ -343,6 +529,14 @@ export default function AdminEventsPage() {
         )}
       </div>
     </>
+  );
+}
+
+export default function AdminEventsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-muted">Loading...</div>}>
+      <AdminEventsPageContent />
+    </Suspense>
   );
 }
 
