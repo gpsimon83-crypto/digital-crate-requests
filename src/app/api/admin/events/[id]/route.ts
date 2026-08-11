@@ -4,6 +4,7 @@ import { getEvent, sendEventContract, updateEvent } from "@/lib/data/events";
 import { listEventPayments, computeBalance } from "@/lib/data/payments";
 import { requireAuth } from "@/lib/require-auth";
 import { requireAdmin } from "@/lib/require-admin";
+import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
 
 const VALID_STATUSES = ["inquiry", "pending_confirmation", "confirmed", "live", "ended", "declined"];
 
@@ -36,9 +37,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { contractDocumentUrl, status, internalNotes, clientId, sendWeddingMusicPlan } = body as {
+  const { contractDocumentUrl, status, pipelineStage, internalNotes, clientId, sendWeddingMusicPlan } = body as {
     contractDocumentUrl?: string;
     status?: string;
+    pipelineStage?: string;
     internalNotes?: string;
     clientId?: string | null;
     sendWeddingMusicPlan?: boolean;
@@ -46,6 +48,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (status && !VALID_STATUSES.includes(status)) {
     return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+  if (pipelineStage && !(PIPELINE_STAGES as readonly string[]).includes(pipelineStage)) {
+    return NextResponse.json({ error: "Invalid pipeline stage" }, { status: 400 });
   }
 
   try {
@@ -55,6 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const updates: Record<string, unknown> = {};
     if (status) updates.status = status;
+    if (pipelineStage) updates.pipeline_stage = pipelineStage;
     if (internalNotes !== undefined) updates.internal_notes = internalNotes;
     if (clientId !== undefined) updates.client_id = clientId || null;
     if (sendWeddingMusicPlan) updates.wedding_music_plan_sent_at = new Date().toISOString();

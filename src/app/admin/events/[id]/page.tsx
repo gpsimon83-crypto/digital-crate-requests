@@ -8,6 +8,7 @@ import { NeonButton } from "@/components/ui/neon-button";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
 import {
   ArrowLeft,
   Copy,
@@ -45,6 +46,7 @@ interface EventDetail {
   id: string;
   title: string;
   status: string;
+  pipeline_stage: string | null;
   starts_at: string | null;
   created_at: string;
   hero_image_url: string | null;
@@ -152,6 +154,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
   const [changingContact, setChangingContact] = useState(false);
   const [savingStage, setSavingStage] = useState(false);
+  const [savingPipelineStage, setSavingPipelineStage] = useState(false);
   const [sendingMusicPlan, setSendingMusicPlan] = useState(false);
 
   const [notesDraft, setNotesDraft] = useState("");
@@ -216,6 +219,18 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSavingStage(false);
+    }
+  }
+
+  async function handlePipelineStageChange(pipelineStage: string) {
+    setSavingPipelineStage(true);
+    try {
+      const updated = await patchEvent({ pipelineStage });
+      setEvent((prev) => (prev ? { ...prev, pipeline_stage: updated.pipeline_stage } : prev));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSavingPipelineStage(false);
     }
   }
 
@@ -707,7 +722,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
           </GlassCard>
 
           <GlassCard className="flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Stage</p>
+            <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Status</p>
             <select
               value={event.status}
               onChange={(e) => handleStageChange(e.target.value)}
@@ -720,6 +735,24 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 </option>
               ))}
             </select>
+            <p className="text-[11px] text-muted">Whether a DJ has accepted this booking.</p>
+          </GlassCard>
+
+          <GlassCard className="flex flex-col gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Pipeline Stage</p>
+            <select
+              value={event.pipeline_stage ?? "Inquiry"}
+              onChange={(e) => handlePipelineStageChange(e.target.value)}
+              disabled={savingPipelineStage}
+              className="rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+            >
+              {PIPELINE_STAGES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-muted">Where this project sits in the sales &amp; planning funnel.</p>
           </GlassCard>
 
           {event.clients && (

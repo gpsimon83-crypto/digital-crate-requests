@@ -10,6 +10,7 @@ import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { Check, X, LogOut, ShieldCheck, CalendarClock, MapPin, Plus, PartyPopper, UserCircle, Boxes } from "lucide-react";
 import { isStaffRole } from "@/lib/roles";
 import { EVENT_CATEGORY_GROUPS } from "@/lib/event-types";
+import { PIPELINE_STAGE_DOT } from "@/lib/pipeline-stage";
 import { cn } from "@/lib/utils";
 
 interface VenueOption {
@@ -24,6 +25,7 @@ interface EventRow {
   starts_at: string | null;
   status: string;
   event_type: string | null;
+  pipeline_stage: string | null;
   dj_id: string | null;
   djs: { display_name: string; photo_url: string | null } | null;
   venues: { name: string } | null;
@@ -416,7 +418,12 @@ function EventInfo({
     <div className="flex min-w-0 items-start gap-3">
       {isAdmin && e.djs && <DjAvatar name={e.djs.display_name} photoUrl={e.djs.photo_url} size={36} className="mt-0.5" />}
       <div className="min-w-0">
-        <p className="text-base font-bold">{e.title}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-base font-bold">{e.title}</p>
+          <span className={cn("status-badge", PIPELINE_STAGE_DOT[e.pipeline_stage ?? "Inquiry"] ?? "muted")}>
+            {e.pipeline_stage ?? "Inquiry"}
+          </span>
+        </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
           {isAdmin && <span>{e.djs?.display_name ?? "Unassigned"}</span>}
           <span className="flex items-center gap-1">

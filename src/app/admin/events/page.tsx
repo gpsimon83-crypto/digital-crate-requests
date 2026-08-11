@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { EVENT_TYPES, EVENT_CATEGORY_GROUPS } from "@/lib/event-types";
+import { PIPELINE_STAGES, PIPELINE_STAGE_DOT } from "@/lib/pipeline-stage";
 import { Plus, X, Briefcase, ChevronRight, Magnet, Mail, Phone, CalendarDays } from "lucide-react";
 
 interface EventRow {
@@ -17,6 +18,7 @@ interface EventRow {
   title: string;
   starts_at: string | null;
   status: string;
+  pipeline_stage: string | null;
   event_type: string | null;
   quoted_amount: number | null;
   final_amount: number | null;
@@ -229,6 +231,22 @@ function AdminEventsPageContent() {
     }
   }
 
+  async function handleStageChange(eventId: string, pipelineStage: string) {
+    setEvents((prev) => (prev ? prev.map((e) => (e.id === eventId ? { ...e, pipeline_stage: pipelineStage } : e)) : prev));
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pipelineStage })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update stage");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+      await loadAll();
+    }
+  }
+
   async function handleInquiryAction(id: string, action: "confirm" | "decline") {
     setBusyId(id);
     setError(null);
@@ -408,6 +426,7 @@ function AdminEventsPageContent() {
                     <th>DJ</th>
                     <th>Type</th>
                     <th>Status</th>
+                    <th>Stage</th>
                     <th>Payment</th>
                     <th>Contract</th>
                     <th className="sr-only">Actions</th>
@@ -440,6 +459,22 @@ function AdminEventsPageContent() {
                           <td>
                             <span className={cn("status-dot", STATUS_DOT[e.status] ?? "")}>{STATUS_LABEL[e.status] ?? e.status}</span>
                           </td>
+                          <td>
+                            <select
+                              value={e.pipeline_stage ?? "Inquiry"}
+                              onChange={(ev) => handleStageChange(e.id, ev.target.value)}
+                              className={cn(
+                                "status-dot rounded-[2px] border-0 bg-transparent py-0.5 pl-0 pr-5 text-xs focus:outline-none",
+                                PIPELINE_STAGE_DOT[e.pipeline_stage ?? "Inquiry"] ?? ""
+                              )}
+                            >
+                              {PIPELINE_STAGES.map((s) => (
+                                <option key={s} value={s}>
+                                  {s}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
                           <td className="whitespace-nowrap">
                             {totalDue ? (
                               <span className={e.paid_cents >= totalDueCents ? "text-status-approved" : e.paid_cents > 0 ? "text-status-pending" : "text-muted"}>
@@ -468,7 +503,7 @@ function AdminEventsPageContent() {
                         </tr>
                         {contractDraftFor === e.id && (
                           <tr>
-                            <td colSpan={9} className="bg-panel/60">
+                            <td colSpan={10} className="bg-panel/60">
                               <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center">
                                 <input
                                   autoFocus
@@ -514,6 +549,7 @@ function AdminEventsPageContent() {
                         {e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
                       </span>
                       <span className={cn("status-dot", STATUS_DOT[e.status] ?? "")}>{STATUS_LABEL[e.status] ?? e.status}</span>
+                      <span className={cn("status-dot", PIPELINE_STAGE_DOT[e.pipeline_stage ?? "Inquiry"] ?? "")}>{e.pipeline_stage ?? "Inquiry"}</span>
                       <span className={e.djs ? "text-muted" : "text-status-urgent"}>{e.djs?.display_name ?? "Unassigned"}</span>
                       {totalDue && (
                         <span className={e.paid_cents >= totalDueCents ? "text-status-approved" : "text-muted"}>
