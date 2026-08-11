@@ -14,6 +14,7 @@ interface EventRow {
   created_at: string;
   quoted_amount: number | null;
   event_type: string | null;
+  special_requests: string | null;
   clients: {
     company_name: string | null;
     first_name: string | null;
@@ -97,6 +98,7 @@ export default function AdminLeadsPage() {
                     )}
                     {e.quoted_amount != null && <span>${e.quoted_amount.toLocaleString()} quoted</span>}
                   </div>
+                  {e.special_requests && <p className="mt-1.5 text-sm">{e.special_requests}</p>}
                 </div>
                 <div className="flex gap-2">
                   <Button variant="primary" disabled={busyId === e.id} onClick={() => act(e.id, "confirm")}>

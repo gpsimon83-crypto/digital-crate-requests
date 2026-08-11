@@ -20,6 +20,7 @@ interface EventRow {
   status: string;
   pipeline_stage: string | null;
   event_type: string | null;
+  special_requests: string | null;
   quoted_amount: number | null;
   final_amount: number | null;
   paid_cents: number;
@@ -396,6 +397,7 @@ function AdminEventsPageContent() {
                       </span>
                     )}
                   </div>
+                  {e.special_requests && <p className="mt-1.5 text-sm">{e.special_requests}</p>}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="primary" size="sm" disabled={busyId === e.id} onClick={() => handleInquiryAction(e.id, "confirm")}>
