@@ -2,17 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
 import { getEvent, sendEventContract, updateEvent } from "@/lib/data/events";
 import { listEventPayments, computeBalance } from "@/lib/data/payments";
-import { requireAuth } from "@/lib/require-auth";
 import { requireAdmin } from "@/lib/require-admin";
+import { requireEventAccess } from "@/lib/require-event-access";
 import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
 
 const VALID_STATUSES = ["inquiry", "pending_confirmation", "confirmed", "live", "ended", "declined"];
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await requireAuth();
-  if (denied) return denied;
-
   const { id } = await params;
+  // Staff see every project; a DJ only sees projects assigned to them —
+  // this route previously only checked "is signed in", which let any DJ
+  // fetch any other DJ's project by guessing/knowing its id.
+  const access = await requireEventAccess(id);
+  if (!access.authorized) return NextResponse.json({ error: access.error }, { status: access.status });
+
   try {
     const event = await getEvent(id);
 

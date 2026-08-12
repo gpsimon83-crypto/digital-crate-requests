@@ -23,7 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const access = await requireEventAccess(id);
   if (!access.authorized) return NextResponse.json({ error: access.error }, { status: access.status });
 
-  const { body } = (await req.json()) as { body?: string };
+  const { body, subject: subjectInput } = (await req.json()) as { body?: string; subject?: string };
   if (!body?.trim()) return NextResponse.json({ error: "Message can't be empty." }, { status: 400 });
 
   const clientRow = Array.isArray(access.event.clients) ? access.event.clients[0] : access.event.clients;
@@ -39,7 +39,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Connect your email account in your profile before sending." }, { status: 400 });
   }
 
-  const subject = `${access.event.title} [${access.event.event_code}]`;
+  const tag = `[${access.event.event_code}]`;
+  const baseSubject = subjectInput?.trim() || access.event.title;
+  const subject = baseSubject.includes(tag) ? baseSubject : `${baseSubject} ${tag}`;
 
   try {
     const messageId = await sendEmailFromAccount(account, {

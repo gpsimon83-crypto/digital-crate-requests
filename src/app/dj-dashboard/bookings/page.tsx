@@ -434,19 +434,27 @@ function EventInfo({
             {e.starts_at ? new Date(e.starts_at).toLocaleString() : "No date set"}
           </span>
         </div>
-        {showCode && (
-          <p className="mt-2 flex items-center gap-2 font-mono text-xs">
-            <span className="rounded-md border border-gold/30 bg-gold/5 px-2 py-0.5 tracking-wide text-gold">
-              {e.event_code}
-            </span>
-            <Link
-              href={`/dj-dashboard/${e.event_code}`}
-              className="text-muted underline underline-offset-2 hover:text-foreground"
-            >
-              Open Event →
-            </Link>
-          </p>
-        )}
+        <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs">
+          {showCode && (
+            <>
+              <span className="rounded-md border border-gold/30 bg-gold/5 px-2 py-0.5 tracking-wide text-gold">
+                {e.event_code}
+              </span>
+              <Link
+                href={`/dj-dashboard/${e.event_code}`}
+                className="text-muted underline underline-offset-2 hover:text-foreground"
+              >
+                Open Event →
+              </Link>
+            </>
+          )}
+          <Link
+            href={`/dj-dashboard/projects/${e.id}`}
+            className="text-muted underline underline-offset-2 hover:text-foreground"
+          >
+            Message Client →
+          </Link>
+        </p>
       </div>
     </div>
   );

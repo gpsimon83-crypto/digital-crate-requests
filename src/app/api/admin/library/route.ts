@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/require-admin";
+import { requireAuth } from "@/lib/require-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listLibraryItems, createEmailTemplate, createFileItem, type LibraryCategory } from "@/lib/data/library";
 import { errorMessage } from "@/lib/error-message";
@@ -8,8 +9,10 @@ const BUCKET = "library-files";
 const CATEGORIES = ["email_template", "contract", "brochure", "questionnaire"] as const;
 const FILE_CATEGORIES = ["contract", "brochure", "questionnaire"] as const;
 
+// Any signed-in DJ or admin can read the Library (they need email templates
+// to compose from) — only admin/staff can create, edit, or delete entries.
 export async function GET(req: NextRequest) {
-  const denied = await requireAdmin();
+  const denied = await requireAuth();
   if (denied) return denied;
 
   const category = req.nextUrl.searchParams.get("category") as LibraryCategory | null;

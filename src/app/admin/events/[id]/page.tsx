@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
+import { type MergeContext } from "@/lib/merge-fields";
+import { EmailThreadPanel } from "@/components/project/email-thread-panel";
 import {
   ArrowLeft,
   Copy,
@@ -44,10 +46,12 @@ interface PaymentRow {
 
 interface EventDetail {
   id: string;
+  event_code: string;
   title: string;
   status: string;
   pipeline_stage: string | null;
   starts_at: string | null;
+  ends_at: string | null;
   created_at: string;
   hero_image_url: string | null;
   event_type: string | null;
@@ -75,18 +79,6 @@ interface Balance {
   totalDueCents: number;
   paidCents: number;
   balanceCents: number;
-}
-
-interface EmailMessage {
-  id: string;
-  direction: "outbound" | "inbound";
-  from_email: string;
-  from_name: string | null;
-  to_email: string;
-  subject: string | null;
-  body: string;
-  seen_at: string | null;
-  created_at: string;
 }
 
 interface ClientOption {
@@ -181,40 +173,30 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
   const [uploadingHero, setUploadingHero] = useState(false);
   const heroFileInput = useRef<HTMLInputElement | null>(null);
 
-  const [messages, setMessages] = useState<EmailMessage[] | null>(null);
-  const [composeText, setComposeText] = useState("");
-  const [sendingMessage, setSendingMessage] = useState(false);
-  const [messageError, setMessageError] = useState<string | null>(null);
+  function buildMergeContext(): MergeContext {
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    if (!event) return { portalLink: `${origin}/portal/events/${id}`, schedulerLink: `${origin}/schedule` };
+    const name = clientName(event.clients);
+    const totalDueCents = balance?.totalDueCents ?? 0;
+    const balanceCents = balance?.balanceCents ?? 0;
 
-  async function loadMessages() {
-    try {
-      const res = await fetch(`/api/events/${id}/messages`);
-      const data = await res.json();
-      setMessages(res.ok ? data.messages : []);
-    } catch {
-      setMessages([]);
-    }
-  }
-
-  async function handleSendMessage() {
-    if (!composeText.trim()) return;
-    setSendingMessage(true);
-    setMessageError(null);
-    try {
-      const res = await fetch(`/api/events/${id}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: composeText.trim() })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to send");
-      setComposeText("");
-      await loadMessages();
-    } catch (err) {
-      setMessageError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setSendingMessage(false);
-    }
+    return {
+      clientFirstName: event.clients?.first_name ?? name ?? undefined,
+      clientFullName: name ?? undefined,
+      eventType: event.event_type ?? undefined,
+      eventDate: event.starts_at ? new Date(event.starts_at).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : undefined,
+      eventTime: event.starts_at ? new Date(event.starts_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : undefined,
+      eventEndTime: event.ends_at ? new Date(event.ends_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : undefined,
+      venueName: event.venues?.name ?? undefined,
+      guestCount: event.expected_guests != null ? String(event.expected_guests) : undefined,
+      djName: event.djs?.display_name ?? undefined,
+      totalAmount: totalDueCents ? money(totalDueCents) : undefined,
+      depositAmount: event.deposit_amount != null ? money(Math.round(event.deposit_amount * 100)) : undefined,
+      balanceDue: money(balanceCents),
+      portalLink: `${origin}/portal/events/${id}`,
+      schedulerLink: `${origin}/schedule`,
+      eventCode: event.event_code
+    };
   }
 
   async function load() {
@@ -244,7 +226,6 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
   useEffect(() => {
     load();
-    loadMessages();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -566,55 +547,12 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
           {activeTab === "Activity" && (
             <div className="mt-6 flex flex-col gap-8">
-              <section className="flex flex-col gap-3">
-                <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Email</p>
-
-                {messages === null && <p className="text-sm text-muted">Loading…</p>}
-
-                {messages !== null && messages.length === 0 && (
-                  <p className="text-sm text-muted">No emails yet — the first message you send here starts the thread.</p>
-                )}
-
-                {messages !== null && messages.length > 0 && (
-                  <div className="flex flex-col gap-3">
-                    {messages.map((m) => (
-                      <div
-                        key={m.id}
-                        className={cn(
-                          "flex flex-col gap-1 rounded-[2px] border p-3 text-sm",
-                          m.direction === "outbound" ? "border-black/10 bg-panel" : "border-gold/30 bg-gold/5"
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-2 text-xs text-muted">
-                          <span className="font-medium text-foreground">
-                            {m.direction === "outbound" ? m.from_name || m.from_email : m.from_email}
-                          </span>
-                          <span>{new Date(m.created_at).toLocaleString()}</span>
-                        </div>
-                        <p className="whitespace-pre-wrap">{m.body}</p>
-                        {m.direction === "outbound" && (
-                          <span className="text-[11px] text-muted">{m.seen_at ? `Seen ${new Date(m.seen_at).toLocaleDateString()}` : "Not yet seen"}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {messageError && <p className="text-xs text-status-declined">{messageError}</p>}
-
-                <div className="flex flex-col gap-2">
-                  <textarea
-                    value={composeText}
-                    onChange={(e) => setComposeText(e.target.value)}
-                    placeholder={event.clients ? `Message ${clientName(event.clients)}...` : "This project has no client linked yet."}
-                    disabled={!event.clients}
-                    className="min-h-[90px] w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none disabled:opacity-50"
-                  />
-                  <Button variant="primary" size="sm" onClick={handleSendMessage} disabled={sendingMessage || !composeText.trim()} className="w-fit">
-                    {sendingMessage ? "Sending…" : "Send"}
-                  </Button>
-                </div>
-              </section>
+              <EmailThreadPanel
+                eventId={id}
+                hasClient={!!event.clients}
+                clientDisplayName={clientName(event.clients)}
+                mergeContext={buildMergeContext()}
+              />
 
               <section className="flex flex-col divide-y divide-border border-y border-border">
                 <p className="pb-2 text-xs font-semibold uppercase tracking-[1.5px] text-muted">Timeline</p>
