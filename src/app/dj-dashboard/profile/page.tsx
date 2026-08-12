@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft, LayoutDashboard, CalendarDays, Disc3, MapPin, KeyRound, Settings,
-  ListMusic, BarChart3, DollarSign, LayoutTemplate, type LucideIcon,
+  ListMusic, BarChart3, DollarSign, LayoutTemplate, Mail, type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -45,6 +45,15 @@ interface DjRecord {
   hero_settings: Partial<HeroSettings> | null;
 }
 
+interface EmailAccount {
+  emailAddress: string;
+  smtpHost: string;
+  smtpPort: number;
+  imapHost: string;
+  imapPort: number;
+  lastCheckedAt: string | null;
+}
+
 export default function DjProfilePage() {
   const [dj, setDj] = useState<DjRecord | null>(null);
   const [settings, setSettings] = useState<HeroSettings>(DEFAULT_HERO_SETTINGS);
@@ -55,6 +64,19 @@ export default function DjProfilePage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
+
+  const [emailAccount, setEmailAccount] = useState<EmailAccount | null>(null);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailForm, setEmailForm] = useState({
+    emailAddress: "",
+    password: "",
+    smtpHost: "netsol-smtp-oxcs.hostingplatform.com",
+    smtpPort: 587,
+    imapHost: "netsol-imap-oxcs.hostingplatform.com",
+    imapPort: 993
+  });
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -68,13 +90,61 @@ export default function DjProfilePage() {
     }
   }
 
+  async function loadEmailAccount() {
+    try {
+      const res = await fetch("/api/dj/email-account");
+      const data = await res.json();
+      if (res.ok) setEmailAccount(data.account);
+    } catch {
+      // leave emailAccount null — the connect card will just show as not-connected
+    }
+  }
+
+  async function handleSaveEmailAccount() {
+    setSavingEmail(true);
+    setEmailError(null);
+    try {
+      const res = await fetch("/api/dj/email-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailForm)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to connect");
+      setEmailAccount(data.account);
+      setShowEmailForm(false);
+      setEmailForm((f) => ({ ...f, password: "" }));
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSavingEmail(false);
+    }
+  }
+
+  async function handleDisconnectEmail() {
+    setSavingEmail(true);
+    setEmailError(null);
+    try {
+      const res = await fetch("/api/dj/email-account", { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to disconnect");
+      setEmailAccount(null);
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSavingEmail(false);
+    }
+  }
+
   useEffect(() => {
     fetch("/api/me")
       .then((r) => r.json())
       .then((d) => {
         const staff = isStaffRole(d?.user?.role);
         setIsAdmin(staff);
-        if (!staff) load();
+        if (!staff) {
+          load();
+          loadEmailAccount();
+        }
       })
       .catch(() => load())
       .finally(() => setCheckingRole(false));
@@ -203,6 +273,68 @@ export default function DjProfilePage() {
           </NeonButton>
         </GlassCard>
 
+        <GlassCard className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold/15 text-gold">
+              <Mail size={18} />
+            </span>
+            <div className="flex-1">
+              <p className="font-semibold">Email</p>
+              <p className="text-xs text-muted">Connect your mailbox to send and receive client email from a project&rsquo;s Activity tab.</p>
+            </div>
+          </div>
+
+          {emailError && <p className="text-xs text-status-declined">{emailError}</p>}
+
+          {emailAccount && !showEmailForm ? (
+            <div className="flex items-center justify-between rounded-[2px] border border-status-approved/30 bg-status-approved/5 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-status-approved">Connected</p>
+                <p className="text-xs text-muted">{emailAccount.emailAddress}</p>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setShowEmailForm(true)} className="text-xs text-gold hover:underline">
+                  Edit
+                </button>
+                <button onClick={handleDisconnectEmail} disabled={savingEmail} className="text-xs text-status-declined hover:underline">
+                  Disconnect
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <EmailField label="Email Address" value={emailForm.emailAddress} onChange={(v) => setEmailForm((f) => ({ ...f, emailAddress: v }))} placeholder="you@digitalcratedjs.com" />
+              <EmailField label="Password" type="password" value={emailForm.password} onChange={(v) => setEmailForm((f) => ({ ...f, password: v }))} />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <EmailField label="SMTP Server" value={emailForm.smtpHost} onChange={(v) => setEmailForm((f) => ({ ...f, smtpHost: v }))} />
+                <EmailField
+                  label="SMTP Port"
+                  type="number"
+                  value={String(emailForm.smtpPort)}
+                  onChange={(v) => setEmailForm((f) => ({ ...f, smtpPort: Number(v) || 587 }))}
+                />
+                <EmailField label="IMAP Server" value={emailForm.imapHost} onChange={(v) => setEmailForm((f) => ({ ...f, imapHost: v }))} />
+                <EmailField
+                  label="IMAP Port"
+                  type="number"
+                  value={String(emailForm.imapPort)}
+                  onChange={(v) => setEmailForm((f) => ({ ...f, imapPort: Number(v) || 993 }))}
+                />
+              </div>
+              <div className="flex items-center gap-3">
+                <NeonButton color="gold" onClick={handleSaveEmailAccount} disabled={savingEmail} className="px-4 py-2 text-xs">
+                  {savingEmail ? "Connecting..." : "Connect"}
+                </NeonButton>
+                {emailAccount && (
+                  <button onClick={() => setShowEmailForm(false)} className="text-xs text-muted hover:text-foreground">
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </GlassCard>
+
         {/* Live preview */}
         <GlassCard className="!p-0 overflow-hidden">
           <div className="relative h-[220px] w-full overflow-hidden">
@@ -291,6 +423,33 @@ export default function DjProfilePage() {
         </GlassCard>
       </div>
     </>
+  );
+}
+
+function EmailField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">{label}</span>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
+      />
+    </label>
   );
 }
 
