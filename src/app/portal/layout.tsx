@@ -6,7 +6,7 @@ import { PortalSidebarNav } from "@/components/portal/portal-sidebar-nav";
 import { PortalMobileTabBar } from "@/components/portal/portal-mobile-tab-bar";
 import { pickPrimaryEvent } from "@/lib/portal-primary-event";
 
-const NO_CHROME_PREFIXES = ["/portal/login", "/portal/signup"];
+const NO_CHROME_PREFIXES = ["/portal/login", "/portal/signup", "/portal/questionnaire"];
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

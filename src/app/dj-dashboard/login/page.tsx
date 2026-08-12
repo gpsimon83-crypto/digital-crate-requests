@@ -98,16 +98,13 @@ function LoginForm() {
   }
 
   return (
-    <div className="gl-page">
-      <div className="gl-grain" />
-      <div className="gl-glow" style={{ top: "-10%", left: "50%", transform: "translateX(-50%)" }} />
-
-      <div className="gl-card-wrap">
-        <div className="gl-card">
+    <div className="auth-page">
+      <div className="auth-card-wrap">
+        <div className="auth-card">
           <div className="mb-7 flex flex-col items-center gap-3 text-center">
-            <Logo variant="icon" brand="crates-djs" size={52} />
+            <Logo variant="icon" brand="crates-djs" size={48} />
             <div>
-              <h1 className="text-xl font-bold text-foreground">Welcome Back</h1>
+              <h1 className="font-display text-3xl font-light text-foreground">Welcome Back</h1>
               <p className="mt-1 text-xs text-muted">Sign in to manage your bookings and events</p>
             </div>
           </div>
@@ -117,7 +114,7 @@ function LoginForm() {
               <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                 Email Address
               </span>
-              <div className="gl-input-wrap">
+              <div className="auth-input-wrap">
                 <Mail size={16} />
                 <input
                   type="email"
@@ -125,7 +122,7 @@ function LoginForm() {
                   placeholder="Enter your email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="gl-input"
+                  className="auth-input"
                 />
               </div>
             </label>
@@ -137,7 +134,7 @@ function LoginForm() {
                   Forgot password?
                 </Link>
               </div>
-              <div className="gl-input-wrap">
+              <div className="auth-input-wrap">
                 <Lock size={16} />
                 <input
                   type={showPassword ? "text" : "password"}
@@ -145,12 +142,12 @@ function LoginForm() {
                   placeholder="Enter your password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="gl-input"
+                  className="auth-input"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="gl-eye-btn"
+                  className="auth-eye-btn"
                   aria-label={showPassword ? "Hide password" : "Show password"}
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -170,7 +167,7 @@ function LoginForm() {
 
             {error && <p className="text-xs text-status-declined">{error}</p>}
 
-            <button type="submit" disabled={submitting} className="gl-submit mt-1">
+            <button type="submit" disabled={submitting} className="auth-submit mt-1">
               {submitting ? "Signing in..." : "Sign In"}
               {!submitting && <ArrowRight size={16} />}
             </button>
@@ -187,7 +184,7 @@ function LoginForm() {
               type="button"
               onClick={() => handleOAuth("google")}
               disabled={oauthLoading !== null}
-              className="flex flex-1 items-center justify-center gap-2 rounded-[2px] border border-black/10 bg-black/[0.02] py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-black/[0.04] disabled:opacity-50"
+              className="auth-oauth-btn flex flex-1 items-center justify-center gap-2 py-2.5 text-xs font-medium text-foreground transition-colors disabled:opacity-50"
             >
               <GoogleIcon /> Google
             </button>
@@ -195,7 +192,7 @@ function LoginForm() {
               type="button"
               onClick={() => handleOAuth("apple")}
               disabled={oauthLoading !== null}
-              className="flex flex-1 items-center justify-center gap-2 rounded-[2px] border border-black/10 bg-black/[0.02] py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-black/[0.04] disabled:opacity-50"
+              className="auth-oauth-btn flex flex-1 items-center justify-center gap-2 py-2.5 text-xs font-medium text-foreground transition-colors disabled:opacity-50"
             >
               <AppleIcon /> Apple
             </button>

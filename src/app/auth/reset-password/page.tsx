@@ -81,16 +81,13 @@ function ResetForm() {
   }
 
   return (
-    <div className="gl-page">
-      <div className="gl-grain" />
-      <div className="gl-glow" style={{ top: "-10%", left: "50%", transform: "translateX(-50%)" }} />
-
-      <div className="gl-card-wrap">
-        <div className="gl-card">
+    <div className="auth-page">
+      <div className="auth-card-wrap">
+        <div className="auth-card">
           <div className="mb-7 flex flex-col items-center gap-3 text-center">
-            <Logo variant="icon" brand="crates-djs" size={52} />
+            <Logo variant="icon" brand="crates-djs" size={48} />
             <div>
-              <h1 className="text-xl font-bold text-foreground">Set New Password</h1>
+              <h1 className="font-display text-3xl font-light text-foreground">Set New Password</h1>
               <p className="mt-1 text-xs text-muted">Choose a new password for your account.</p>
             </div>
           </div>
@@ -107,7 +104,7 @@ function ResetForm() {
                 <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                   New Password
                 </span>
-                <div className="gl-input-wrap">
+                <div className="auth-input-wrap">
                   <Lock size={16} />
                   <input
                     type={showPassword ? "text" : "password"}
@@ -115,12 +112,12 @@ function ResetForm() {
                     placeholder="Enter new password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="gl-input"
+                    className="auth-input"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((v) => !v)}
-                    className="gl-eye-btn"
+                    className="auth-eye-btn"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -132,7 +129,7 @@ function ResetForm() {
                 <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                   Confirm Password
                 </span>
-                <div className="gl-input-wrap">
+                <div className="auth-input-wrap">
                   <Lock size={16} />
                   <input
                     type={showPassword ? "text" : "password"}
@@ -140,14 +137,14 @@ function ResetForm() {
                     placeholder="Re-enter new password"
                     value={confirm}
                     onChange={(e) => setConfirm(e.target.value)}
-                    className="gl-input"
+                    className="auth-input"
                   />
                 </div>
               </label>
 
               {error && <p className="text-xs text-status-declined">{error}</p>}
 
-              <button type="submit" disabled={submitting} className="gl-submit mt-1">
+              <button type="submit" disabled={submitting} className="auth-submit mt-1">
                 {submitting ? "Updating..." : "Update Password"}
                 {!submitting && <ArrowRight size={16} />}
               </button>

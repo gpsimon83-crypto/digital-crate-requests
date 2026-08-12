@@ -549,6 +549,17 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
 
       {activeTab === "services" && (
         <div className="mt-6 flex flex-col gap-4">
+          <GlassCard neon className="flex flex-col gap-2">
+            <p className="text-sm font-semibold">Planning Questionnaire</p>
+            <p className="text-sm text-muted">
+              A quick, guided walkthrough to tell us everything about your event — songs, timeline, and all the
+              details your DJ needs.
+            </p>
+            <Link href={`/portal/questionnaire/${id}`} className="w-fit">
+              <NeonButton color="gold">Open Questionnaire →</NeonButton>
+            </Link>
+          </GlassCard>
+
           {(event.event_type || event.service_type || event.expected_guests) && (
             <GlassCard className="flex flex-col gap-2">
               <p className="text-sm font-semibold">Your booking</p>

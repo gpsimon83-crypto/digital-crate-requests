@@ -313,73 +313,62 @@ body {
   .menu-fade-item { animation: none; opacity: 1; }
 }
 
-/* ── DJ Login: clean, flat, warm-light (matches the rest of the app) ──
-   Previously a dark "Graphite + Liquid Gold" cockpit with grain texture,
-   a drifting blurred glow, and an animated conic sweep border — replaced
-   with a plain white card on the same cream background as everywhere
-   else, per explicit feedback: no glow, keep it clean. .gl-grain and
-   .gl-glow are kept as no-op classes since existing pages still render
-   those divs; they just no longer draw anything. */
-.gl-page {
+/* ── Auth pages (every sign-in/sign-up/reset screen site-wide): soft,
+   rounded, elegant. Uses this app's own font-display serif for headings
+   (matching every other portal page) and white input fields, not the tan
+   --panel fill used in regular forms. One shared system so DJ, admin, and
+   client auth all look and feel identical. */
+.auth-page {
   position: relative;
   min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
   padding: 1.5rem;
   background: var(--background);
 }
-.gl-grain { display: none; }
-.gl-glow { display: none; }
-
-.gl-card-wrap {
-  position: relative;
-  z-index: 1;
-  border-radius: 2px;
+.auth-card-wrap {
+  border-radius: 22px;
   border: 1px solid var(--border);
+  box-shadow: 0 24px 60px -24px rgba(33, 31, 26, 0.18);
 }
-
-.gl-card {
-  position: relative;
-  border-radius: 1px;
+.auth-card {
+  border-radius: 22px;
   background: var(--card);
-  padding: 2.5rem 2.25rem;
+  padding: 2.75rem 2.25rem;
   width: 100%;
   max-width: 380px;
 }
-
-.gl-input-wrap {
+.auth-input-wrap {
   position: relative;
   display: flex;
   align-items: center;
 }
-.gl-input-wrap > svg:first-child {
+.auth-input-wrap > svg:first-child {
   position: absolute;
-  left: 14px;
+  left: 15px;
   color: var(--muted);
   pointer-events: none;
 }
-.gl-input {
+.auth-input {
   width: 100%;
-  border-radius: 2px;
+  border-radius: 12px;
   border: 1px solid var(--border);
-  background: var(--panel);
-  padding: 0.85rem 2.75rem 0.85rem 2.75rem;
+  background: var(--card);
+  padding: 0.85rem 2.75rem;
   font-size: 0.875rem;
   color: var(--foreground);
-  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
-.gl-input::placeholder { color: var(--muted); }
-.gl-input:focus {
+.auth-input::placeholder { color: var(--muted); }
+.auth-input:focus {
   outline: none;
   border-color: var(--gold);
-  background: var(--card);
-  box-shadow: 0 0 0 3px rgba(186, 139, 75, 0.15);
+  box-shadow: 0 0 0 3px rgba(186, 139, 75, 0.14);
 }
-.gl-eye-btn {
+.auth-eye-btn {
   position: absolute;
-  right: 10px;
+  right: 12px;
   color: var(--muted);
   background: none;
   border: none;
@@ -388,25 +377,30 @@ body {
   align-items: center;
   padding: 6px;
 }
-.gl-eye-btn:hover { color: var(--gold); }
-
-.gl-submit {
+.auth-eye-btn:hover { color: var(--gold); }
+.auth-submit {
   width: 100%;
-  border-radius: 2px;
+  border-radius: 12px;
   padding: 0.95rem 1.5rem;
   font-size: 0.875rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
-  color: #14100a;
+  letter-spacing: 0.02em;
+  color: var(--gold-soft);
   border: none;
   cursor: pointer;
   background: var(--gold);
-  transition: filter 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease, transform 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
 }
-.gl-submit:hover { filter: brightness(1.06); }
-.gl-submit:active { transform: scale(0.98); }
-.gl-submit:disabled { opacity: 0.55; cursor: not-allowed; }
+.auth-submit:hover { background: var(--gold-light); }
+.auth-submit:active { transform: scale(0.98); }
+.auth-submit:disabled { opacity: 0.55; cursor: not-allowed; }
+.auth-oauth-btn {
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+.auth-oauth-btn:hover { border-color: var(--gold); }

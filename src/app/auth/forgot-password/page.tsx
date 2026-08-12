@@ -31,16 +31,13 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="gl-page">
-      <div className="gl-grain" />
-      <div className="gl-glow" style={{ top: "-10%", left: "50%", transform: "translateX(-50%)" }} />
-
-      <div className="gl-card-wrap">
-        <div className="gl-card">
+    <div className="auth-page">
+      <div className="auth-card-wrap">
+        <div className="auth-card">
           <div className="mb-7 flex flex-col items-center gap-3 text-center">
-            <Logo variant="icon" brand="crates-djs" size={52} />
+            <Logo variant="icon" brand="crates-djs" size={48} />
             <div>
-              <h1 className="text-xl font-bold text-foreground">Reset Password</h1>
+              <h1 className="font-display text-3xl font-light text-foreground">Reset Password</h1>
               <p className="mt-1 text-xs text-muted">
                 {sent ? "Check your inbox for a reset link." : "We'll email you a link to set a new password."}
               </p>
@@ -60,7 +57,7 @@ export default function ForgotPasswordPage() {
                 <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                   Email Address
                 </span>
-                <div className="gl-input-wrap">
+                <div className="auth-input-wrap">
                   <Mail size={16} />
                   <input
                     type="email"
@@ -68,14 +65,14 @@ export default function ForgotPasswordPage() {
                     placeholder="Enter your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="gl-input"
+                    className="auth-input"
                   />
                 </div>
               </label>
 
               {error && <p className="text-xs text-status-declined">{error}</p>}
 
-              <button type="submit" disabled={submitting} className="gl-submit mt-1">
+              <button type="submit" disabled={submitting} className="auth-submit mt-1">
                 {submitting ? "Sending..." : "Send Reset Link"}
                 {!submitting && <ArrowRight size={16} />}
               </button>
