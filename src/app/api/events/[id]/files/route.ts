@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireEventAccess } from "@/lib/require-event-access";
 import { listEventFiles, createEventFile, type EventFileCategory } from "@/lib/data/event-files";
 import { sendEventContract } from "@/lib/data/events";
+import { getLibraryItem } from "@/lib/data/library";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
 
@@ -25,6 +26,37 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const access = await requireEventAccess(id);
   if (!access.authorized) return NextResponse.json({ error: access.error }, { status: access.status });
+
+  const contentType = req.headers.get("content-type") ?? "";
+
+  // Copying a file in from the Library — no bytes to upload, just point a
+  // new event_files row at the same already-hosted file.
+  if (contentType.includes("application/json")) {
+    try {
+      const { libraryItemId } = (await req.json()) as { libraryItemId?: string };
+      if (!libraryItemId) return NextResponse.json({ error: "libraryItemId is required" }, { status: 400 });
+
+      const item = await getLibraryItem(libraryItemId);
+      if (!item || !item.file_url) return NextResponse.json({ error: "That Library item doesn't have a file to add" }, { status: 400 });
+
+      const category: EventFileCategory = item.category === "contract" ? "contract" : "other";
+      const eventFile = await createEventFile(id, {
+        category,
+        fileUrl: item.file_url,
+        fileName: item.file_name || item.title,
+        source: "library",
+        uploadedBy: access.user.id
+      });
+
+      if (category === "contract") {
+        await sendEventContract(id, item.file_url);
+      }
+
+      return NextResponse.json({ file: eventFile });
+    } catch (err) {
+      return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
+    }
+  }
 
   try {
     const form = await req.formData();

@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type EventFileCategory = "contract" | "email_attachment" | "other";
-export type EventFileSource = "upload" | "email";
+export type EventFileSource = "upload" | "email" | "library";
 
 export interface EventFileRow {
   id: string;

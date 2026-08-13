@@ -8,6 +8,7 @@ import { NeonButton } from "@/components/ui/neon-button";
 import { Tabs } from "@/components/ui/tabs";
 import { TagPicker } from "@/components/dashboard/tag-picker";
 import { SongSlotField } from "@/components/portal/song-slot-field";
+import { PortalFilesList } from "@/components/portal/portal-files-list";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, X, CalendarDays, FileText } from "lucide-react";
 
@@ -361,6 +362,8 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
               </GlassCard>
             )}
           </section>
+
+          <PortalFilesList eventId={id} />
 
           {isWedding && !event.wedding_music_plan_sent_at && (
             <section className="border border-border p-4">
