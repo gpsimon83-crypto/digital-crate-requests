@@ -20,6 +20,7 @@ import { EmailThreadPanel } from "@/components/project/email-thread-panel";
 import { TasksPanel } from "@/components/project/tasks-panel";
 import { FilesPanel } from "@/components/project/files-panel";
 import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
+import { PackageRecommendation } from "@/components/project/package-recommendation";
 import {
   ArrowLeft,
   Copy,
@@ -737,6 +738,8 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
           {activeTab === "Details" && (
             <div className="mt-6 flex flex-col gap-4">
               <QuestionnaireSummary eventId={id} />
+
+              <PackageRecommendation eventId={id} />
 
               <GlassCard className="flex flex-col gap-1">
                 <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Client contact</p>
