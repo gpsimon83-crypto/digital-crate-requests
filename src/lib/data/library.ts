@@ -1,6 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export type LibraryCategory = "email_template" | "contract" | "brochure" | "questionnaire";
+// "questionnaire" was a legacy static-file category, superseded by the
+// real, database-driven Questionnaire Builder (questionnaire_templates
+// etc.) — no longer offered as a Library category. The DB's category
+// CHECK constraint still technically allows the value (no rows ever used
+// it, so no migration needed), but nothing in the app writes it anymore.
+export type LibraryCategory = "email_template" | "contract" | "brochure";
 
 export interface LibraryItem {
   id: string;

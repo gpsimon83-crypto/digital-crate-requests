@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { Mail, FileText, BookOpen, ClipboardList, FolderOpen, Plus, X, Download, Trash2, Pencil } from "lucide-react";
+import { Mail, FileText, BookOpen, FolderOpen, ListChecks, Plus, X, Download, Trash2, Pencil } from "lucide-react";
+import Link from "next/link";
 
-type Category = "email_template" | "contract" | "brochure" | "questionnaire";
+type Category = "email_template" | "contract" | "brochure";
 
 interface LibraryItem {
   id: string;
@@ -27,22 +28,19 @@ const CATEGORY_TABS: { key: Category | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "email_template", label: "Email Templates" },
   { key: "contract", label: "Contracts" },
-  { key: "brochure", label: "Brochures" },
-  { key: "questionnaire", label: "Questionnaires" }
+  { key: "brochure", label: "Brochures" }
 ];
 
 const CATEGORY_ICON: Record<Category, typeof Mail> = {
   email_template: Mail,
   contract: FileText,
-  brochure: BookOpen,
-  questionnaire: ClipboardList
+  brochure: BookOpen
 };
 
 const CATEGORY_LABEL: Record<Category, string> = {
   email_template: "Email Template",
   contract: "Contract",
-  brochure: "Brochure",
-  questionnaire: "Questionnaire"
+  brochure: "Brochure"
 };
 
 function AdminLibraryPageInner() {
@@ -183,7 +181,7 @@ function AdminLibraryPageInner() {
     <>
       <PageHeader
         title="Library"
-        subtitle="Email templates, contracts, brochures, and questionnaires in one place."
+        subtitle="Email templates, contracts, and brochures in one place."
         action={
           <Button variant="primary" onClick={() => setShowAdd((v) => !v)}>
             {showAdd ? <X size={15} /> : <Plus size={15} />}
@@ -192,6 +190,13 @@ function AdminLibraryPageInner() {
         }
       />
       <div className="flex flex-col gap-4 p-6">
+        <Link
+          href="/admin/questionnaires"
+          className="flex w-fit items-center gap-1.5 text-xs font-medium text-muted hover:text-gold"
+        >
+          <ListChecks size={13} /> Looking for the client planning questionnaires? Manage those in the Questionnaire Builder →
+        </Link>
+
         {showAdd && (
           <div className="border border-border p-4">
             <div className="grid gap-3 sm:grid-cols-2">
@@ -205,7 +210,6 @@ function AdminLibraryPageInner() {
                   <option value="email_template">Email Template</option>
                   <option value="contract">Contract</option>
                   <option value="brochure">Brochure</option>
-                  <option value="questionnaire">Questionnaire</option>
                 </select>
               </label>
               <Field label="Title" value={title} onChange={setTitle} placeholder="e.g. Booking Confirmation" />

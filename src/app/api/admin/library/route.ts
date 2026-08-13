@@ -6,8 +6,8 @@ import { listLibraryItems, createEmailTemplate, createFileItem, type LibraryCate
 import { errorMessage } from "@/lib/error-message";
 
 const BUCKET = "library-files";
-const CATEGORIES = ["email_template", "contract", "brochure", "questionnaire"] as const;
-const FILE_CATEGORIES = ["contract", "brochure", "questionnaire"] as const;
+const CATEGORIES = ["email_template", "contract", "brochure"] as const;
+const FILE_CATEGORIES = ["contract", "brochure"] as const;
 
 // Any signed-in DJ or admin can read the Library (they need email templates
 // to compose from) — only admin/staff can create, edit, or delete entries.

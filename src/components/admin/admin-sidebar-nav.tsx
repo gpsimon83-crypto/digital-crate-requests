@@ -12,7 +12,7 @@ import {
   Users,
   Magnet,
   Sparkles,
-  FileStack,
+  FolderOpen,
   Wallet,
   Wrench,
   Zap,
@@ -30,13 +30,12 @@ import {
 } from "lucide-react";
 
 // Primary items mirror a standard CRM's information architecture (Home,
-// Projects, Calendar, Contacts, Lead capture, Files, Services, Templates,
-// Finance, Tools, Automations, Reports) — some are fully real pages built
-// on data we already have (Projects=Events, Contacts=Clients, Calendar,
-// Lead capture, Finance, Reports); Files/Templates/Automations are honest
-// "coming soon" placeholders, not faked functionality, since they'd need
-// real new infrastructure (file storage, a template editor, a workflow
-// engine) this pass doesn't build.
+// Projects, Calendar, Contacts, Lead capture, Services, Library, Finance,
+// Tools, Automations, Reports). Library is the one, real home for email
+// templates/contracts/brochures — it used to be split between a stub
+// "Templates" page here and the real Library tool buried in Tools; this
+// entry now points straight at that same real page instead of duplicating
+// it. Automations is still an honest "coming soon" placeholder.
 const PRIMARY_ITEMS = [
   { href: "/admin", label: "Home", icon: Home },
   { href: "/admin/events", label: "Projects", icon: Briefcase },
@@ -44,7 +43,7 @@ const PRIMARY_ITEMS = [
   { href: "/admin/clients", label: "Contacts", icon: Users },
   { href: "/admin/leads", label: "Lead capture", icon: Magnet },
   { href: "/admin/services", label: "Services", icon: Sparkles },
-  { href: "/admin/templates", label: "Templates", icon: FileStack },
+  { href: "/admin/files", label: "Library", icon: FolderOpen },
   { href: "/admin/finance", label: "Finance", icon: Wallet },
   { href: "/admin/tools", label: "Tools", icon: Wrench },
   { href: "/admin/automations", label: "Automations", icon: Zap },
