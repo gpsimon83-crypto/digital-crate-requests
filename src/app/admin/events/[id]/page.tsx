@@ -739,11 +739,30 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               <QuestionnaireSummary eventId={id} />
 
               <GlassCard className="flex flex-col gap-1">
+                <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Client contact</p>
+                <Row label="Name" value={name ?? "—"} />
+                <Row label="Email" value={event.clients?.email ?? "—"} />
+                <Row label="Phone" value={event.clients?.phone ?? "—"} />
+              </GlassCard>
+
+              <GlassCard className="flex flex-col gap-1">
                 <Row label="Event type" value={event.event_type ?? "—"} />
                 <Row label="Service" value={event.service_type ?? "—"} />
                 <Row label="Expected guests" value={event.expected_guests != null ? String(event.expected_guests) : "—"} />
                 <Row label="DJ" value={event.djs?.display_name ?? "Unassigned"} />
                 <Row label="Venue" value={event.venues?.name ?? "No venue"} />
+              </GlassCard>
+
+              <GlassCard className="flex flex-col gap-1">
+                <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Contract</p>
+                {event.contract_signed_at ? (
+                  <>
+                    <Row label="Signed by" value={event.contract_signed_by ?? "—"} />
+                    <Row label="Signed on" value={new Date(event.contract_signed_at).toLocaleDateString()} />
+                  </>
+                ) : (
+                  <Row label="Status" value={event.contract_document_url ? "Sent, not yet signed" : "Not sent"} />
+                )}
               </GlassCard>
               {(event.must_play?.length || event.do_not_play?.length) ? (
                 <GlassCard className="flex flex-col gap-3">
