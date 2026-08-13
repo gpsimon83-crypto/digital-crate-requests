@@ -96,3 +96,21 @@ export function findFlatIndex(flat: FlatQuestion[], key: string | null): number 
   if (!key) return -1;
   return flat.findIndex((f) => f.question.key === key);
 }
+
+export function formatAnswerValue(
+  question: { options: QuestionOption[] },
+  value: AnswerValue | undefined,
+  unsureLabel = "Not decided yet"
+): string {
+  if (!value) return "Not answered";
+  if ("unsure" in value) return unsureLabel;
+  const labelFor = (v: string) => question.options.find((o) => o.value === v)?.label ?? v;
+  if (Array.isArray(value.value)) {
+    if (value.value.length === 0) return "Not answered";
+    if (typeof value.value[0] === "object") {
+      return (value.value as PersonListEntry[]).map((p) => `${p.name}${p.role ? ` (${p.role})` : ""}`).join(", ");
+    }
+    return (value.value as string[]).map(labelFor).join(", ");
+  }
+  return value.value ? labelFor(value.value) : "Not answered";
+}

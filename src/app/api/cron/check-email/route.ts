@@ -3,7 +3,10 @@ import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import { listAllEmailAccountsWithSecret, markAccountChecked } from "@/lib/data/email-accounts";
 import { recordInboundMessage } from "@/lib/data/email";
+import { createEventFile } from "@/lib/data/event-files";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+const FILES_BUCKET = "event-files";
 
 /**
  * Polled on a schedule (see vercel.json) rather than pushed, since a
@@ -62,7 +65,7 @@ export async function GET(req: NextRequest) {
             if (event) {
               const fromAddress = parsed.from?.value?.[0]?.address ?? "unknown";
               const fromName = parsed.from?.value?.[0]?.name;
-              await recordInboundMessage({
+              const inboundMessage = await recordInboundMessage({
                 eventId: event.id,
                 clientId: event.client_id,
                 fromEmail: fromAddress,
@@ -71,6 +74,25 @@ export async function GET(req: NextRequest) {
                 subject,
                 body: parsed.text ?? "(no plain-text body)"
               });
+
+              for (const attachment of parsed.attachments ?? []) {
+                if (!attachment.content || attachment.content.length === 0) continue;
+                const ext = (attachment.filename ?? "").split(".").pop()?.toLowerCase().replace(/[^a-z0-9]/g, "") || "bin";
+                const path = `${event.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+                const { error: uploadError } = await db.storage.from(FILES_BUCKET).upload(path, attachment.content, {
+                  contentType: attachment.contentType || "application/octet-stream"
+                });
+                if (uploadError) continue;
+                const { data: pub } = db.storage.from(FILES_BUCKET).getPublicUrl(path);
+                await createEventFile(event.id, {
+                  category: "email_attachment",
+                  fileUrl: pub.publicUrl,
+                  fileName: attachment.filename || "attachment",
+                  source: "email",
+                  emailMessageId: inboundMessage.id
+                });
+              }
+
               found += 1;
             }
           }

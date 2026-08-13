@@ -6,6 +6,9 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { ArrowLeft, CalendarDays, MapPin } from "lucide-react";
 import { EmailThreadPanel } from "@/components/project/email-thread-panel";
+import { TasksPanel } from "@/components/project/tasks-panel";
+import { FilesPanel } from "@/components/project/files-panel";
+import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
 import type { MergeContext } from "@/lib/merge-fields";
 
 interface ClientRow {
@@ -117,6 +120,12 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
           </span>
           {balanceCents > 0 && <span>Balance due: {money(balanceCents)}</span>}
         </GlassCard>
+
+        <QuestionnaireSummary eventId={id} />
+
+        <TasksPanel eventId={id} />
+
+        <FilesPanel eventId={id} />
 
         <EmailThreadPanel eventId={id} hasClient={!!event.clients} clientDisplayName={name} mergeContext={mergeContext} />
       </div>

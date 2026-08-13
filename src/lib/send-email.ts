@@ -3,7 +3,13 @@ import type { EmailAccountInternal } from "@/lib/data/email-accounts";
 
 export async function sendEmailFromAccount(
   account: EmailAccountInternal,
-  message: { to: string; subject: string; text: string; fromName?: string }
+  message: {
+    to: string;
+    subject: string;
+    text: string;
+    fromName?: string;
+    attachments?: { filename: string; content: Buffer; contentType?: string }[];
+  }
 ) {
   const transporter = nodemailer.createTransport({
     host: account.smtpHost,
@@ -16,7 +22,8 @@ export async function sendEmailFromAccount(
     from: message.fromName ? `"${message.fromName}" <${account.emailAddress}>` : account.emailAddress,
     to: message.to,
     subject: message.subject,
-    text: message.text
+    text: message.text,
+    attachments: message.attachments
   });
 
   return info.messageId;

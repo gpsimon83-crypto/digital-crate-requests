@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { fillMergeFields, type MergeContext } from "@/lib/merge-fields";
+import { Paperclip, X } from "lucide-react";
 
 interface EmailMessage {
   id: string;
@@ -42,6 +43,8 @@ export function EmailThreadPanel({
   const [messageError, setMessageError] = useState<string | null>(null);
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplateOption[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadMessages() {
     try {
@@ -83,16 +86,26 @@ export function EmailThreadPanel({
     setSendingMessage(true);
     setMessageError(null);
     try {
-      const res = await fetch(`/api/events/${eventId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ body: composeText.trim(), subject: composeSubject.trim() || undefined })
-      });
+      let res: Response;
+      if (attachments.length > 0) {
+        const form = new FormData();
+        form.set("body", composeText.trim());
+        if (composeSubject.trim()) form.set("subject", composeSubject.trim());
+        attachments.forEach((f) => form.append("attachments", f));
+        res = await fetch(`/api/events/${eventId}/messages`, { method: "POST", body: form });
+      } else {
+        res = await fetch(`/api/events/${eventId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ body: composeText.trim(), subject: composeSubject.trim() || undefined })
+        });
+      }
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to send");
       setComposeSubject("");
       setComposeText("");
       setSelectedTemplateId("");
+      setAttachments([]);
       await loadMessages();
     } catch (err) {
       setMessageError(err instanceof Error ? err.message : "Something went wrong.");
@@ -166,9 +179,42 @@ export function EmailThreadPanel({
           disabled={!hasClient}
           className="min-h-[90px] w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none disabled:opacity-50"
         />
-        <Button variant="primary" size="sm" onClick={handleSendMessage} disabled={sendingMessage || !composeText.trim()} className="w-fit">
-          {sendingMessage ? "Sending…" : "Send"}
-        </Button>
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {attachments.map((f, i) => (
+              <span key={`${f.name}-${i}`} className="flex items-center gap-1.5 rounded-[2px] border border-black/10 bg-panel px-2.5 py-1 text-xs">
+                {f.name}
+                <button onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))} className="text-muted hover:text-status-declined">
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files ?? []);
+              if (files.length > 0) setAttachments((prev) => [...prev, ...files]);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!hasClient}
+            className="flex items-center gap-1.5 rounded-[2px] border border-black/10 px-2.5 py-1.5 text-xs text-muted hover:border-gold hover:text-gold disabled:opacity-50"
+          >
+            <Paperclip size={12} /> Attach
+          </button>
+          <Button variant="primary" size="sm" onClick={handleSendMessage} disabled={sendingMessage || !composeText.trim()} className="w-fit">
+            {sendingMessage ? "Sending…" : "Send"}
+          </Button>
+        </div>
       </div>
     </section>
   );

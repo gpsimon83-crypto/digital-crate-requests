@@ -9,8 +9,17 @@ import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
+import { MilestoneStepper } from "@/components/project/milestone-stepper";
+
+// The stepper shows the forward-moving path only — Declined/Archived are
+// exceptions handled via the Pipeline Stage dropdown in the sidebar, not
+// steps a project "arrives at" in sequence.
+const FORWARD_PIPELINE_STAGES = PIPELINE_STAGES.filter((s) => s !== "Declined" && s !== "Archived");
 import { type MergeContext } from "@/lib/merge-fields";
 import { EmailThreadPanel } from "@/components/project/email-thread-panel";
+import { TasksPanel } from "@/components/project/tasks-panel";
+import { FilesPanel } from "@/components/project/files-panel";
+import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
 import {
   ArrowLeft,
   Copy,
@@ -499,6 +508,15 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
         This banner photo also becomes the hero image guests see on the event&rsquo;s Crate Request page.
       </p>
 
+      <div className="mx-6 mt-6 sm:mx-8">
+        <MilestoneStepper
+          stages={FORWARD_PIPELINE_STAGES}
+          current={event.pipeline_stage ?? "Inquiry"}
+          onSelect={handlePipelineStageChange}
+          disabled={savingPipelineStage}
+        />
+      </div>
+
       <div className="mx-6 mt-6 flex flex-col gap-8 sm:mx-8 lg:flex-row">
         <div className="flex-1">
           <p className="mb-2 text-[10px] uppercase tracking-[1.5px] text-muted">Contact</p>
@@ -568,16 +586,22 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
           {activeTab === "Files" && (
             <div className="mt-6 flex flex-col gap-4">
-              {event.contract_document_url ? (
-                <GlassCard className="flex items-center gap-2">
+              <GlassCard className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
                   <FileText size={16} className="text-gold" />
-                  <a href={event.contract_document_url} target="_blank" rel="noreferrer" className="text-sm text-gold hover:underline">
-                    Contract document
-                  </a>
-                </GlassCard>
-              ) : (
-                <p className="text-sm text-muted">No files yet — send a contract from the Files tab of the client&rsquo;s portal link, or add one from Projects.</p>
-              )}
+                  <div>
+                    <p className="text-sm font-medium">Invoice</p>
+                    <p className="text-xs text-muted">Auto-built from the booking price and payments on file.</p>
+                  </div>
+                </div>
+                <a href={`/admin/events/${id}/invoice`} target="_blank" rel="noreferrer">
+                  <Button variant="secondary" size="sm">
+                    View Invoice
+                  </Button>
+                </a>
+              </GlassCard>
+
+              <FilesPanel eventId={id} />
 
               {event.event_type?.toLowerCase() === "wedding" && (
                 <GlassCard className="flex items-center justify-between gap-3">
@@ -652,14 +676,12 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 );
               })()}
 
-              <p className="text-xs text-muted">General file uploads beyond the contract aren&rsquo;t available yet.</p>
             </div>
           )}
 
           {activeTab === "Tasks" && (
-            <div className="mt-6 flex flex-col items-start gap-2 py-6 text-muted">
-              <p className="text-sm font-semibold text-foreground">Tasks — coming soon</p>
-              <p className="max-w-md text-sm">A checklist for this project isn&rsquo;t built yet.</p>
+            <div className="mt-6">
+              <TasksPanel eventId={id} />
             </div>
           )}
 
@@ -714,6 +736,8 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
           {activeTab === "Details" && (
             <div className="mt-6 flex flex-col gap-4">
+              <QuestionnaireSummary eventId={id} />
+
               <GlassCard className="flex flex-col gap-1">
                 <Row label="Event type" value={event.event_type ?? "—"} />
                 <Row label="Service" value={event.service_type ?? "—"} />
@@ -721,10 +745,22 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 <Row label="DJ" value={event.djs?.display_name ?? "Unassigned"} />
                 <Row label="Venue" value={event.venues?.name ?? "No venue"} />
               </GlassCard>
-              <GlassCard className="flex flex-col gap-1">
-                <Row label="Must-play songs" value={String(event.must_play?.length ?? 0)} />
-                <Row label="Do-not-play songs" value={String(event.do_not_play?.length ?? 0)} />
-              </GlassCard>
+              {(event.must_play?.length || event.do_not_play?.length) ? (
+                <GlassCard className="flex flex-col gap-3">
+                  {event.must_play && event.must_play.length > 0 && (
+                    <div>
+                      <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Must-play songs</p>
+                      <p className="text-sm">{event.must_play.join(", ")}</p>
+                    </div>
+                  )}
+                  {event.do_not_play && event.do_not_play.length > 0 && (
+                    <div>
+                      <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Do-not-play songs</p>
+                      <p className="text-sm">{event.do_not_play.join(", ")}</p>
+                    </div>
+                  )}
+                </GlassCard>
+              ) : null}
               {event.wedding_music_plan && Object.keys(event.wedding_music_plan).length > 0 && (
                 <GlassCard className="flex flex-col gap-1">
                   <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Wedding music plan</p>

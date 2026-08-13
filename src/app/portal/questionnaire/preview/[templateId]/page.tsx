@@ -9,11 +9,11 @@ import {
   getVisibleQuestions,
   computeProgress,
   findFlatIndex,
+  formatAnswerValue,
   type Answers,
   type AnswerValue,
   type Template,
-  type Question,
-  type PersonListEntry
+  type Question
 } from "@/lib/questionnaire-engine";
 
 type Phase = "loading" | "error" | "opening" | "transition" | "question" | "review" | "done";
@@ -268,15 +268,5 @@ function CenteredShell({ children }: { children: React.ReactNode }) {
 }
 
 function formatAnswer(question: { options: { value: string; label: string }[] }, value: AnswerValue | undefined): string {
-  if (!value) return "Not answered";
-  if ("unsure" in value) return "You'll decide later";
-  const labelFor = (v: string) => question.options.find((o) => o.value === v)?.label ?? v;
-  if (Array.isArray(value.value)) {
-    if (value.value.length === 0) return "Not answered";
-    if (typeof value.value[0] === "object") {
-      return (value.value as PersonListEntry[]).map((p) => `${p.name}${p.role ? ` (${p.role})` : ""}`).join(", ");
-    }
-    return (value.value as string[]).map(labelFor).join(", ");
-  }
-  return value.value ? labelFor(value.value) : "Not answered";
+  return formatAnswerValue(question, value, "You'll decide later");
 }
