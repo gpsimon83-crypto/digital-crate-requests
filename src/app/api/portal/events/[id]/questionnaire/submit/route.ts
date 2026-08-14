@@ -3,6 +3,7 @@ import { errorMessage } from "@/lib/error-message";
 import { createClient } from "@/lib/supabase/server";
 import { getClientForAuthUser, getClientEvent } from "@/lib/data/portal";
 import { markResponseCompleted } from "@/lib/data/questionnaires";
+import { logActivity } from "@/lib/activity";
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -20,6 +21,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
     const response = await markResponseCompleted(id);
+    await logActivity({ actorUserId: user.id, action: "questionnaire.completed", entityType: "event", entityId: id, eventId: id });
     return NextResponse.json({ response });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });

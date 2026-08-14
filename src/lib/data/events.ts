@@ -1,5 +1,15 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
+// Mirrors the backfill mapping in migration 0017 — event_status is derived
+// from status everywhere status gets set, so the two can't drift out of
+// sync the way status/pipeline_stage did.
+export function deriveEventStatus(status: string): "tentative" | "confirmed" | "cancelled" | "completed" {
+  if (status === "confirmed" || status === "live") return "confirmed";
+  if (status === "ended") return "completed";
+  if (status === "declined") return "cancelled";
+  return "tentative";
+}
+
 function generateEventCode(title: string) {
   const slug = title
     .split(" ")[0]
@@ -76,6 +86,7 @@ export async function createEvent(input: {
       starts_at: input.startsAt,
       ends_at: input.endsAt || null,
       status: input.status ?? "pending_confirmation",
+      event_status: deriveEventStatus(input.status ?? "pending_confirmation"),
       event_type: input.eventType || null,
       service_type: input.serviceType || null,
       expected_guests: input.expectedGuests ?? null,
@@ -91,7 +102,7 @@ export async function confirmEvent(eventId: string) {
   const db = createAdminClient();
   const { data, error } = await db
     .from("events")
-    .update({ status: "confirmed" })
+    .update({ status: "confirmed", event_status: deriveEventStatus("confirmed") })
     .eq("id", eventId)
     .select()
     .single();
@@ -103,7 +114,7 @@ export async function declineEvent(eventId: string) {
   const db = createAdminClient();
   const { data, error } = await db
     .from("events")
-    .update({ status: "declined" })
+    .update({ status: "declined", event_status: deriveEventStatus("declined") })
     .eq("id", eventId)
     .select()
     .single();
@@ -115,7 +126,7 @@ export async function startEvent(eventId: string) {
   const db = createAdminClient();
   const { data, error } = await db
     .from("events")
-    .update({ status: "live" })
+    .update({ status: "live", event_status: deriveEventStatus("live") })
     .eq("id", eventId)
     .select()
     .single();
@@ -127,7 +138,7 @@ export async function closeEvent(eventId: string) {
   const db = createAdminClient();
   const { data, error } = await db
     .from("events")
-    .update({ status: "ended" })
+    .update({ status: "ended", event_status: deriveEventStatus("ended") })
     .eq("id", eventId)
     .select()
     .single();

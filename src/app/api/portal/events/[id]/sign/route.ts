@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
 import { createClient } from "@/lib/supabase/server";
 import { getClientForAuthUser, signClientEventContract } from "@/lib/data/portal";
+import { logActivity } from "@/lib/activity";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -26,6 +27,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!event) {
       return NextResponse.json({ error: "This contract can't be signed — it may not have been sent yet, or is already signed." }, { status: 409 });
     }
+
+    await logActivity({
+      actorUserId: user.id,
+      actorLabel: fullName.trim(),
+      action: "contract.signed",
+      entityType: "event",
+      entityId: id,
+      eventId: id
+    });
 
     return NextResponse.json({ event });
   } catch (err) {

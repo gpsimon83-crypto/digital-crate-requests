@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createTip, boostRequest } from "@/lib/data/requests";
 import { recordSucceededPayment } from "@/lib/data/payments";
+import { logActivity } from "@/lib/activity";
 import Stripe from "stripe";
 
 export async function POST(req: NextRequest) {
@@ -37,6 +38,14 @@ export async function POST(req: NextRequest) {
     if (type === "event_payment" && eventId) {
       try {
         await recordSucceededPayment(eventId, kind || "other", intent.amount, intent.id);
+        await logActivity({
+          actorLabel: "Stripe",
+          action: "payment.received",
+          entityType: "payment",
+          entityId: intent.id,
+          eventId,
+          metadata: { kind: kind || "other", amountCents: intent.amount }
+        });
       } catch (err) {
         // Stripe can redeliver the same webhook — a unique-constraint hit
         // on stripe_payment_intent_id means this payment was already

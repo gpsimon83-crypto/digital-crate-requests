@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
         starts_at: slotStart.toISOString(),
         ends_at: slotEnd.toISOString(),
         status: "inquiry",
+        event_status: "tentative",
         event_type: "consultation",
         special_requests: message || null
       })

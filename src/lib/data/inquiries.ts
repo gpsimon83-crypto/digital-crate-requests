@@ -62,6 +62,7 @@ export async function createInquiry(input: {
       dj_id: input.preferredDjId || null,
       starts_at: new Date(input.eventDate).toISOString(),
       status: "inquiry",
+      event_status: "tentative",
       event_type: input.eventType,
       special_requests: input.message || null
     })

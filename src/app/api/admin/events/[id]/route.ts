@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
-import { getEvent, sendEventContract, updateEvent } from "@/lib/data/events";
+import { getEvent, sendEventContract, updateEvent, deriveEventStatus } from "@/lib/data/events";
 import { listEventPayments, computeBalance } from "@/lib/data/payments";
 import { requireAdmin } from "@/lib/require-admin";
 import { requireEventAccess } from "@/lib/require-event-access";
@@ -62,7 +62,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     const updates: Record<string, unknown> = {};
-    if (status) updates.status = status;
+    if (status) {
+      updates.status = status;
+      updates.event_status = deriveEventStatus(status);
+    }
     if (pipelineStage) updates.pipeline_stage = pipelineStage;
     if (internalNotes !== undefined) updates.internal_notes = internalNotes;
     if (clientId !== undefined) updates.client_id = clientId || null;
