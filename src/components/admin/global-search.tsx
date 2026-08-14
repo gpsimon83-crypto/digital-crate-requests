@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Search, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -82,45 +83,47 @@ export function GlobalSearch() {
         <span className="whitespace-nowrap opacity-0 transition-opacity delay-75 duration-150 group-hover:opacity-100">Search</span>
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-[12vh]" onClick={() => setOpen(false)}>
-          <div className="w-full max-w-lg rounded-[3px] border border-black/10 bg-panel shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-2.5 border-b border-black/10 px-4 py-3">
-              <Search size={16} className="shrink-0 text-muted" />
-              <input
-                ref={inputRef}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search events, clients, DJs, venues..."
-                className="w-full bg-transparent text-sm outline-none placeholder:text-muted"
-              />
-              {query.trim().length >= 2 && results === null && <Loader2 size={14} className="shrink-0 animate-spin text-muted" />}
-            </div>
+      {open &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 pt-[12vh]" onClick={() => setOpen(false)}>
+            <div className="w-full max-w-lg rounded-[3px] border border-black/10 bg-panel shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2.5 border-b border-black/10 px-4 py-3">
+                <Search size={16} className="shrink-0 text-muted" />
+                <input
+                  ref={inputRef}
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search events, clients, DJs, venues..."
+                  className="w-full bg-transparent text-sm outline-none placeholder:text-muted"
+                />
+                {query.trim().length >= 2 && results === null && <Loader2 size={14} className="shrink-0 animate-spin text-muted" />}
+              </div>
 
-            <div className="max-h-[50vh] overflow-y-auto p-2">
-              {query.trim().length < 2 && <p className="px-3 py-6 text-center text-xs text-muted">Type at least 2 characters to search.</p>}
-              {query.trim().length >= 2 && results !== null && results.length === 0 && (
-                <p className="px-3 py-6 text-center text-xs text-muted">No matches for &quot;{query}&quot;.</p>
-              )}
-              {grouped.map((g) => (
-                <div key={g.type} className="mb-2 last:mb-0">
-                  <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted">{TYPE_LABEL[g.type]}</p>
-                  {g.items.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => go(item.href)}
-                      className={cn("flex w-full flex-col items-start gap-0.5 rounded-[2px] px-3 py-2 text-left transition-colors hover:bg-gold/10")}
-                    >
-                      <span className="text-sm">{item.title}</span>
-                      {item.subtitle && <span className="text-xs text-muted">{item.subtitle}</span>}
-                    </button>
-                  ))}
-                </div>
-              ))}
+              <div className="max-h-[50vh] overflow-y-auto p-2">
+                {query.trim().length < 2 && <p className="px-3 py-6 text-center text-xs text-muted">Type at least 2 characters to search.</p>}
+                {query.trim().length >= 2 && results !== null && results.length === 0 && (
+                  <p className="px-3 py-6 text-center text-xs text-muted">No matches for &quot;{query}&quot;.</p>
+                )}
+                {grouped.map((g) => (
+                  <div key={g.type} className="mb-2 last:mb-0">
+                    <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted">{TYPE_LABEL[g.type]}</p>
+                    {g.items.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => go(item.href)}
+                        className={cn("flex w-full flex-col items-start gap-0.5 rounded-[2px] px-3 py-2 text-left transition-colors hover:bg-gold/10")}
+                      >
+                        <span className="text-sm">{item.title}</span>
+                        {item.subtitle && <span className="text-xs text-muted">{item.subtitle}</span>}
+                      </button>
+                    ))}
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </>
   );
 }
