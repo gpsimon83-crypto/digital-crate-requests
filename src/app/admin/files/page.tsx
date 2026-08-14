@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { Mail, FileText, BookOpen, FolderOpen, ListChecks, Plus, X, Download, Trash2, Pencil } from "lucide-react";
+import { Mail, FileText, FileSignature, BookOpen, FolderOpen, ListChecks, Plus, X, Download, Trash2, Pencil } from "lucide-react";
 import Link from "next/link";
 
-type Category = "email_template" | "contract" | "brochure";
+type Category = "email_template" | "contract" | "brochure" | "contract_template";
+const TEXT_CATEGORIES: Category[] = ["email_template", "contract_template"];
 
 interface LibraryItem {
   id: string;
@@ -27,19 +28,22 @@ interface LibraryItem {
 const CATEGORY_TABS: { key: Category | "all"; label: string }[] = [
   { key: "all", label: "All" },
   { key: "email_template", label: "Email Templates" },
-  { key: "contract", label: "Contracts" },
+  { key: "contract_template", label: "Contract Templates" },
+  { key: "contract", label: "Uploaded Contracts" },
   { key: "brochure", label: "Brochures" }
 ];
 
 const CATEGORY_ICON: Record<Category, typeof Mail> = {
   email_template: Mail,
+  contract_template: FileSignature,
   contract: FileText,
   brochure: BookOpen
 };
 
 const CATEGORY_LABEL: Record<Category, string> = {
   email_template: "Email Template",
-  contract: "Contract",
+  contract_template: "Contract Template",
+  contract: "Uploaded Contract",
   brochure: "Brochure"
 };
 
@@ -96,16 +100,21 @@ function AdminLibraryPageInner() {
     setError(null);
     try {
       let res: Response;
-      if (addCategory === "email_template") {
-        if (!subject.trim() || !body.trim()) {
-          setError("Subject and body are required for an email template.");
+      if (TEXT_CATEGORIES.includes(addCategory)) {
+        if (addCategory === "email_template" && !subject.trim()) {
+          setError("Subject is required for an email template.");
+          setSaving(false);
+          return;
+        }
+        if (!body.trim()) {
+          setError("Body is required.");
           setSaving(false);
           return;
         }
         res = await fetch("/api/admin/library", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, description, subject, body })
+          body: JSON.stringify({ category: addCategory, title, description, subject, body })
         });
       } else {
         if (!file) {
@@ -208,7 +217,8 @@ function AdminLibraryPageInner() {
                   className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
                 >
                   <option value="email_template">Email Template</option>
-                  <option value="contract">Contract</option>
+                  <option value="contract_template">Contract Template</option>
+                  <option value="contract">Uploaded Contract (file)</option>
                   <option value="brochure">Brochure</option>
                 </select>
               </label>
@@ -218,15 +228,21 @@ function AdminLibraryPageInner() {
               </div>
             </div>
 
-            {addCategory === "email_template" ? (
+            {TEXT_CATEGORIES.includes(addCategory) ? (
               <div className="mt-3 flex flex-col gap-3">
-                <Field label="Subject" value={subject} onChange={setSubject} placeholder="Your event with Digital Crate DJs" />
+                {addCategory === "email_template" && (
+                  <Field label="Subject" value={subject} onChange={setSubject} placeholder="Your event with Digital Crate DJs" />
+                )}
                 <label className="block">
                   <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Body</span>
                   <textarea
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
-                    placeholder="Write the reusable email text here..."
+                    placeholder={
+                      addCategory === "contract_template"
+                        ? "Write the reusable contract text here. Use {{client_full_name}}, {{event_date}}, {{total_amount}}, etc."
+                        : "Write the reusable email text here..."
+                    }
                     className="min-h-[140px] w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
                   />
                 </label>
@@ -277,7 +293,7 @@ function AdminLibraryPageInner() {
                     <div className="flex flex-col gap-3">
                       <Field label="Title" value={editTitle} onChange={setEditTitle} />
                       <Field label="Description" value={editDescription} onChange={setEditDescription} />
-                      <Field label="Subject" value={editSubject} onChange={setEditSubject} />
+                      {item.category === "email_template" && <Field label="Subject" value={editSubject} onChange={setEditSubject} />}
                       <label className="block">
                         <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Body</span>
                         <textarea
@@ -316,7 +332,7 @@ function AdminLibraryPageInner() {
                             <Download size={12} /> Open
                           </a>
                         )}
-                        {item.category === "email_template" && (
+                        {TEXT_CATEGORIES.includes(item.category) && (
                           <button onClick={() => startEdit(item)} className="flex items-center gap-1 text-xs text-gold hover:underline">
                             <Pencil size={12} /> Edit
                           </button>

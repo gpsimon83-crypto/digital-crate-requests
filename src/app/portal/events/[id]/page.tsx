@@ -55,10 +55,7 @@ interface EventDetail {
   quoted_amount: number | null;
   final_amount: number | null;
   deposit_amount: number | null;
-  contract_sent_at: string | null;
-  contract_signed_at: string | null;
-  contract_signed_by: string | null;
-  contract_document_url: string | null;
+  contract_status: "none" | "draft" | "sent" | "signed" | "void";
   djs: { display_name: string } | null;
   venues: { name: string } | null;
 }
@@ -84,6 +81,16 @@ interface Balance {
   totalDueCents: number;
   paidCents: number;
   balanceCents: number;
+}
+
+interface ContractInfo {
+  id: string;
+  status: "draft" | "sent" | "signed" | "void";
+  title: string;
+  body: string | null;
+  file_url: string | null;
+  signed_at: string | null;
+  signed_by_name: string | null;
 }
 
 const TABS = [
@@ -156,6 +163,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const [newDoNotPlay, setNewDoNotPlay] = useState("");
   const [weddingPlan, setWeddingPlan] = useState<WeddingMusicPlan>({});
 
+  const [contract, setContract] = useState<ContractInfo | null>(null);
   const [signName, setSignName] = useState("");
   const [signing, setSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
@@ -167,6 +175,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       if (!res.ok) throw new Error(data.error || "Failed to load event");
       setEvent(data.event);
       setBalance(data.balance);
+      setContract(data.contract ?? null);
       setMustPlay(data.event.must_play ?? []);
       setDoNotPlay(data.event.do_not_play ?? []);
       setSpecialRequests(data.event.special_requests ?? "");
@@ -300,7 +309,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
             <p className="text-sm font-semibold">At a glance</p>
             <Row
               label="Contract"
-              value={event.contract_signed_at ? "Signed" : event.contract_sent_at ? "Awaiting signature" : "Not sent yet"}
+              value={event.contract_status === "signed" ? "Signed" : event.contract_status === "sent" ? "Awaiting signature" : "Not sent yet"}
             />
             <Row
               label="Balance due"
@@ -320,21 +329,29 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       {activeTab === "files" && (
         <div className="mt-6 flex flex-col gap-8">
           <section>
-            {event.contract_document_url ? (
+            {contract ? (
               <GlassCard neon className="flex flex-col gap-3">
-                <p className="text-sm font-semibold">Contract</p>
-                <a
-                  href={event.contract_document_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1.5 text-sm text-gold hover:underline"
-                >
-                  <FileText size={14} /> View contract document
-                </a>
+                <p className="text-sm font-semibold">{contract.title}</p>
 
-                {event.contract_signed_at ? (
+                {contract.file_url && (
+                  <a
+                    href={contract.file_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-sm text-gold hover:underline"
+                  >
+                    <FileText size={14} /> View contract document
+                  </a>
+                )}
+                {contract.body && (
+                  <div className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-[2px] border border-black/10 bg-panel/60 p-3 text-sm">
+                    {contract.body}
+                  </div>
+                )}
+
+                {contract.status === "signed" ? (
                   <p className="text-sm text-status-approved">
-                    Signed by {event.contract_signed_by} on {new Date(event.contract_signed_at).toLocaleDateString()}
+                    Signed by {contract.signed_by_name} on {contract.signed_at ? new Date(contract.signed_at).toLocaleDateString() : "—"}
                   </p>
                 ) : (
                   <div className="flex flex-col gap-2">

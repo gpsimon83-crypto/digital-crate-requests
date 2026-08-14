@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // etc.) — no longer offered as a Library category. The DB's category
 // CHECK constraint still technically allows the value (no rows ever used
 // it, so no migration needed), but nothing in the app writes it anymore.
-export type LibraryCategory = "email_template" | "contract" | "brochure";
+export type LibraryCategory = "email_template" | "contract" | "brochure" | "contract_template";
 
 export interface LibraryItem {
   id: string;
@@ -29,15 +29,21 @@ export async function listLibraryItems(category?: LibraryCategory) {
   return data as LibraryItem[];
 }
 
-export async function createEmailTemplate(input: { title: string; description?: string; subject: string; body: string }) {
+export async function createTextTemplate(input: {
+  category: "email_template" | "contract_template";
+  title: string;
+  description?: string;
+  subject?: string;
+  body: string;
+}) {
   const db = createAdminClient();
   const { data, error } = await db
     .from("library_items")
     .insert({
-      category: "email_template",
+      category: input.category,
       title: input.title,
       description: input.description ?? null,
-      subject: input.subject,
+      subject: input.subject ?? null,
       body: input.body
     })
     .select()
@@ -69,7 +75,7 @@ export async function createFileItem(input: {
   return data as LibraryItem;
 }
 
-export async function updateEmailTemplate(id: string, input: { title?: string; description?: string; subject?: string; body?: string }) {
+export async function updateTextTemplate(id: string, input: { title?: string; description?: string; subject?: string; body?: string }) {
   const db = createAdminClient();
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (input.title !== undefined) updates.title = input.title;

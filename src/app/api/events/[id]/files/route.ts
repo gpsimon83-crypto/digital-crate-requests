@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventAccess } from "@/lib/require-event-access";
 import { listEventFiles, createEventFile, type EventFileCategory } from "@/lib/data/event-files";
-import { sendEventContract } from "@/lib/data/events";
+import { createFileContract } from "@/lib/data/contracts";
 import { getLibraryItem } from "@/lib/data/library";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       });
 
       if (category === "contract") {
-        await sendEventContract(id, item.file_url);
+        await createFileContract(id, { fileUrl: item.file_url, fileName: item.file_name || item.title });
       }
 
       return NextResponse.json({ file: eventFile });
@@ -89,10 +89,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
 
     // Uploading a contract here is the same as sending one — it shows up
-    // immediately as the client's signable contract in their portal, same
-    // as if it had been set through the (separate, older) contract flow.
+    // immediately as the client's signable contract in their portal.
     if (category === "contract") {
-      await sendEventContract(id, pub.publicUrl);
+      await createFileContract(id, { fileUrl: pub.publicUrl, fileName: file.name });
     }
 
     return NextResponse.json({ file: eventFile });

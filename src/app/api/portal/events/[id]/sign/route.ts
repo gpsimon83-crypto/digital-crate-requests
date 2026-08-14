@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
 import { createClient } from "@/lib/supabase/server";
-import { getClientForAuthUser, signClientEventContract } from "@/lib/data/portal";
+import { getClientForAuthUser } from "@/lib/data/portal";
+import { signContractForClient } from "@/lib/data/contracts";
 import { logActivity } from "@/lib/activity";
 import { runAutomations } from "@/lib/automations-engine";
 
@@ -24,8 +25,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const client = await getClientForAuthUser(user.id);
     if (!client) return NextResponse.json({ error: "No client record linked to this account" }, { status: 403 });
 
-    const event = await signClientEventContract(client.id, id, fullName.trim());
-    if (!event) {
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+    const userAgent = req.headers.get("user-agent");
+    const contract = await signContractForClient(client.id, id, { fullName: fullName.trim(), ip, userAgent });
+    if (!contract) {
       return NextResponse.json({ error: "This contract can't be signed — it may not have been sent yet, or is already signed." }, { status: 409 });
     }
 
@@ -39,7 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     });
     await runAutomations("contract_signed", id, req.nextUrl.origin);
 
-    return NextResponse.json({ event });
+    return NextResponse.json({ contract });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }

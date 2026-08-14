@@ -18,8 +18,7 @@ interface EventRow {
   final_amount: number | null;
   must_play: string[] | null;
   do_not_play: string[] | null;
-  contract_sent_at: string | null;
-  contract_signed_at: string | null;
+  contract_status: "none" | "draft" | "sent" | "signed" | "void";
   djs: { display_name: string; photo_url: string | null } | null;
   venues: { name: string } | null;
 }
@@ -31,8 +30,8 @@ interface Balance {
 }
 
 function contractLabel(e: EventRow) {
-  if (e.contract_signed_at) return { text: "Signed", tone: "text-status-approved" };
-  if (e.contract_sent_at) return { text: "Awaiting signature", tone: "text-status-pending" };
+  if (e.contract_status === "signed") return { text: "Signed", tone: "text-status-approved" };
+  if (e.contract_status === "sent") return { text: "Awaiting signature", tone: "text-status-pending" };
   return { text: "Not sent yet", tone: "text-muted" };
 }
 

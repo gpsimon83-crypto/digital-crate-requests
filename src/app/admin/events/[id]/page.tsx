@@ -19,6 +19,7 @@ import { type MergeContext } from "@/lib/merge-fields";
 import { EmailThreadPanel } from "@/components/project/email-thread-panel";
 import { TasksPanel } from "@/components/project/tasks-panel";
 import { FilesPanel } from "@/components/project/files-panel";
+import { ContractsPanel, type ContractRow } from "@/components/project/contracts-panel";
 import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
 import { PackageRecommendation } from "@/components/project/package-recommendation";
 import {
@@ -76,10 +77,7 @@ interface EventDetail {
   final_amount: number | null;
   deposit_amount: number | null;
   internal_notes: string | null;
-  contract_document_url: string | null;
-  contract_sent_at: string | null;
-  contract_signed_at: string | null;
-  contract_signed_by: string | null;
+  contract_status: "none" | "draft" | "sent" | "signed" | "void";
   djs: { display_name: string } | null;
   venues: { name: string } | null;
   clients: ClientRow | null;
@@ -163,6 +161,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [balance, setBalance] = useState<Balance | null>(null);
+  const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -211,15 +210,19 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
   async function load() {
     try {
-      const [eventRes, clientsRes] = await Promise.all([
+      const [eventRes, clientsRes, contractsRes] = await Promise.all([
         fetch(`/api/admin/events/${id}`),
-        fetch("/api/admin/clients")
+        fetch("/api/admin/clients"),
+        fetch(`/api/events/${id}/contracts`)
       ]);
       const eventData = await eventRes.json();
       if (!eventRes.ok) throw new Error(eventData.error || "Failed to load project");
       setEvent(eventData.event);
       setPayments(eventData.payments ?? []);
       setBalance(eventData.balance);
+
+      const contractsData = await contractsRes.json();
+      setContracts(contractsRes.ok ? contractsData.contracts ?? [] : []);
       setNotesDraft(eventData.event.internal_notes ?? "");
       setLeadSourceDraft(eventData.event.clients?.referral_source ?? "");
 
@@ -415,10 +418,10 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
   const activity: { label: string; at: string }[] = [
     { label: "Project created", at: event.created_at },
-    ...(event.contract_sent_at ? [{ label: "Contract sent", at: event.contract_sent_at }] : []),
-    ...(event.contract_signed_at
-      ? [{ label: `Contract signed by ${event.contract_signed_by}`, at: event.contract_signed_at }]
-      : []),
+    ...contracts.filter((c) => c.sent_at).map((c) => ({ label: `Contract sent — ${c.title}`, at: c.sent_at as string })),
+    ...contracts
+      .filter((c) => c.signed_at)
+      .map((c) => ({ label: `Contract signed by ${c.signed_by_name}`, at: c.signed_at as string })),
     ...payments
       .filter((p) => p.status === "succeeded")
       .map((p) => ({ label: `${money(p.amount_cents)} ${p.kind} payment received`, at: p.paid_at ?? p.created_at }))
@@ -756,17 +759,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 <Row label="Venue" value={event.venues?.name ?? "No venue"} />
               </GlassCard>
 
-              <GlassCard className="flex flex-col gap-1">
-                <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Contract</p>
-                {event.contract_signed_at ? (
-                  <>
-                    <Row label="Signed by" value={event.contract_signed_by ?? "—"} />
-                    <Row label="Signed on" value={new Date(event.contract_signed_at).toLocaleDateString()} />
-                  </>
-                ) : (
-                  <Row label="Status" value={event.contract_document_url ? "Sent, not yet signed" : "Not sent"} />
-                )}
-              </GlassCard>
+              <ContractsPanel eventId={id} contracts={contracts} onChange={load} />
               {(event.must_play?.length || event.do_not_play?.length) ? (
                 <GlassCard className="flex flex-col gap-3">
                   {event.must_play && event.must_play.length > 0 && (

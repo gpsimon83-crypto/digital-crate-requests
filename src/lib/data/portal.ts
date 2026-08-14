@@ -85,24 +85,3 @@ export async function updateClientEventNight(
   return data;
 }
 
-/**
- * No real e-signature service is wired up (no HelloSign account yet) — a
- * typed full legal name is the signature. Only allowed once a contract has
- * actually been sent (contract_document_url set) and only once — the
- * `.is("contract_signed_at", null)` guard means a second call is a no-op
- * (returns null), not an overwrite of the original signature/timestamp.
- */
-export async function signClientEventContract(clientId: string, eventId: string, fullName: string) {
-  const db = createAdminClient();
-  const { data, error } = await db
-    .from("events")
-    .update({ contract_signed_at: new Date().toISOString(), contract_signed_by: fullName })
-    .eq("id", eventId)
-    .eq("client_id", clientId)
-    .not("contract_document_url", "is", null)
-    .is("contract_signed_at", null)
-    .select()
-    .maybeSingle();
-  if (error) throw error;
-  return data;
-}

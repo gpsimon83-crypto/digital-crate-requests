@@ -32,8 +32,7 @@ interface EventRow {
   quoted_amount: number | null;
   final_amount: number | null;
   paid_cents: number;
-  contract_sent_at: string | null;
-  contract_signed_at: string | null;
+  contract_status: "none" | "draft" | "sent" | "signed" | "void";
   wedding_music_plan_sent_at: string | null;
   djs: { display_name: string; photo_url: string | null } | null;
   venues: { name: string } | null;
@@ -183,10 +182,7 @@ function AdminOverviewPageInner() {
   );
 
   const leads = useMemo(() => (events ?? []).filter((e) => e.status === "inquiry"), [events]);
-  const pendingContracts = useMemo(
-    () => (events ?? []).filter((e) => e.contract_sent_at && !e.contract_signed_at),
-    [events]
-  );
+  const pendingContracts = useMemo(() => (events ?? []).filter((e) => e.contract_status === "sent"), [events]);
   const unassigned = useMemo(() => upcoming.filter((e) => !e.djs), [upcoming]);
   const weddingsReadyForMusicPlan = useMemo(
     () =>
@@ -214,8 +210,6 @@ function AdminOverviewPageInner() {
   const activity = useMemo(() => {
     const items: { label: string; at: string; href: string }[] = [];
     for (const e of events ?? []) {
-      if (e.contract_signed_at) items.push({ label: `Contract signed — ${e.title}`, at: e.contract_signed_at, href: `/admin/events/${e.id}` });
-      else if (e.contract_sent_at) items.push({ label: `Contract sent — ${e.title}`, at: e.contract_sent_at, href: `/admin/events/${e.id}` });
       if (e.status === "inquiry") items.push({ label: `New lead — ${e.title}`, at: e.created_at, href: "/admin/leads" });
     }
     for (const p of payments ?? []) {

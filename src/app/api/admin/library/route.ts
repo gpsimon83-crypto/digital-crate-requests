@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/require-admin";
 import { requireAuth } from "@/lib/require-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { listLibraryItems, createEmailTemplate, createFileItem, type LibraryCategory } from "@/lib/data/library";
+import { listLibraryItems, createTextTemplate, createFileItem, type LibraryCategory } from "@/lib/data/library";
 import { errorMessage } from "@/lib/error-message";
 
 const BUCKET = "library-files";
-const CATEGORIES = ["email_template", "contract", "brochure"] as const;
+const CATEGORIES = ["email_template", "contract", "brochure", "contract_template"] as const;
 const FILE_CATEGORIES = ["contract", "brochure"] as const;
+const TEXT_CATEGORIES = ["email_template", "contract_template"] as const;
 
 // Any signed-in DJ or admin can read the Library (they need email templates
 // to compose from) — only admin/staff can create, edit, or delete entries.
@@ -72,18 +73,31 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { title, description, subject, body: emailBody } = body as {
+    const { category, title, description, subject, body: templateBody } = body as {
+      category?: LibraryCategory;
       title?: string;
       description?: string;
       subject?: string;
       body?: string;
     };
 
-    if (!title?.trim() || !subject?.trim() || !emailBody?.trim()) {
-      return NextResponse.json({ error: "Title, subject, and body are required" }, { status: 400 });
+    if (!category || !(TEXT_CATEGORIES as readonly string[]).includes(category)) {
+      return NextResponse.json({ error: "Invalid category" }, { status: 400 });
+    }
+    if (!title?.trim() || !templateBody?.trim()) {
+      return NextResponse.json({ error: "Title and body are required" }, { status: 400 });
+    }
+    if (category === "email_template" && !subject?.trim()) {
+      return NextResponse.json({ error: "Subject is required for an email template" }, { status: 400 });
     }
 
-    const item = await createEmailTemplate({ title: title.trim(), description: description?.trim(), subject: subject.trim(), body: emailBody.trim() });
+    const item = await createTextTemplate({
+      category: category as "email_template" | "contract_template",
+      title: title.trim(),
+      description: description?.trim(),
+      subject: subject?.trim(),
+      body: templateBody.trim()
+    });
     return NextResponse.json({ item });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });

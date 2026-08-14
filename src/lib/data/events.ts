@@ -146,21 +146,3 @@ export async function closeEvent(eventId: string) {
   return data;
 }
 
-/**
- * No HelloSign account is configured yet, so this is a lightweight
- * typed-name signature, not a real e-signature service — sending a
- * contract just means linking a document (contract_document_url) and
- * marking it sent; signing is the client's own portal action (see
- * /api/portal/events/[id]/sign), never set from the admin side.
- */
-export async function sendEventContract(eventId: string, documentUrl: string) {
-  const db = createAdminClient();
-  const { data, error } = await db
-    .from("events")
-    .update({ contract_document_url: documentUrl, contract_sent_at: new Date().toISOString() })
-    .eq("id", eventId)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}

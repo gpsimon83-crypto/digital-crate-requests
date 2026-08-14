@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getLibraryItem, updateEmailTemplate, deleteLibraryItem } from "@/lib/data/library";
+import { getLibraryItem, updateTextTemplate, deleteLibraryItem } from "@/lib/data/library";
 import { errorMessage } from "@/lib/error-message";
 
 const BUCKET = "library-files";
@@ -20,7 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   };
 
   try {
-    const item = await updateEmailTemplate(id, { title, description, subject, body: emailBody });
+    const item = await updateTextTemplate(id, { title, description, subject, body: emailBody });
     return NextResponse.json({ item });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });

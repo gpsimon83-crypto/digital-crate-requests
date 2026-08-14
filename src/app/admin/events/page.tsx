@@ -24,10 +24,7 @@ interface EventRow {
   quoted_amount: number | null;
   final_amount: number | null;
   paid_cents: number;
-  contract_sent_at: string | null;
-  contract_signed_at: string | null;
-  contract_signed_by: string | null;
-  contract_document_url: string | null;
+  contract_status: "none" | "draft" | "sent" | "signed" | "void";
   djs: { display_name: string } | null;
   venues: { name: string } | null;
   clients: { company_name: string | null; first_name: string | null; last_name: string | null; email: string | null; phone: string | null } | null;
@@ -79,9 +76,6 @@ function AdminEventsPageContent() {
   const [submitting, setSubmitting] = useState(false);
   const [showCreate, setShowCreate] = useState(() => searchParams.get("new") === "1");
 
-  const [contractDraftFor, setContractDraftFor] = useState<string | null>(null);
-  const [contractUrlDraft, setContractUrlDraft] = useState("");
-  const [sendingContract, setSendingContract] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
@@ -207,28 +201,6 @@ function AdminEventsPageContent() {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSavingClient(false);
-    }
-  }
-
-  async function handleSendContract(eventId: string) {
-    if (!contractUrlDraft.trim()) return;
-    setSendingContract(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/admin/events/${eventId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contractDocumentUrl: contractUrlDraft.trim() })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to send contract");
-      setContractDraftFor(null);
-      setContractUrlDraft("");
-      await loadAll();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setSendingContract(false);
     }
   }
 
@@ -487,14 +459,18 @@ function AdminEventsPageContent() {
                             )}
                           </td>
                           <td className="whitespace-nowrap">
-                            {e.contract_signed_at ? (
-                              <span className="text-status-approved">Signed</span>
-                            ) : e.contract_sent_at ? (
-                              <span className="text-status-pending">Sent</span>
+                            {e.contract_status === "signed" ? (
+                              <Link href={`/admin/events/${e.id}`} className="text-status-approved hover:underline">
+                                Signed
+                              </Link>
+                            ) : e.contract_status === "sent" ? (
+                              <Link href={`/admin/events/${e.id}`} className="text-status-pending hover:underline">
+                                Sent
+                              </Link>
                             ) : (
-                              <button onClick={() => { setContractDraftFor(e.id); setContractUrlDraft(""); }} className="text-gold hover:underline">
+                              <Link href={`/admin/events/${e.id}`} className="text-gold hover:underline">
                                 Send
-                              </button>
+                              </Link>
                             )}
                           </td>
                           <td>
@@ -503,29 +479,6 @@ function AdminEventsPageContent() {
                             </Link>
                           </td>
                         </tr>
-                        {contractDraftFor === e.id && (
-                          <tr>
-                            <td colSpan={10} className="bg-panel/60">
-                              <div className="flex flex-col gap-2 py-1 sm:flex-row sm:items-center">
-                                <input
-                                  autoFocus
-                                  value={contractUrlDraft}
-                                  onChange={(ev) => setContractUrlDraft(ev.target.value)}
-                                  placeholder="Link to the contract document"
-                                  className="flex-1 rounded-[2px] border border-black/10 bg-card px-3 py-2 text-xs focus:border-gold focus:outline-none"
-                                />
-                                <div className="flex gap-2">
-                                  <Button variant="primary" size="sm" onClick={() => handleSendContract(e.id)} disabled={sendingContract}>
-                                    {sendingContract ? "Sending…" : "Send"}
-                                  </Button>
-                                  <Button variant="secondary" size="sm" onClick={() => setContractDraftFor(null)}>
-                                    Cancel
-                                  </Button>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
                       </Fragment>
                     );
                   })}

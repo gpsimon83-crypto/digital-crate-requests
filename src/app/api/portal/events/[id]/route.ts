@@ -3,6 +3,7 @@ import { errorMessage } from "@/lib/error-message";
 import { createClient } from "@/lib/supabase/server";
 import { getClientForAuthUser, getClientEvent, updateClientEventNight } from "@/lib/data/portal";
 import { listEventPayments, computeBalance } from "@/lib/data/payments";
+import { listContractsForEvent } from "@/lib/data/contracts";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -31,7 +32,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       // leave payments/balance at their zeroed defaults
     }
 
-    return NextResponse.json({ event, payments, balance });
+    const contracts = await listContractsForEvent(id);
+    const contract = contracts.find((c) => c.status !== "void") ?? null;
+
+    return NextResponse.json({ event, payments, balance, contract });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }

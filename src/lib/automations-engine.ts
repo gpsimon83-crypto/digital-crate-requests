@@ -19,7 +19,7 @@ import { TRIGGERS, parseDateTrigger } from "@/lib/automation-capabilities";
 export { TRIGGERS };
 
 const EVENT_SELECT =
-  "id, event_code, title, event_type, service_type, status, event_status, starts_at, ends_at, created_at, contract_signed_at, quoted_amount, final_amount, dj_id, djs(display_name), venues(name), clients(first_name, last_name, company_name, email)";
+  "id, event_code, title, event_type, service_type, status, event_status, starts_at, ends_at, created_at, contract_status, quoted_amount, final_amount, dj_id, djs(display_name), venues(name), clients(first_name, last_name, company_name, email)";
 
 interface EventContext {
   id: string;
@@ -32,7 +32,7 @@ interface EventContext {
   starts_at: string | null;
   ends_at: string | null;
   created_at: string;
-  contract_signed_at: string | null;
+  contract_status: "none" | "draft" | "sent" | "signed" | "void";
   quoted_amount: number | null;
   final_amount: number | null;
   dj_id: string | null;
@@ -70,7 +70,7 @@ function conditionField(event: EventContext, field: string, extra: Record<string
     case "event_status":
       return event.event_status;
     case "contract_signed":
-      return event.contract_signed_at ? "yes" : "no";
+      return event.contract_status === "signed" ? "yes" : "no";
     case "deposit_paid":
       return event.hasDepositPayment ? "yes" : "no";
     case "balance_paid":
