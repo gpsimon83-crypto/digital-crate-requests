@@ -62,6 +62,7 @@ export default function DjProfilePage() {
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [hasDj, setHasDj] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -139,9 +140,13 @@ export default function DjProfilePage() {
     fetch("/api/me")
       .then((r) => r.json())
       .then((d) => {
-        const staff = isStaffRole(d?.user?.role);
-        setIsAdmin(staff);
-        if (!staff) {
+        setIsAdmin(isStaffRole(d?.user?.role));
+        const djLinked = !!d?.dj;
+        setHasDj(djLinked);
+        // Staff and DJ aren't mutually exclusive — some staff accounts (the
+        // owner performing as their own DJ, e.g.) are linked to a real djs
+        // row and need the same photo/hero/email UI a DJ-only account gets.
+        if (djLinked) {
           load();
           loadEmailAccount();
         }
@@ -196,7 +201,7 @@ export default function DjProfilePage() {
     );
   }
 
-  if (isAdmin) {
+  if (isAdmin && !hasDj) {
     return (
       <>
         <PageHeader
@@ -241,7 +246,19 @@ export default function DjProfilePage() {
       <PageHeader
         title="My Profile"
         subtitle="Manage your photo and how your hero appears on event pages."
-        action={<BackToBookings />}
+        action={
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1.5 rounded-[2px] border border-gold/40 px-3.5 py-2 text-xs font-semibold text-gold transition-colors hover:bg-gold/10"
+              >
+                <LayoutDashboard size={14} /> Admin Panel
+              </Link>
+            )}
+            <BackToBookings />
+          </div>
+        }
       />
       <div className="flex flex-col gap-6 p-6">
         {error && <p className="text-xs text-status-declined">{error}</p>}
