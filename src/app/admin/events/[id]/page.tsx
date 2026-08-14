@@ -20,6 +20,7 @@ import { EmailThreadPanel } from "@/components/project/email-thread-panel";
 import { TasksPanel } from "@/components/project/tasks-panel";
 import { FilesPanel } from "@/components/project/files-panel";
 import { ContractsPanel, type ContractRow } from "@/components/project/contracts-panel";
+import { EquipmentAssignmentsPanel } from "@/components/project/equipment-assignments-panel";
 import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
 import { PackageRecommendation } from "@/components/project/package-recommendation";
 import {
@@ -760,6 +761,8 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               </GlassCard>
 
               <ContractsPanel eventId={id} contracts={contracts} onChange={load} />
+
+              <EquipmentAssignmentsPanel eventId={id} />
               {(event.must_play?.length || event.do_not_play?.length) ? (
                 <GlassCard className="flex flex-col gap-3">
                   {event.must_play && event.must_play.length > 0 && (
