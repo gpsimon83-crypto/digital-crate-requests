@@ -60,8 +60,6 @@ export async function GET(req: NextRequest) {
       }))
     ];
 
-    console.log("SEARCH_DEBUG", JSON.stringify({ q, like, eventsErr: events.error, clientsErr: clients.error, djsErr: djs.error, venuesErr: venues.error, djsData: djs.data }));
-
     return NextResponse.json({ results });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
