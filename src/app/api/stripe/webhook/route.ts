@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
           eventId,
           metadata: { kind: kind || "other", amountCents: intent.amount }
         });
-        await runAutomations("payment_received", eventId, req.nextUrl.origin);
+        await runAutomations("payment_received", eventId, req.nextUrl.origin, { payment_kind: kind || "other" });
       } catch (err) {
         // Stripe can redeliver the same webhook — a unique-constraint hit
         // on stripe_payment_intent_id means this payment was already

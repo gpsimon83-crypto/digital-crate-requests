@@ -9,7 +9,8 @@ export interface AutomationCondition {
 export type AutomationAction =
   | { type: "create_task"; title: string; dueInDays?: number }
   | { type: "notify_staff"; title: string; body?: string }
-  | { type: "send_email"; templateId: string };
+  | { type: "send_email"; templateId: string }
+  | { type: "unlock_music_plan" };
 
 export interface AutomationRow {
   id: string;

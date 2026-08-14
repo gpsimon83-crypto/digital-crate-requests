@@ -6,28 +6,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
 import { cn } from "@/lib/utils";
 import { Plus, Pencil, Trash2, X, ChevronDown, ChevronUp } from "lucide-react";
-
-const TRIGGERS = [
-  { value: "lead_created", label: "New Lead" },
-  { value: "event_confirmed", label: "Event Confirmed" },
-  { value: "event_declined", label: "Event Declined" },
-  { value: "contract_signed", label: "Contract Signed" },
-  { value: "questionnaire_completed", label: "Questionnaire Completed" },
-  { value: "payment_received", label: "Payment Received" }
-] as const;
-
-const CONDITION_FIELDS = [
-  { value: "event_type", label: "Event type" },
-  { value: "service_type", label: "Service type" },
-  { value: "status", label: "Status" },
-  { value: "event_status", label: "Event status" }
-];
-
-const ACTION_TYPES = [
-  { value: "create_task", label: "Create Task" },
-  { value: "notify_staff", label: "Notify Staff" },
-  { value: "send_email", label: "Send Email" }
-] as const;
+import { TRIGGERS, CONDITION_FIELDS, ACTION_TYPES } from "@/lib/automation-capabilities";
 
 interface Condition {
   field: string;
@@ -38,7 +17,8 @@ interface Condition {
 type Action =
   | { type: "create_task"; title: string; dueInDays?: number }
   | { type: "notify_staff"; title: string; body?: string }
-  | { type: "send_email"; templateId: string };
+  | { type: "send_email"; templateId: string }
+  | { type: "unlock_music_plan" };
 
 interface AutomationRow {
   id: string;
@@ -205,7 +185,9 @@ export default function AdminAutomationsPage() {
                           ? `Create task "${a.title}"`
                           : a.type === "notify_staff"
                             ? `Notify staff: "${a.title}"`
-                            : `Send email: ${templates.find((t) => t.id === a.templateId)?.title ?? "template"}`}
+                            : a.type === "send_email"
+                              ? `Send email: ${templates.find((t) => t.id === a.templateId)?.title ?? "template"}`
+                              : "Unlock Wedding Music Plan in portal"}
                       </li>
                     ))}
                   </ul>
@@ -405,6 +387,7 @@ function ActionEditor({
           const type = e.target.value as Action["type"];
           if (type === "create_task") onChange({ type, title: "" });
           else if (type === "notify_staff") onChange({ type, title: "" });
+          else if (type === "unlock_music_plan") onChange({ type });
           else onChange({ type, templateId: templates[0]?.id ?? "" });
         }}
         className={cn(inputClass, "w-36 shrink-0")}
@@ -462,6 +445,9 @@ function ActionEditor({
         )}
         {action.type === "send_email" && templates.length === 0 && (
           <p className="mt-1 text-xs text-muted">No email templates yet — add one in Library first.</p>
+        )}
+        {action.type === "unlock_music_plan" && (
+          <p className="py-2 text-xs text-muted">Sets the wedding music plan as available in the client&apos;s portal (weddings only).</p>
         )}
       </div>
 

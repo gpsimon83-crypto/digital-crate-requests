@@ -12,15 +12,9 @@ import { getEmailAccountWithSecretForDj } from "@/lib/data/email-accounts";
 import { sendEmailFromAccount } from "@/lib/send-email";
 import { fillMergeFields, type MergeContext } from "@/lib/merge-fields";
 import { STAFF_ROLES } from "@/lib/roles";
+import { TRIGGERS } from "@/lib/automation-capabilities";
 
-export const TRIGGERS = [
-  { value: "lead_created", label: "New Lead" },
-  { value: "event_confirmed", label: "Event Confirmed" },
-  { value: "event_declined", label: "Event Declined" },
-  { value: "contract_signed", label: "Contract Signed" },
-  { value: "questionnaire_completed", label: "Questionnaire Completed" },
-  { value: "payment_received", label: "Payment Received" }
-] as const;
+export { TRIGGERS };
 
 interface EventContext {
   id: string;
@@ -31,13 +25,16 @@ interface EventContext {
   status: string;
   event_status: string;
   starts_at: string | null;
+  ends_at: string | null;
+  contract_signed_at: string | null;
   dj_id: string | null;
   djs: { display_name: string } | null;
   venues: { name: string } | null;
   clients: { first_name: string | null; last_name: string | null; company_name: string | null; email: string | null } | null;
+  hasDepositPayment: boolean;
 }
 
-function conditionField(event: EventContext, field: string): string {
+function conditionField(event: EventContext, field: string, extra: Record<string, string>): string {
   switch (field) {
     case "event_type":
       return event.event_type ?? "";
@@ -47,14 +44,20 @@ function conditionField(event: EventContext, field: string): string {
       return event.status;
     case "event_status":
       return event.event_status;
+    case "contract_signed":
+      return event.contract_signed_at ? "yes" : "no";
+    case "deposit_paid":
+      return event.hasDepositPayment ? "yes" : "no";
+    case "payment_kind":
+      return extra.payment_kind ?? "";
     default:
       return "";
   }
 }
 
-function conditionsMatch(event: EventContext, conditions: AutomationCondition[]): boolean {
+function conditionsMatch(event: EventContext, conditions: AutomationCondition[], extra: Record<string, string>): boolean {
   return conditions.every((c) => {
-    const actual = conditionField(event, c.field).toLowerCase();
+    const actual = conditionField(event, c.field, extra).toLowerCase();
     const expected = c.value.toLowerCase();
     return c.operator === "equals" ? actual === expected : actual !== expected;
   });
@@ -68,6 +71,8 @@ function buildMergeContext(event: EventContext, origin: string): MergeContext {
     clientFullName: clientName,
     eventType: event.event_type ?? undefined,
     eventDate: event.starts_at ? new Date(event.starts_at).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : undefined,
+    eventTime: event.starts_at ? new Date(event.starts_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : undefined,
+    eventEndTime: event.ends_at ? new Date(event.ends_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : undefined,
     venueName: event.venues?.name ?? undefined,
     djName: event.djs?.display_name ?? undefined,
     portalLink: `${origin}/portal/events/${event.id}`,
@@ -116,6 +121,12 @@ async function runAction(action: AutomationAction, event: EventContext, origin: 
       await sendEmailFromAccount(account, { to: clientEmail, subject, text: body, fromName: event.djs?.display_name });
       return `Sent "${template.title}" to ${clientEmail}`;
     }
+    case "unlock_music_plan": {
+      if (event.event_type?.toLowerCase() !== "wedding") return "Skipped — not a wedding";
+      const db = createAdminClient();
+      await db.from("events").update({ wedding_music_plan_sent_at: new Date().toISOString() }).eq("id", event.id);
+      return "Unlocked Wedding Music Plan in client portal";
+    }
     default:
       return "Unknown action type";
   }
@@ -127,8 +138,17 @@ async function runAction(action: AutomationAction, event: EventContext, origin: 
  * another, and this never throws back into the action that triggered it
  * (mirrors the soft-no-op pattern used for SMS/activity logging elsewhere
  * in this codebase).
+ *
+ * `extra` carries per-firing context that isn't a column on `events` —
+ * today just the payment's own `kind`, since "was this payment the
+ * deposit" only exists at the moment the payment_received trigger fires.
  */
-export async function runAutomations(trigger: (typeof TRIGGERS)[number]["value"], eventId: string, origin: string): Promise<void> {
+export async function runAutomations(
+  trigger: (typeof TRIGGERS)[number]["value"],
+  eventId: string,
+  origin: string,
+  extra: Record<string, string> = {}
+): Promise<void> {
   try {
     const automations = await listActiveAutomationsForTrigger(trigger);
     if (automations.length === 0) return;
@@ -136,23 +156,27 @@ export async function runAutomations(trigger: (typeof TRIGGERS)[number]["value"]
     const db = createAdminClient();
     const { data: event, error } = await db
       .from("events")
-      .select("id, event_code, title, event_type, service_type, status, event_status, starts_at, dj_id, djs(display_name), venues(name), clients(first_name, last_name, company_name, email)")
+      .select(
+        "id, event_code, title, event_type, service_type, status, event_status, starts_at, ends_at, contract_signed_at, dj_id, djs(display_name), venues(name), clients(first_name, last_name, company_name, email)"
+      )
       .eq("id", eventId)
       .single();
     if (error || !event) return;
 
-    const ctx = event as unknown as EventContext;
+    const { data: deposit } = await db.from("payments").select("id").eq("event_id", eventId).eq("kind", "deposit").eq("status", "succeeded").limit(1).maybeSingle();
+
+    const ctx: EventContext = { ...(event as unknown as EventContext), hasDepositPayment: !!deposit };
 
     for (const automation of automations as AutomationRow[]) {
-      await runOne(automation, ctx, origin);
+      await runOne(automation, ctx, origin, extra);
     }
   } catch {
     // best-effort — automations never block the flow that triggered them
   }
 }
 
-async function runOne(automation: AutomationRow, event: EventContext, origin: string): Promise<void> {
-  if (!conditionsMatch(event, automation.conditions)) {
+async function runOne(automation: AutomationRow, event: EventContext, origin: string, extra: Record<string, string>): Promise<void> {
+  if (!conditionsMatch(event, automation.conditions, extra)) {
     await recordAutomationRun({ automationId: automation.id, eventId: event.id, status: "skipped", detail: "Conditions did not match" });
     return;
   }
