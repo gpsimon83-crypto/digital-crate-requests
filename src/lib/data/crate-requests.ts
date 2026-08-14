@@ -19,7 +19,7 @@ interface EventJoinRow {
   title: string | null;
   starts_at: string | null;
   status: string;
-  djs: { display_name: string }[] | null;
+  djs: { display_name: string } | null;
 }
 
 /**
@@ -65,7 +65,7 @@ export async function listCrateRequestSummary(): Promise<CrateRequestEventSummar
     bucket(t.event_id).tipCents += t.amount_cents ?? 0;
   }
 
-  return ((events ?? []) as EventJoinRow[]).map((e) => {
+  return ((events ?? []) as unknown as EventJoinRow[]).map((e) => {
     const b = byEvent.get(e.id) ?? { requestCount: 0, paidRequestCents: 0, boostCents: 0, tipCents: 0 };
     return {
       eventId: e.id,
@@ -73,7 +73,7 @@ export async function listCrateRequestSummary(): Promise<CrateRequestEventSummar
       title: e.title,
       startsAt: e.starts_at,
       status: e.status,
-      djName: e.djs?.[0]?.display_name ?? null,
+      djName: e.djs?.display_name ?? null,
       requestCount: b.requestCount,
       paidRequestCents: b.paidRequestCents,
       boostCents: b.boostCents,
