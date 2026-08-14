@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
+import { ShieldCheck, ChevronRight } from "lucide-react";
 
 interface Settings {
   allow_dj_self_registration: boolean;
@@ -64,6 +66,18 @@ export default function AdminSettingsPage() {
       <PageHeader title="Platform Settings" subtitle="Global configuration for Digital Crate Requests." />
       <div className="flex flex-col gap-4 p-6">
         {error && <p className="text-xs text-status-declined">{error}</p>}
+
+        <Link href="/admin/settings/permissions">
+          <GlassCard className="flex items-center gap-3 transition-colors hover:border-gold/30">
+            <ShieldCheck size={18} className="shrink-0 text-gold" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold">Permissions</p>
+              <p className="text-xs text-muted">Control what each role — owner, admin, DJ, client — can see and do.</p>
+            </div>
+            <ChevronRight size={16} className="shrink-0 text-muted" />
+          </GlassCard>
+        </Link>
+
         {!settings && !error && <p className="text-sm text-muted">Loading...</p>}
 
         {settings && (
