@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   listActiveAutomationsForTrigger,
+  listActiveDateBasedAutomations,
+  hasAutomationRunForEvent,
   recordAutomationRun,
   type AutomationCondition,
   type AutomationAction,
@@ -12,9 +14,12 @@ import { getEmailAccountWithSecretForDj } from "@/lib/data/email-accounts";
 import { sendEmailFromAccount } from "@/lib/send-email";
 import { fillMergeFields, type MergeContext } from "@/lib/merge-fields";
 import { STAFF_ROLES } from "@/lib/roles";
-import { TRIGGERS } from "@/lib/automation-capabilities";
+import { TRIGGERS, parseDateTrigger } from "@/lib/automation-capabilities";
 
 export { TRIGGERS };
+
+const EVENT_SELECT =
+  "id, event_code, title, event_type, service_type, status, event_status, starts_at, ends_at, created_at, contract_signed_at, quoted_amount, final_amount, dj_id, djs(display_name), venues(name), clients(first_name, last_name, company_name, email)";
 
 interface EventContext {
   id: string;
@@ -26,12 +31,32 @@ interface EventContext {
   event_status: string;
   starts_at: string | null;
   ends_at: string | null;
+  created_at: string;
   contract_signed_at: string | null;
+  quoted_amount: number | null;
+  final_amount: number | null;
   dj_id: string | null;
   djs: { display_name: string } | null;
   venues: { name: string } | null;
   clients: { first_name: string | null; last_name: string | null; company_name: string | null; email: string | null } | null;
   hasDepositPayment: boolean;
+  balancePaid: boolean;
+}
+
+async function loadEventContext(eventId: string): Promise<EventContext | null> {
+  const db = createAdminClient();
+  const { data: event, error } = await db.from("events").select(EVENT_SELECT).eq("id", eventId).single();
+  if (error || !event) return null;
+
+  const { data: deposit } = await db.from("payments").select("id").eq("event_id", eventId).eq("kind", "deposit").eq("status", "succeeded").limit(1).maybeSingle();
+  const { data: payments } = await db.from("payments").select("amount_cents").eq("event_id", eventId).eq("status", "succeeded");
+
+  const raw = event as unknown as Omit<EventContext, "hasDepositPayment" | "balancePaid">;
+  const totalDue = Math.round((raw.final_amount ?? raw.quoted_amount ?? 0) * 100);
+  const totalPaid = (payments ?? []).reduce((sum, p) => sum + p.amount_cents, 0);
+  const balancePaid = totalDue <= 0 || totalPaid >= totalDue;
+
+  return { ...raw, hasDepositPayment: !!deposit, balancePaid };
 }
 
 function conditionField(event: EventContext, field: string, extra: Record<string, string>): string {
@@ -48,6 +73,8 @@ function conditionField(event: EventContext, field: string, extra: Record<string
       return event.contract_signed_at ? "yes" : "no";
     case "deposit_paid":
       return event.hasDepositPayment ? "yes" : "no";
+    case "balance_paid":
+      return event.balancePaid ? "yes" : "no";
     case "payment_kind":
       return extra.payment_kind ?? "";
     default:
@@ -153,19 +180,8 @@ export async function runAutomations(
     const automations = await listActiveAutomationsForTrigger(trigger);
     if (automations.length === 0) return;
 
-    const db = createAdminClient();
-    const { data: event, error } = await db
-      .from("events")
-      .select(
-        "id, event_code, title, event_type, service_type, status, event_status, starts_at, ends_at, contract_signed_at, dj_id, djs(display_name), venues(name), clients(first_name, last_name, company_name, email)"
-      )
-      .eq("id", eventId)
-      .single();
-    if (error || !event) return;
-
-    const { data: deposit } = await db.from("payments").select("id").eq("event_id", eventId).eq("kind", "deposit").eq("status", "succeeded").limit(1).maybeSingle();
-
-    const ctx: EventContext = { ...(event as unknown as EventContext), hasDepositPayment: !!deposit };
+    const ctx = await loadEventContext(eventId);
+    if (!ctx) return;
 
     for (const automation of automations as AutomationRow[]) {
       await runOne(automation, ctx, origin, extra);
@@ -173,6 +189,59 @@ export async function runAutomations(
   } catch {
     // best-effort — automations never block the flow that triggered them
   }
+}
+
+function daysBetween(from: Date, to: Date): number {
+  const ms = to.getTime() - from.getTime();
+  return Math.round(ms / 86400000);
+}
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/**
+ * Checked once daily (see /api/cron/daily-automations) rather than fired
+ * instantly — these automations aren't tied to something happening, just
+ * to the calendar. Every confirmed event is compared against every active
+ * date-based automation's day count; a match fires exactly once per event
+ * (hasAutomationRunForEvent guards against the cron re-running the same
+ * day and double-sending).
+ */
+export async function runDateBasedAutomations(origin: string): Promise<{ checked: number; ran: number }> {
+  const automations = await listActiveDateBasedAutomations();
+  if (automations.length === 0) return { checked: 0, ran: 0 };
+
+  const db = createAdminClient();
+  const { data: events } = await db.from("events").select("id, starts_at, created_at").eq("event_status", "confirmed");
+  if (!events || events.length === 0) return { checked: 0, ran: 0 };
+
+  const today = startOfDay(new Date());
+  let ran = 0;
+
+  for (const automation of automations as AutomationRow[]) {
+    const parsed = parseDateTrigger(automation.trigger);
+    if (!parsed) continue;
+
+    for (const event of events) {
+      const anchor = parsed.type === "days_after_created" ? event.created_at : event.starts_at;
+      if (!anchor) continue;
+
+      const anchorDay = startOfDay(new Date(anchor));
+      const diff = parsed.type === "days_before_event" ? daysBetween(today, anchorDay) : daysBetween(anchorDay, today);
+      if (diff !== parsed.days) continue;
+
+      if (await hasAutomationRunForEvent(automation.id, event.id)) continue;
+
+      const ctx = await loadEventContext(event.id);
+      if (!ctx) continue;
+
+      await runOne(automation, ctx, origin, {});
+      ran += 1;
+    }
+  }
+
+  return { checked: events.length * automations.length, ran };
 }
 
 async function runOne(automation: AutomationRow, event: EventContext, origin: string, extra: Record<string, string>): Promise<void> {

@@ -6,7 +6,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
 import { cn } from "@/lib/utils";
 import { Plus, Pencil, Trash2, X, ChevronDown, ChevronUp } from "lucide-react";
-import { TRIGGERS, CONDITION_FIELDS, ACTION_TYPES } from "@/lib/automation-capabilities";
+import { TRIGGERS, DATE_TRIGGER_TYPES, CONDITION_FIELDS, ACTION_TYPES, buildDateTrigger, parseDateTrigger } from "@/lib/automation-capabilities";
 
 interface Condition {
   field: string;
@@ -46,6 +46,11 @@ const inputClass = "w-full rounded-[2px] border border-black/10 bg-panel px-3 py
 const labelClass = "mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted";
 
 function triggerLabel(value: string) {
+  const parsed = parseDateTrigger(value);
+  if (parsed) {
+    const typeLabel = DATE_TRIGGER_TYPES.find((t) => t.value === parsed.type)?.label ?? parsed.type;
+    return `${parsed.days} ${typeLabel}`;
+  }
   return TRIGGERS.find((t) => t.value === value)?.label ?? value;
 }
 
@@ -262,10 +267,14 @@ function AutomationForm({
   onSave: (input: { name: string; trigger: string; conditions: Condition[]; actions: Action[] }) => void;
   onCancel: () => void;
 }) {
+  const initialParsedDate = initial ? parseDateTrigger(initial.trigger) : null;
   const [name, setName] = useState(initial?.name ?? "");
-  const [trigger, setTrigger] = useState(initial?.trigger ?? TRIGGERS[0].value);
+  const [triggerType, setTriggerType] = useState(initialParsedDate ? initialParsedDate.type : (initial?.trigger ?? TRIGGERS[0].value));
+  const [days, setDays] = useState(initialParsedDate?.days ?? 7);
   const [conditions, setConditions] = useState<Condition[]>(initial?.conditions ?? []);
   const [actions, setActions] = useState<Action[]>(initial?.actions ?? []);
+
+  const isDateTrigger = DATE_TRIGGER_TYPES.some((t) => t.value === triggerType);
 
   function addCondition() {
     setConditions([...conditions, { field: CONDITION_FIELDS[0].value, operator: "equals", value: "" }]);
@@ -289,6 +298,7 @@ function AutomationForm({
 
   function submit() {
     if (!name.trim()) return;
+    const trigger = isDateTrigger ? buildDateTrigger(triggerType, days) : triggerType;
     onSave({ name: name.trim(), trigger, conditions: conditions.filter((c) => c.value.trim()), actions });
   }
 
@@ -301,14 +311,35 @@ function AutomationForm({
         </label>
         <label className="block">
           <span className={labelClass}>Trigger</span>
-          <select value={trigger} onChange={(e) => setTrigger(e.target.value)} className={inputClass}>
-            {TRIGGERS.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label}
-              </option>
-            ))}
+          <select value={triggerType} onChange={(e) => setTriggerType(e.target.value)} className={inputClass}>
+            <optgroup label="When something happens">
+              {TRIGGERS.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="On a schedule (checked once daily)">
+              {DATE_TRIGGER_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </optgroup>
           </select>
         </label>
+        {isDateTrigger && (
+          <label className="block">
+            <span className={labelClass}>Number of days</span>
+            <input
+              type="number"
+              min={0}
+              value={days}
+              onChange={(e) => setDays(Math.max(0, Number(e.target.value) || 0))}
+              className={inputClass}
+            />
+          </label>
+        )}
       </div>
 
       <div>
