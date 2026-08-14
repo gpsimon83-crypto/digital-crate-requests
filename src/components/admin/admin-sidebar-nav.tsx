@@ -23,6 +23,7 @@ import {
   LayoutTemplate,
   DollarSign,
   KeyRound,
+  Music2,
   LifeBuoy,
   Settings,
   ArrowLeft,
@@ -59,6 +60,7 @@ const OPERATIONS_ITEMS = [
   { href: "/admin/venues", label: "Venues", icon: MapPin },
   { href: "/admin/equipment", label: "Equipment", icon: Boxes },
   { href: "/admin/crate-templates", label: "Crate Templates", icon: LayoutTemplate },
+  { href: "/admin/crate-requests", label: "Crate Requests", icon: Music2 },
   { href: "/admin/monetization", label: "Monetization", icon: DollarSign },
   { href: "/admin/invite-codes", label: "Invite Codes", icon: KeyRound }
 ];
