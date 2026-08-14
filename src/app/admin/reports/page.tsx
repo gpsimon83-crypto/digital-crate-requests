@@ -14,6 +14,7 @@ interface EventRow {
   final_amount: number | null;
   paid_cents: number;
   event_type: string | null;
+  dj_id: string | null;
   djs: { display_name: string } | null;
 }
 
@@ -54,13 +55,13 @@ export default function AdminReportsPage() {
     }
     const maxMonth = Math.max(1, ...monthlyRevenueCents);
 
-    const byDj = new Map<string, { count: number; cents: number }>();
+    const byDj = new Map<string, { name: string; count: number; cents: number }>();
     for (const e of won) {
-      const name = e.djs?.display_name ?? "Unassigned";
-      const entry = byDj.get(name) ?? { count: 0, cents: 0 };
+      if (!e.dj_id) continue; // "Unassigned" isn't a DJ — excluded from the leaderboard, not counted as one
+      const entry = byDj.get(e.dj_id) ?? { name: e.djs?.display_name ?? "Unknown DJ", count: 0, cents: 0 };
       entry.count += 1;
       entry.cents += Math.round((e.final_amount ?? e.quoted_amount ?? 0) * 100);
-      byDj.set(name, entry);
+      byDj.set(e.dj_id, entry);
     }
     const djLeaderboard = [...byDj.entries()].sort((a, b) => b[1].cents - a[1].cents);
 
@@ -112,9 +113,9 @@ export default function AdminReportsPage() {
               {!loading && stats.djLeaderboard.length === 0 && (
                 <p className="py-2 text-sm text-muted">No booked events yet.</p>
               )}
-              {stats.djLeaderboard.map(([name, entry]) => (
-                <div key={name} className="flex items-center justify-between py-2.5 first:pt-0">
-                  <span className="text-sm">{name}</span>
+              {stats.djLeaderboard.map(([djId, entry]) => (
+                <div key={djId} className="flex items-center justify-between py-2.5 first:pt-0">
+                  <span className="text-sm">{entry.name}</span>
                   <span className="text-sm text-muted">
                     {entry.count} event{entry.count === 1 ? "" : "s"} · {money(entry.cents)}
                   </span>
