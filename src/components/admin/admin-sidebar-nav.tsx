@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -7,6 +8,7 @@ import { Logo } from "@/components/site/logo";
 import { createClient } from "@/lib/supabase/client";
 import {
   Home,
+  Bell,
   Briefcase,
   CalendarDays,
   Users,
@@ -39,6 +41,7 @@ import {
 // it.
 const PRIMARY_ITEMS = [
   { href: "/admin", label: "Home", icon: Home },
+  { href: "/admin/notifications", label: "Notifications", icon: Bell },
   { href: "/admin/events", label: "Projects", icon: Briefcase },
   { href: "/admin/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/admin/clients", label: "Contacts", icon: Users },
@@ -81,6 +84,14 @@ function NavLabel({ children }: { children: React.ReactNode }) {
 export function AdminSidebarNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/notifications")
+      .then((r) => r.json())
+      .then((data) => setUnreadCount((data.notifications ?? []).filter((n: { read_at: string | null }) => !n.read_at).length))
+      .catch(() => {});
+  }, [pathname]);
 
   async function handleLogout() {
     const supabase = createClient();
@@ -124,7 +135,14 @@ export function AdminSidebarNav() {
               active ? "sidebar-active" : "text-muted hover:bg-black/5 hover:text-foreground"
             )}
           >
-            <Icon size={18} className="shrink-0" />
+            <span className="relative shrink-0">
+              <Icon size={18} />
+              {href === "/admin/notifications" && unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-gold px-0.5 text-[9px] font-bold leading-none text-black">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </span>
             <NavLabel>{label}</NavLabel>
           </Link>
         );
