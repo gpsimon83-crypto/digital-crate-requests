@@ -25,7 +25,9 @@ export default function AdminClientsPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [adding, setAdding] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1"
+  );
 
   async function load() {
     try {

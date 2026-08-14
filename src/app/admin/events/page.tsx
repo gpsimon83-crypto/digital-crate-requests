@@ -77,7 +77,7 @@ function AdminEventsPageContent() {
   const [clients, setClients] = useState<Option[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(() => searchParams.get("new") === "1");
 
   const [contractDraftFor, setContractDraftFor] = useState<string | null>(null);
   const [contractUrlDraft, setContractUrlDraft] = useState("");

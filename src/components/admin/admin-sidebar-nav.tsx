@@ -6,6 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/site/logo";
 import { createClient } from "@/lib/supabase/client";
+import { GlobalSearch } from "@/components/admin/global-search";
+import { QuickCreateMenu } from "@/components/admin/quick-create-menu";
 import {
   Home,
   Bell,
@@ -122,6 +124,10 @@ export function AdminSidebarNav() {
           </NavLabel>
         </div>
       </Link>
+
+      <QuickCreateMenu />
+      <GlobalSearch />
+      <div className="my-1 h-px bg-black/10" />
 
       {PRIMARY_ITEMS.map(({ href, label, icon: Icon }, i) => {
         const active = pathname === href;

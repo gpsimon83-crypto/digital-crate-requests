@@ -28,7 +28,9 @@ export default function AdminEquipmentPage() {
   const [quantity, setQuantity] = useState("1");
   const [storageLocation, setStorageLocation] = useState("");
   const [adding, setAdding] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
+  const [showCreate, setShowCreate] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1"
+  );
 
   async function load() {
     try {
