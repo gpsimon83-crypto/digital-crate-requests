@@ -4,8 +4,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getClientForAuthUser, getClientEvent } from "@/lib/data/portal";
 import { markResponseCompleted } from "@/lib/data/questionnaires";
 import { logActivity } from "@/lib/activity";
+import { runAutomations } from "@/lib/automations-engine";
 
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
   const {
     data: { user }
@@ -22,6 +23,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
     const response = await markResponseCompleted(id);
     await logActivity({ actorUserId: user.id, action: "questionnaire.completed", entityType: "event", entityId: id, eventId: id });
+    await runAutomations("questionnaire_completed", id, req.nextUrl.origin);
     return NextResponse.json({ response });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });

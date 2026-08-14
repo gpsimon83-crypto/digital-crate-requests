@@ -3,6 +3,8 @@ import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAvailability, getSlotMinutes, getConsultationEventsOnDate } from "@/lib/data/scheduler";
 import { zonedTimeToUtc, utcToZonedDateStr } from "@/lib/scheduler-time";
+import { logActivity } from "@/lib/activity";
+import { runAutomations } from "@/lib/automations-engine";
 
 function generateEventCode() {
   return `CONSULT-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
@@ -106,6 +108,9 @@ export async function POST(req: NextRequest) {
       .select()
       .single();
     if (eventError) throw eventError;
+
+    await logActivity({ actorLabel: "Scheduler", action: "lead.created", entityType: "event", entityId: event.id, eventId: event.id });
+    await runAutomations("lead_created", event.id, req.nextUrl.origin);
 
     return NextResponse.json({ event });
   } catch (err) {

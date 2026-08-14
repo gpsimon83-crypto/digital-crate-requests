@@ -3,6 +3,7 @@ import { errorMessage } from "@/lib/error-message";
 import { createClient } from "@/lib/supabase/server";
 import { getClientForAuthUser, signClientEventContract } from "@/lib/data/portal";
 import { logActivity } from "@/lib/activity";
+import { runAutomations } from "@/lib/automations-engine";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -36,6 +37,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       entityId: id,
       eventId: id
     });
+    await runAutomations("contract_signed", id, req.nextUrl.origin);
 
     return NextResponse.json({ event });
   } catch (err) {

@@ -36,7 +36,7 @@ import {
 // templates/contracts/brochures — it used to be split between a stub
 // "Templates" page here and the real Library tool buried in Tools; this
 // entry now points straight at that same real page instead of duplicating
-// it. Automations is still an honest "coming soon" placeholder.
+// it.
 const PRIMARY_ITEMS = [
   { href: "/admin", label: "Home", icon: Home },
   { href: "/admin/events", label: "Projects", icon: Briefcase },

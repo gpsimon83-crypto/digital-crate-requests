@@ -3,6 +3,8 @@ import { errorMessage } from "@/lib/error-message";
 import { createInquiry } from "@/lib/data/inquiries";
 import { sendInquiryAlertSms } from "@/lib/send-sms";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logActivity } from "@/lib/activity";
+import { runAutomations } from "@/lib/automations-engine";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -14,6 +16,9 @@ export async function POST(req: NextRequest) {
 
   try {
     const event = await createInquiry(body);
+
+    await logActivity({ actorLabel: "Website inquiry form", action: "lead.created", entityType: "event", entityId: event.id, eventId: event.id });
+    await runAutomations("lead_created", event.id, req.nextUrl.origin);
 
     try {
       let djName: string | null = null;
