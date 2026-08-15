@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Plus, X, Users, Building2 } from "lucide-react";
+import { Plus, X, Users, Building2, ChevronRight } from "lucide-react";
 
 interface ClientRow {
   id: string;
@@ -138,17 +139,22 @@ export default function AdminClientsPage() {
                   return (
                     <tr key={c.id}>
                       <td>
-                        <span className="flex items-center gap-1.5 font-medium">
+                        <Link href={`/admin/clients/${c.id}`} className="flex items-center gap-1.5 font-medium hover:text-gold">
                           {c.company_name && <Building2 size={13} className="shrink-0 text-muted" />}
                           {name}
-                        </span>
+                        </Link>
                       </td>
                       <td className="text-muted">{c.email ?? "—"}</td>
                       <td className="text-muted">{c.phone ?? "—"}</td>
                       <td>
-                        <button onClick={() => handleDelete(c.id)} className="text-xs text-status-declined hover:underline">
-                          Remove
-                        </button>
+                        <div className="flex items-center justify-end gap-3">
+                          <button onClick={() => handleDelete(c.id)} className="text-xs text-status-declined hover:underline">
+                            Remove
+                          </button>
+                          <Link href={`/admin/clients/${c.id}`} className="flex items-center text-muted hover:text-gold">
+                            <ChevronRight size={15} />
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   );

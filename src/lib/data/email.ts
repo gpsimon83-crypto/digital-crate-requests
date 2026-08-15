@@ -27,6 +27,22 @@ export async function listEventMessages(eventId: string) {
   return data as EmailMessage[];
 }
 
+export interface ClientMessage extends EmailMessage {
+  events: { title: string | null; event_code: string } | null;
+}
+
+/** Every message across every event this client has ever booked, newest first — the Communication Hub rollup. */
+export async function listClientMessages(clientId: string) {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("email_messages")
+    .select("*, events(title, event_code)")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data as unknown as ClientMessage[];
+}
+
 export async function recordOutboundMessage(input: {
   eventId: string;
   clientId?: string | null;
