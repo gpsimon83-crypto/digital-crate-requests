@@ -1,8 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { StatTile } from "@/components/ui/stat-tile";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -115,54 +114,7 @@ function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
-const DASHBOARD_SECTIONS = [
-  { key: "stats", label: "Stat tiles" },
-  { key: "upcoming", label: "Upcoming Events" },
-  { key: "tasks", label: "Tasks Needing Attention" },
-  { key: "calendar", label: "Calendar" },
-  { key: "activity", label: "Recent Activity" },
-  { key: "dj-assignment", label: "DJ Assignment" },
-  { key: "contracts", label: "Contracts Needing Action" },
-  { key: "balances", label: "Outstanding Balances" }
-] as const;
-type SectionKey = (typeof DASHBOARD_SECTIONS)[number]["key"];
-
-const TEXT_SCALE_OPTIONS = ["compact", "default", "large"] as const;
-type TextScale = (typeof TEXT_SCALE_OPTIONS)[number];
-const TEXT_SCALE_ZOOM: Record<TextScale, number> = { compact: 0.9, default: 1, large: 1.15 };
-
 export default function AdminOverviewPage() {
-  return (
-    <Suspense fallback={<div className="p-8 text-sm text-muted">Loading...</div>}>
-      <AdminOverviewPageInner />
-    </Suspense>
-  );
-}
-
-function AdminOverviewPageInner() {
-  const searchParams = useSearchParams();
-  const designMode = searchParams.has("design");
-  const [hiddenSections, setHiddenSections] = useState<Set<SectionKey>>(new Set());
-  const [textScale, setTextScale] = useState<TextScale>("default");
-  const [titles, setTitles] = useState<Record<string, string>>({});
-
-  function toggleSection(key: SectionKey) {
-    setHiddenSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
-
-  function isHidden(key: SectionKey) {
-    return hiddenSections.has(key);
-  }
-
-  function titleFor(key: string, fallback: string) {
-    return titles[key] ?? fallback;
-  }
-
   const [me, setMe] = useState<Me | null>(null);
   const [events, setEvents] = useState<EventRow[] | null>(null);
   const [payments, setPayments] = useState<PaymentRow[] | null>(null);
@@ -254,16 +206,11 @@ function AdminOverviewPageInner() {
 
   return (
     <div className="flex flex-col gap-6 p-6 md:p-8">
-      <div style={designMode ? { zoom: TEXT_SCALE_ZOOM[textScale] } : undefined} className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p
-            className="font-display text-3xl font-light"
-            contentEditable={designMode}
-            suppressContentEditableWarning
-            onBlur={(e) => setTitles((prev) => ({ ...prev, greeting: e.currentTarget.textContent ?? "" }))}
-          >
-            {titleFor("greeting", `${timeOfDayGreeting()}${me ? `, ${greetingName(me)}` : ""}`)}
+          <p className="font-display text-3xl font-light">
+            {timeOfDayGreeting()}
+            {me ? `, ${greetingName(me)}` : ""}
           </p>
           <p className="mt-1 text-sm text-muted">
             {today.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
@@ -301,26 +248,17 @@ function AdminOverviewPageInner() {
         </div>
       )}
 
-      {!isHidden("stats") && (
-        <div className="flex flex-wrap border border-border">
-          <StatTile icon={Magnet} label="New Leads" value={loading ? "…" : leads.length} href="/admin/leads" />
-          <StatTile icon={FileText} label="Pending Contracts" value={loading ? "…" : pendingContracts.length} href="/admin/events" />
-          <StatTile icon={CalendarClock} label="Upcoming This Week" value={loading ? "…" : upcomingThisWeek.length} href="/admin/calendar" />
-          <StatTile icon={Sparkles} label="Bookings This Year" value={loading ? "…" : money(bookingsThisYear)} href="/admin/finance" />
-        </div>
-      )}
+      <div className="flex flex-wrap border border-border">
+        <StatTile icon={Magnet} label="New Leads" value={loading ? "…" : leads.length} href="/admin/leads" />
+        <StatTile icon={FileText} label="Pending Contracts" value={loading ? "…" : pendingContracts.length} href="/admin/events" />
+        <StatTile icon={CalendarClock} label="Upcoming This Week" value={loading ? "…" : upcomingThisWeek.length} href="/admin/calendar" />
+        <StatTile icon={Sparkles} label="Bookings This Year" value={loading ? "…" : money(bookingsThisYear)} href="/admin/finance" />
+      </div>
 
       {/* Row 1: Upcoming Events (8) + Tasks Needing Attention (4) */}
-      {(!isHidden("upcoming") || !isHidden("tasks")) && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {!isHidden("upcoming") && (
         <section className="lg:col-span-8">
-          <SectionHeader
-            title={titleFor("upcoming", "Upcoming Events")}
-            href="/admin/events"
-            editable={designMode}
-            onTitleChange={(v) => setTitles((prev) => ({ ...prev, upcoming: v }))}
-          />
+          <SectionHeader title="Upcoming Events" href="/admin/events" />
           {loading && <p className="py-4 text-sm text-muted">Loading…</p>}
           {!loading && upcoming.length === 0 && (
             <EmptyState icon={CalendarClock} title="Nothing on the books" body="New confirmed events will show up here." />
@@ -372,15 +310,9 @@ function AdminOverviewPageInner() {
             </div>
           )}
         </section>
-        )}
 
-        {!isHidden("tasks") && (
         <section className="lg:col-span-4">
-          <SectionHeader
-            title={titleFor("tasks", "Tasks Needing Attention")}
-            editable={designMode}
-            onTitleChange={(v) => setTitles((prev) => ({ ...prev, tasks: v }))}
-          />
+          <SectionHeader title="Tasks Needing Attention" />
           <div className="flex flex-col divide-y divide-border">
             <TaskRow icon={FileText} label="Contracts awaiting signature" count={pendingContracts.length} href="/admin/events" tone={pendingContracts.length > 0 ? "urgent" : "default"} />
             <TaskRow icon={Magnet} label="New leads to follow up" count={leads.length} href="/admin/leads" tone={leads.length > 0 ? "urgent" : "default"} />
@@ -395,14 +327,10 @@ function AdminOverviewPageInner() {
             />
           </div>
         </section>
-        )}
       </div>
-      )}
 
       {/* Row 2: Calendar (8) + Recent Activity (4) */}
-      {(!isHidden("calendar") || !isHidden("activity")) && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {!isHidden("calendar") && (
         <section className="lg:col-span-8">
           <div className="mb-2 flex items-center justify-between">
             <p className="text-sm font-semibold">{cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}</p>
@@ -446,15 +374,9 @@ function AdminOverviewPageInner() {
             })}
           </div>
         </section>
-        )}
 
-        {!isHidden("activity") && (
         <section className="lg:col-span-4">
-          <SectionHeader
-            title={titleFor("activity", "Recent Activity")}
-            editable={designMode}
-            onTitleChange={(v) => setTitles((prev) => ({ ...prev, activity: v }))}
-          />
+          <SectionHeader title="Recent Activity" />
           {loading && <p className="py-4 text-sm text-muted">Loading…</p>}
           {!loading && activity.length === 0 && <EmptyState icon={ActivityIcon} title="No activity yet" />}
           <div className="flex flex-col divide-y divide-border">
@@ -468,21 +390,12 @@ function AdminOverviewPageInner() {
             ))}
           </div>
         </section>
-        )}
       </div>
-      )}
 
       {/* Row 3: DJ coverage / Contracts / Payments — three balanced columns */}
-      {(!isHidden("dj-assignment") || !isHidden("contracts") || !isHidden("balances")) && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {!isHidden("dj-assignment") && (
         <section>
-          <SectionHeader
-            title={titleFor("dj-assignment", "DJ Assignment")}
-            count={unassigned.length}
-            editable={designMode}
-            onTitleChange={(v) => setTitles((prev) => ({ ...prev, "dj-assignment": v }))}
-          />
+          <SectionHeader title="DJ Assignment" count={unassigned.length} />
           {unassigned.length === 0 ? (
             <EmptyState icon={UserX} title="Fully staffed" body="Every upcoming event has a DJ." />
           ) : (
@@ -496,16 +409,9 @@ function AdminOverviewPageInner() {
             </div>
           )}
         </section>
-        )}
 
-        {!isHidden("contracts") && (
         <section>
-          <SectionHeader
-            title={titleFor("contracts", "Contracts Needing Action")}
-            count={pendingContracts.length}
-            editable={designMode}
-            onTitleChange={(v) => setTitles((prev) => ({ ...prev, contracts: v }))}
-          />
+          <SectionHeader title="Contracts Needing Action" count={pendingContracts.length} />
           {pendingContracts.length === 0 ? (
             <EmptyState icon={FileText} title="All caught up" body="No contracts waiting on a signature." />
           ) : (
@@ -519,17 +425,9 @@ function AdminOverviewPageInner() {
             </div>
           )}
         </section>
-        )}
 
-        {!isHidden("balances") && (
         <section>
-          <SectionHeader
-            title={titleFor("balances", "Outstanding Balances")}
-            count={outstanding.length}
-            href="/admin/finance"
-            editable={designMode}
-            onTitleChange={(v) => setTitles((prev) => ({ ...prev, balances: v }))}
-          />
+          <SectionHeader title="Outstanding Balances" count={outstanding.length} href="/admin/finance" />
           {outstanding.length === 0 ? (
             <EmptyState icon={DollarSign} title="Nothing outstanding" body="Every booked event is paid in full." />
           ) : (
@@ -546,54 +444,7 @@ function AdminOverviewPageInner() {
             </div>
           )}
         </section>
-        )}
       </div>
-      )}
-      </div>
-
-      {designMode && (
-        <div className="fixed bottom-4 right-4 z-50 flex max-h-[85vh] w-64 flex-col gap-3 overflow-y-auto rounded-[2px] border border-gold/40 bg-white p-4 text-xs shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
-          <p className="font-semibold uppercase tracking-wide text-muted">Design Controls</p>
-
-          <div>
-            <p className="mb-1.5 text-muted">Text size — {textScale}</p>
-            <div className="flex flex-wrap gap-1">
-              {TEXT_SCALE_OPTIONS.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTextScale(t)}
-                  className={cn(
-                    "rounded-[2px] border px-2 py-1 text-[11px] capitalize",
-                    textScale === t ? "border-gold bg-gold/10 text-gold" : "border-black/15 text-muted hover:border-black/30"
-                  )}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-1.5 text-muted">Sections</p>
-            <div className="flex flex-col gap-1">
-              {DASHBOARD_SECTIONS.map((s) => {
-                const hidden = isHidden(s.key);
-                return (
-                  <div key={s.key} className={cn("flex items-center justify-between gap-1 rounded-[2px] border px-2 py-1", hidden ? "border-black/10 opacity-50" : "border-black/15")}>
-                    <span>{s.label}</span>
-                    <button onClick={() => toggleSection(s.key)}>{hidden ? "Show" : "Hide"}</button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <p className="border-t border-border pt-2 text-[10px] leading-snug text-muted">
-            Only visible with ?design=1 in the URL. Click any heading to rename it in place. Tell me the layout you
-            land on and I&rsquo;ll make it permanent.
-          </p>
-        </div>
-      )}
     </div>
   );
 }
@@ -601,26 +452,16 @@ function AdminOverviewPageInner() {
 function SectionHeader({
   title,
   count,
-  href,
-  editable,
-  onTitleChange
+  href
 }: {
   title: string;
   count?: number;
   href?: string;
-  editable?: boolean;
-  onTitleChange?: (value: string) => void;
 }) {
   return (
     <div className="mb-2 flex items-center justify-between border-b border-border pb-2">
       <p className="flex items-center gap-1.5 text-sm font-semibold">
-        <span
-          contentEditable={editable}
-          suppressContentEditableWarning
-          onBlur={(e) => onTitleChange?.(e.currentTarget.textContent ?? "")}
-        >
-          {title}
-        </span>
+        <span>{title}</span>
         {count !== undefined && <span className="text-xs font-normal text-muted">({count})</span>}
       </p>
       {href && (

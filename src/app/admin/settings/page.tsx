@@ -169,6 +169,11 @@ function AdminSettingsPageInner() {
           <>
             <GlassCard className="flex flex-col gap-4">
               <ToggleRow
+                label="Allow new DJ self-registration with an invite code"
+                checked={settings.allow_dj_self_registration}
+                onChange={(v) => setSettings((s) => s && { ...s, allow_dj_self_registration: v })}
+              />
+              <ToggleRow
                 label="Require disclaimer acceptance before paid requests"
                 checked={settings.require_disclaimer_acceptance}
                 onChange={(v) => setSettings((s) => s && { ...s, require_disclaimer_acceptance: v })}
@@ -180,21 +185,6 @@ function AdminSettingsPageInner() {
               />
             </GlassCard>
 
-            <div>
-              <p className="mb-3 text-xs uppercase tracking-wide text-muted">Reserved for future builds</p>
-              <GlassCard className="flex flex-col gap-4 opacity-60">
-                <ToggleRow
-                  label="Allow new DJ self-registration with invite code (no self-registration page built yet)"
-                  checked={settings.allow_dj_self_registration}
-                  onChange={(v) => setSettings((s) => s && { ...s, allow_dj_self_registration: v })}
-                />
-                <ToggleRow
-                  label="Enable push notifications (no delivery system built yet)"
-                  checked={settings.push_notifications_enabled}
-                  onChange={(v) => setSettings((s) => s && { ...s, push_notifications_enabled: v })}
-                />
-              </GlassCard>
-            </div>
             <div className="flex items-center gap-3">
               <Button variant="primary" onClick={handleSave} disabled={saving}>
                 {saving ? "Saving..." : "Save Settings"}

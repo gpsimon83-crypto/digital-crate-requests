@@ -9,19 +9,7 @@ import { Tabs } from "@/components/ui/tabs";
 import { TagPicker } from "@/components/dashboard/tag-picker";
 import { SongSlotField } from "@/components/portal/song-slot-field";
 import { PortalFilesList } from "@/components/portal/portal-files-list";
-import { cn } from "@/lib/utils";
 import { ArrowLeft, X, CalendarDays, FileText } from "lucide-react";
-
-const WIDTH_OPTIONS = ["2xl", "3xl", "4xl", "5xl", "6xl", "full"] as const;
-type WidthOption = (typeof WIDTH_OPTIONS)[number];
-const WIDTH_CLASSES: Record<WidthOption, string> = {
-  "2xl": "max-w-2xl",
-  "3xl": "max-w-3xl",
-  "4xl": "max-w-4xl",
-  "5xl": "max-w-5xl",
-  "6xl": "max-w-6xl",
-  full: "max-w-full"
-};
 
 interface WeddingMusicPlan {
   processional_song?: string;
@@ -102,10 +90,6 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-const TEXT_SCALE_OPTIONS = ["compact", "default", "large"] as const;
-type TextScale = (typeof TEXT_SCALE_OPTIONS)[number];
-const TEXT_SCALE_ZOOM: Record<TextScale, number> = { compact: 0.9, default: 1, large: 1.15 };
-
 export default function PortalEventPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <Suspense fallback={<div className="mx-auto max-w-2xl px-4 py-12 text-sm text-muted">Loading...</div>}>
@@ -118,35 +102,6 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params);
   const searchParams = useSearchParams();
   const activeTab = (searchParams.get("tab") as TabKey | null) ?? "overview";
-  const designMode = searchParams.has("design");
-
-  const [contentWidth, setContentWidth] = useState<WidthOption>("2xl");
-  const [overviewColumns, setOverviewColumns] = useState(false);
-  const [textScale, setTextScale] = useState<TextScale>("default");
-  const [tabOrder, setTabOrder] = useState<TabKey[]>(TABS.map((t) => t.key));
-  const [hiddenTabs, setHiddenTabs] = useState<Set<TabKey>>(new Set());
-
-  const visibleTabs = tabOrder.filter((k) => !hiddenTabs.has(k)).map((k) => TABS.find((t) => t.key === k)!);
-
-  function moveTab(key: TabKey, direction: -1 | 1) {
-    setTabOrder((prev) => {
-      const idx = prev.indexOf(key);
-      const swapWith = idx + direction;
-      if (swapWith < 0 || swapWith >= prev.length) return prev;
-      const next = [...prev];
-      [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
-      return next;
-    });
-  }
-
-  function toggleTabHidden(key: TabKey) {
-    setHiddenTabs((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
 
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
@@ -282,8 +237,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const isWedding = event.event_type?.toLowerCase() === "wedding";
 
   return (
-    <div className={cn("mx-auto px-4 py-10 md:py-12", WIDTH_CLASSES[contentWidth])}>
-      <div style={designMode ? { zoom: TEXT_SCALE_ZOOM[textScale] } : undefined}>
+    <div className="mx-auto max-w-3xl px-4 py-10 md:py-12">
       <Link href="/portal" className="mb-6 flex items-center gap-1.5 text-sm text-muted hover:text-foreground">
         <ArrowLeft size={14} /> Your events
       </Link>
@@ -296,15 +250,10 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
         {event.djs?.display_name ? ` · ${event.djs.display_name}` : ""}
       </p>
 
-      <Tabs
-        items={visibleTabs}
-        active={activeTab}
-        hrefFor={(key) => `/portal/events/${id}?tab=${key}${designMode ? "&design=1" : ""}`}
-        className="mt-6"
-      />
+      <Tabs items={TABS} active={activeTab} hrefFor={(key) => `/portal/events/${id}?tab=${key}`} className="mt-6" />
 
       {activeTab === "overview" && (
-        <div className={overviewColumns ? "mt-6 grid gap-4 sm:grid-cols-2" : "mt-6 flex flex-col gap-4"}>
+        <div className="mt-6 flex flex-col gap-4">
           <GlassCard className="flex flex-col gap-2">
             <p className="text-sm font-semibold">At a glance</p>
             <Row
@@ -672,85 +621,6 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
           <Button variant="cta" onClick={handleSave} disabled={saving} className="w-fit">
             {saving ? "Saving..." : "Save changes"}
           </Button>
-        </div>
-      )}
-      </div>
-
-      {designMode && (
-        <div className="fixed bottom-4 right-4 z-50 flex max-h-[85vh] w-64 flex-col gap-3 overflow-y-auto rounded-[2px] border border-gold/40 bg-white p-4 text-xs shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
-          <p className="font-semibold uppercase tracking-wide text-muted">Design Controls</p>
-
-          <div>
-            <p className="mb-1.5 text-muted">Content width — {WIDTH_CLASSES[contentWidth]}</p>
-            <div className="flex flex-wrap gap-1">
-              {WIDTH_OPTIONS.map((w) => (
-                <button
-                  key={w}
-                  onClick={() => setContentWidth(w)}
-                  className={cn(
-                    "rounded-[2px] border px-2 py-1 text-[11px]",
-                    contentWidth === w ? "border-gold bg-gold/10 text-gold" : "border-black/15 text-muted hover:border-black/30"
-                  )}
-                >
-                  {w}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-1.5 text-muted">Text size — {textScale}</p>
-            <div className="flex flex-wrap gap-1">
-              {TEXT_SCALE_OPTIONS.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTextScale(t)}
-                  className={cn(
-                    "rounded-[2px] border px-2 py-1 text-[11px] capitalize",
-                    textScale === t ? "border-gold bg-gold/10 text-gold" : "border-black/15 text-muted hover:border-black/30"
-                  )}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={overviewColumns} onChange={(e) => setOverviewColumns(e.target.checked)} />
-            2-column Overview
-          </label>
-
-          <div>
-            <p className="mb-1.5 text-muted">Tab order &amp; visibility</p>
-            <div className="flex flex-col gap-1">
-              {tabOrder.map((key, i) => {
-                const tab = TABS.find((t) => t.key === key)!;
-                const hidden = hiddenTabs.has(key);
-                return (
-                  <div key={key} className={cn("flex items-center justify-between gap-1 rounded-[2px] border px-2 py-1", hidden ? "border-black/10 opacity-50" : "border-black/15")}>
-                    <span>{tab.label}</span>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => moveTab(key, -1)} disabled={i === 0} className="disabled:opacity-30">
-                        ↑
-                      </button>
-                      <button onClick={() => moveTab(key, 1)} disabled={i === tabOrder.length - 1} className="disabled:opacity-30">
-                        ↓
-                      </button>
-                      <button onClick={() => toggleTabHidden(key)} className="ml-1">
-                        {hidden ? "Show" : "Hide"}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <p className="border-t border-border pt-2 text-[10px] leading-snug text-muted">
-            Only visible with ?design=1 in the URL — never shows for real clients. Tell me the values you land on and
-            I&rsquo;ll make them permanent.
-          </p>
         </div>
       )}
     </div>
