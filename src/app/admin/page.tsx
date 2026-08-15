@@ -23,8 +23,10 @@ import {
   UserX,
   DollarSign,
   Activity as ActivityIcon,
-  Music2
+  Music2,
+  Inbox
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 interface EventRow {
   id: string;
@@ -58,6 +60,15 @@ interface Me {
 interface PerformanceSummary {
   revenueTrend: { month: string; bookedCents: number; collectedCents: number }[];
   eventTypes: { type: string; count: number; revenueCents: number }[];
+}
+
+interface ActionItem {
+  key: string;
+  icon: LucideIcon;
+  label: string;
+  eventTitle: string;
+  href: string;
+  detail?: string;
 }
 
 const STATUS_DOT: Record<string, string> = {
@@ -166,6 +177,27 @@ export default function AdminOverviewPage() {
       }),
     [events]
   );
+
+  const actionItems = useMemo<ActionItem[]>(() => {
+    const items: ActionItem[] = [];
+    for (const e of pendingContracts) {
+      items.push({ key: `contract-${e.id}`, icon: FileText, label: "Contract awaiting signature", eventTitle: e.title, href: `/admin/events/${e.id}` });
+    }
+    for (const e of outstanding) {
+      const total = Math.round((e.final_amount ?? e.quoted_amount ?? 0) * 100);
+      items.push({ key: `balance-${e.id}`, icon: DollarSign, label: "Balance due", eventTitle: e.title, href: `/admin/events/${e.id}`, detail: `${money(total - e.paid_cents)} due` });
+    }
+    for (const e of unassigned) {
+      items.push({ key: `unassigned-${e.id}`, icon: UserX, label: "Needs a DJ assigned", eventTitle: e.title, href: `/admin/events/${e.id}` });
+    }
+    for (const e of leads) {
+      items.push({ key: `lead-${e.id}`, icon: Magnet, label: "New lead to follow up", eventTitle: e.title, href: `/admin/events/${e.id}` });
+    }
+    for (const e of weddingsReadyForMusicPlan) {
+      items.push({ key: `music-${e.id}`, icon: Music2, label: "Music plan ready to send", eventTitle: e.title, href: `/admin/events/${e.id}` });
+    }
+    return items;
+  }, [pendingContracts, outstanding, unassigned, leads, weddingsReadyForMusicPlan]);
 
   const weekOut = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
   const upcomingThisWeek = upcoming.filter((e) => new Date(e.starts_at as string) <= weekOut);
@@ -304,20 +336,27 @@ export default function AdminOverviewPage() {
         </section>
 
         <section className="lg:col-span-4">
-          <SectionHeader title="Tasks Needing Attention" />
-          <div className="flex flex-col divide-y divide-border">
-            <TaskRow icon={FileText} label="Contracts awaiting signature" count={pendingContracts.length} href="/admin/events" tone={pendingContracts.length > 0 ? "urgent" : "default"} />
-            <TaskRow icon={Magnet} label="New leads to follow up" count={leads.length} href="/admin/leads" tone={leads.length > 0 ? "urgent" : "default"} />
-            <TaskRow icon={UserX} label="Upcoming events missing a DJ" count={unassigned.length} href="/admin/events" tone={unassigned.length > 0 ? "urgent" : "default"} />
-            <TaskRow icon={DollarSign} label="Events with a balance due" count={outstanding.length} href="/admin/finance" tone={outstanding.length > 0 ? "urgent" : "default"} />
-            <TaskRow
-              icon={Music2}
-              label="Weddings ready for their music plan"
-              count={weddingsReadyForMusicPlan.length}
-              href="/admin/events"
-              tone={weddingsReadyForMusicPlan.length > 0 ? "urgent" : "default"}
-            />
-          </div>
+          <SectionHeader title="Action Required" count={actionItems.length} />
+          {!loading && actionItems.length === 0 && (
+            <EmptyState icon={Inbox} title="All caught up" body="Nothing needs your attention right now." />
+          )}
+          {actionItems.length > 0 && (
+            <div className="flex flex-col divide-y divide-border">
+              {actionItems.slice(0, 8).map((item) => (
+                <Link key={item.key} href={item.href} className="group flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+                  <item.icon size={15} className="shrink-0 text-status-urgent" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm group-hover:text-gold">{item.label}</p>
+                    <p className="truncate text-xs text-muted">{item.eventTitle}</p>
+                  </div>
+                  {item.detail && <span className="shrink-0 text-xs font-semibold tabular-nums">{item.detail}</span>}
+                </Link>
+              ))}
+              {actionItems.length > 8 && (
+                <p className="pt-2.5 text-xs text-muted">+ {actionItems.length - 8} more</p>
+              )}
+            </div>
+          )}
         </section>
       </div>
 
@@ -383,60 +422,6 @@ export default function AdminOverviewPage() {
           </div>
         </section>
       </div>
-
-      {/* Row 3: DJ coverage / Contracts / Payments — three balanced columns */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <section>
-          <SectionHeader title="DJ Assignment" count={unassigned.length} />
-          {unassigned.length === 0 ? (
-            <EmptyState icon={UserX} title="Fully staffed" body="Every upcoming event has a DJ." />
-          ) : (
-            <div className="flex flex-col divide-y divide-border">
-              {unassigned.slice(0, 5).map((e) => (
-                <Link key={e.id} href={`/admin/events/${e.id}`} className="group flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                  <span className="text-sm group-hover:text-gold">{e.title}</span>
-                  <span className="text-xs text-muted">{new Date(e.starts_at as string).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section>
-          <SectionHeader title="Contracts Needing Action" count={pendingContracts.length} />
-          {pendingContracts.length === 0 ? (
-            <EmptyState icon={FileText} title="All caught up" body="No contracts waiting on a signature." />
-          ) : (
-            <div className="flex flex-col divide-y divide-border">
-              {pendingContracts.slice(0, 5).map((e) => (
-                <Link key={e.id} href={`/admin/events/${e.id}`} className="group flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                  <span className="text-sm group-hover:text-gold">{e.title}</span>
-                  <StatusChip tone="pending" variant="dot">Awaiting</StatusChip>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section>
-          <SectionHeader title="Outstanding Balances" count={outstanding.length} href="/admin/finance" />
-          {outstanding.length === 0 ? (
-            <EmptyState icon={DollarSign} title="Nothing outstanding" body="Every booked event is paid in full." />
-          ) : (
-            <div className="flex flex-col divide-y divide-border">
-              {outstanding.slice(0, 5).map((e) => {
-                const total = Math.round((e.final_amount ?? e.quoted_amount ?? 0) * 100);
-                return (
-                  <Link key={e.id} href={`/admin/events/${e.id}`} className="group flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
-                    <span className="text-sm group-hover:text-gold">{e.title}</span>
-                    <span className="text-xs font-semibold tabular-nums">{money(total - e.paid_cents)} due</span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </section>
-      </div>
     </div>
   );
 }
@@ -462,34 +447,5 @@ function SectionHeader({
         </Link>
       )}
     </div>
-  );
-}
-
-function TaskRow({
-  icon: Icon,
-  label,
-  count,
-  href,
-  tone
-}: {
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-  label: string;
-  count: number;
-  href: string;
-  tone: "default" | "urgent";
-}) {
-  return (
-    <Link href={href} className="group flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
-      <Icon size={15} className={tone === "urgent" ? "text-status-urgent" : "text-muted"} />
-      <span className="flex-1 text-sm group-hover:text-gold">{label}</span>
-      <span
-        className={cn(
-          "flex h-5 min-w-5 items-center justify-center rounded-[10px] px-1 text-xs font-semibold tabular-nums",
-          tone === "urgent" ? "bg-status-urgent/10 text-status-urgent" : "bg-panel text-muted"
-        )}
-      >
-        {count}
-      </span>
-    </Link>
   );
 }
