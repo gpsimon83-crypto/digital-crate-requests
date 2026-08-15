@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { StatTile } from "@/components/ui/stat-tile";
 import { Music2, DollarSign, Sparkles, Settings2 } from "lucide-react";
 import { StatusChip } from "@/components/ui/status-chip";
+import { money } from "@/lib/format";
 
 interface EventSummary {
   eventId: string;
@@ -18,10 +19,6 @@ interface EventSummary {
   paidRequestCents: number;
   boostCents: number;
   tipCents: number;
-}
-
-function money(cents: number) {
-  return `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
 const STATUS_LABEL: Record<string, string> = {

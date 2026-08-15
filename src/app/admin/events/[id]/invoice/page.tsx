@@ -2,6 +2,7 @@
 
 import { use as usePromise, useEffect, useState } from "react";
 import { Logo } from "@/components/site/logo";
+import { clientName } from "@/lib/format";
 
 interface ClientRow {
   first_name: string | null;
@@ -31,11 +32,6 @@ interface PaymentRow {
 
 function money(cents: number) {
   return `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function clientName(c: ClientRow | null) {
-  if (!c) return "—";
-  return c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "—";
 }
 
 export default function InvoicePage({ params }: { params: Promise<{ id: string }> }) {
@@ -91,7 +87,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
       <div className="mt-8 grid grid-cols-2 gap-6 border-y border-border py-4 text-sm">
         <div>
           <p className="text-[10px] uppercase tracking-wide text-muted">Bill To</p>
-          <p className="mt-1 font-medium">{clientName(event.clients)}</p>
+          <p className="mt-1 font-medium">{clientName(event.clients, "—") ?? "—"}</p>
           {event.clients?.email && <p className="text-muted">{event.clients.email}</p>}
         </div>
         <div className="text-right">

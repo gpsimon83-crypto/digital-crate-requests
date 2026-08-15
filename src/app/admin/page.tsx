@@ -11,6 +11,7 @@ import { RevenueAreaChart } from "@/components/charts/revenue-area-chart";
 import { EventTypeDonut } from "@/components/charts/event-type-donut";
 import { cn } from "@/lib/utils";
 import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
+import { money, clientName } from "@/lib/format";
 import {
   Magnet,
   FileText,
@@ -91,18 +92,9 @@ function timeOfDayGreeting() {
   return "Good evening";
 }
 
-function clientName(c: EventRow["clients"]) {
-  if (!c) return "No contact";
-  return c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed contact";
-}
-
 function eventName(e: PaymentRow["events"]) {
   const row = Array.isArray(e) ? e[0] : e;
   return row?.title ?? "Event";
-}
-
-function money(cents: number) {
-  return `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
 function monthLabel(key: string) {
@@ -284,7 +276,7 @@ export default function AdminOverviewPage() {
                       </td>
                       <td className="font-medium">
                         {e.title}
-                        <div className="text-xs font-normal text-muted">{clientName(e.clients)}</div>
+                        <div className="text-xs font-normal text-muted">{clientName(e.clients, "Unnamed contact") ?? "No contact"}</div>
                       </td>
                       <td className="text-muted">{e.venues?.name ?? "—"}</td>
                       <td>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs } from "@/components/ui/tabs";
 import { StatusChip } from "@/components/ui/status-chip";
+import { Field } from "@/components/ui/field";
 import { Mail, FileText, FileSignature, BookOpen, FolderOpen, ListChecks, Plus, X, Download, Trash2, Pencil } from "lucide-react";
 import Link from "next/link";
 
@@ -358,29 +359,5 @@ export default function AdminLibraryPage() {
     <Suspense fallback={<div className="p-8 text-sm text-muted">Loading...</div>}>
       <AdminLibraryPageInner />
     </Suspense>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">{label}</span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
-      />
-    </label>
   );
 }

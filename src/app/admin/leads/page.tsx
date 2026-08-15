@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { clientName } from "@/lib/format";
 import { CalendarDays, Mail, Phone, Magnet } from "lucide-react";
 
 interface EventRow {
@@ -22,11 +23,6 @@ interface EventRow {
     email: string | null;
     phone: string | null;
   } | null;
-}
-
-function clientName(c: EventRow["clients"]) {
-  if (!c) return "No client";
-  return c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed client";
 }
 
 export default function AdminLeadsPage() {
@@ -79,7 +75,7 @@ export default function AdminLeadsPage() {
               <div key={e.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-medium">{e.title}</p>
-                  <p className="text-sm text-muted">{clientName(e.clients)}</p>
+                  <p className="text-sm text-muted">{clientName(e.clients) ?? "No client"}</p>
                   <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
                     {e.starts_at && (
                       <span className="flex items-center gap-1">

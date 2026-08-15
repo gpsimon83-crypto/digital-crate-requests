@@ -8,6 +8,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/ui/status-chip";
+import { clientName } from "@/lib/format";
 import { Wallet, CheckCircle2, Clock, Users, Receipt, TrendingUp, Plus, X, Trash2 } from "lucide-react";
 
 interface EventRow {
@@ -48,11 +49,6 @@ interface ExpenseRow {
 }
 
 const CATEGORIES = ["equipment", "marketing", "insurance", "software", "venue", "other"];
-
-function clientName(c: EventRow["clients"]) {
-  if (!c) return "No client";
-  return c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed client";
-}
 
 function money(cents: number) {
   return `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -199,7 +195,7 @@ export default function AdminFinancePage() {
                             {e.title}
                           </Link>
                         </td>
-                        <td className="text-muted">{clientName(e.clients)}</td>
+                        <td className="text-muted">{clientName(e.clients) ?? "No client"}</td>
                         <td className="whitespace-nowrap tabular-nums text-muted">
                           {e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—"}
                         </td>

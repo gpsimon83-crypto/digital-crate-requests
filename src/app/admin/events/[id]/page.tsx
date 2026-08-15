@@ -15,6 +15,7 @@ import { MilestoneStepper } from "@/components/project/milestone-stepper";
 // steps a project "arrives at" in sequence.
 const FORWARD_PIPELINE_STAGES = PIPELINE_STAGES.filter((s) => s !== "Declined" && s !== "Archived");
 import { type MergeContext } from "@/lib/merge-fields";
+import { clientName } from "@/lib/format";
 import { EmailThreadPanel } from "@/components/project/email-thread-panel";
 import { TasksPanel } from "@/components/project/tasks-panel";
 import { FilesPanel } from "@/components/project/files-panel";
@@ -125,11 +126,6 @@ const WEDDING_PLAN_FIELDS: { key: string; label: string }[] = [
 const WEDDING_SONG_FIELDS = WEDDING_PLAN_FIELDS.filter(
   ({ key }) => key.endsWith("_song") && key !== "special_dance_songs"
 );
-
-function clientName(c: ClientRow | null) {
-  if (!c) return null;
-  return c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed client";
-}
 
 function initials(name: string) {
   return name

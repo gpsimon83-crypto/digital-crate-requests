@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field } from "@/components/ui/field";
 import { Plus, X, Boxes } from "lucide-react";
 
 interface EquipmentRow {
@@ -185,29 +186,5 @@ export default function AdminEquipmentPage() {
         )}
       </div>
     </>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">{label}</span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-      />
-    </label>
   );
 }

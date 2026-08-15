@@ -11,6 +11,8 @@ import { cn } from "@/lib/utils";
 import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
 import { EVENT_TYPES, EVENT_CATEGORY_GROUPS } from "@/lib/event-types";
 import { PIPELINE_STAGES, PIPELINE_STAGE_DOT } from "@/lib/pipeline-stage";
+import { clientName } from "@/lib/format";
+import { Field } from "@/components/ui/field";
 import { Plus, X, Briefcase, ChevronRight, Magnet, Mail, Phone, CalendarDays } from "lucide-react";
 
 interface EventRow {
@@ -58,11 +60,6 @@ const STAGE_TABS = [
   { key: "active", label: "Active Projects" },
   { key: "inquiries", label: "Inquiries" }
 ];
-
-function clientName(c: EventRow["clients"]) {
-  if (!c) return null;
-  return c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed contact";
-}
 
 function AdminEventsPageContent() {
   const searchParams = useSearchParams();
@@ -352,7 +349,7 @@ function AdminEventsPageContent() {
               <div key={e.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-medium">{e.title}</p>
-                  <p className="text-sm text-muted">{clientName(e.clients) ?? "No client"}</p>
+                  <p className="text-sm text-muted">{clientName(e.clients, "Unnamed contact") ?? "No client"}</p>
                   <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
                     {e.starts_at && (
                       <span className="flex items-center gap-1">
@@ -411,7 +408,7 @@ function AdminEventsPageContent() {
                   {visibleEvents.map((e) => {
                     const totalDue = e.final_amount ?? e.quoted_amount;
                     const totalDueCents = totalDue ? Math.round(totalDue * 100) : 0;
-                    const name = clientName(e.clients);
+                    const name = clientName(e.clients, "Unnamed contact");
                     return (
                       <Fragment key={e.id}>
                         <tr>
@@ -494,7 +491,7 @@ function AdminEventsPageContent() {
               {visibleEvents.map((e) => {
                 const totalDue = e.final_amount ?? e.quoted_amount;
                 const totalDueCents = totalDue ? Math.round(totalDue * 100) : 0;
-                const name = clientName(e.clients);
+                const name = clientName(e.clients, "Unnamed contact");
                 return (
                   <div key={e.id} className="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
                     <Link href={`/admin/events/${e.id}`} className="flex items-center justify-between gap-2">
@@ -535,33 +532,6 @@ export default function AdminEventsPage() {
     <Suspense fallback={<div className="p-8 text-sm text-muted">Loading...</div>}>
       <AdminEventsPageContent />
     </Suspense>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = "text"
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm placeholder:text-muted/60 focus:border-gold focus:outline-none"
-      />
-    </label>
   );
 }
 

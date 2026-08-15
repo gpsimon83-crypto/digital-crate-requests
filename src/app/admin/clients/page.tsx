@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Field } from "@/components/ui/field";
 import { Plus, X, Users, Building2, ChevronRight } from "lucide-react";
 
 interface ClientRow {
@@ -165,32 +166,5 @@ export default function AdminClientsPage() {
         )}
       </div>
     </>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = "text"
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-  type?: string;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">{label}</span>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-      />
-    </label>
   );
 }
