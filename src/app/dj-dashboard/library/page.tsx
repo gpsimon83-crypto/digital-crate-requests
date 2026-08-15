@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/site/logo";
+import { PageHeader } from "@/components/dashboard/page-header";
 import {
   Music, Boxes, Copy, Wand2, RefreshCw, UserCircle, ArrowLeft,
   CheckCircle2, XCircle, FolderOpen, AlertTriangle, Tags, Plus, Trash2, Eye, Pencil, ListMusic,
@@ -461,31 +461,28 @@ export default function LibraryDashboardPage() {
           fixed descendant at the root stacking context, hiding the
           backdrop entirely. Verified this the hard way; don't remove. */}
       <PageBackdrop section="hero" />
-      <header className="relative z-10 flex items-center justify-between border-b border-black/8 bg-[linear-gradient(180deg,rgba(33,31,26,0.015),rgba(255,255,255,0))] px-6 py-4 sm:px-8">
-        <Link href="/dj-dashboard" className="flex items-center gap-3">
-          <span className="glow-ring">
-            <Logo variant="icon" brand="crates-djs" size={28} />
-          </span>
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[2.5px] text-muted">Digital Crate DJs</p>
-            <p className="gold-text-gradient text-base font-extrabold tracking-tight">Crate Builder</p>
-          </div>
-        </Link>
-        <div className="flex items-center gap-2">
-          <a
-            href="https://digitalcratedjs.com/members"
-            className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
-          >
-            <ArrowLeft size={14} /> Back to Digital Crate DJs
-          </a>
-          <Link
-            href="/dj-dashboard/bookings"
-            className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
-          >
-            <UserCircle size={14} /> My Bookings
-          </Link>
-        </div>
-      </header>
+      <div className="relative z-10">
+        <PageHeader
+          title="Crate Builder"
+          subtitle="Digital Crate DJs"
+          action={
+            <div className="flex items-center gap-2">
+              <a
+                href="https://digitalcratedjs.com/members"
+                className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
+              >
+                <ArrowLeft size={14} /> Back to Digital Crate DJs
+              </a>
+              <Link
+                href="/dj-dashboard/bookings"
+                className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
+              >
+                <UserCircle size={14} /> My Bookings
+              </Link>
+            </div>
+          }
+        />
+      </div>
 
       <main className="relative z-10 mx-auto flex max-w-7xl flex-col gap-8 px-6 py-8 sm:px-8">
         <PhotoBanner section="hero" title="Studio & Crate Gallery" height={280} />

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
-import { Logo } from "@/components/site/logo";
+import { PageHeader } from "@/components/dashboard/page-header";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { Check, X, LogOut, ShieldCheck, CalendarClock, MapPin, Plus, PartyPopper, UserCircle, Boxes } from "lucide-react";
 import { isStaffRole } from "@/lib/roles";
@@ -169,55 +169,43 @@ export default function DjBookingsPage() {
 
   return (
     <div className="min-h-dvh bg-background">
-      <header className="flex items-center justify-between border-b border-black/8 bg-[linear-gradient(180deg,rgba(33,31,26,0.015),rgba(255,255,255,0))] px-6 py-4 sm:px-8">
-        <Link href="/dj-dashboard" className="flex items-center gap-3">
-          {!isAdmin && djName ? (
-            <DjAvatar name={djName} photoUrl={djPhoto} size={38} />
-          ) : (
-            <span className="glow-ring">
-              <Logo variant="icon" brand="crates-djs" size={28} />
-            </span>
-          )}
-          <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[2.5px] text-muted">
-              {djName ? djName : "Digital Crate DJs"}
-            </p>
-            <p className="gold-text-gradient text-base font-extrabold tracking-tight">
-              {isAdmin ? "All Bookings" : "My Bookings"}
-            </p>
+      <PageHeader
+        title={isAdmin ? "All Bookings" : "My Bookings"}
+        subtitle={djName ? djName : "Digital Crate DJs"}
+        action={
+          <div className="flex items-center gap-2">
+            {djName && !isAdmin && <DjAvatar name={djName} photoUrl={djPhoto} size={32} />}
+            {roleReady && !isAdmin && (
+              <Link
+                href="/dj-dashboard/library"
+                className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
+              >
+                <Boxes size={14} /> Crate Builder
+              </Link>
+            )}
+            <Link
+              href="/dj-dashboard/profile"
+              className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
+            >
+              <UserCircle size={14} /> My Profile
+            </Link>
+            {roleReady && isAdmin && (
+              <Link
+                href="/admin"
+                className="flex items-center gap-1.5 rounded-[10px] border border-gold/40 px-3.5 py-2 text-xs font-semibold text-gold transition-colors hover:bg-gold/10"
+              >
+                <ShieldCheck size={14} /> Admin Panel
+              </Link>
+            )}
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
+            >
+              <LogOut size={14} /> Sign Out
+            </button>
           </div>
-        </Link>
-        <div className="flex items-center gap-2">
-          {roleReady && !isAdmin && (
-            <Link
-              href="/dj-dashboard/library"
-              className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
-            >
-              <Boxes size={14} /> Crate Builder
-            </Link>
-          )}
-          <Link
-            href="/dj-dashboard/profile"
-            className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
-          >
-            <UserCircle size={14} /> My Profile
-          </Link>
-          {roleReady && isAdmin && (
-            <Link
-              href="/admin"
-              className="flex items-center gap-1.5 rounded-[2px] border border-gold/40 px-3.5 py-2 text-xs font-semibold text-gold transition-colors hover:bg-gold/10"
-            >
-              <ShieldCheck size={14} /> Admin Panel
-            </Link>
-          )}
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
-          >
-            <LogOut size={14} /> Sign Out
-          </button>
-        </div>
-      </header>
+        }
+      />
 
       <main className="mx-auto flex max-w-4xl flex-col gap-10 px-6 py-10 sm:px-8">
         {error && (
