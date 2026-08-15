@@ -533,7 +533,10 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                   </span>
                   <div>
                     <p className="text-sm font-semibold">{name}</p>
-                    {event.clients?.email && <p className="text-xs text-muted">{event.clients.email}</p>}
+                    <p className="flex flex-wrap gap-x-3 text-xs text-muted">
+                      {event.clients?.email && <span>{event.clients.email}</span>}
+                      {event.clients?.phone && <span>{event.clients.phone}</span>}
+                    </p>
                   </div>
                 </>
               ) : (
@@ -744,56 +747,54 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
               <PackageRecommendation eventId={id} />
 
-              <GlassCard className="flex flex-col gap-1">
-                <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Client contact</p>
-                <Row label="Name" value={name ?? "—"} />
-                <Row label="Email" value={event.clients?.email ?? "—"} />
-                <Row label="Phone" value={event.clients?.phone ?? "—"} />
-              </GlassCard>
-
-              <GlassCard className="flex flex-col gap-1">
-                <Row label="Event type" value={event.event_type ?? "—"} />
-                <Row label="Service" value={event.service_type ?? "—"} />
-                <Row label="Expected guests" value={event.expected_guests != null ? String(event.expected_guests) : "—"} />
-                <Row label="DJ" value={event.djs?.display_name ?? "Unassigned"} />
-                <Row label="Venue" value={event.venues?.name ?? "No venue"} />
-              </GlassCard>
-
-              <ContractsPanel eventId={id} contracts={contracts} onChange={load} />
-
-              <EquipmentAssignmentsPanel eventId={id} />
-              {(event.must_play?.length || event.do_not_play?.length) ? (
-                <GlassCard className="flex flex-col gap-3">
-                  {event.must_play && event.must_play.length > 0 && (
-                    <div>
-                      <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Must-play songs</p>
-                      <p className="text-sm">{event.must_play.join(", ")}</p>
-                    </div>
-                  )}
-                  {event.do_not_play && event.do_not_play.length > 0 && (
-                    <div>
-                      <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Do-not-play songs</p>
-                      <p className="text-sm">{event.do_not_play.join(", ")}</p>
-                    </div>
-                  )}
-                </GlassCard>
-              ) : null}
-              {event.wedding_music_plan && Object.keys(event.wedding_music_plan).length > 0 && (
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
                 <GlassCard className="flex flex-col gap-1">
-                  <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Wedding music plan</p>
-                  {WEDDING_PLAN_FIELDS.map(({ key, label }) => {
-                    const value = event.wedding_music_plan?.[key];
-                    if (!value || (Array.isArray(value) && value.length === 0)) return null;
-                    return <Row key={key} label={label} value={Array.isArray(value) ? value.join(", ") : value} />;
-                  })}
+                  <Row label="Event type" value={event.event_type ?? "—"} />
+                  <Row label="Service" value={event.service_type ?? "—"} />
+                  <Row label="Expected guests" value={event.expected_guests != null ? String(event.expected_guests) : "—"} />
+                  <Row label="DJ" value={event.djs?.display_name ?? "Unassigned"} />
+                  <Row label="Venue" value={event.venues?.name ?? "No venue"} />
                 </GlassCard>
-              )}
-              {event.special_requests && (
-                <GlassCard className="flex flex-col gap-1">
-                  <p className="text-xs uppercase tracking-[1.5px] text-muted">Client notes</p>
-                  <p className="text-sm">{event.special_requests}</p>
-                </GlassCard>
-              )}
+
+                <ContractsPanel eventId={id} contracts={contracts} onChange={load} />
+
+                <EquipmentAssignmentsPanel eventId={id} />
+
+                {(event.must_play?.length || event.do_not_play?.length) ? (
+                  <GlassCard className="flex flex-col gap-3">
+                    {event.must_play && event.must_play.length > 0 && (
+                      <div>
+                        <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Must-play songs</p>
+                        <p className="text-sm">{event.must_play.join(", ")}</p>
+                      </div>
+                    )}
+                    {event.do_not_play && event.do_not_play.length > 0 && (
+                      <div>
+                        <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Do-not-play songs</p>
+                        <p className="text-sm">{event.do_not_play.join(", ")}</p>
+                      </div>
+                    )}
+                  </GlassCard>
+                ) : null}
+
+                {event.wedding_music_plan && Object.keys(event.wedding_music_plan).length > 0 && (
+                  <GlassCard className="flex flex-col gap-1">
+                    <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Wedding music plan</p>
+                    {WEDDING_PLAN_FIELDS.map(({ key, label }) => {
+                      const value = event.wedding_music_plan?.[key];
+                      if (!value || (Array.isArray(value) && value.length === 0)) return null;
+                      return <Row key={key} label={label} value={Array.isArray(value) ? value.join(", ") : value} />;
+                    })}
+                  </GlassCard>
+                )}
+
+                {event.special_requests && (
+                  <GlassCard className="flex flex-col gap-1">
+                    <p className="text-xs uppercase tracking-[1.5px] text-muted">Client notes</p>
+                    <p className="text-sm">{event.special_requests}</p>
+                  </GlassCard>
+                )}
+              </div>
             </div>
           )}
         </div>

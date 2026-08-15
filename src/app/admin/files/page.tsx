@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs } from "@/components/ui/tabs";
-import { cn } from "@/lib/utils";
+import { StatusChip } from "@/components/ui/status-chip";
 import { Mail, FileText, FileSignature, BookOpen, FolderOpen, ListChecks, Plus, X, Download, Trash2, Pencil } from "lucide-react";
 import Link from "next/link";
 
@@ -318,7 +318,7 @@ function AdminLibraryPageInner() {
                         <div>
                           <div className="flex items-center gap-2">
                             <p className="font-medium">{item.title}</p>
-                            <span className={cn("status-dot", "muted")}>{CATEGORY_LABEL[item.category]}</span>
+                            <StatusChip tone="muted" variant="dot">{CATEGORY_LABEL[item.category]}</StatusChip>
                           </div>
                           {item.description && <p className="mt-0.5 text-sm text-muted">{item.description}</p>}
                           {item.category === "email_template" && item.subject && (

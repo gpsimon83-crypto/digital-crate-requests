@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
 import { EVENT_TYPES, EVENT_CATEGORY_GROUPS } from "@/lib/event-types";
 import { PIPELINE_STAGES, PIPELINE_STAGE_DOT } from "@/lib/pipeline-stage";
 import { Plus, X, Briefcase, ChevronRight, Magnet, Mail, Phone, CalendarDays } from "lucide-react";
@@ -431,7 +432,9 @@ function AdminEventsPageContent() {
                           <td className={e.djs ? "" : "text-status-urgent"}>{e.djs?.display_name ?? "Unassigned"}</td>
                           <td className="text-muted">{e.event_type ?? "—"}</td>
                           <td>
-                            <span className={cn("status-dot", STATUS_DOT[e.status] ?? "")}>{STATUS_LABEL[e.status] ?? e.status}</span>
+                            <StatusChip tone={(STATUS_DOT[e.status] as StatusTone) ?? "muted"} variant="dot">
+                              {STATUS_LABEL[e.status] ?? e.status}
+                            </StatusChip>
                           </td>
                           <td>
                             <select
@@ -503,8 +506,12 @@ function AdminEventsPageContent() {
                       <span className="tabular-nums text-muted">
                         {e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
                       </span>
-                      <span className={cn("status-dot", STATUS_DOT[e.status] ?? "")}>{STATUS_LABEL[e.status] ?? e.status}</span>
-                      <span className={cn("status-dot", PIPELINE_STAGE_DOT[e.pipeline_stage ?? "Inquiry"] ?? "")}>{e.pipeline_stage ?? "Inquiry"}</span>
+                      <StatusChip tone={(STATUS_DOT[e.status] as StatusTone) ?? "muted"} variant="dot">
+                        {STATUS_LABEL[e.status] ?? e.status}
+                      </StatusChip>
+                      <StatusChip tone={(PIPELINE_STAGE_DOT[e.pipeline_stage ?? "Inquiry"] as StatusTone) ?? "muted"} variant="dot">
+                        {e.pipeline_stage ?? "Inquiry"}
+                      </StatusChip>
                       <span className={e.djs ? "text-muted" : "text-status-urgent"}>{e.djs?.display_name ?? "Unassigned"}</span>
                       {totalDue && (
                         <span className={e.paid_cents >= totalDueCents ? "text-status-approved" : "text-muted"}>

@@ -11,6 +11,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { RevenueAreaChart } from "@/components/charts/revenue-area-chart";
 import { EventTypeDonut } from "@/components/charts/event-type-donut";
 import { cn } from "@/lib/utils";
+import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
 import {
   Magnet,
   FileText,
@@ -360,7 +361,9 @@ function AdminOverviewPageInner() {
                       </td>
                       <td className="capitalize text-muted">{e.event_type ?? "—"}</td>
                       <td>
-                        <span className={cn("status-dot", STATUS_DOT[e.status] ?? "")}>{STATUS_LABEL[e.status] ?? e.status}</span>
+                        <StatusChip tone={(STATUS_DOT[e.status] as StatusTone) ?? "muted"} variant="dot">
+                          {STATUS_LABEL[e.status] ?? e.status}
+                        </StatusChip>
                       </td>
                     </tr>
                   ))}
@@ -510,7 +513,7 @@ function AdminOverviewPageInner() {
               {pendingContracts.slice(0, 5).map((e) => (
                 <Link key={e.id} href={`/admin/events/${e.id}`} className="group flex items-center justify-between py-2.5 first:pt-0 last:pb-0">
                   <span className="text-sm group-hover:text-gold">{e.title}</span>
-                  <span className="status-dot pending">Awaiting</span>
+                  <StatusChip tone="pending" variant="dot">Awaiting</StatusChip>
                 </Link>
               ))}
             </div>

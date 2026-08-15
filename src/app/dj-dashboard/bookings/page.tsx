@@ -12,6 +12,7 @@ import { isStaffRole } from "@/lib/roles";
 import { EVENT_CATEGORY_GROUPS } from "@/lib/event-types";
 import { PIPELINE_STAGE_DOT } from "@/lib/pipeline-stage";
 import { cn } from "@/lib/utils";
+import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
 
 interface VenueOption {
   id: string;
@@ -375,7 +376,7 @@ export default function DjBookingsPage() {
                 className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <EventInfo event={e} isAdmin={isAdmin} showCode />
-                <span className="status-badge approved shrink-0">Confirmed</span>
+                <StatusChip tone="approved" className="shrink-0">Confirmed</StatusChip>
               </GlassCard>
             ))}
           </div>
@@ -420,9 +421,9 @@ function EventInfo({
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-base font-bold">{e.title}</p>
-          <span className={cn("status-badge", PIPELINE_STAGE_DOT[e.pipeline_stage ?? "Inquiry"] ?? "muted")}>
+          <StatusChip tone={(PIPELINE_STAGE_DOT[e.pipeline_stage ?? "Inquiry"] as StatusTone) ?? "muted"}>
             {e.pipeline_stage ?? "Inquiry"}
-          </span>
+          </StatusChip>
         </div>
         <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
           {isAdmin && <span>{e.djs?.display_name ?? "Unassigned"}</span>}

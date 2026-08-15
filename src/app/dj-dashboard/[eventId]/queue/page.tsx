@@ -3,6 +3,7 @@
 import { use, useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
+import { StatusChip } from "@/components/ui/status-chip";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { Check, X, PlayCircle, Zap, AlertTriangle } from "lucide-react";
 
@@ -80,14 +81,14 @@ export default function LiveQueuePage({ params }: { params: Promise<{ eventId: s
                 <p className="font-semibold">{r.song_title}</p>
                 <span className="text-xs text-muted">{r.artist}</span>
                 {r.explicit && (
-                  <span className="status-badge pending !px-2 !py-0.5 !text-[10px]">
+                  <StatusChip tone="pending" className="!px-2 !py-0.5 !text-[10px]">
                     <AlertTriangle size={10} /> Explicit
-                  </span>
+                  </StatusChip>
                 )}
                 {r.crate_match && r.crate_match.owned_by_dj === false && (
-                  <span className="status-badge declined !px-2 !py-0.5 !text-[10px]">
+                  <StatusChip tone="declined" className="!px-2 !py-0.5 !text-[10px]">
                     Missing from crate
-                  </span>
+                  </StatusChip>
                 )}
               </div>
               <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted">
@@ -130,7 +131,7 @@ export default function LiveQueuePage({ params }: { params: Promise<{ eventId: s
                   <PlayCircle size={14} /> Mark Played
                 </button>
               )}
-              {r.status === "played" && <span className="status-badge played">Played</span>}
+              {r.status === "played" && <StatusChip tone="played">Played</StatusChip>}
             </div>
           </GlassCard>
         ))}

@@ -7,6 +7,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { EventQrCode } from "@/components/dashboard/event-qr-code";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
+import { StatusChip } from "@/components/ui/status-chip";
 import { X } from "lucide-react";
 
 interface EventDj {
@@ -150,9 +151,9 @@ export default function EventSettingsPage({
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold">Event Hero Photo</p>
                 {heroImageUrl ? (
-                  <span className="status-badge approved">Custom Photo</span>
+                  <StatusChip tone="approved">Custom Photo</StatusChip>
                 ) : (
-                  <span className="status-badge pending">Using DJ&apos;s Photo</span>
+                  <StatusChip tone="pending">Using DJ&apos;s Photo</StatusChip>
                 )}
               </div>
               <p className="text-xs text-muted">

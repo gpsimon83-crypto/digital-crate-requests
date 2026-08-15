@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { StatTile } from "@/components/ui/stat-tile";
 import { EmptyState } from "@/components/ui/empty-state";
-import { cn } from "@/lib/utils";
+import { StatusChip } from "@/components/ui/status-chip";
 import { ArrowLeft, DollarSign, Clock, CheckCircle2 } from "lucide-react";
 
 interface PayoutRow {
@@ -82,7 +82,7 @@ export default function DjPayoutsPage() {
                 </div>
                 <div className="flex shrink-0 items-center gap-3 text-xs">
                   <span className="font-semibold tabular-nums">{money(p.amount_cents)}</span>
-                  <span className={cn("status-badge", p.status === "paid" ? "approved" : "pending")}>{p.status === "paid" ? "Paid" : "Pending"}</span>
+                  <StatusChip tone={p.status === "paid" ? "approved" : "pending"}>{p.status === "paid" ? "Paid" : "Pending"}</StatusChip>
                 </div>
               </div>
             ))}

@@ -4,16 +4,17 @@ import { use, useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
+import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
 
 interface EventDj {
   display_name: string;
   photo_url: string | null;
 }
 
-const STATUS_CLASS: Record<string, string> = {
-  authorized: "status-badge pending",
-  captured: "status-badge approved",
-  canceled: "status-badge declined",
+const STATUS_TONE: Record<string, StatusTone> = {
+  authorized: "pending",
+  captured: "approved",
+  canceled: "declined",
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -109,7 +110,7 @@ export default function PaymentsPage({ params }: { params: Promise<{ eventId: st
                   <td className="py-2.5 text-muted">{p.song ?? "—"}</td>
                   <td className="py-2.5 font-semibold">${(p.amountCents / 100).toFixed(2)}</td>
                   <td className="py-2.5">
-                    <span className={STATUS_CLASS[p.status]}>{p.status}</span>
+                    <StatusChip tone={STATUS_TONE[p.status]}>{p.status}</StatusChip>
                   </td>
                   <td className="py-2.5 text-xs text-muted">{new Date(p.createdAt).toLocaleTimeString()}</td>
                 </tr>

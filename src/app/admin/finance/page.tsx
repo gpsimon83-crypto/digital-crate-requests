@@ -7,7 +7,7 @@ import { StatTile } from "@/components/ui/stat-tile";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { StatusChip } from "@/components/ui/status-chip";
 import { Wallet, CheckCircle2, Clock, Users, Receipt, TrendingUp, Plus, X, Trash2 } from "lucide-react";
 
 interface EventRow {
@@ -328,11 +328,10 @@ function PayoutsSection({
               </div>
               <div className="flex shrink-0 items-center gap-3 text-xs">
                 <span className="font-semibold tabular-nums">{money(p.amount_cents)}</span>
-                <button
-                  onClick={() => onTogglePaid(p)}
-                  className={cn("status-badge", p.status === "paid" ? "approved" : "pending")}
-                >
-                  {p.status === "paid" ? "Paid" : "Mark Paid"}
+                <button onClick={() => onTogglePaid(p)}>
+                  <StatusChip tone={p.status === "paid" ? "approved" : "pending"}>
+                    {p.status === "paid" ? "Paid" : "Mark Paid"}
+                  </StatusChip>
                 </button>
                 <button onClick={() => onDelete(p.id)} className="text-status-declined hover:underline">
                   <Trash2 size={12} />

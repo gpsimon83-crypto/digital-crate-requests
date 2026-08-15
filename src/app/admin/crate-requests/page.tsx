@@ -5,7 +5,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatTile } from "@/components/ui/stat-tile";
 import { Music2, DollarSign, Sparkles, Settings2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { StatusChip } from "@/components/ui/status-chip";
 
 interface EventSummary {
   eventId: string;
@@ -82,14 +82,11 @@ export default function AdminCrateRequestsPage() {
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="font-medium">{e.title ?? "Untitled event"}</p>
-                  <span
-                    className={cn(
-                      "status-badge",
-                      e.status === "live" ? "played" : e.status === "ended" ? "approved" : e.status === "declined" ? "declined" : "pending"
-                    )}
+                  <StatusChip
+                    tone={e.status === "live" ? "played" : e.status === "ended" ? "approved" : e.status === "declined" ? "declined" : "pending"}
                   >
                     {STATUS_LABEL[e.status] ?? e.status}
-                  </span>
+                  </StatusChip>
                 </div>
                 <p className="mt-1 text-xs text-muted">
                   {e.djName ?? "Unassigned"} · {e.startsAt ? new Date(e.startsAt).toLocaleDateString() : "No date"} · {e.eventCode}

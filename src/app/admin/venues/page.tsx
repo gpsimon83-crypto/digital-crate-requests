@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { MapPin } from "lucide-react";
 
 interface VenueRow {
@@ -98,35 +98,35 @@ export default function AdminVenuesPage() {
 
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
-        {venues === null && <p className="text-sm text-muted">Loading…</p>}
-        {venues?.length === 0 && <EmptyState icon={MapPin} title="No venues yet" body="Add your first venue partner." />}
-        {venues && venues.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Location</th>
-                  <th className="sr-only">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {venues.map((v) => (
-                  <tr key={v.id}>
-                    <td className="font-medium">{v.name}</td>
-                    <td className="text-muted">{v.location ?? "—"}</td>
-                    <td>
-                      <button onClick={() => handleDelete(v.id)} className="text-xs text-status-declined hover:underline">
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          columns={columns(handleDelete)}
+          rows={venues ?? []}
+          rowKey={(v) => v.id}
+          loading={venues === null}
+          searchFn={(v, q) => v.name.toLowerCase().includes(q) || (v.location ?? "").toLowerCase().includes(q)}
+          searchPlaceholder="Search venues…"
+          emptyIcon={MapPin}
+          emptyTitle="No venues yet"
+          emptyBody="Add your first venue partner."
+        />
       </div>
     </>
   );
+}
+
+function columns(onDelete: (id: string) => void): DataTableColumn<VenueRow>[] {
+  return [
+    { key: "name", header: "Name", sortValue: (v) => v.name, render: (v) => <span className="font-medium">{v.name}</span> },
+    { key: "location", header: "Location", sortValue: (v) => v.location ?? "", render: (v) => <span className="text-muted">{v.location ?? "—"}</span> },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: (v) => (
+        <button onClick={() => onDelete(v.id)} className="text-xs text-status-declined hover:underline">
+          Remove
+        </button>
+      )
+    }
+  ];
 }

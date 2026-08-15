@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
 import { FileText, Download } from "lucide-react";
 
 export interface ContractRow {
@@ -32,7 +32,7 @@ interface TemplateOption {
 }
 
 const STATUS_LABEL: Record<ContractRow["status"], string> = { draft: "Draft", sent: "Sent", signed: "Signed", void: "Void" };
-const STATUS_TONE: Record<ContractRow["status"], string> = {
+const STATUS_TONE: Record<ContractRow["status"], StatusTone> = {
   draft: "muted",
   sent: "pending",
   signed: "approved",
@@ -154,7 +154,7 @@ export function ContractsPanel({ eventId, contracts, onChange }: { eventId: stri
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium">{current.title}</p>
-              <span className={cn("status-dot", STATUS_TONE[current.status])}>{STATUS_LABEL[current.status]}</span>
+              <StatusChip tone={STATUS_TONE[current.status]} variant="dot">{STATUS_LABEL[current.status]}</StatusChip>
             </div>
             {current.file_url && (
               <a href={current.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-gold hover:underline">

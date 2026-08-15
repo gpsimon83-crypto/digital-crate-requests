@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { StatusChip } from "@/components/ui/status-chip";
 import { Plus, Pencil, Trash2, X, ChevronDown, ChevronUp } from "lucide-react";
 import { TRIGGERS, DATE_TRIGGER_TYPES, CONDITION_FIELDS, ACTION_TYPES, buildDateTrigger, parseDateTrigger } from "@/lib/automation-capabilities";
 
@@ -234,14 +235,9 @@ function RunHistory({ automationId }: { automationId: string }) {
       {runs.map((run) => (
         <div key={run.id} className="flex flex-col gap-0.5 py-2">
           <div className="flex items-center gap-2">
-            <span
-              className={cn(
-                "status-badge",
-                run.status === "ran" ? "approved" : run.status === "error" ? "declined" : "muted"
-              )}
-            >
+            <StatusChip tone={run.status === "ran" ? "approved" : run.status === "error" ? "declined" : "muted"}>
               {run.status}
-            </span>
+            </StatusChip>
             <span className="text-muted">{new Date(run.created_at).toLocaleString()}</span>
           </div>
           {run.detail && <p className="text-muted">{run.detail}</p>}

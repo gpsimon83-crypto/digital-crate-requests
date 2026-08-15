@@ -6,6 +6,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { DEFAULT_HERO_SETTINGS, mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
+import { StatusChip } from "@/components/ui/status-chip";
 
 interface DjRow {
   id: string;
@@ -294,9 +295,9 @@ export default function AdminDjsPage() {
                   )}
                 </div>
                 {dj.auth_user_id ? (
-                  <span className="status-badge approved shrink-0">Has Login</span>
+                  <StatusChip tone="approved" className="shrink-0">Has Login</StatusChip>
                 ) : (
-                  <span className="status-badge pending shrink-0">No Login</span>
+                  <StatusChip tone="pending" className="shrink-0">No Login</StatusChip>
                 )}
               </div>
 
