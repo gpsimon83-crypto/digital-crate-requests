@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatTile } from "@/components/ui/stat-tile";
-import { Percent, Trophy, XCircle, Clock, DollarSign } from "lucide-react";
+import { GlassCard } from "@/components/ui/glass-card";
+import { RevenueAreaChart } from "@/components/charts/revenue-area-chart";
+import { EventTypeDonut } from "@/components/charts/event-type-donut";
+import { RadialGauge } from "@/components/charts/radial-gauge";
+import { Trophy, XCircle, Clock } from "lucide-react";
 
 type ReportRange = "last_6_months" | "last_12_months" | "this_year" | "last_year" | "all_time";
 
@@ -80,7 +84,9 @@ export default function AdminReportsPage() {
   const loading = summary === null && !error;
   const winRate = summary && summary.leadConversion.total > 0 ? Math.round((summary.leadConversion.won / summary.leadConversion.total) * 100) : 0;
 
-  const maxMonthCents = summary ? Math.max(1, ...summary.revenueTrend.flatMap((m) => [m.bookedCents, m.collectedCents])) : 1;
+  const revenueChartData = summary?.revenueTrend.map((m) => ({ label: monthLabel(m.month), bookedCents: m.bookedCents, collectedCents: m.collectedCents })) ?? [];
+  const totalEventTypeRevenue = summary?.eventTypes.reduce((s, t) => s + t.revenueCents, 0) ?? 0;
+  const eventTypeSlices = summary?.eventTypes.map((t) => ({ label: t.type, value: t.revenueCents })) ?? [];
 
   return (
     <>
@@ -102,16 +108,20 @@ export default function AdminReportsPage() {
 
         {error && <p className="text-sm text-status-declined">{error}</p>}
 
-        <div className="flex flex-wrap border border-border">
-          <StatTile icon={Percent} label="Lead win rate" value={loading ? "…" : `${winRate}%`} />
-          <StatTile icon={Trophy} label="Leads won" value={loading ? "…" : summary!.leadConversion.won} />
-          <StatTile icon={Clock} label="Leads pending" value={loading ? "…" : summary!.leadConversion.pending} />
-          <StatTile
-            icon={XCircle}
-            label="Leads lost"
-            value={loading ? "…" : summary!.leadConversion.lost}
-            tone={summary && summary.leadConversion.lost > 0 ? "urgent" : "default"}
-          />
+        <div className="grid gap-6 lg:grid-cols-[auto_1fr]">
+          <GlassCard className="flex items-center justify-center">
+            {loading ? <p className="text-sm text-muted">…</p> : <RadialGauge value={winRate} label="Win Rate" />}
+          </GlassCard>
+          <div className="flex flex-wrap border border-border">
+            <StatTile icon={Trophy} label="Leads won" value={loading ? "…" : summary!.leadConversion.won} />
+            <StatTile icon={Clock} label="Leads pending" value={loading ? "…" : summary!.leadConversion.pending} />
+            <StatTile
+              icon={XCircle}
+              label="Leads lost"
+              value={loading ? "…" : summary!.leadConversion.lost}
+              tone={summary && summary.leadConversion.lost > 0 ? "urgent" : "default"}
+            />
+          </div>
         </div>
 
         <div>
@@ -128,27 +138,7 @@ export default function AdminReportsPage() {
           </div>
           {loading && <p className="text-sm text-muted">Loading...</p>}
           {summary && summary.revenueTrend.length === 0 && <p className="text-sm text-muted">No revenue in this range yet.</p>}
-          {summary && summary.revenueTrend.length > 0 && (
-            <div className="flex items-end gap-2 overflow-x-auto sm:gap-3">
-              {summary.revenueTrend.map((m) => (
-                <div key={m.month} className="flex flex-1 min-w-[36px] flex-col items-center gap-1.5">
-                  <div className="flex h-32 w-full items-end gap-0.5">
-                    <div
-                      className="w-1/2 bg-gold/70"
-                      style={{ height: `${Math.max(2, (m.bookedCents / maxMonthCents) * 100)}%` }}
-                      title={`Booked: ${money(m.bookedCents)}`}
-                    />
-                    <div
-                      className="w-1/2 bg-status-approved"
-                      style={{ height: `${Math.max(2, (m.collectedCents / maxMonthCents) * 100)}%` }}
-                      title={`Collected: ${money(m.collectedCents)}`}
-                    />
-                  </div>
-                  <span className="text-[10px] text-muted">{monthLabel(m.month)}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          {summary && summary.revenueTrend.length > 0 && <RevenueAreaChart data={revenueChartData} />}
         </div>
 
         <div>
@@ -185,19 +175,12 @@ export default function AdminReportsPage() {
           </div>
 
           <div>
-            <p className="mb-2 border-b border-border pb-2 text-sm font-semibold">Event types</p>
-            <div className="flex flex-col divide-y divide-border">
-              {loading && <p className="py-2 text-sm text-muted">Loading...</p>}
-              {summary && summary.eventTypes.length === 0 && <p className="py-2 text-sm text-muted">No booked events yet.</p>}
-              {summary?.eventTypes.map((t) => (
-                <div key={t.type} className="flex items-center justify-between py-2.5 first:pt-0">
-                  <span className="text-sm capitalize">{t.type}</span>
-                  <span className="flex items-center gap-1.5 text-sm text-muted">
-                    <DollarSign size={12} /> {t.count} · {money(t.revenueCents)}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <p className="mb-3 border-b border-border pb-2 text-sm font-semibold">Event types</p>
+            {loading && <p className="text-sm text-muted">Loading...</p>}
+            {summary && summary.eventTypes.length === 0 && <p className="text-sm text-muted">No booked events yet.</p>}
+            {summary && summary.eventTypes.length > 0 && (
+              <EventTypeDonut data={eventTypeSlices} centerLabel="Revenue" centerValue={money(totalEventTypeRevenue)} />
+            )}
           </div>
         </div>
       </div>

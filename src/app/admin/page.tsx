@@ -7,6 +7,9 @@ import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { StatTile } from "@/components/ui/stat-tile";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import { GlassCard } from "@/components/ui/glass-card";
+import { RevenueAreaChart } from "@/components/charts/revenue-area-chart";
+import { EventTypeDonut } from "@/components/charts/event-type-donut";
 import { cn } from "@/lib/utils";
 import {
   Magnet,
@@ -49,6 +52,11 @@ interface PaymentRow {
 interface Me {
   user: { email: string | null };
   dj: { display_name: string } | null;
+}
+
+interface PerformanceSummary {
+  revenueTrend: { month: string; bookedCents: number; collectedCents: number }[];
+  eventTypes: { type: string; count: number; revenueCents: number }[];
 }
 
 const STATUS_DOT: Record<string, string> = {
@@ -95,6 +103,11 @@ function eventName(e: PaymentRow["events"]) {
 
 function money(cents: number) {
   return `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+
+function monthLabel(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: "short", year: "2-digit" });
 }
 
 function sameDay(a: Date, b: Date) {
@@ -153,6 +166,14 @@ function AdminOverviewPageInner() {
   const [events, setEvents] = useState<EventRow[] | null>(null);
   const [payments, setPayments] = useState<PaymentRow[] | null>(null);
   const [cursor, setCursor] = useState(() => new Date());
+  const [performance, setPerformance] = useState<PerformanceSummary | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/reports?range=last_6_months")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setPerformance(data?.summary ?? null))
+      .catch(() => setPerformance(null));
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -253,6 +274,31 @@ function AdminOverviewPageInner() {
           </Button>
         </Link>
       </div>
+
+      {performance && (performance.revenueTrend.length > 0 || performance.eventTypes.length > 0) && (
+        <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+          <GlassCard>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-semibold">Revenue — last 6 months</p>
+              <Link href="/admin/reports" className="text-xs text-gold hover:underline">
+                Full report
+              </Link>
+            </div>
+            <RevenueAreaChart
+              data={performance.revenueTrend.map((m) => ({ label: monthLabel(m.month), bookedCents: m.bookedCents, collectedCents: m.collectedCents }))}
+            />
+          </GlassCard>
+          <GlassCard className="flex items-center">
+            {performance.eventTypes.length > 0 && (
+              <EventTypeDonut
+                data={performance.eventTypes.map((t) => ({ label: t.type, value: t.revenueCents }))}
+                centerLabel="Revenue"
+                centerValue={money(performance.eventTypes.reduce((s, t) => s + t.revenueCents, 0))}
+              />
+            )}
+          </GlassCard>
+        </div>
+      )}
 
       {!isHidden("stats") && (
         <div className="flex flex-wrap border border-border">
