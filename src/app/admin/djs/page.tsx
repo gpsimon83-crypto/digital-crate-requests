@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { DEFAULT_HERO_SETTINGS, mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
 
@@ -195,9 +195,9 @@ export default function AdminDjsPage() {
               className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
-          <NeonButton color="gold" onClick={handleAdd} disabled={adding} className="shrink-0">
+          <Button variant="cta" onClick={handleAdd} disabled={adding} className="shrink-0">
             {adding ? "Adding..." : "+ Add DJ"}
-          </NeonButton>
+          </Button>
         </GlassCard>
 
         {error && <p className="text-xs text-status-declined">{error}</p>}
@@ -337,9 +337,9 @@ export default function AdminDjsPage() {
                   <HeroSlider label="Zoom" value={heroDraft.zoom} min={100} max={180} suffix="%" onChange={(v) => setHeroDraft((s) => ({ ...s, zoom: v }))} />
                   <HeroSlider label="Overlay Darkness" value={heroDraft.overlayDarkness} min={0} max={80} suffix="%" onChange={(v) => setHeroDraft((s) => ({ ...s, overlayDarkness: v }))} />
                   <div className="flex gap-2">
-                    <NeonButton color="gold" onClick={() => handleSaveHero(dj.id)} disabled={savingId === dj.id} className="px-4 py-2 text-xs">
+                    <Button variant="primary" size="sm" onClick={() => handleSaveHero(dj.id)} disabled={savingId === dj.id}>
                       {savingId === dj.id ? "Saving..." : "Save"}
-                    </NeonButton>
+                    </Button>
                     <button onClick={() => setHeroTarget(null)} className="rounded-[2px] border border-black/15 px-4 py-2 text-xs text-muted">
                       Cancel
                     </button>
@@ -356,24 +356,24 @@ export default function AdminDjsPage() {
                     placeholder="dj@email.com"
                     className="flex-1 rounded-[2px] border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
                   />
-                  <NeonButton
-                    color="gold"
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={() => handleSendInvite(dj.id)}
                     disabled={sendingInvite || creatingLogin}
-                    className="px-4 py-2 text-xs"
                     title="Email the DJ a link to set their own password"
                   >
                     {sendingInvite ? "Sending..." : "Send Invite Email"}
-                  </NeonButton>
-                  <NeonButton
-                    color="gold"
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={() => handleCreateLogin(dj.id)}
                     disabled={creatingLogin || sendingInvite}
-                    className="px-4 py-2 text-xs"
                     title="Generate a temp password to hand the DJ yourself"
                   >
                     {creatingLogin ? "Creating..." : "Create (temp password)"}
-                  </NeonButton>
+                  </Button>
                 </div>
               )}
             </GlassCard>

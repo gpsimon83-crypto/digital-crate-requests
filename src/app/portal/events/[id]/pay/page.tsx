@@ -6,7 +6,7 @@ import Link from "next/link";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
@@ -126,9 +126,9 @@ function PayForm({ eventId }: { eventId: string }) {
         <PaymentElement />
       </GlassCard>
       {error && <p className="text-sm text-status-declined">{error}</p>}
-      <NeonButton color="gold" onClick={handlePay} disabled={!stripe || submitting} className="w-full">
+      <Button variant="cta" onClick={handlePay} disabled={!stripe || submitting} className="w-full">
         {submitting ? "Processing..." : "Pay Now"}
-      </NeonButton>
+      </Button>
     </div>
   );
 }

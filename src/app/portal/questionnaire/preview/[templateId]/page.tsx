@@ -3,7 +3,7 @@
 import { use as usePromise, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { QuestionInput } from "@/components/portal/questionnaire/question-input";
 import {
   getVisibleQuestions,
@@ -117,9 +117,9 @@ export default function QuestionnairePreviewPage({ params }: { params: Promise<{
         <p className="text-xs font-semibold uppercase tracking-wide text-gold">{template.title}</p>
         <h1 className="mt-3 font-display text-4xl font-light leading-tight">{template.opening_heading}</h1>
         <p className="mt-4 max-w-md text-sm leading-relaxed text-muted">{template.opening_body}</p>
-        <NeonButton color="gold" onClick={handleStart} className="mt-8">
+        <Button variant="cta" onClick={handleStart} className="mt-8">
           {template.opening_cta_label} <ArrowRight size={16} />
-        </NeonButton>
+        </Button>
       </CenteredShell>
     );
   }
@@ -132,9 +132,9 @@ export default function QuestionnairePreviewPage({ params }: { params: Promise<{
         <p className="text-xs font-semibold uppercase tracking-wide text-gold">{template.title}</p>
         <h1 className="mt-3 font-display text-4xl font-light leading-tight">{section.transition_heading || section.title}</h1>
         {section.transition_subheading && <p className="mt-4 max-w-md text-sm leading-relaxed text-muted">{section.transition_subheading}</p>}
-        <NeonButton color="gold" onClick={() => setPhase("question")} className="mt-8">
+        <Button variant="cta" onClick={() => setPhase("question")} className="mt-8">
           Continue <ArrowRight size={16} />
-        </NeonButton>
+        </Button>
       </CenteredShell>
     );
   }
@@ -181,9 +181,9 @@ export default function QuestionnairePreviewPage({ params }: { params: Promise<{
                     I&rsquo;ll decide later
                   </button>
                 )}
-                <NeonButton color="gold" onClick={handleContinue}>
+                <Button variant="cta" onClick={handleContinue}>
                   Continue <ArrowRight size={16} />
-                </NeonButton>
+                </Button>
               </div>
             </div>
           </div>
@@ -221,9 +221,9 @@ export default function QuestionnairePreviewPage({ params }: { params: Promise<{
             })}
           </div>
 
-          <NeonButton color="gold" onClick={() => setPhase("done")} className="mt-8">
+          <Button variant="cta" onClick={() => setPhase("done")} className="mt-8">
             Finish Preview <Check size={16} />
-          </NeonButton>
+          </Button>
         </div>
       </div>
     );

@@ -4,7 +4,7 @@ import { use as usePromise, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { QuestionInput } from "@/components/portal/questionnaire/question-input";
 import {
   getVisibleQuestions,
@@ -245,9 +245,9 @@ export default function QuestionnairePage({ params }: { params: Promise<{ eventI
         <p className="text-xs font-semibold uppercase tracking-wide text-gold">{template.title}</p>
         <h1 className="mt-3 font-display text-4xl font-light leading-tight">{template.opening_heading}</h1>
         <p className="mt-4 max-w-md text-sm leading-relaxed text-muted">{template.opening_body}</p>
-        <NeonButton color="gold" onClick={handleStart} className="mt-8">
+        <Button variant="cta" onClick={handleStart} className="mt-8">
           {template.opening_cta_label} <ArrowRight size={16} />
-        </NeonButton>
+        </Button>
         <BackToEventLink eventId={eventId} />
       </CenteredShell>
     );
@@ -262,9 +262,9 @@ export default function QuestionnairePage({ params }: { params: Promise<{ eventI
         <div className="mt-4 h-1.5 w-64 overflow-hidden rounded-full bg-black/10">
           <div className="h-full bg-gold transition-all" style={{ width: `${progress}%` }} />
         </div>
-        <NeonButton color="gold" onClick={handleResume} className="mt-8">
+        <Button variant="cta" onClick={handleResume} className="mt-8">
           Continue <ArrowRight size={16} />
-        </NeonButton>
+        </Button>
         <BackToEventLink eventId={eventId} />
       </CenteredShell>
     );
@@ -277,9 +277,9 @@ export default function QuestionnairePage({ params }: { params: Promise<{ eventI
         <p className="text-xs font-semibold uppercase tracking-wide text-gold">{template.title}</p>
         <h1 className="mt-3 font-display text-4xl font-light leading-tight">{section.transition_heading || section.title}</h1>
         {section.transition_subheading && <p className="mt-4 max-w-md text-sm leading-relaxed text-muted">{section.transition_subheading}</p>}
-        <NeonButton color="gold" onClick={() => setPhase("question")} className="mt-8">
+        <Button variant="cta" onClick={() => setPhase("question")} className="mt-8">
           Continue <ArrowRight size={16} />
-        </NeonButton>
+        </Button>
       </CenteredShell>
     );
   }
@@ -334,9 +334,9 @@ export default function QuestionnairePage({ params }: { params: Promise<{ eventI
                     I&rsquo;ll decide later
                   </button>
                 )}
-                <NeonButton color="gold" onClick={handleContinue}>
+                <Button variant="cta" onClick={handleContinue}>
                   {returnToReview ? "Save" : "Continue"} <ArrowRight size={16} />
-                </NeonButton>
+                </Button>
               </div>
             </div>
           </div>
@@ -382,9 +382,9 @@ export default function QuestionnairePage({ params }: { params: Promise<{ eventI
 
           {validationError && <p className="mt-4 text-sm text-status-declined">{validationError}</p>}
 
-          <NeonButton color="gold" onClick={handleSubmit} disabled={submitting} className="mt-8">
+          <Button variant="cta" onClick={handleSubmit} disabled={submitting} className="mt-8">
             {submitting ? "Submitting..." : "Submit"} <Check size={16} />
-          </NeonButton>
+          </Button>
         </div>
       </div>
     );
@@ -401,9 +401,9 @@ export default function QuestionnairePage({ params }: { params: Promise<{ eventI
             : "Thanks — your DJ has everything they need."}
         </p>
         <div className="mt-8 flex items-center gap-4">
-          <NeonButton color="gold" onClick={() => setPhase("review")}>
+          <Button variant="cta" onClick={() => setPhase("review")}>
             Review my answers
-          </NeonButton>
+          </Button>
         </div>
         <BackToEventLink eventId={eventId} />
       </CenteredShell>

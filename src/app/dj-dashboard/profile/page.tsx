@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { DEFAULT_HERO_SETTINGS, mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
 import { isStaffRole } from "@/lib/roles";
@@ -280,14 +280,15 @@ export default function DjProfilePage() {
               e.target.value = "";
             }}
           />
-          <NeonButton
-            color="gold"
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => fileInput.current?.click()}
             disabled={uploading}
-            className="shrink-0 px-4 py-2 text-xs"
+            className="shrink-0"
           >
             {uploading ? "Uploading..." : "Change Photo"}
-          </NeonButton>
+          </Button>
         </GlassCard>
 
         <GlassCard className="flex flex-col gap-4">
@@ -339,9 +340,9 @@ export default function DjProfilePage() {
                 />
               </div>
               <div className="flex items-center gap-3">
-                <NeonButton color="gold" onClick={handleSaveEmailAccount} disabled={savingEmail} className="px-4 py-2 text-xs">
+                <Button variant="primary" size="sm" onClick={handleSaveEmailAccount} disabled={savingEmail}>
                   {savingEmail ? "Connecting..." : "Connect"}
-                </NeonButton>
+                </Button>
                 {emailAccount && (
                   <button onClick={() => setShowEmailForm(false)} className="text-xs text-muted hover:text-foreground">
                     Cancel
@@ -426,9 +427,9 @@ export default function DjProfilePage() {
           />
 
           <div className="flex items-center gap-3">
-            <NeonButton color="gold" onClick={handleSave} disabled={saving} className="w-full sm:w-fit">
+            <Button variant="cta" onClick={handleSave} disabled={saving} className="w-full sm:w-fit">
               {saving ? "Saving..." : "Save Hero Settings"}
-            </NeonButton>
+            </Button>
             {saved && <span className="text-xs text-status-approved">Saved</span>}
             <button
               onClick={() => setSettings(DEFAULT_HERO_SETTINGS)}

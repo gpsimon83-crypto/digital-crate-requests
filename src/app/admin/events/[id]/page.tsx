@@ -4,7 +4,6 @@ import { Suspense, useEffect, useRef, useState, use as usePromise } from "react"
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -731,9 +730,9 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 className="min-h-[160px] w-full rounded-[2px] border border-black/10 bg-panel px-4 py-3 text-sm focus:border-gold focus:outline-none"
               />
               <div className="flex items-center gap-3">
-                <NeonButton color="gold" onClick={handleSaveNotes} disabled={savingNotes} className="w-fit">
+                <Button variant="cta" onClick={handleSaveNotes} disabled={savingNotes} className="w-fit">
                   {savingNotes ? "Saving..." : "Save notes"}
-                </NeonButton>
+                </Button>
                 {notesSaved && <span className="text-xs text-status-approved">Saved.</span>}
               </div>
             </div>

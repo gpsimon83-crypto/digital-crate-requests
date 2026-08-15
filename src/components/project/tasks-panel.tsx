@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Check, Trash2, Plus } from "lucide-react";
 
@@ -138,9 +138,9 @@ export function TasksPanel({ eventId }: { eventId: string }) {
             onChange={(e) => setNewDueDate(e.target.value)}
             className="rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
           />
-          <NeonButton color="gold" onClick={handleAdd} disabled={adding || !newTitle.trim()} className="px-4 py-2 text-xs">
+          <Button variant="primary" size="sm" onClick={handleAdd} disabled={adding || !newTitle.trim()}>
             <Plus size={14} /> Add Task
-          </NeonButton>
+          </Button>
         </div>
 
         {error && <p className="text-xs text-status-declined">{error}</p>}

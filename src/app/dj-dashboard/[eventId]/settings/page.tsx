@@ -4,7 +4,7 @@ import { use, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { EventQrCode } from "@/components/dashboard/event-qr-code";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { X } from "lucide-react";
@@ -183,14 +183,14 @@ export default function EventSettingsPage({
                 }}
               />
               <div className="flex gap-2">
-                <NeonButton
-                  color="gold"
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={() => heroFileInput.current?.click()}
                   disabled={uploadingHero}
-                  className="px-4 py-2 text-xs"
                 >
                   {uploadingHero ? "Uploading..." : "Upload Custom Photo"}
-                </NeonButton>
+                </Button>
                 {heroImageUrl && (
                   <button
                     onClick={handleClearHero}
@@ -257,9 +257,9 @@ export default function EventSettingsPage({
             </GlassCard>
 
             <div className="flex items-center gap-3">
-              <NeonButton color="gold" onClick={handleSave} disabled={saving} className="w-full sm:w-fit">
+              <Button variant="cta" onClick={handleSave} disabled={saving} className="w-full sm:w-fit">
                 {saving ? "Saving..." : "Save Settings"}
-              </NeonButton>
+              </Button>
               {saved && <span className="text-xs text-status-approved">Saved</span>}
             </div>
           </>

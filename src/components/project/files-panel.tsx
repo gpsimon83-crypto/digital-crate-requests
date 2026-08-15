@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { FileText, Paperclip, File as FileIcon, BookOpen, Trash2, Upload, Library, Mail, Check } from "lucide-react";
 
 interface EventFileRow {
@@ -179,9 +179,9 @@ export function FilesPanel({ eventId }: { eventId: string }) {
               e.target.value = "";
             }}
           />
-          <NeonButton color="gold" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="px-3 py-1.5 text-xs">
+          <Button variant="primary" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
             <Upload size={13} /> {uploading ? "Uploading…" : "Upload"}
-          </NeonButton>
+          </Button>
           <button
             onClick={toggleLibraryPicker}
             className="flex items-center gap-1.5 rounded-[2px] border border-black/10 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold hover:text-gold"
@@ -212,9 +212,9 @@ export function FilesPanel({ eventId }: { eventId: string }) {
                   </option>
                 ))}
               </select>
-              <NeonButton color="gold" onClick={handleAddFromLibrary} disabled={!selectedLibraryId || addingFromLibrary} className="px-3 py-1.5 text-xs">
+              <Button variant="primary" size="sm" onClick={handleAddFromLibrary} disabled={!selectedLibraryId || addingFromLibrary}>
                 {addingFromLibrary ? "Adding…" : "Add to Portal"}
-              </NeonButton>
+              </Button>
             </>
           )}
         </div>

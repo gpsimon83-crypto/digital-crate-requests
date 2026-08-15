@@ -1,27 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  /* Warm cream/white theme mirroring the WordPress DJ Members Portal
-     (page-members.php's .tab-panel light-mode tokens), so the two apps
-     feel like one product instead of a dark tool + a light one. */
-  --background: #F7F4EE;
-  --card: #FFFFFF;
-  --panel: #F1EEE6;
-  --foreground: #211F1A;
-  --muted: #7A7669;
-  --border: #E6E1D5;
+  /* Site-wide modernization palette (2026-08) — premium cream/gold SaaS
+     system, replacing the old flat WordPress-matched tokens. Applies
+     uniformly across Admin, DJ Dashboard, and Client Portal. */
+  --background: #FAF7F0;
+  --panel: #F5EFE4;
+  --card: #FFFDF8;
+  --foreground: #161616;
+  --muted: #6F6A61;
+  --border: #E8DFD0;
 
-  /* Brand gold — sampled directly from the Crate Request logo (public/brand/crate-request-logo.png) */
-  --gold: #BA8B4B;
-  --gold-light: #D6B993;
-  --gold-dim: #795A31;
-  --gold-soft: #F3E9D8;
+  /* Brand gold */
+  --gold: #C99428;
+  --gold-light: #E5B647;
+  --gold-dim: #9A6A12;
+  --gold-soft: #F6E8C8;
 
   /* Status colors — used only for request/payment status pills */
-  --status-pending: #F2994A;
-  --status-approved: #34C759;
+  --status-pending: #D79A32;
+  --status-approved: #4F9B73;
   --status-played: #4C86FF;
-  --status-declined: #FF5A5F;
+  --status-declined: #C85B52;
   /* Semantic alias, not a new color — "urgent" (overdue, needs action now)
      reads as the same danger tone as "declined," just a different word for
      dashboard/list contexts where "declined" wouldn't make sense. */
@@ -30,7 +30,13 @@
   /* Disabled/inactive UI state — a step down from --muted, low enough
      contrast to read as "not interactive" without failing on its own
      (paired with reduced opacity + non-color cues, never color alone). */
-  --disabled: #C9C3B5;
+  --disabled: #9A948A;
+
+  /* Card geometry — rounded, softly elevated (replaces the old flat
+     sharp-corner/border-only system app-wide). */
+  --radius-card: 16px;
+  --shadow-card: 0 4px 20px rgba(65, 45, 15, 0.05);
+  --shadow-card-hover: 0 8px 28px rgba(65, 45, 15, 0.09);
 
   /* Legacy aliases so existing components keep working under the new palette */
   --neon-cyan: var(--gold);
@@ -61,6 +67,10 @@
   --color-status-declined: var(--status-declined);
   --color-status-urgent: var(--status-urgent);
   --color-disabled: var(--disabled);
+
+  --radius-card: var(--radius-card);
+  --shadow-card: var(--shadow-card);
+  --shadow-card-hover: var(--shadow-card-hover);
 
   --color-neon-cyan: var(--neon-cyan);
   --color-neon-purple: var(--neon-purple);
@@ -105,38 +115,41 @@ body {
   color: var(--foreground);
 }
 
-/* Card — flat, structured, sharp corners; a defined border does the work
-   a soft shadow used to, matching the thin-line-divided grid look used
-   on the homepage hero and event steps. */
+/* Card — rounded, softly elevated premium surface. Border stays (for crisp
+   edges at small sizes) but a subtle shadow now carries the depth, with a
+   slightly stronger shadow + gold border on hover. */
 .glass-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 2px;
-  transition: border-color 0.2s ease;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .glass-card:hover {
   border-color: var(--gold);
+  box-shadow: var(--shadow-card-hover);
 }
 
 /* Gold-outlined emphasis card */
 .neon-border {
   position: relative;
-  border-radius: 2px;
+  border-radius: var(--radius-card);
   padding: 1px;
   background: linear-gradient(155deg, var(--gold), var(--gold-dim) 55%, var(--border));
 }
 .neon-border > * {
-  border-radius: 1px;
+  border-radius: calc(var(--radius-card) - 1px);
   background: var(--card);
 }
 
-/* Hero surface — flat warm cream card, for Party Pulse-style hero cards */
+/* Hero surface — warm cream card, for Party Pulse-style hero cards */
 .hero-surface {
   position: relative;
-  border-radius: 2px;
+  border-radius: var(--radius-card);
   overflow: hidden;
   border: 1px solid var(--border);
   background: #FBF9F4;
+  box-shadow: var(--shadow-card);
 }
 
 /* Kept as a no-op class (existing markup references it) — the glow was
@@ -167,12 +180,12 @@ body {
   box-shadow: none;
 }
 
-/* Solid-fill status badges */
+/* Solid-fill status badges — compact rounded chips, not boxes */
 .status-badge {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border-radius: 2px;
+  border-radius: 9999px;
   padding: 4px 12px;
   font-size: 11px;
   font-weight: 700;
@@ -253,6 +266,7 @@ body {
 /* Sidebar active pill (flat gold fill, dark text/icon) */
 .sidebar-active {
   background: var(--gold);
+  border-radius: 10px;
   color: #0A0A0A !important;
   font-weight: 600;
 }

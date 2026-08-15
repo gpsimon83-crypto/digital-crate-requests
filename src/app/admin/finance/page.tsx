@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { StatTile } from "@/components/ui/stat-tile";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Wallet, CheckCircle2, Clock, Users, Receipt, TrendingUp, Plus, X, Trash2 } from "lucide-react";
 
@@ -264,9 +264,9 @@ function PayoutsSection({
     <div>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm font-semibold">DJ Payouts</p>
-        <NeonButton color="gold" onClick={() => setShowAdd((v) => !v)} className="px-3 py-1.5 text-xs">
+        <Button variant="primary" size="sm" onClick={() => setShowAdd((v) => !v)}>
           {showAdd ? <X size={13} /> : <Plus size={13} />} {showAdd ? "Cancel" : "Add Payout"}
-        </NeonButton>
+        </Button>
       </div>
 
       {showAdd && (
@@ -303,9 +303,9 @@ function PayoutsSection({
             <span className={labelClass}>Notes (optional)</span>
             <input value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} placeholder="e.g. 60/40 split, includes travel" />
           </label>
-          <NeonButton color="gold" onClick={submit} disabled={saving} className="w-fit px-4 py-2 text-xs">
+          <Button variant="primary" size="sm" onClick={submit} disabled={saving} className="w-fit">
             {saving ? "Saving..." : "Save Payout"}
-          </NeonButton>
+          </Button>
         </GlassCard>
       )}
 
@@ -378,9 +378,9 @@ function ExpensesSection({
     <div>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm font-semibold">Expenses</p>
-        <NeonButton color="gold" onClick={() => setShowAdd((v) => !v)} className="px-3 py-1.5 text-xs">
+        <Button variant="primary" size="sm" onClick={() => setShowAdd((v) => !v)}>
           {showAdd ? <X size={13} /> : <Plus size={13} />} {showAdd ? "Cancel" : "Add Expense"}
-        </NeonButton>
+        </Button>
       </div>
 
       {showAdd && (
@@ -411,9 +411,9 @@ function ExpensesSection({
               <input type="date" value={incurredOn} onChange={(e) => setIncurredOn(e.target.value)} className={inputClass} />
             </label>
           </div>
-          <NeonButton color="gold" onClick={submit} disabled={saving} className="w-fit px-4 py-2 text-xs">
+          <Button variant="primary" size="sm" onClick={submit} disabled={saving} className="w-fit">
             {saving ? "Saving..." : "Save Expense"}
-          </NeonButton>
+          </Button>
         </GlassCard>
       )}
 

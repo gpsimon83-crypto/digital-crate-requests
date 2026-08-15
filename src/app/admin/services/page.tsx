@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 
@@ -132,9 +132,9 @@ function PackagesSection({
             All packages include two pre-event planning consultations, high-end speakers, bass subwoofers, and wireless microphones.
           </p>
         </div>
-        <NeonButton color="gold" onClick={() => setShowAdd((v) => !v)} className="px-3 py-1.5 text-xs">
+        <Button variant="primary" size="sm" onClick={() => setShowAdd((v) => !v)}>
           {showAdd ? <X size={13} /> : <Plus size={13} />} {showAdd ? "Cancel" : "Add Package"}
-        </NeonButton>
+        </Button>
       </div>
 
       {showAdd && <PackageForm onSave={handleCreate} onCancel={() => setShowAdd(false)} />}
@@ -241,9 +241,9 @@ function PackageForm({
         <textarea value={features} onChange={(e) => setFeatures(e.target.value)} className={cn(inputClass, "min-h-[90px]")} />
       </label>
       <div className="flex gap-2">
-        <NeonButton color="gold" onClick={submit} className="w-fit px-4 py-2 text-xs">
+        <Button variant="primary" size="sm" onClick={submit} className="w-fit">
           Save
-        </NeonButton>
+        </Button>
         <button onClick={onCancel} className="text-xs text-muted hover:text-foreground">
           Cancel
         </button>
@@ -316,9 +316,9 @@ function AddonsSection({
     <div>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm font-semibold">Add-Ons</p>
-        <NeonButton color="gold" onClick={() => setShowAdd((v) => !v)} className="px-3 py-1.5 text-xs">
+        <Button variant="primary" size="sm" onClick={() => setShowAdd((v) => !v)}>
           {showAdd ? <X size={13} /> : <Plus size={13} />} {showAdd ? "Cancel" : "Add Add-On"}
-        </NeonButton>
+        </Button>
       </div>
 
       {showAdd && <AddonForm onSave={handleCreate} onCancel={() => setShowAdd(false)} />}
@@ -394,9 +394,9 @@ function AddonForm({
         <textarea value={description} onChange={(e) => setDescription(e.target.value)} className={cn(inputClass, "min-h-[60px]")} />
       </label>
       <div className="flex gap-2">
-        <NeonButton color="gold" onClick={submit} className="w-fit px-4 py-2 text-xs">
+        <Button variant="primary" size="sm" onClick={submit} className="w-fit">
           Save
-        </NeonButton>
+        </Button>
         <button onClick={onCancel} className="text-xs text-muted hover:text-foreground">
           Cancel
         </button>

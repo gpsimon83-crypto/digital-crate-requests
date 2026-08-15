@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { TagPicker } from "@/components/dashboard/tag-picker";
 import { SongSlotField } from "@/components/portal/song-slot-field";
@@ -366,9 +366,9 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                       className="rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                     />
                     {signError && <p className="text-xs text-status-declined">{signError}</p>}
-                    <NeonButton color="gold" onClick={handleSign} disabled={signing} className="w-fit">
+                    <Button variant="cta" onClick={handleSign} disabled={signing} className="w-fit">
                       {signing ? "Signing..." : "Sign Contract"}
-                    </NeonButton>
+                    </Button>
                   </div>
                 )}
               </GlassCard>
@@ -524,9 +524,9 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
               {planSaved && <p className="text-sm text-status-approved">Saved.</p>}
 
               <div className="flex items-center gap-3 border-t border-border pt-4">
-                <NeonButton color="gold" onClick={handleSaveMusicPlan} disabled={savingPlan} className="w-fit">
+                <Button variant="cta" onClick={handleSaveMusicPlan} disabled={savingPlan} className="w-fit">
                   {savingPlan ? "Saving..." : "Save Music Plan"}
-                </NeonButton>
+                </Button>
               </div>
             </section>
           )}
@@ -549,11 +549,11 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                     <Link
                       href={`/portal/events/${id}/pay?kind=deposit&amount=${Math.min(Math.round(event.deposit_amount * 100), balance.balanceCents)}`}
                     >
-                      <NeonButton color="gold">Pay Deposit (${event.deposit_amount.toFixed(2)})</NeonButton>
+                      <Button variant="cta">Pay Deposit (${event.deposit_amount.toFixed(2)})</Button>
                     </Link>
                   )}
                   <Link href={`/portal/events/${id}/pay?kind=balance&amount=${balance.balanceCents}`}>
-                    <NeonButton color="gold">Pay Full Balance (${(balance.balanceCents / 100).toFixed(2)})</NeonButton>
+                    <Button variant="cta">Pay Full Balance (${(balance.balanceCents / 100).toFixed(2)})</Button>
                   </Link>
                 </div>
               )}
@@ -576,7 +576,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
               details your DJ needs.
             </p>
             <Link href={`/portal/questionnaire/${id}`} className="w-fit">
-              <NeonButton color="gold">Open Questionnaire →</NeonButton>
+              <Button variant="cta">Open Questionnaire →</Button>
             </Link>
           </GlassCard>
 
@@ -669,9 +669,9 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
           {error && <p className="text-sm text-status-declined">{error}</p>}
           {saved && <p className="text-sm text-status-approved">Saved.</p>}
 
-          <NeonButton color="gold" onClick={handleSave} disabled={saving} className="w-fit">
+          <Button variant="cta" onClick={handleSave} disabled={saving} className="w-fit">
             {saving ? "Saving..." : "Save changes"}
-          </NeonButton>
+          </Button>
         </div>
       )}
       </div>

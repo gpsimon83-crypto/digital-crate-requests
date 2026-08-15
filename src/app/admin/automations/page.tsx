@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Plus, Pencil, Trash2, X, ChevronDown, ChevronUp } from "lucide-react";
 import { TRIGGERS, DATE_TRIGGER_TYPES, CONDITION_FIELDS, ACTION_TYPES, buildDateTrigger, parseDateTrigger } from "@/lib/automation-capabilities";
@@ -129,9 +129,9 @@ export default function AdminAutomationsPage() {
         title="Automations"
         subtitle="Trigger → conditions → actions, running automatically on real events."
         action={
-          <NeonButton color="gold" onClick={() => setShowAdd((v) => !v)} className="px-3 py-1.5 text-xs">
+          <Button variant="primary" size="sm" onClick={() => setShowAdd((v) => !v)}>
             {showAdd ? <X size={13} /> : <Plus size={13} />} {showAdd ? "Cancel" : "New Automation"}
-          </NeonButton>
+          </Button>
         }
       />
       <div className="flex flex-col gap-4 p-6">
@@ -388,9 +388,9 @@ function AutomationForm({
       </div>
 
       <div className="flex gap-2">
-        <NeonButton color="gold" onClick={submit} className="w-fit px-4 py-2 text-xs">
+        <Button variant="primary" size="sm" onClick={submit} className="w-fit">
           Save
-        </NeonButton>
+        </Button>
         <button onClick={onCancel} className="text-xs text-muted hover:text-foreground">
           Cancel
         </button>

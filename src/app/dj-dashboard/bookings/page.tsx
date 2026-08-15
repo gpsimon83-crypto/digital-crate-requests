@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/site/logo";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { Check, X, LogOut, ShieldCheck, CalendarClock, MapPin, Plus, PartyPopper, UserCircle, Boxes } from "lucide-react";
@@ -317,9 +317,9 @@ export default function DjBookingsPage() {
                 )}
 
                 <div className="flex gap-2">
-                  <NeonButton color="gold" onClick={handleCreateEvent} disabled={creating} className="px-4 py-2 text-xs">
+                  <Button variant="primary" size="sm" onClick={handleCreateEvent} disabled={creating}>
                     {creating ? "Creating..." : "Create Event"}
-                  </NeonButton>
+                  </Button>
                   <button
                     onClick={() => setShowCreate(false)}
                     className="rounded-[2px] border border-black/15 px-4 py-2 text-xs text-muted hover:text-foreground"

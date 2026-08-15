@@ -4,7 +4,7 @@ import { use as usePromise, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ChevronDown, ChevronUp, Trash2, Plus, ExternalLink } from "lucide-react";
 import type { QuestionType, QuestionOption } from "@/lib/questionnaire-engine";
@@ -333,9 +333,9 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
             <input value={openingCta} onChange={(e) => setOpeningCta(e.target.value)} className={inputClass} />
           </label>
           <div className="flex items-center gap-3">
-            <NeonButton color="gold" onClick={handleSaveOpening} disabled={savingOpening} className="w-fit">
+            <Button variant="cta" onClick={handleSaveOpening} disabled={savingOpening} className="w-fit">
               {savingOpening ? "Saving..." : "Save Opening Screen"}
-            </NeonButton>
+            </Button>
             {saved && <p className="text-xs text-status-approved">Saved.</p>}
           </div>
         </GlassCard>

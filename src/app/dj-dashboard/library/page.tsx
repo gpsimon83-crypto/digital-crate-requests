@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/glass-card";
-import { NeonButton } from "@/components/ui/neon-button";
+import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/site/logo";
 import {
   Music, Boxes, Copy, Wand2, RefreshCw, UserCircle, ArrowLeft,
@@ -507,9 +507,9 @@ export default function LibraryDashboardPage() {
             Pick the root folder of the drive that has your <code>MUSIC</code> and <code>_Serato_</code> folders on it (e.g. the drive itself, not a subfolder). Everything runs in your browser — nothing is uploaded anywhere.
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <NeonButton color="gold" onClick={pickDrive} disabled={!supported} className="!min-h-0 !py-2.5 !px-6 text-xs">
+            <Button variant="primary" size="sm" onClick={pickDrive} disabled={!supported}>
               <FolderOpen size={14} /> {rootHandle ? `Change Drive (${rootName})` : "Choose Drive Folder"}
-            </NeonButton>
+            </Button>
             {rootHandle && (
               <button
                 onClick={scanLibrary}
