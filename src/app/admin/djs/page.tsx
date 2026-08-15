@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { DEFAULT_HERO_SETTINGS, mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
 import { StatusChip } from "@/components/ui/status-chip";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { SideDrawer } from "@/components/ui/side-drawer";
+import { Disc3 } from "lucide-react";
 
 interface DjRow {
   id: string;
@@ -21,18 +24,16 @@ export default function AdminDjsPage() {
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
-  const [loginTarget, setLoginTarget] = useState<string | null>(null);
   const [loginEmail, setLoginEmail] = useState("");
   const [credentials, setCredentials] = useState<{ djId: string; email: string; tempPassword: string } | null>(null);
   const [creatingLogin, setCreatingLogin] = useState(false);
   const [invited, setInvited] = useState<{ djId: string; email: string } | null>(null);
   const [sendingInvite, setSendingInvite] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
-  const [heroTarget, setHeroTarget] = useState<string | null>(null);
   const [heroDraft, setHeroDraft] = useState<HeroSettings>(DEFAULT_HERO_SETTINGS);
+  const [drawerDjId, setDrawerDjId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -48,6 +49,19 @@ export default function AdminDjsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  function openDrawer(dj: DjRow) {
+    setDrawerDjId(dj.id);
+    setEditName(dj.display_name);
+    setHeroDraft(mergeHeroSettings(dj.hero_settings));
+    setLoginEmail("");
+  }
+
+  function closeDrawer() {
+    setDrawerDjId(null);
+  }
+
+  const drawerDj = djs?.find((d) => d.id === drawerDjId) ?? null;
 
   async function handleAdd() {
     if (!newName.trim()) return;
@@ -75,6 +89,7 @@ export default function AdminDjsPage() {
       const res = await fetch(`/api/admin/djs/${djId}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to remove DJ");
+      closeDrawer();
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -94,7 +109,6 @@ export default function AdminDjsPage() {
       if (!res.ok) throw new Error(data.error || "Failed to create login");
       setCredentials({ djId, email: data.email, tempPassword: data.tempPassword });
       setInvited(null);
-      setLoginTarget(null);
       setLoginEmail("");
       await load();
     } catch (err) {
@@ -117,7 +131,6 @@ export default function AdminDjsPage() {
       if (!res.ok) throw new Error(data.error || "Failed to send invite");
       setInvited({ djId, email: data.email });
       setCredentials(null);
-      setLoginTarget(null);
       setLoginEmail("");
       await load();
     } catch (err) {
@@ -138,7 +151,6 @@ export default function AdminDjsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update name");
-      setEditingId(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -157,7 +169,6 @@ export default function AdminDjsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save hero settings");
-      setHeroTarget(null);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -193,7 +204,7 @@ export default function AdminDjsPage() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="DJ Example"
-              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <Button variant="cta" onClick={handleAdd} disabled={adding} className="shrink-0">
@@ -203,164 +214,84 @@ export default function AdminDjsPage() {
 
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
-        {credentials && (
-          <GlassCard className="border border-gold/40 text-sm">
-            <p className="mb-2 font-semibold text-gold">Login created — share this with the DJ once:</p>
-            <p>
-              Email: <span className="font-mono">{credentials.email}</span>
-            </p>
-            <p>
-              Temporary password: <span className="font-mono">{credentials.tempPassword}</span>
-            </p>
-            <p className="mt-2 text-xs text-muted">
-              They can sign in at <span className="font-mono">/dj-dashboard/login</span>. This password won&apos;t be shown again.
-            </p>
-          </GlassCard>
-        )}
+        <DataTable
+          columns={columns(openDrawer)}
+          rows={djs ?? []}
+          rowKey={(dj) => dj.id}
+          onRowClick={openDrawer}
+          loading={djs === null}
+          searchFn={(dj, q) => dj.display_name.toLowerCase().includes(q)}
+          searchPlaceholder="Search DJs…"
+          emptyIcon={Disc3}
+          emptyTitle="No DJs yet"
+          emptyBody="Add your first DJ to the roster."
+        />
+      </div>
 
-        {invited && (
-          <GlassCard className="border border-gold/40 text-sm">
-            <p className="mb-2 font-semibold text-gold">Invite sent</p>
-            <p>
-              An email went to <span className="font-mono">{invited.email}</span> with a link to set their own
-              password — nothing to share manually.
-            </p>
-          </GlassCard>
-        )}
-
-        <div className="flex flex-col gap-3">
-          {djs === null && <p className="text-sm text-muted">Loading...</p>}
-          {djs?.map((dj) => (
-            <GlassCard key={dj.id} className="flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="relative shrink-0">
-                    <DjAvatar name={dj.display_name} photoUrl={dj.photo_url} size={48} />
-                    <input
-                      ref={(el) => {
-                        fileInputs.current[dj.id] = el;
-                      }}
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handlePhotoSelected(dj.id, file);
-                        e.target.value = "";
-                      }}
-                    />
-                    <button
-                      onClick={() => fileInputs.current[dj.id]?.click()}
-                      disabled={savingId === dj.id}
-                      className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-black disabled:opacity-50"
-                      title="Change photo"
-                    >
-                      ✎
-                    </button>
-                  </div>
-
-                  {editingId === dj.id ? (
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={editName}
-                        onChange={(e) => setEditName(e.target.value)}
-                        className="rounded-lg border border-black/10 bg-panel px-3 py-1.5 text-sm focus:border-gold focus:outline-none"
-                        autoFocus
-                      />
-                      <button
-                        onClick={() => handleSaveName(dj.id)}
-                        disabled={savingId === dj.id}
-                        className="rounded-[2px] bg-gold px-3 py-1 text-xs font-semibold text-black disabled:opacity-50"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingId(null)}
-                        className="rounded-[2px] border border-black/15 px-3 py-1 text-xs text-muted"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        setEditingId(dj.id);
-                        setEditName(dj.display_name);
-                      }}
-                      className="font-semibold hover:text-gold"
-                      title="Click to rename"
-                    >
-                      {dj.display_name}
-                    </button>
-                  )}
-                </div>
-                {dj.auth_user_id ? (
-                  <StatusChip tone="approved" className="shrink-0">Has Login</StatusChip>
-                ) : (
-                  <StatusChip tone="pending" className="shrink-0">No Login</StatusChip>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                {!dj.auth_user_id && loginTarget !== dj.id && (
-                  <button
-                    onClick={() => setLoginTarget(dj.id)}
-                    className="w-fit rounded-[2px] border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
-                  >
-                    Create Login
-                  </button>
-                )}
-                <button
-                  onClick={() => {
-                    if (heroTarget === dj.id) {
-                      setHeroTarget(null);
-                    } else {
-                      setHeroTarget(dj.id);
-                      setHeroDraft(mergeHeroSettings(dj.hero_settings));
-                    }
+      <SideDrawer open={!!drawerDj} onClose={closeDrawer} title={drawerDj?.display_name ?? ""} subtitle="DJ profile">
+        {drawerDj && (
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center gap-3">
+              <div className="relative shrink-0">
+                <DjAvatar name={drawerDj.display_name} photoUrl={drawerDj.photo_url} size={56} />
+                <input
+                  ref={(el) => {
+                    fileInputs.current[drawerDj.id] = el;
                   }}
-                  className="w-fit rounded-[2px] border border-black/15 px-3 py-1.5 text-xs text-muted hover:text-foreground"
-                >
-                  Hero Settings
-                </button>
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handlePhotoSelected(drawerDj.id, file);
+                    e.target.value = "";
+                  }}
+                />
                 <button
-                  onClick={() => handleDelete(dj.id)}
-                  className="w-fit rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
+                  onClick={() => fileInputs.current[drawerDj.id]?.click()}
+                  disabled={savingId === drawerDj.id}
+                  className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-black disabled:opacity-50"
+                  title="Change photo"
                 >
-                  Remove
+                  ✎
                 </button>
               </div>
-
-              {heroTarget === dj.id && (
-                <div className="flex flex-col gap-4 rounded-[2px] border border-gold/20 bg-panel p-4">
-                  <HeroSlider label="Horizontal Position" value={heroDraft.xPosition} min={0} max={100} onChange={(v) => setHeroDraft((s) => ({ ...s, xPosition: v }))} />
-                  <HeroSlider label="Vertical Position" value={heroDraft.yPosition} min={0} max={100} onChange={(v) => setHeroDraft((s) => ({ ...s, yPosition: v }))} />
-                  <HeroSlider label="Zoom" value={heroDraft.zoom} min={100} max={180} suffix="%" onChange={(v) => setHeroDraft((s) => ({ ...s, zoom: v }))} />
-                  <HeroSlider label="Overlay Darkness" value={heroDraft.overlayDarkness} min={0} max={80} suffix="%" onChange={(v) => setHeroDraft((s) => ({ ...s, overlayDarkness: v }))} />
-                  <div className="flex gap-2">
-                    <Button variant="primary" size="sm" onClick={() => handleSaveHero(dj.id)} disabled={savingId === dj.id}>
-                      {savingId === dj.id ? "Saving..." : "Save"}
-                    </Button>
-                    <button onClick={() => setHeroTarget(null)} className="rounded-[2px] border border-black/15 px-4 py-2 text-xs text-muted">
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+              {drawerDj.auth_user_id ? (
+                <StatusChip tone="approved">Has Login</StatusChip>
+              ) : (
+                <StatusChip tone="pending">No Login</StatusChip>
               )}
+            </div>
 
-              {loginTarget === dj.id && (
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <input
-                    type="email"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="dj@email.com"
-                    className="flex-1 rounded-[2px] border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
-                  />
+            <div className="flex flex-col gap-1.5">
+              <span className="text-xs uppercase tracking-wide text-muted">Display Name</span>
+              <div className="flex items-center gap-2">
+                <input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="flex-1 rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                />
+                <Button variant="primary" size="sm" onClick={() => handleSaveName(drawerDj.id)} disabled={savingId === drawerDj.id}>
+                  Save
+                </Button>
+              </div>
+            </div>
+
+            {!drawerDj.auth_user_id && (
+              <div className="flex flex-col gap-2">
+                <span className="text-xs uppercase tracking-wide text-muted">Create Login</span>
+                <input
+                  type="email"
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="dj@email.com"
+                  className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                />
+                <div className="flex gap-2">
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => handleSendInvite(dj.id)}
+                    onClick={() => handleSendInvite(drawerDj.id)}
                     disabled={sendingInvite || creatingLogin}
                     title="Email the DJ a link to set their own password"
                   >
@@ -369,20 +300,82 @@ export default function AdminDjsPage() {
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => handleCreateLogin(dj.id)}
+                    onClick={() => handleCreateLogin(drawerDj.id)}
                     disabled={creatingLogin || sendingInvite}
                     title="Generate a temp password to hand the DJ yourself"
                   >
-                    {creatingLogin ? "Creating..." : "Create (temp password)"}
+                    {creatingLogin ? "Creating..." : "Temp Password"}
                   </Button>
                 </div>
-              )}
-            </GlassCard>
-          ))}
-        </div>
-      </div>
+                {credentials?.djId === drawerDj.id && (
+                  <GlassCard className="border border-gold/40 text-xs">
+                    <p className="mb-1 font-semibold text-gold">Share this with the DJ once:</p>
+                    <p>
+                      Email: <span className="font-mono">{credentials.email}</span>
+                    </p>
+                    <p>
+                      Password: <span className="font-mono">{credentials.tempPassword}</span>
+                    </p>
+                  </GlassCard>
+                )}
+                {invited?.djId === drawerDj.id && (
+                  <p className="text-xs text-status-approved">Invite sent to {invited.email}.</p>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-4">
+              <span className="text-xs uppercase tracking-wide text-muted">Hero Settings</span>
+              <HeroSlider label="Horizontal Position" value={heroDraft.xPosition} min={0} max={100} onChange={(v) => setHeroDraft((s) => ({ ...s, xPosition: v }))} />
+              <HeroSlider label="Vertical Position" value={heroDraft.yPosition} min={0} max={100} onChange={(v) => setHeroDraft((s) => ({ ...s, yPosition: v }))} />
+              <HeroSlider label="Zoom" value={heroDraft.zoom} min={100} max={180} suffix="%" onChange={(v) => setHeroDraft((s) => ({ ...s, zoom: v }))} />
+              <HeroSlider label="Overlay Darkness" value={heroDraft.overlayDarkness} min={0} max={80} suffix="%" onChange={(v) => setHeroDraft((s) => ({ ...s, overlayDarkness: v }))} />
+              <Button variant="primary" size="sm" onClick={() => handleSaveHero(drawerDj.id)} disabled={savingId === drawerDj.id} className="w-fit">
+                {savingId === drawerDj.id ? "Saving..." : "Save Hero Settings"}
+              </Button>
+            </div>
+
+            <Button variant="destructive" size="sm" onClick={() => handleDelete(drawerDj.id)} className="w-fit">
+              Remove from Roster
+            </Button>
+          </div>
+        )}
+      </SideDrawer>
     </>
   );
+}
+
+function columns(onEdit: (dj: DjRow) => void): DataTableColumn<DjRow>[] {
+  return [
+    {
+      key: "name",
+      header: "Name",
+      sortValue: (dj) => dj.display_name,
+      render: (dj) => (
+        <span className="flex items-center gap-2.5">
+          <DjAvatar name={dj.display_name} photoUrl={dj.photo_url} size={28} />
+          <span className="font-medium">{dj.display_name}</span>
+        </span>
+      )
+    },
+    {
+      key: "login",
+      header: "Login",
+      sortValue: (dj) => (dj.auth_user_id ? 1 : 0),
+      render: (dj) =>
+        dj.auth_user_id ? <StatusChip tone="approved">Has Login</StatusChip> : <StatusChip tone="pending">No Login</StatusChip>
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: (dj) => (
+        <button onClick={() => onEdit(dj)} className="text-xs text-gold hover:underline">
+          Manage
+        </button>
+      )
+    }
+  ];
 }
 
 function HeroSlider({
