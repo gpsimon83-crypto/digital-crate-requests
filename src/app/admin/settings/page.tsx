@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
+import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { ShieldCheck, ChevronRight, CalendarDays } from "lucide-react";
 
 interface Settings {
@@ -225,13 +226,9 @@ function ToggleRow({
   onChange: (v: boolean) => void;
 }) {
   return (
-    <button onClick={() => onChange(!checked)} className="flex items-center justify-between text-sm">
+    <div className="flex items-center justify-between text-sm">
       <span>{label}</span>
-      <span className={`relative h-6 w-11 rounded-full transition-colors ${checked ? "bg-gold" : "bg-black/10"}`}>
-        <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"}`}
-        />
-      </span>
-    </button>
+      <ToggleSwitch checked={checked} onChange={onChange} label={label} />
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
+import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { DEFAULT_PRICING_CONFIG, type PaymentMode, type PricingConfig } from "@/lib/pricing";
 import { X } from "lucide-react";
 
@@ -149,32 +150,24 @@ export default function MonetizationPage() {
             values={config.tipSettings.presetCents}
             onChange={(vals) => setConfig((c) => ({ ...c, tipSettings: { ...c.tipSettings, presetCents: vals } }))}
           />
-          <label className="flex items-center justify-between text-sm">
+          <div className="flex items-center justify-between text-sm">
             <span>Allow custom tip amount</span>
-            <button
-              onClick={() =>
-                setConfig((c) => ({ ...c, tipSettings: { ...c.tipSettings, allowCustomAmount: !c.tipSettings.allowCustomAmount } }))
-              }
-              className={`relative h-6 w-11 rounded-full transition-colors ${config.tipSettings.allowCustomAmount ? "bg-gold" : "bg-black/10"}`}
-            >
-              <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-transform ${config.tipSettings.allowCustomAmount ? "translate-x-5" : "translate-x-0.5"}`}
-              />
-            </button>
-          </label>
+            <ToggleSwitch
+              checked={config.tipSettings.allowCustomAmount}
+              onChange={(v) => setConfig((c) => ({ ...c, tipSettings: { ...c.tipSettings, allowCustomAmount: v } }))}
+              label="Allow custom tip amount"
+            />
+          </div>
         </GlassCard>
 
         <GlassCard className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <p className="text-sm font-semibold">Jukebox Mode</p>
-            <button
-              onClick={() => setConfig((c) => ({ ...c, jukebox: { ...c.jukebox, enabled: !c.jukebox.enabled } }))}
-              className={`relative h-6 w-11 rounded-full transition-colors ${config.jukebox.enabled ? "bg-gold" : "bg-black/10"}`}
-            >
-              <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-black transition-transform ${config.jukebox.enabled ? "translate-x-5" : "translate-x-0.5"}`}
-              />
-            </button>
+            <ToggleSwitch
+              checked={config.jukebox.enabled}
+              onChange={(v) => setConfig((c) => ({ ...c, jukebox: { ...c.jukebox, enabled: v } }))}
+              label="Jukebox Mode"
+            />
           </div>
 
           <div className="grid gap-3 sm:grid-cols-4">
