@@ -7,10 +7,6 @@
     {
       "path": "/api/cron/daily-automations",
       "schedule": "0 14 * * *"
-    },
-    {
-      "path": "/api/cron/calendar-sync",
-      "schedule": "*/15 * * * *"
     }
   ]
 }
