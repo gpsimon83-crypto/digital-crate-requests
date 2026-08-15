@@ -26,7 +26,7 @@ function BackLink() {
   return (
     <Link
       href="/dj-dashboard"
-      className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
+      className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
     >
       <ArrowLeft size={14} /> Back
     </Link>

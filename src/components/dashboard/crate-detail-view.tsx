@@ -179,7 +179,7 @@ export function CrateDetailView({
   return (
     <div className="glass-card flex flex-col gap-4 p-4">
       <div className="flex items-start gap-4">
-        <div className="relative size-28 shrink-0 overflow-hidden rounded-[2px] bg-panel">
+        <div className="relative size-28 shrink-0 overflow-hidden rounded-[10px] bg-panel">
           {art?.url && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={art.url} alt="" className="h-full w-full object-cover" />
@@ -189,7 +189,7 @@ export function CrateDetailView({
           <p className="flex items-center gap-2 truncate text-lg font-bold">
             {crate.name.replace(/\.crate$/, "")}
             {profile?.is_elite && (
-              <span className="flex shrink-0 items-center gap-1 rounded-[2px] bg-gold px-2 py-0.5 text-[10px] font-bold uppercase text-black">
+              <span className="flex shrink-0 items-center gap-1 rounded-[10px] bg-gold px-2 py-0.5 text-[10px] font-bold uppercase text-black">
                 <Star size={10} /> {profile.elite_category ?? "Elite"}
               </span>
             )}
@@ -223,7 +223,7 @@ export function CrateDetailView({
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="mt-2 flex items-center gap-1.5 rounded-[2px] border border-gold/40 px-3 py-1.5 text-xs font-semibold text-gold hover:bg-gold/10 disabled:opacity-40"
+            className="mt-2 flex items-center gap-1.5 rounded-[10px] border border-gold/40 px-3 py-1.5 text-xs font-semibold text-gold hover:bg-gold/10 disabled:opacity-40"
           >
             <ImagePlus size={13} /> {uploading ? "Uploading…" : "Upload Cover"}
           </button>
@@ -255,7 +255,7 @@ export function CrateDetailView({
             Tracks <span className="normal-case text-muted/70">— tap the tag icon to categorize a song</span>
             <NewBadge />
           </p>
-          <div className="max-h-96 overflow-y-auto rounded-[2px] border border-black/8">
+          <div className="max-h-96 overflow-y-auto rounded-[10px] border border-black/8">
             {crate.paths.map((p, i) => {
               const isPlaying = player.isPlaying(p);
               return (

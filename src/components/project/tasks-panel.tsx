@@ -104,7 +104,7 @@ export function TasksPanel({ eventId }: { eventId: string }) {
         ) : (
           <div className="flex flex-col gap-2">
             {open.map((task) => (
-              <div key={task.id} className="flex items-center gap-3 rounded-[2px] border border-black/10 bg-panel px-3 py-2.5">
+              <div key={task.id} className="flex items-center gap-3 rounded-[10px] border border-black/10 bg-panel px-3 py-2.5">
                 <button
                   onClick={() => handleToggle(task)}
                   className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-black/20 hover:border-gold"
@@ -130,13 +130,13 @@ export function TasksPanel({ eventId }: { eventId: string }) {
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             placeholder="e.g. Confirm final guest count"
-            className="flex-1 rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+            className="flex-1 rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
           />
           <input
             type="date"
             value={newDueDate}
             onChange={(e) => setNewDueDate(e.target.value)}
-            className="rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+            className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
           />
           <Button variant="primary" size="sm" onClick={handleAdd} disabled={adding || !newTitle.trim()}>
             <Plus size={14} /> Add Task
@@ -154,7 +154,7 @@ export function TasksPanel({ eventId }: { eventId: string }) {
           {showCompleted && (
             <div className="mt-2 flex flex-col gap-2">
               {completed.map((task) => (
-                <div key={task.id} className="flex items-center gap-3 rounded-[2px] border border-black/10 bg-panel px-3 py-2.5 opacity-60">
+                <div key={task.id} className="flex items-center gap-3 rounded-[10px] border border-black/10 bg-panel px-3 py-2.5 opacity-60">
                   <button onClick={() => handleToggle(task)} className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-status-approved text-white">
                     <Check size={12} />
                   </button>

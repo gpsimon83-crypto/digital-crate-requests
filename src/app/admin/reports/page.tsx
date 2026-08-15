@@ -97,7 +97,7 @@ export default function AdminReportsPage() {
             <button
               key={opt.value}
               onClick={() => setRange(opt.value)}
-              className={`rounded-[2px] px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`rounded-[10px] px-3 py-1.5 text-xs font-medium transition-colors ${
                 range === opt.value ? "bg-gold text-black" : "border border-black/10 text-muted hover:border-gold/40 hover:text-gold"
               }`}
             >

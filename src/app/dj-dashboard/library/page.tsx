@@ -511,7 +511,7 @@ export default function LibraryDashboardPage() {
               <button
                 onClick={scanLibrary}
                 disabled={loading}
-                className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold"
+                className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold"
               >
                 <RefreshCw size={13} /> {loading ? (progressMsg ?? "Scanning…") : "Scan Library"}
               </button>
@@ -525,28 +525,28 @@ export default function LibraryDashboardPage() {
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <GlassCard className="flex items-center gap-3">
-                <span className="flex size-11 items-center justify-center rounded-[2px] bg-gold/10 text-gold"><Music size={20} /></span>
+                <span className="flex size-11 items-center justify-center rounded-[10px] bg-gold/10 text-gold"><Music size={20} /></span>
                 <div>
                   <p className="text-2xl font-extrabold">{scan.totalFiles.toLocaleString()}</p>
                   <p className="text-xs text-muted">Total Songs · {formatGB(scan.totalSizeBytes)} GB</p>
                 </div>
               </GlassCard>
               <GlassCard className="flex items-center gap-3">
-                <span className="flex size-11 items-center justify-center rounded-[2px] bg-gold/10 text-gold"><Boxes size={20} /></span>
+                <span className="flex size-11 items-center justify-center rounded-[10px] bg-gold/10 text-gold"><Boxes size={20} /></span>
                 <div>
                   <p className="text-2xl font-extrabold">{crates?.length ?? 0}</p>
                   <p className="text-xs text-muted">Serato Crates</p>
                 </div>
               </GlassCard>
               <GlassCard className="flex items-center gap-3">
-                <span className="flex size-11 items-center justify-center rounded-[2px] bg-status-declined/10 text-status-declined"><Copy size={20} /></span>
+                <span className="flex size-11 items-center justify-center rounded-[10px] bg-status-declined/10 text-status-declined"><Copy size={20} /></span>
                 <div>
                   <p className="text-2xl font-extrabold">{scan.exactDuplicateGroups}</p>
                   <p className="text-xs text-muted">Duplicate Groups · {formatGB(scan.exactDuplicateWastedBytes)} GB reclaimable</p>
                 </div>
               </GlassCard>
               <GlassCard className="flex items-center gap-3">
-                <span className={`flex size-11 items-center justify-center rounded-[2px] ${seratoFound ? "bg-status-approved/10 text-status-approved" : "bg-status-declined/10 text-status-declined"}`}>
+                <span className={`flex size-11 items-center justify-center rounded-[10px] ${seratoFound ? "bg-status-approved/10 text-status-approved" : "bg-status-declined/10 text-status-declined"}`}>
                   {seratoFound ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
                 </span>
                 <div>
@@ -583,16 +583,16 @@ export default function LibraryDashboardPage() {
                 <GlassCard neon className="flex flex-col gap-3">
                   <p className="text-sm font-semibold uppercase tracking-wide text-muted">Quick Tools</p>
 
-                  <div className="flex flex-col gap-2 rounded-[2px] border border-black/8 p-3">
+                  <div className="flex flex-col gap-2 rounded-[10px] border border-black/8 p-3">
                     <p className="flex items-center gap-2 text-sm font-semibold"><Copy size={14} /> Scan Duplicates</p>
-                    <button onClick={previewDedupe} disabled={busyAction !== null} className="rounded-[2px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold">
+                    <button onClick={previewDedupe} disabled={busyAction !== null} className="rounded-[10px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold">
                       Preview
                     </button>
                     {dedupePlan && (
                       <div className="rounded-lg bg-panel/70 p-2 text-xs text-muted">
                         {dedupePlan.length} files would move to review.
                         {dedupePlan.length > 0 && !dedupeResult && (
-                          <button onClick={runDedupeLive} disabled={busyAction !== null} className="mt-2 block rounded-[2px] bg-gold px-3 py-1.5 text-xs font-bold text-black">
+                          <button onClick={runDedupeLive} disabled={busyAction !== null} className="mt-2 block rounded-[10px] bg-gold px-3 py-1.5 text-xs font-bold text-black">
                             {busyAction === "dedupe-live" ? (progressMsg ?? "Moving…") : "Run for real"}
                           </button>
                         )}
@@ -603,10 +603,10 @@ export default function LibraryDashboardPage() {
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-2 rounded-[2px] border border-black/8 p-3">
+                  <div className="flex flex-col gap-2 rounded-[10px] border border-black/8 p-3">
                     <p className="flex items-center gap-2 text-sm font-semibold"><Pencil size={14} /> Clean Up Filenames</p>
                     <p className="text-xs text-muted">Strips leading track numbers like &quot;01. Artist - Song&quot; -&gt; &quot;Artist - Song&quot;. Never touches real artist names like &quot;50 Cent&quot; or &quot;3-6 Mafia&quot;.</p>
-                    <button onClick={previewRename} disabled={busyAction !== null} className="rounded-[2px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold">
+                    <button onClick={previewRename} disabled={busyAction !== null} className="rounded-[10px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold">
                       Preview
                     </button>
                     {renamePlan && (
@@ -623,7 +623,7 @@ export default function LibraryDashboardPage() {
                           </div>
                         )}
                         {renamePlan.length > 0 && !renameResult && (
-                          <button onClick={runRenameLive} disabled={busyAction !== null} className="mt-2 block rounded-[2px] bg-gold px-3 py-1.5 text-xs font-bold text-black">
+                          <button onClick={runRenameLive} disabled={busyAction !== null} className="mt-2 block rounded-[10px] bg-gold px-3 py-1.5 text-xs font-bold text-black">
                             {busyAction === "rename-live" ? (progressMsg ?? "Renaming…") : "Run for real"}
                           </button>
                         )}
@@ -634,12 +634,12 @@ export default function LibraryDashboardPage() {
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-2 rounded-[2px] border border-black/8 p-3">
+                  <div className="flex flex-col gap-2 rounded-[10px] border border-black/8 p-3">
                     <p className="flex items-center gap-2 text-sm font-semibold"><Wand2 size={14} /> Build Crates from Folders</p>
                     <button
                       onClick={runBuildCrates}
                       disabled={busyAction !== null || !seratoFound}
-                      className="rounded-[2px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold disabled:opacity-40"
+                      className="rounded-[10px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold disabled:opacity-40"
                     >
                       {busyAction === "build-live" ? "Building…" : "Build New Crates"}
                     </button>
@@ -652,7 +652,7 @@ export default function LibraryDashboardPage() {
                   </div>
 
                   {brokenCrateCount > 0 && (
-                    <div className="flex flex-col gap-2 rounded-[2px] border border-status-declined/30 bg-status-declined/5 p-3">
+                    <div className="flex flex-col gap-2 rounded-[10px] border border-status-declined/30 bg-status-declined/5 p-3">
                       <p className="flex items-center gap-2 text-sm font-semibold text-status-declined"><AlertTriangle size={14} /> Fix Broken Crates</p>
                       <p className="text-xs text-muted">
                         {brokenCrateCount} crate(s) have a broken track path (built before a path-format fix) and Serato won&apos;t be able to find their tracks. This deletes and rebuilds just those — crates already using the correct format are untouched.
@@ -660,14 +660,14 @@ export default function LibraryDashboardPage() {
                       <button
                         onClick={fixLegacyCrates}
                         disabled={busyAction !== null}
-                        className="rounded-[2px] bg-status-declined px-3 py-1.5 text-xs font-bold text-black disabled:opacity-40"
+                        className="rounded-[10px] bg-status-declined px-3 py-1.5 text-xs font-bold text-black disabled:opacity-40"
                       >
                         {busyAction === "fix-legacy" ? "Fixing…" : `Fix ${brokenCrateCount} Crate(s)`}
                       </button>
                     </div>
                   )}
 
-                  <button onClick={scanLibrary} disabled={loading} className="flex items-center justify-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:border-black/25 hover:text-foreground">
+                  <button onClick={scanLibrary} disabled={loading} className="flex items-center justify-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:border-black/25 hover:text-foreground">
                     <RefreshCw size={13} /> Refresh
                   </button>
                 </GlassCard>
@@ -784,7 +784,7 @@ export default function LibraryDashboardPage() {
                 <button
                   onClick={runEnrichMetadata}
                   disabled={busyAction !== null}
-                  className="shrink-0 rounded-[2px] border border-gold/40 px-4 py-2 text-xs font-semibold text-gold hover:bg-gold/10 disabled:opacity-40"
+                  className="shrink-0 rounded-[10px] border border-gold/40 px-4 py-2 text-xs font-semibold text-gold hover:bg-gold/10 disabled:opacity-40"
                 >
                   {busyAction === "enrich" ? (enrichProgress ?? "Working…") : enrichedTracks ? "Re-run Metadata Agent" : "Run Metadata Agent"}
                 </button>
@@ -811,7 +811,7 @@ export default function LibraryDashboardPage() {
 
                   <div className="flex flex-col gap-2">
                     {smartRules.map((rule) => (
-                      <div key={rule.id} className="flex flex-wrap items-center gap-2 rounded-[2px] border border-black/8 bg-panel/50 p-2.5">
+                      <div key={rule.id} className="flex flex-wrap items-center gap-2 rounded-[10px] border border-black/8 bg-panel/50 p-2.5">
                         <select
                           value={rule.field}
                           onChange={(e) => updateRule(rule.id, { field: e.target.value as RuleField })}
@@ -936,14 +936,14 @@ export default function LibraryDashboardPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setSmartRules((rules) => [...rules, newRule()])}
-                        className="flex items-center gap-1.5 self-start rounded-[2px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold"
+                        className="flex items-center gap-1.5 self-start rounded-[10px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold"
                       >
                         <Plus size={13} /> Add Rule
                       </button>
                       {activeRules.length > 0 && (
                         <button
                           onClick={() => setSmartRules([newRule()])}
-                          className="rounded-[2px] px-3 py-1.5 text-xs font-medium text-muted hover:text-status-declined"
+                          className="rounded-[10px] px-3 py-1.5 text-xs font-medium text-muted hover:text-status-declined"
                         >
                           Clear All Filters
                         </button>
@@ -956,7 +956,7 @@ export default function LibraryDashboardPage() {
                       <span className="text-[11px] text-muted">Active filters</span>
                       <NewBadge />
                       {activeRules.map((r) => (
-                        <span key={r.id} className="flex items-center gap-1.5 rounded-[2px] border border-gold/30 bg-gold/5 px-2.5 py-1 text-[11px] text-gold">
+                        <span key={r.id} className="flex items-center gap-1.5 rounded-[10px] border border-gold/30 bg-gold/5 px-2.5 py-1 text-[11px] text-gold">
                           {FIELD_LABELS[r.field]} {COMPARATORS_FOR_FIELD[r.field].find((c) => c.value === r.comparator)?.label ?? r.comparator} {r.value}{r.value2 ? ` – ${r.value2}` : ""}
                           <button onClick={() => setSmartRules((rules) => rules.filter((rr) => rr.id !== r.id) )} className="hover:text-status-declined">
                             <Trash2 size={10} />
@@ -966,14 +966,14 @@ export default function LibraryDashboardPage() {
                     </div>
                   )}
 
-                  <div className="flex flex-wrap items-center gap-3 rounded-[2px] border border-black/8 bg-panel/50 p-3">
+                  <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-black/8 bg-panel/50 p-3">
                     <p className="text-sm">
                       <span className="font-bold text-gold">{smartMatches.length.toLocaleString()}</span> tracks match
                     </p>
                     <button
                       onClick={() => setShowPreview((v) => !v)}
                       disabled={smartMatches.length === 0}
-                      className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold disabled:opacity-40"
+                      className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold/40 hover:text-gold disabled:opacity-40"
                     >
                       <Eye size={13} /> {showPreview ? "Hide Preview" : "Preview Songs"}
                     </button>
@@ -981,19 +981,19 @@ export default function LibraryDashboardPage() {
                       value={smartCrateName}
                       onChange={(e) => setSmartCrateName(e.target.value)}
                       placeholder="Crate name, e.g. Warm Up 90s R&B"
-                      className="min-w-[220px] flex-1 rounded-[2px] border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
+                      className="min-w-[220px] flex-1 rounded-[10px] border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
                     />
                     <button
                       onClick={runBuildSmartCrate}
                       disabled={busyAction !== null || !smartCrateName.trim() || smartMatches.length === 0 || !seratoFound}
-                      className="rounded-[2px] bg-gold px-4 py-2 text-xs font-bold text-black disabled:opacity-40"
+                      className="rounded-[10px] bg-gold px-4 py-2 text-xs font-bold text-black disabled:opacity-40"
                     >
                       {busyAction === "smart-build" ? "Building…" : "Build Crate"}
                     </button>
                   </div>
 
                   {showPreview && smartMatches.length > 0 && (
-                    <div className="max-h-72 overflow-y-auto rounded-[2px] border border-black/8 bg-panel/30 p-2">
+                    <div className="max-h-72 overflow-y-auto rounded-[10px] border border-black/8 bg-panel/30 p-2">
                       {smartMatches.slice(0, 300).map((t, i) => (
                         <div key={`${t.key}-${i}`} className="flex items-center justify-between gap-3 rounded-lg px-2 py-1.5 text-xs hover:bg-black/5">
                           <span className="truncate">{t.artist} — {t.resolvedTitle}</span>

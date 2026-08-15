@@ -30,7 +30,7 @@ export function TagPicker({
             key={option}
             type="button"
             onClick={() => toggle(option)}
-            className={`rounded-[2px] border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+            className={`rounded-[10px] border px-2.5 py-1 text-[11px] font-medium transition-colors ${
               active
                 ? "border-gold bg-gold/15 text-gold"
                 : "border-black/12 text-muted hover:border-black/25 hover:text-foreground"

@@ -56,7 +56,7 @@ const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
 
 const HAS_OPTIONS: QuestionType[] = ["single_select", "multi_select"];
 
-const inputClass = "w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none";
+const inputClass = "w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none";
 const labelClass = "mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted";
 
 function slugify(text: string) {
@@ -297,14 +297,14 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
         action={
           <div className="flex items-center gap-2">
             <a href={`/portal/questionnaire/preview/${templateId}`} target="_blank" rel="noreferrer">
-              <button className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground">
+              <button className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground">
                 Preview <ExternalLink size={13} />
               </button>
             </a>
             <button
               onClick={handleToggleActive}
               className={cn(
-                "rounded-[2px] border px-3.5 py-2 text-xs font-medium transition-colors",
+                "rounded-[10px] border px-3.5 py-2 text-xs font-medium transition-colors",
                 template.is_active ? "border-status-approved/40 text-status-approved hover:bg-status-approved/10" : "border-black/12 text-muted hover:border-black/25"
               )}
             >
@@ -358,7 +358,7 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
 
         <button
           onClick={handleAddSection}
-          className="flex w-fit items-center gap-1.5 rounded-[2px] border border-dashed border-black/20 px-4 py-2.5 text-sm font-medium text-muted hover:border-gold hover:text-gold"
+          className="flex w-fit items-center gap-1.5 rounded-[10px] border border-dashed border-black/20 px-4 py-2.5 text-sm font-medium text-muted hover:border-gold hover:text-gold"
         >
           <Plus size={15} /> Add Chapter
         </button>
@@ -371,7 +371,7 @@ function BackLink() {
   return (
     <Link
       href="/admin/questionnaires"
-      className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
+      className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
     >
       <ArrowLeft size={14} /> Back
     </Link>
@@ -498,7 +498,7 @@ function QuestionEditor({
   }
 
   return (
-    <div className="rounded-[2px] border border-black/10 bg-panel p-3">
+    <div className="rounded-[10px] border border-black/10 bg-panel p-3">
       <div className="flex items-start justify-between gap-3">
         <button onClick={() => setExpanded((v) => !v)} className="flex-1 text-left">
           <p className="text-sm font-medium">{question.prompt}</p>

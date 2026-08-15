@@ -357,7 +357,7 @@ export default function AdminOverviewPage() {
                     !inMonth && "opacity-30"
                   )}
                 >
-                  <span className={cn("flex h-5 w-5 items-center justify-center rounded-[2px]", isToday && "bg-gold text-black")}>
+                  <span className={cn("flex h-5 w-5 items-center justify-center rounded-[10px]", isToday && "bg-gold text-black")}>
                     {d.getDate()}
                   </span>
                   {dayEvents.length > 0 && <span className="h-1.5 w-1.5 rounded-full bg-gold" />}
@@ -484,7 +484,7 @@ function TaskRow({
       <span className="flex-1 text-sm group-hover:text-gold">{label}</span>
       <span
         className={cn(
-          "flex h-5 min-w-5 items-center justify-center rounded-[2px] px-1 text-xs font-semibold tabular-nums",
+          "flex h-5 min-w-5 items-center justify-center rounded-[10px] px-1 text-xs font-semibold tabular-nums",
           tone === "urgent" ? "bg-status-urgent/10 text-status-urgent" : "bg-panel text-muted"
         )}
       >

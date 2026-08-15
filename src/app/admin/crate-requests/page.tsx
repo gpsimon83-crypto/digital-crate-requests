@@ -56,7 +56,7 @@ export default function AdminCrateRequestsPage() {
         action={
           <Link
             href="/admin/monetization"
-            className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
+            className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
           >
             <Settings2 size={14} /> Pricing
           </Link>
@@ -103,13 +103,13 @@ export default function AdminCrateRequestsPage() {
                 <div className="flex gap-2">
                   <Link
                     href={`/dj-dashboard/${e.eventCode}/queue`}
-                    className="rounded-[2px] border border-black/12 px-2.5 py-1 font-medium transition-colors hover:border-gold/40 hover:text-gold"
+                    className="rounded-[10px] border border-black/12 px-2.5 py-1 font-medium transition-colors hover:border-gold/40 hover:text-gold"
                   >
                     Live Requests
                   </Link>
                   <Link
                     href={`/dj-dashboard/${e.eventCode}/pulse`}
-                    className="rounded-[2px] border border-black/12 px-2.5 py-1 font-medium transition-colors hover:border-gold/40 hover:text-gold"
+                    className="rounded-[10px] border border-black/12 px-2.5 py-1 font-medium transition-colors hover:border-gold/40 hover:text-gold"
                   >
                     Pulse
                   </Link>

@@ -64,7 +64,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
       <div className="mb-8 flex items-center justify-between print:hidden">
         <button
           onClick={() => window.print()}
-          className="rounded-[2px] border border-black/12 px-4 py-2 text-sm font-medium hover:border-gold"
+          className="rounded-[10px] border border-black/12 px-4 py-2 text-sm font-medium hover:border-gold"
         >
           Print / Save as PDF
         </button>

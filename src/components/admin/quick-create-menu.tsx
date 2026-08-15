@@ -29,7 +29,7 @@ export function QuickCreateMenu() {
     <div ref={ref} className="relative mb-2">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="menu-fade-item flex w-full items-center gap-3 rounded-[2px] bg-gold px-3 py-2.5 text-sm font-semibold text-black transition-transform hover:scale-[1.02]"
+        className="menu-fade-item flex w-full items-center gap-3 rounded-[10px] bg-gold px-3 py-2.5 text-sm font-semibold text-black transition-transform hover:scale-[1.02]"
       >
         <Plus size={18} className="shrink-0" />
         <span className="whitespace-nowrap opacity-0 transition-opacity delay-75 duration-150 group-hover:opacity-100">New</span>

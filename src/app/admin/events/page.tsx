@@ -438,7 +438,7 @@ function AdminEventsPageContent() {
                               value={e.pipeline_stage ?? "Inquiry"}
                               onChange={(ev) => handleStageChange(e.id, ev.target.value)}
                               className={cn(
-                                "status-dot rounded-[2px] border-0 bg-transparent py-0.5 pl-0 pr-5 text-xs focus:outline-none",
+                                "status-dot rounded-[10px] border-0 bg-transparent py-0.5 pl-0 pr-5 text-xs focus:outline-none",
                                 PIPELINE_STAGE_DOT[e.pipeline_stage ?? "Inquiry"] ?? ""
                               )}
                             >
@@ -554,7 +554,7 @@ function SelectField({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+        className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
       >
         <option value="">{placeholder}</option>
         {options.map((o) => (

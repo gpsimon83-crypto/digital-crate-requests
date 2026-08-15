@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { MapPin } from "lucide-react";
 
 interface VenueRow {
@@ -18,6 +19,7 @@ export default function AdminVenuesPage() {
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [adding, setAdding] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -57,7 +59,6 @@ export default function AdminVenuesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Remove this venue? This cannot be undone.")) return;
     try {
       const res = await fetch(`/api/admin/venues/${id}`, { method: "DELETE" });
       const data = await res.json();
@@ -65,6 +66,8 @@ export default function AdminVenuesPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setPendingDeleteId(null);
     }
   }
 
@@ -79,7 +82,7 @@ export default function AdminVenuesPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Venue name"
-              className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <label className="block flex-1">
@@ -88,7 +91,7 @@ export default function AdminVenuesPage() {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               placeholder="City, State"
-              className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <Button variant="primary" onClick={handleAdd} disabled={adding} className="shrink-0">
@@ -99,7 +102,7 @@ export default function AdminVenuesPage() {
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
         <DataTable
-          columns={columns(handleDelete)}
+          columns={columns(setPendingDeleteId)}
           rows={venues ?? []}
           rowKey={(v) => v.id}
           loading={venues === null}
@@ -110,6 +113,15 @@ export default function AdminVenuesPage() {
           emptyBody="Add your first venue partner."
         />
       </div>
+
+      <ConfirmModal
+        open={!!pendingDeleteId}
+        title="Remove this venue?"
+        body="This cannot be undone."
+        confirmLabel="Remove"
+        onConfirm={() => pendingDeleteId && handleDelete(pendingDeleteId)}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </>
   );
 }

@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Field } from "@/components/ui/field";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { Plus, X, Users, Building2, ChevronRight } from "lucide-react";
+import { clientName } from "@/lib/format";
 
 interface ClientRow {
   id: string;
@@ -19,8 +21,10 @@ interface ClientRow {
 }
 
 export default function AdminClientsPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<ClientRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -79,7 +83,6 @@ export default function AdminClientsPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Remove this client? This cannot be undone.")) return;
     try {
       const res = await fetch(`/api/admin/clients/${id}`, { method: "DELETE" });
       const data = await res.json();
@@ -87,6 +90,8 @@ export default function AdminClientsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setPendingDeleteId(null);
     }
   }
 
@@ -121,50 +126,65 @@ export default function AdminClientsPage() {
           </div>
         )}
 
-        {clients === null && <p className="text-sm text-muted">Loading…</p>}
-        {clients?.length === 0 && <EmptyState icon={Users} title="No contacts yet" body="Add your first client to get started." />}
-        {clients && clients.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Phone</th>
-                  <th className="sr-only">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {clients.map((c) => {
-                  const name = c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed contact";
-                  return (
-                    <tr key={c.id}>
-                      <td>
-                        <Link href={`/admin/clients/${c.id}`} className="flex items-center gap-1.5 font-medium hover:text-gold">
-                          {c.company_name && <Building2 size={13} className="shrink-0 text-muted" />}
-                          {name}
-                        </Link>
-                      </td>
-                      <td className="text-muted">{c.email ?? "—"}</td>
-                      <td className="text-muted">{c.phone ?? "—"}</td>
-                      <td>
-                        <div className="flex items-center justify-end gap-3">
-                          <button onClick={() => handleDelete(c.id)} className="text-xs text-status-declined hover:underline">
-                            Remove
-                          </button>
-                          <Link href={`/admin/clients/${c.id}`} className="flex items-center text-muted hover:text-gold">
-                            <ChevronRight size={15} />
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          columns={columns(setPendingDeleteId)}
+          rows={clients ?? []}
+          rowKey={(c) => c.id}
+          onRowClick={(c) => router.push(`/admin/clients/${c.id}`)}
+          loading={clients === null}
+          searchFn={(c, q) => (clientName(c, "") ?? "").toLowerCase().includes(q) || (c.email ?? "").toLowerCase().includes(q)}
+          searchPlaceholder="Search contacts…"
+          emptyIcon={Users}
+          emptyTitle="No contacts yet"
+          emptyBody="Add your first client to get started."
+        />
       </div>
+
+      <ConfirmModal
+        open={!!pendingDeleteId}
+        title="Remove this client?"
+        body="This cannot be undone."
+        confirmLabel="Remove"
+        onConfirm={() => pendingDeleteId && handleDelete(pendingDeleteId)}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </>
   );
+}
+
+function columns(onDelete: (id: string) => void): DataTableColumn<ClientRow>[] {
+  return [
+    {
+      key: "name",
+      header: "Name",
+      sortValue: (c) => clientName(c, "") ?? "",
+      render: (c) => (
+        <span className="flex items-center gap-1.5 font-medium">
+          {c.company_name && <Building2 size={13} className="shrink-0 text-muted" />}
+          {clientName(c, "Unnamed contact")}
+        </span>
+      )
+    },
+    { key: "email", header: "Email", sortValue: (c) => c.email ?? "", render: (c) => <span className="text-muted">{c.email ?? "—"}</span> },
+    { key: "phone", header: "Phone", render: (c) => <span className="text-muted">{c.phone ?? "—"}</span> },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: (c) => (
+        <div className="flex items-center justify-end gap-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(c.id);
+            }}
+            className="text-xs text-status-declined hover:underline"
+          >
+            Remove
+          </button>
+          <ChevronRight size={15} className="text-muted" />
+        </div>
+      )
+    }
+  ];
 }

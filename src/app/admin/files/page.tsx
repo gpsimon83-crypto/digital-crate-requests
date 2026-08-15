@@ -215,7 +215,7 @@ function AdminLibraryPageInner() {
                 <select
                   value={addCategory}
                   onChange={(e) => setAddCategory(e.target.value as Category)}
-                  className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                  className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
                 >
                   <option value="email_template">Email Template</option>
                   <option value="contract_template">Contract Template</option>
@@ -244,7 +244,7 @@ function AdminLibraryPageInner() {
                         ? "Write the reusable contract text here. Use {{client_full_name}}, {{event_date}}, {{total_amount}}, etc."
                         : "Write the reusable email text here..."
                     }
-                    className="min-h-[140px] w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                    className="min-h-[140px] w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
                   />
                 </label>
               </div>
@@ -300,7 +300,7 @@ function AdminLibraryPageInner() {
                         <textarea
                           value={editBody}
                           onChange={(e) => setEditBody(e.target.value)}
-                          className="min-h-[120px] w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                          className="min-h-[120px] w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
                         />
                       </label>
                       <div className="flex gap-2">

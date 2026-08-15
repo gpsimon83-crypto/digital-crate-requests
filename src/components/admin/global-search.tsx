@@ -77,7 +77,7 @@ export function GlobalSearch() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="menu-fade-item flex items-center gap-3 rounded-[2px] px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
+        className="menu-fade-item flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
         <Search size={18} className="shrink-0" />
         <span className="whitespace-nowrap opacity-0 transition-opacity delay-75 duration-150 group-hover:opacity-100">Search</span>
@@ -111,7 +111,7 @@ export function GlobalSearch() {
                       <button
                         key={item.id}
                         onClick={() => go(item.href)}
-                        className={cn("flex w-full flex-col items-start gap-0.5 rounded-[2px] px-3 py-2 text-left transition-colors hover:bg-gold/10")}
+                        className={cn("flex w-full flex-col items-start gap-0.5 rounded-[10px] px-3 py-2 text-left transition-colors hover:bg-gold/10")}
                       >
                         <span className="text-sm">{item.title}</span>
                         {item.subtitle && <span className="text-xs text-muted">{item.subtitle}</span>}

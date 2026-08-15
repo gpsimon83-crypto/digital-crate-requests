@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { Plus, X, LayoutTemplate } from "lucide-react";
 import { TagPicker } from "@/components/dashboard/tag-picker";
 import { EVENT_TYPES, GENRE_TAGS, ERA_OPTIONS, CLEAN_MUSIC_OPTIONS } from "@/lib/crate-taxonomy";
@@ -30,6 +31,7 @@ export default function AdminCrateTemplatesPage() {
   const [cleanRequirement, setCleanRequirement] = useState("");
   const [adding, setAdding] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -94,7 +96,6 @@ export default function AdminCrateTemplatesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Remove this template? This cannot be undone.")) return;
     try {
       const res = await fetch(`/api/admin/crate-templates/${id}`, { method: "DELETE" });
       const data = await res.json();
@@ -102,6 +103,8 @@ export default function AdminCrateTemplatesPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setPendingDeleteId(null);
     }
   }
 
@@ -127,7 +130,7 @@ export default function AdminCrateTemplatesPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Wedding Reception"
-                className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
               />
             </label>
             <label className="block">
@@ -135,7 +138,7 @@ export default function AdminCrateTemplatesPage() {
               <select
                 value={eventType}
                 onChange={(e) => setEventType(e.target.value)}
-                className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                className="w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
               >
                 <option value="">None</option>
                 {EVENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
@@ -148,7 +151,7 @@ export default function AdminCrateTemplatesPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Short description"
-              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </label>
           <label className="block">
@@ -156,7 +159,7 @@ export default function AdminCrateTemplatesPage() {
             <select
               value={cleanRequirement}
               onChange={(e) => setCleanRequirement(e.target.value)}
-              className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             >
               <option value="">None</option>
               {CLEAN_MUSIC_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
@@ -192,8 +195,8 @@ export default function AdminCrateTemplatesPage() {
                   </p>
                 </div>
                 <button
-                  onClick={() => handleDelete(t.id)}
-                  className="shrink-0 rounded-[2px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
+                  onClick={() => setPendingDeleteId(t.id)}
+                  className="shrink-0 rounded-[10px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
                 >
                   Remove
                 </button>
@@ -202,6 +205,15 @@ export default function AdminCrateTemplatesPage() {
           </div>
         )}
       </div>
+
+      <ConfirmModal
+        open={!!pendingDeleteId}
+        title="Remove this template?"
+        body="This cannot be undone."
+        confirmLabel="Remove"
+        onConfirm={() => pendingDeleteId && handleDelete(pendingDeleteId)}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </>
   );
 }

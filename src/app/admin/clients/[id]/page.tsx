@@ -147,7 +147,7 @@ export default function ClientDetailPage({ params }: { params: Promise<{ id: str
                     key={m.id}
                     href={`/admin/events/${m.event_id}?tab=Activity`}
                     className={cn(
-                      "flex flex-col gap-1 rounded-[2px] border p-3 text-sm transition-colors hover:border-gold/50",
+                      "flex flex-col gap-1 rounded-[10px] border p-3 text-sm transition-colors hover:border-gold/50",
                       m.direction === "outbound" ? "border-black/10 bg-panel" : "border-gold/30 bg-gold/5"
                     )}
                   >

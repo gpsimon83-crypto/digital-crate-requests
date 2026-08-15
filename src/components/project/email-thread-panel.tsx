@@ -130,7 +130,7 @@ export function EmailThreadPanel({
             <div
               key={m.id}
               className={cn(
-                "flex flex-col gap-1 rounded-[2px] border p-3 text-sm",
+                "flex flex-col gap-1 rounded-[10px] border p-3 text-sm",
                 m.direction === "outbound" ? "border-black/10 bg-panel" : "border-gold/30 bg-gold/5"
               )}
             >
@@ -155,7 +155,7 @@ export function EmailThreadPanel({
             value={selectedTemplateId}
             onChange={(e) => applyTemplate(e.target.value)}
             disabled={!hasClient}
-            className="rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-xs focus:border-gold focus:outline-none disabled:opacity-50"
+            className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-xs focus:border-gold focus:outline-none disabled:opacity-50"
           >
             <option value="">Use a template…</option>
             {emailTemplates.map((t) => (
@@ -170,19 +170,19 @@ export function EmailThreadPanel({
           onChange={(e) => setComposeSubject(e.target.value)}
           placeholder="Subject (optional)"
           disabled={!hasClient}
-          className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none disabled:opacity-50"
+          className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none disabled:opacity-50"
         />
         <textarea
           value={composeText}
           onChange={(e) => setComposeText(e.target.value)}
           placeholder={hasClient ? `Message ${clientDisplayName ?? "your client"}...` : "This project has no client linked yet."}
           disabled={!hasClient}
-          className="min-h-[90px] w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none disabled:opacity-50"
+          className="min-h-[90px] w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none disabled:opacity-50"
         />
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-1.5">
             {attachments.map((f, i) => (
-              <span key={`${f.name}-${i}`} className="flex items-center gap-1.5 rounded-[2px] border border-black/10 bg-panel px-2.5 py-1 text-xs">
+              <span key={`${f.name}-${i}`} className="flex items-center gap-1.5 rounded-[10px] border border-black/10 bg-panel px-2.5 py-1 text-xs">
                 {f.name}
                 <button onClick={() => setAttachments((prev) => prev.filter((_, idx) => idx !== i))} className="text-muted hover:text-status-declined">
                   <X size={11} />
@@ -207,7 +207,7 @@ export function EmailThreadPanel({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={!hasClient}
-            className="flex items-center gap-1.5 rounded-[2px] border border-black/10 px-2.5 py-1.5 text-xs text-muted hover:border-gold hover:text-gold disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-[10px] border border-black/10 px-2.5 py-1.5 text-xs text-muted hover:border-gold hover:text-gold disabled:opacity-50"
           >
             <Paperclip size={12} /> Attach
           </button>

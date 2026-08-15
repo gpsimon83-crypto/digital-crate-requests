@@ -132,7 +132,7 @@ export function ContractsPanel({ eventId, contracts, onChange }: { eventId: stri
               <select
                 value={templateId}
                 onChange={(e) => setTemplateId(e.target.value)}
-                className="flex-1 rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                className="flex-1 rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
               >
                 <option value="">Select a template…</option>
                 {templates.map((t) => (
@@ -170,7 +170,7 @@ export function ContractsPanel({ eventId, contracts, onChange }: { eventId: stri
                   <textarea
                     value={editingBody}
                     onChange={(e) => setEditingBody(e.target.value)}
-                    className="min-h-[200px] w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                    className="min-h-[200px] w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
                   />
                   <div className="flex gap-2">
                     <Button variant="primary" size="sm" onClick={handleSaveEdit} disabled={saving}>
@@ -182,7 +182,7 @@ export function ContractsPanel({ eventId, contracts, onChange }: { eventId: stri
                   </div>
                 </div>
               ) : (
-                <div className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-[2px] border border-black/10 bg-panel/60 p-3 text-xs text-muted">
+                <div className="max-h-48 overflow-y-auto whitespace-pre-wrap rounded-[10px] border border-black/10 bg-panel/60 p-3 text-xs text-muted">
                   {current.body}
                 </div>
               )}

@@ -5,7 +5,7 @@ import { Plus, X } from "lucide-react";
 import type { AnswerValue, PersonListEntry, Question } from "@/lib/questionnaire-engine";
 
 const inputClass =
-  "w-full rounded-[2px] border border-black/10 bg-panel px-4 py-3 text-base focus:border-gold focus:outline-none";
+  "w-full rounded-[10px] border border-black/10 bg-panel px-4 py-3 text-base focus:border-gold focus:outline-none";
 
 interface QuestionInputProps {
   question: Question;
@@ -37,7 +37,7 @@ export function QuestionInput({ question, value, onChange, onSelectAdvance }: Qu
                   else onChange({ value: opt.value });
                 }}
                 className={cn(
-                  "rounded-[2px] border px-5 py-4 text-left text-sm font-medium transition-colors",
+                  "rounded-[10px] border px-5 py-4 text-left text-sm font-medium transition-colors",
                   selected ? "border-gold bg-gold/10 text-gold" : "border-black/10 bg-panel hover:border-gold/50"
                 )}
               >
@@ -62,7 +62,7 @@ export function QuestionInput({ question, value, onChange, onSelectAdvance }: Qu
                   onChange({ value: next });
                 }}
                 className={cn(
-                  "rounded-[2px] border px-5 py-4 text-left text-sm font-medium transition-colors",
+                  "rounded-[10px] border px-5 py-4 text-left text-sm font-medium transition-colors",
                   selected ? "border-gold bg-gold/10 text-gold" : "border-black/10 bg-panel hover:border-gold/50"
                 )}
               >
@@ -144,7 +144,7 @@ function PersonListInput({ entries, onChange }: { entries: PersonListEntry[]; on
       <button
         type="button"
         onClick={() => onChange([...rows, { name: "", role: "" }])}
-        className="flex w-fit items-center gap-1.5 rounded-[2px] border border-black/10 px-3 py-2 text-xs font-medium hover:border-gold"
+        className="flex w-fit items-center gap-1.5 rounded-[10px] border border-black/10 px-3 py-2 text-xs font-medium hover:border-gold"
       >
         <Plus size={13} /> Add another
       </button>

@@ -44,7 +44,7 @@ export function SongSlotField({
           value={value}
           onChange={(e) => onChange(e.target.value, undefined)}
           placeholder="Artist - Song"
-          className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+          className="w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
         />
       )}
     </div>

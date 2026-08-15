@@ -68,7 +68,7 @@ export function SidebarNav() {
               href={href}
               style={{ "--menu-fade-delay": `${i * 40}ms` } as React.CSSProperties}
               className={cn(
-                "menu-fade-item flex items-center gap-3 rounded-[2px] px-4 py-2.5 text-sm font-medium transition-colors",
+                "menu-fade-item flex items-center gap-3 rounded-[10px] px-4 py-2.5 text-sm font-medium transition-colors",
                 active ? "sidebar-active" : "text-muted hover:bg-black/5 hover:text-foreground"
               )}
             >
@@ -82,13 +82,13 @@ export function SidebarNav() {
       <a
         href="https://digitalcratedjs.com/members"
         style={{ "--menu-fade-delay": `${items.length * 40}ms` } as React.CSSProperties}
-        className="menu-fade-item flex items-center gap-3 rounded-[2px] px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
+        className="menu-fade-item flex items-center gap-3 rounded-[10px] px-4 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-black/5 hover:text-foreground"
       >
         <ArrowLeft size={18} />
         DJ Portal
       </a>
 
-      <div className="mt-4 flex items-center gap-2.5 rounded-[2px] border border-black/8 bg-panel/70 px-3 py-2.5">
+      <div className="mt-4 flex items-center gap-2.5 rounded-[10px] border border-black/8 bg-panel/70 px-3 py-2.5">
         <DjAvatar name={djName} photoUrl={djPhoto} size={36} />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{djName}</p>

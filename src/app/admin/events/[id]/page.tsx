@@ -461,7 +461,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               onClick={handleRemoveHeroPhoto}
               disabled={uploadingHero}
               title="Remove banner photo"
-              className="rounded-[2px] bg-black/30 p-2 text-white backdrop-blur-sm hover:bg-black/50"
+              className="rounded-[10px] bg-black/30 p-2 text-white backdrop-blur-sm hover:bg-black/50"
             >
               <X size={14} />
             </button>
@@ -470,7 +470,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
             onClick={() => heroFileInput.current?.click()}
             disabled={uploadingHero}
             title={event.hero_image_url ? "Change banner photo" : "Add a banner photo"}
-            className="rounded-[2px] bg-black/30 p-2 text-white backdrop-blur-sm hover:bg-black/50"
+            className="rounded-[10px] bg-black/30 p-2 text-white backdrop-blur-sm hover:bg-black/50"
           >
             <Camera size={14} />
           </button>
@@ -547,7 +547,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               <select
                 defaultValue={event.clients?.id ?? ""}
                 onChange={(e) => handleContactChange(e.target.value)}
-                className="rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
               >
                 <option value="">No client linked</option>
                 {clientOptions.map((c) => (
@@ -726,7 +726,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 value={notesDraft}
                 onChange={(e) => setNotesDraft(e.target.value)}
                 placeholder="Anything your team should know about this project..."
-                className="min-h-[160px] w-full rounded-[2px] border border-black/10 bg-panel px-4 py-3 text-sm focus:border-gold focus:outline-none"
+                className="min-h-[160px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-3 text-sm focus:border-gold focus:outline-none"
               />
               <div className="flex items-center gap-3">
                 <Button variant="cta" onClick={handleSaveNotes} disabled={savingNotes} className="w-fit">
@@ -802,9 +802,9 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               <input
                 readOnly
                 value={`${typeof window !== "undefined" ? window.location.origin : ""}/portal`}
-                className="flex-1 truncate rounded-[2px] border border-black/10 bg-panel px-2.5 py-2 text-xs text-muted"
+                className="flex-1 truncate rounded-[10px] border border-black/10 bg-panel px-2.5 py-2 text-xs text-muted"
               />
-              <button onClick={copyPortalLink} className="shrink-0 rounded-[2px] border border-black/10 p-2 hover:border-gold">
+              <button onClick={copyPortalLink} className="shrink-0 rounded-[10px] border border-black/10 p-2 hover:border-gold">
                 {copied ? <Check size={13} className="text-status-approved" /> : <Copy size={13} />}
               </button>
             </div>
@@ -817,7 +817,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               value={event.status}
               onChange={(e) => handleStageChange(e.target.value)}
               disabled={savingStage}
-              className="rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+              className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
             >
               {STAGE_OPTIONS.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -834,7 +834,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               value={event.pipeline_stage ?? "Inquiry"}
               onChange={(e) => handlePipelineStageChange(e.target.value)}
               disabled={savingPipelineStage}
-              className="rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+              className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
             >
               {PIPELINE_STAGES.map((s) => (
                 <option key={s} value={s}>
@@ -854,7 +854,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                   onChange={(e) => setLeadSourceDraft(e.target.value)}
                   onBlur={handleSaveLeadSource}
                   placeholder="Instagram, referral, website..."
-                  className="rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                  className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
                 />
               </GlassCard>
 
@@ -862,7 +862,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Tags</p>
                 <div className="flex flex-wrap gap-1.5">
                   {(event.clients.tags ?? []).map((tag) => (
-                    <span key={tag} className="flex items-center gap-1 rounded-[2px] bg-gold-soft px-2 py-1 text-[11px] text-gold-dim">
+                    <span key={tag} className="flex items-center gap-1 rounded-[10px] bg-gold-soft px-2 py-1 text-[11px] text-gold-dim">
                       {tag}
                       <button onClick={() => handleRemoveTag(tag)} className="hover:text-status-declined">
                         <X size={10} />
@@ -881,7 +881,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                     }
                   }}
                   placeholder="Add a tag and press Enter"
-                  className="rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-xs focus:border-gold focus:outline-none"
+                  className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-xs focus:border-gold focus:outline-none"
                 />
               </GlassCard>
             </>

@@ -29,7 +29,7 @@ function money(n: number) {
   return `$${n.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
-const inputClass = "w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none";
+const inputClass = "w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none";
 const labelClass = "mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted";
 
 export default function AdminServicesPage() {

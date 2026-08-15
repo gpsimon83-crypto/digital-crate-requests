@@ -56,7 +56,7 @@ export function PackageRecommendation({ eventId }: { eventId: string }) {
           return (
             <div
               key={pkg.id}
-              className={cn("flex flex-col gap-1.5 rounded-[2px] border p-3", suggested ? "border-gold bg-gold/5" : "border-black/10 bg-panel")}
+              className={cn("flex flex-col gap-1.5 rounded-[10px] border p-3", suggested ? "border-gold bg-gold/5" : "border-black/10 bg-panel")}
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="text-sm font-semibold">{pkg.name}</p>

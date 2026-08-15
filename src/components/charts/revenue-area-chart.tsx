@@ -17,7 +17,7 @@ function TooltipContent({ active, payload, label }: { active?: boolean; payload?
   const booked = payload.find((p) => p.dataKey === "bookedCents")?.value ?? 0;
   const collected = payload.find((p) => p.dataKey === "collectedCents")?.value ?? 0;
   return (
-    <div className="rounded-[2px] border border-border bg-card px-3 py-2 text-xs shadow-[0_4px_16px_rgba(0,0,0,0.1)]">
+    <div className="rounded-[10px] border border-border bg-card px-3 py-2 text-xs shadow-[0_4px_16px_rgba(0,0,0,0.1)]">
       <p className="mb-1 font-semibold">{label}</p>
       <p className="text-muted">
         Booked: <span className="font-medium text-foreground">{money(booked)}</span>

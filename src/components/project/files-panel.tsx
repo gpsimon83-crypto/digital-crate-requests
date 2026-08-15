@@ -164,7 +164,7 @@ export function FilesPanel({ eventId }: { eventId: string }) {
           <select
             value={uploadCategory}
             onChange={(e) => setUploadCategory(e.target.value as "contract" | "other")}
-            className="rounded-[2px] border border-black/10 bg-panel px-2 py-1.5 text-xs focus:border-gold focus:outline-none"
+            className="rounded-[10px] border border-black/10 bg-panel px-2 py-1.5 text-xs focus:border-gold focus:outline-none"
           >
             <option value="other">File</option>
             <option value="contract">Contract</option>
@@ -184,7 +184,7 @@ export function FilesPanel({ eventId }: { eventId: string }) {
           </Button>
           <button
             onClick={toggleLibraryPicker}
-            className="flex items-center gap-1.5 rounded-[2px] border border-black/10 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold hover:text-gold"
+            className="flex items-center gap-1.5 rounded-[10px] border border-black/10 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold hover:text-gold"
           >
             <Library size={13} /> Add from Library
           </button>
@@ -192,7 +192,7 @@ export function FilesPanel({ eventId }: { eventId: string }) {
       </div>
 
       {showLibraryPicker && (
-        <div className="flex items-center gap-2 rounded-[2px] border border-dashed border-black/15 bg-panel p-3">
+        <div className="flex items-center gap-2 rounded-[10px] border border-dashed border-black/15 bg-panel p-3">
           {libraryItems === null ? (
             <p className="text-xs text-muted">Loading Library…</p>
           ) : libraryItems.length === 0 ? (
@@ -203,7 +203,7 @@ export function FilesPanel({ eventId }: { eventId: string }) {
               <select
                 value={selectedLibraryId}
                 onChange={(e) => setSelectedLibraryId(e.target.value)}
-                className="flex-1 rounded-[2px] border border-black/10 bg-card px-2 py-1.5 text-xs focus:border-gold focus:outline-none"
+                className="flex-1 rounded-[10px] border border-black/10 bg-card px-2 py-1.5 text-xs focus:border-gold focus:outline-none"
               >
                 <option value="">Choose a contract or brochure…</option>
                 {libraryItems.map((item) => (

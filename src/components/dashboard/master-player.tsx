@@ -82,14 +82,14 @@ export function MasterPlayerProvider({ children }: { children: React.ReactNode }
   return (
     <MasterPlayerContext.Provider value={{ nowPlayingKey: nowPlaying?.key ?? null, isPlaying, play, stop }}>
       {children}
-      <div className="fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-[2px] border border-gold/30 bg-black/90 px-4 py-2.5 shadow-lg shadow-black/50 backdrop-blur">
+      <div className="fixed bottom-5 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-[10px] border border-gold/30 bg-black/90 px-4 py-2.5 shadow-lg shadow-black/50 backdrop-blur">
         {nowPlaying ? (
           <>
             <span className="size-2 shrink-0 animate-pulse rounded-full bg-gold" />
             <span className="max-w-[240px] truncate text-xs text-white">{nowPlaying.label}</span>
             <button
               onClick={stop}
-              className="flex shrink-0 items-center gap-1 rounded-[2px] bg-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/20"
+              className="flex shrink-0 items-center gap-1 rounded-[10px] bg-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/20"
             >
               <Square size={11} /> Stop
             </button>

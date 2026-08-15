@@ -51,7 +51,7 @@ export default function AdminNotificationsPage() {
           unreadCount > 0 ? (
             <button
               onClick={markAllRead}
-              className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
+              className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
             >
               <CheckCheck size={14} /> Mark all read
             </button>

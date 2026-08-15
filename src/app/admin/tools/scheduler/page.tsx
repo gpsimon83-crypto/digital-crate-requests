@@ -116,9 +116,9 @@ export default function AdminSchedulerPage() {
             <input
               readOnly
               value={`${typeof window !== "undefined" ? window.location.origin : ""}/schedule`}
-              className="flex-1 rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm text-muted"
+              className="flex-1 rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm text-muted"
             />
-            <button onClick={copyLink} className="shrink-0 rounded-[2px] border border-black/10 p-2.5 hover:border-gold">
+            <button onClick={copyLink} className="shrink-0 rounded-[10px] border border-black/10 p-2.5 hover:border-gold">
               {copied ? <Check size={14} className="text-status-approved" /> : <Copy size={14} />}
             </button>
           </div>
@@ -151,7 +151,7 @@ export default function AdminSchedulerPage() {
                     value={d.start_time.slice(0, 5)}
                     disabled={!d.enabled}
                     onChange={(e) => updateDay(d.day_of_week, { start_time: e.target.value })}
-                    className="rounded-[2px] border border-black/10 bg-panel px-2.5 py-1.5 text-sm disabled:opacity-40"
+                    className="rounded-[10px] border border-black/10 bg-panel px-2.5 py-1.5 text-sm disabled:opacity-40"
                   />
                   <span className="text-xs text-muted">to</span>
                   <input
@@ -159,7 +159,7 @@ export default function AdminSchedulerPage() {
                     value={d.end_time.slice(0, 5)}
                     disabled={!d.enabled}
                     onChange={(e) => updateDay(d.day_of_week, { end_time: e.target.value })}
-                    className="rounded-[2px] border border-black/10 bg-panel px-2.5 py-1.5 text-sm disabled:opacity-40"
+                    className="rounded-[10px] border border-black/10 bg-panel px-2.5 py-1.5 text-sm disabled:opacity-40"
                   />
                 </div>
               ))}
@@ -173,7 +173,7 @@ export default function AdminSchedulerPage() {
                 step={5}
                 value={slotMinutes}
                 onChange={(e) => setSlotMinutes(Number(e.target.value))}
-                className="w-20 rounded-[2px] border border-black/10 bg-panel px-2.5 py-1.5 text-sm"
+                className="w-20 rounded-[10px] border border-black/10 bg-panel px-2.5 py-1.5 text-sm"
               />
               <span className="text-sm text-muted">minutes</span>
             </div>

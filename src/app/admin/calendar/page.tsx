@@ -51,12 +51,12 @@ function categoryOf(status: string): CategoryKey {
 
 function CategorySwatch({ category }: { category: CategoryKey }) {
   if (category === "booked") return <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-gold" />;
-  if (category === "payments") return <span className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-status-approved" />;
-  if (category === "archived") return <span className="h-2.5 w-2.5 shrink-0 rounded-[2px] border border-muted" />;
-  if (category === "external") return <span className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-muted" />;
+  if (category === "payments") return <span className="h-2.5 w-2.5 shrink-0 rounded-[10px] bg-status-approved" />;
+  if (category === "archived") return <span className="h-2.5 w-2.5 shrink-0 rounded-[10px] border border-muted" />;
+  if (category === "external") return <span className="h-2.5 w-2.5 shrink-0 rounded-[10px] bg-muted" />;
   return (
     <span
-      className="h-2.5 w-2.5 shrink-0 rounded-[2px] border border-gold"
+      className="h-2.5 w-2.5 shrink-0 rounded-[10px] border border-gold"
       style={{
         backgroundImage:
           "repeating-linear-gradient(45deg, var(--gold) 0px, var(--gold) 1.5px, transparent 1.5px, transparent 4px)"
@@ -178,19 +178,19 @@ export default function AdminCalendarPage() {
               <div className="flex gap-1">
                 <button
                   onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))}
-                  className="rounded-[2px] p-1.5 hover:bg-black/5"
+                  className="rounded-[10px] p-1.5 hover:bg-black/5"
                 >
                   <ChevronLeft size={16} />
                 </button>
                 <button
                   onClick={() => setCursor(new Date())}
-                  className="rounded-[2px] px-2 text-xs font-medium text-muted hover:bg-black/5"
+                  className="rounded-[10px] px-2 text-xs font-medium text-muted hover:bg-black/5"
                 >
                   Today
                 </button>
                 <button
                   onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))}
-                  className="rounded-[2px] p-1.5 hover:bg-black/5"
+                  className="rounded-[10px] p-1.5 hover:bg-black/5"
                 >
                   <ChevronRight size={16} />
                 </button>
@@ -223,7 +223,7 @@ export default function AdminCalendarPage() {
                   >
                     <span
                       className={cn(
-                        "flex h-5 w-5 items-center justify-center rounded-[2px] text-xs",
+                        "flex h-5 w-5 items-center justify-center rounded-[10px] text-xs",
                         isToday && "bg-gold text-black"
                       )}
                     >

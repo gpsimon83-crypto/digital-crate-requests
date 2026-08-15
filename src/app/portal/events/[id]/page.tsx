@@ -293,7 +293,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                   </a>
                 )}
                 {contract.body && (
-                  <div className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-[2px] border border-black/10 bg-panel/60 p-3 text-sm">
+                  <div className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-[10px] border border-black/10 bg-panel/60 p-3 text-sm">
                     {contract.body}
                   </div>
                 )}
@@ -312,7 +312,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                       value={signName}
                       onChange={(e) => setSignName(e.target.value)}
                       placeholder="Your full legal name"
-                      className="rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                      className="rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                     />
                     {signError && <p className="text-xs text-status-declined">{signError}</p>}
                     <Button variant="cta" onClick={handleSign} disabled={signing} className="w-fit">
@@ -394,7 +394,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                         value={weddingPlan.bridal_party_order ?? ""}
                         onChange={(e) => updatePlan("bridal_party_order", e.target.value)}
                         placeholder="Names in order..."
-                        className="min-h-[70px] w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                        className="min-h-[70px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                       />
                     </label>
                     <SongSlotField
@@ -447,7 +447,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                       value={weddingPlan.special_dance_songs ?? ""}
                       onChange={(e) => updatePlan("special_dance_songs", e.target.value)}
                       placeholder="A song for each special dance picked above..."
-                      className="mt-2 min-h-[60px] w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                      className="mt-2 min-h-[60px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                     />
                   )}
                 </div>
@@ -558,7 +558,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                   }
                 }}
                 placeholder="Song title — Artist"
-                className="flex-1 rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                className="flex-1 rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
               />
               <button
                 onClick={() => {
@@ -567,7 +567,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                     setNewMustPlay("");
                   }
                 }}
-                className="rounded-[2px] border border-black/10 px-4 text-sm font-medium hover:border-gold"
+                className="rounded-[10px] border border-black/10 px-4 text-sm font-medium hover:border-gold"
               >
                 Add
               </button>
@@ -589,7 +589,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                   }
                 }}
                 placeholder="Song title — Artist"
-                className="flex-1 rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                className="flex-1 rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
               />
               <button
                 onClick={() => {
@@ -598,7 +598,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                     setNewDoNotPlay("");
                   }
                 }}
-                className="rounded-[2px] border border-black/10 px-4 text-sm font-medium hover:border-gold"
+                className="rounded-[10px] border border-black/10 px-4 text-sm font-medium hover:border-gold"
               >
                 Add
               </button>
@@ -611,7 +611,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
               value={specialRequests}
               onChange={(e) => setSpecialRequests(e.target.value)}
               placeholder="First dance song, timeline details, anything else your DJ should know..."
-              className="min-h-[100px] w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="min-h-[100px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </GlassCard>
 
@@ -643,7 +643,7 @@ function SongList({ items, onRemove }: { items: string[]; onRemove: (index: numb
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item, i) => (
-        <span key={`${item}-${i}`} className="flex items-center gap-1.5 rounded-[2px] border border-black/10 bg-panel px-3 py-1.5 text-xs">
+        <span key={`${item}-${i}`} className="flex items-center gap-1.5 rounded-[10px] border border-black/10 bg-panel px-3 py-1.5 text-xs">
           {item}
           <button onClick={() => onRemove(i)} className="text-muted hover:text-status-declined">
             <X size={12} />

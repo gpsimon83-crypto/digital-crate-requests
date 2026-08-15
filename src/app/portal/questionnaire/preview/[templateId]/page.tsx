@@ -155,7 +155,7 @@ export default function QuestionnairePreviewPage({ params }: { params: Promise<{
 
             <div className="mt-6">
               {showingUnsure ? (
-                <div className="rounded-[2px] border border-dashed border-black/20 bg-panel px-5 py-4 text-sm text-muted">
+                <div className="rounded-[10px] border border-dashed border-black/20 bg-panel px-5 py-4 text-sm text-muted">
                   You&rsquo;ll decide this later.{" "}
                   <button className="text-gold hover:underline" onClick={() => setAnswer(question.key, { value: "" })}>
                     Answer now instead
@@ -210,7 +210,7 @@ export default function QuestionnairePreviewPage({ params }: { params: Promise<{
                   <p className="mb-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-gold">{section.title}</p>
                   <div className="flex flex-col gap-3">
                     {items.map(({ question }) => (
-                      <div key={question.key} className="rounded-[2px] border border-black/10 bg-panel px-4 py-3">
+                      <div key={question.key} className="rounded-[10px] border border-black/10 bg-panel px-4 py-3">
                         <span className="block text-sm text-muted">{question.prompt}</span>
                         <span className="mt-0.5 block text-sm font-medium">{formatAnswer(question, answers[question.key])}</span>
                       </div>

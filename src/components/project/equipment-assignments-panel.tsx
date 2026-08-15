@@ -159,7 +159,7 @@ export function EquipmentAssignmentsPanel({ eventId }: { eventId: string }) {
           <select
             value={equipmentId}
             onChange={(e) => setEquipmentId(e.target.value)}
-            className="flex-1 rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+            className="flex-1 rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
           >
             <option value="">Select equipment…</option>
             {(options ?? []).map((o) => (
@@ -173,7 +173,7 @@ export function EquipmentAssignmentsPanel({ eventId }: { eventId: string }) {
             min={1}
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none sm:w-20"
+            className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none sm:w-20"
           />
           <Button variant="primary" size="sm" onClick={() => submit(false)} disabled={!equipmentId || saving}>
             {saving ? "Checking…" : "Assign"}

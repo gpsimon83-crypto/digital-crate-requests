@@ -135,7 +135,7 @@ export default function DjPortalHomePage() {
             {djName && <DjAvatar name={djName} photoUrl={djPhoto} size={32} />}
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 rounded-[2px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
+              className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
             >
               <LogOut size={14} /> Sign Out
             </button>
@@ -198,14 +198,14 @@ export default function DjPortalHomePage() {
                       <button
                         disabled={actingId === e.id}
                         onClick={() => respond(e.id, "confirm")}
-                        className="flex items-center gap-1.5 rounded-[2px] bg-status-approved px-4 py-2.5 text-xs font-bold text-black transition-transform hover:scale-[1.02] disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-[10px] bg-status-approved px-4 py-2.5 text-xs font-bold text-black transition-transform hover:scale-[1.02] disabled:opacity-50"
                       >
                         <Check size={14} /> Confirm
                       </button>
                       <button
                         disabled={actingId === e.id}
                         onClick={() => respond(e.id, "decline")}
-                        className="flex items-center gap-1.5 rounded-[2px] bg-status-declined px-4 py-2.5 text-xs font-bold text-white transition-transform hover:scale-[1.02] disabled:opacity-50"
+                        className="flex items-center gap-1.5 rounded-[10px] bg-status-declined px-4 py-2.5 text-xs font-bold text-white transition-transform hover:scale-[1.02] disabled:opacity-50"
                       >
                         <X size={14} /> Decline
                       </button>
@@ -291,7 +291,7 @@ function SectionHeading({ label, count }: { label: string; count: number }) {
   return (
     <div className="mb-4 flex items-center gap-2.5">
       <p className="text-sm font-semibold uppercase tracking-wide text-muted">{label}</p>
-      <span className="rounded-[2px] border border-black/10 px-2 py-0.5 text-[11px] font-semibold text-gold">{count}</span>
+      <span className="rounded-[10px] border border-black/10 px-2 py-0.5 text-[11px] font-semibold text-gold">{count}</span>
     </div>
   );
 }
@@ -300,7 +300,7 @@ function QuickLink({ href, label, icon: Icon }: { href: string; label: string; i
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 rounded-[2px] border border-black/12 px-4 py-2.5 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
+      className="flex items-center gap-2 rounded-[10px] border border-black/12 px-4 py-2.5 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
     >
       <Icon size={14} /> {label}
     </Link>

@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/ui/status-chip";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { KeyRound } from "lucide-react";
 
 interface InviteCodeRow {
@@ -18,6 +19,7 @@ export default function InviteCodesPage() {
   const [codes, setCodes] = useState<InviteCodeRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -50,7 +52,6 @@ export default function InviteCodesPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Delete this invite code?")) return;
     try {
       const res = await fetch(`/api/admin/invite-codes/${id}`, { method: "DELETE" });
       const data = await res.json();
@@ -58,6 +59,8 @@ export default function InviteCodesPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setPendingDeleteId(null);
     }
   }
 
@@ -76,7 +79,7 @@ export default function InviteCodesPage() {
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
         <DataTable
-          columns={columns(handleDelete)}
+          columns={columns(setPendingDeleteId)}
           rows={codes ?? []}
           rowKey={(c) => c.id}
           loading={codes === null}
@@ -85,6 +88,14 @@ export default function InviteCodesPage() {
           emptyBody="Generate one to invite a new DJ."
         />
       </div>
+
+      <ConfirmModal
+        open={!!pendingDeleteId}
+        title="Delete this invite code?"
+        confirmLabel="Delete"
+        onConfirm={() => pendingDeleteId && handleDelete(pendingDeleteId)}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </>
   );
 }

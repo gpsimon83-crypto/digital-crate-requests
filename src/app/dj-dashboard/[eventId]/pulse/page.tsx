@@ -209,7 +209,7 @@ export default function PartyPulsePage({ params }: { params: Promise<{ eventId: 
                 </span>
                 <p className="text-sm font-semibold">Hot Songs</p>
               </div>
-              <button className="rounded-[2px] border border-gold/30 px-3 py-1 text-[11px] font-semibold text-gold transition-colors hover:bg-gold/10">
+              <button className="rounded-[10px] border border-gold/30 px-3 py-1 text-[11px] font-semibold text-gold transition-colors hover:bg-gold/10">
                 View All
               </button>
             </div>

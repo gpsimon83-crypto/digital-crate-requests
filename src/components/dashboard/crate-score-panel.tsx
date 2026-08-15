@@ -30,7 +30,7 @@ export function CrateScorePanel({ tracks, guidedSetup }: { tracks: ResolvedTrack
   const result = tracks ? computeCrateScore(tracks, guidedSetup) : null;
 
   return (
-    <div className="rounded-[2px] border border-black/8 bg-panel/40">
+    <div className="rounded-[10px] border border-black/8 bg-panel/40">
       <button
         onClick={() => setExpanded((e) => !e)}
         className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"

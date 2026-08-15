@@ -17,7 +17,7 @@ function TooltipContent({ active, payload }: { active?: boolean; payload?: { nam
   if (!active || !payload?.length) return null;
   const { name, value } = payload[0];
   return (
-    <div className="rounded-[2px] border border-border bg-card px-3 py-2 text-xs shadow-[0_4px_16px_rgba(0,0,0,0.1)]">
+    <div className="rounded-[10px] border border-border bg-card px-3 py-2 text-xs shadow-[0_4px_16px_rgba(0,0,0,0.1)]">
       <p className="font-semibold capitalize">{name}</p>
       <p className="text-muted">{money(value)}</p>
     </div>

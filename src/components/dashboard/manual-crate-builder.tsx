@@ -138,9 +138,9 @@ export function ManualCrateBuilder({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Type at least 2 characters — artist, title, or folder"
-            className="rounded-[2px] border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
+            className="rounded-[10px] border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
           />
-          <div className="max-h-72 overflow-y-auto rounded-[2px] border border-black/8 bg-panel/30">
+          <div className="max-h-72 overflow-y-auto rounded-[10px] border border-black/8 bg-panel/30">
             {query.trim().length < 2 ? (
               <p className="p-3 text-xs text-muted">Start typing to search.</p>
             ) : results.length === 0 ? (
@@ -187,7 +187,7 @@ export function ManualCrateBuilder({
           <label className="text-xs font-medium text-muted">
             Crate in progress <span className="text-muted/70">({staged.length} tracks)</span>
           </label>
-          <div className="max-h-72 min-h-[3rem] overflow-y-auto rounded-[2px] border border-black/8 bg-panel/30">
+          <div className="max-h-72 min-h-[3rem] overflow-y-auto rounded-[10px] border border-black/8 bg-panel/30">
             {staged.length === 0 ? (
               <p className="p-3 text-xs text-muted">Add tracks from the search results.</p>
             ) : (
@@ -225,7 +225,7 @@ export function ManualCrateBuilder({
               value={crateName}
               onChange={(e) => setCrateName(e.target.value)}
               placeholder="Crate name"
-              className="min-w-0 flex-1 rounded-[2px] border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
+              className="min-w-0 flex-1 rounded-[10px] border border-black/10 bg-panel px-4 py-2 text-sm focus:border-gold focus:outline-none"
             />
             <button
               onClick={saveCrate}

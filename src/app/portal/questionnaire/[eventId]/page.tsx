@@ -300,7 +300,7 @@ export default function QuestionnairePage({ params }: { params: Promise<{ eventI
 
             <div className="mt-6">
               {showingUnsure ? (
-                <div className="rounded-[2px] border border-dashed border-black/20 bg-panel px-5 py-4 text-sm text-muted">
+                <div className="rounded-[10px] border border-dashed border-black/20 bg-panel px-5 py-4 text-sm text-muted">
                   You&rsquo;ll decide this later.{" "}
                   <button className="text-gold hover:underline" onClick={() => setAnswer(question.key, { value: "" })}>
                     Answer now instead
@@ -366,7 +366,7 @@ export default function QuestionnairePage({ params }: { params: Promise<{ eventI
                       <button
                         key={question.key}
                         onClick={() => editFromReview(question.key)}
-                        className="flex items-start justify-between gap-4 rounded-[2px] border border-black/10 bg-panel px-4 py-3 text-left hover:border-gold/50"
+                        className="flex items-start justify-between gap-4 rounded-[10px] border border-black/10 bg-panel px-4 py-3 text-left hover:border-gold/50"
                       >
                         <span className="text-sm">
                           <span className="block text-muted">{question.prompt}</span>

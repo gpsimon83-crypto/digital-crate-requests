@@ -218,7 +218,7 @@ export default function DjBookingsPage() {
               key={c.key}
               onClick={() => setCategory(c.key)}
               className={cn(
-                "rounded-[2px] border px-3 py-1.5 text-xs font-medium transition-colors",
+                "rounded-[10px] border px-3 py-1.5 text-xs font-medium transition-colors",
                 category === c.key ? "border-gold bg-gold/10 text-gold" : "border-black/12 text-muted hover:border-black/25 hover:text-foreground"
               )}
             >
@@ -232,7 +232,7 @@ export default function DjBookingsPage() {
             {!showCreate ? (
               <button
                 onClick={() => setShowCreate(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-[2px] border border-dashed border-gold/35 bg-gold/5 py-4 text-sm font-semibold text-gold transition-colors hover:bg-gold/10 sm:w-fit sm:px-8"
+                className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-gold/35 bg-gold/5 py-4 text-sm font-semibold text-gold transition-colors hover:bg-gold/10 sm:w-fit sm:px-8"
               >
                 <Plus size={16} /> Create Event
               </button>
@@ -243,14 +243,14 @@ export default function DjBookingsPage() {
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="Event title"
-                  className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                  className="w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                 />
                 <div className="grid gap-3 sm:grid-cols-2">
                   <input
                     type="datetime-local"
                     value={newStartsAt}
                     onChange={(e) => setNewStartsAt(e.target.value)}
-                    className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                    className="w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                   />
                   <select
                     value={newVenueId}
@@ -261,7 +261,7 @@ export default function DjBookingsPage() {
                       }
                       setNewVenueId(e.target.value);
                     }}
-                    className="w-full rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                    className="w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                   >
                     <option value="">No venue</option>
                     {venues.map((v) => (
@@ -274,7 +274,7 @@ export default function DjBookingsPage() {
                 </div>
 
                 {addingVenue && (
-                  <div className="flex flex-col gap-2 rounded-[2px] border border-gold/30 bg-panel p-3">
+                  <div className="flex flex-col gap-2 rounded-[10px] border border-gold/30 bg-panel p-3">
                     <input
                       value={newVenueName}
                       onChange={(e) => setNewVenueName(e.target.value)}
@@ -291,13 +291,13 @@ export default function DjBookingsPage() {
                       <button
                         onClick={handleAddVenue}
                         disabled={savingVenue}
-                        className="rounded-[2px] bg-gold px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-50"
+                        className="rounded-[10px] bg-gold px-3 py-1.5 text-xs font-semibold text-black disabled:opacity-50"
                       >
                         {savingVenue ? "Saving..." : "Save Venue"}
                       </button>
                       <button
                         onClick={() => setAddingVenue(false)}
-                        className="rounded-[2px] border border-black/15 px-3 py-1.5 text-xs text-muted"
+                        className="rounded-[10px] border border-black/15 px-3 py-1.5 text-xs text-muted"
                       >
                         Cancel
                       </button>
@@ -311,7 +311,7 @@ export default function DjBookingsPage() {
                   </Button>
                   <button
                     onClick={() => setShowCreate(false)}
-                    className="rounded-[2px] border border-black/15 px-4 py-2 text-xs text-muted hover:text-foreground"
+                    className="rounded-[10px] border border-black/15 px-4 py-2 text-xs text-muted hover:text-foreground"
                   >
                     Cancel
                   </button>
@@ -335,14 +335,14 @@ export default function DjBookingsPage() {
                   <button
                     disabled={actingId === e.id}
                     onClick={() => respond(e.id, "confirm")}
-                    className="flex items-center gap-1.5 rounded-[2px] bg-status-approved px-4 py-2.5 text-xs font-bold text-black transition-transform hover:scale-[1.02] disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-[10px] bg-status-approved px-4 py-2.5 text-xs font-bold text-black transition-transform hover:scale-[1.02] disabled:opacity-50"
                   >
                     <Check size={14} /> Confirm
                   </button>
                   <button
                     disabled={actingId === e.id}
                     onClick={() => respond(e.id, "decline")}
-                    className="flex items-center gap-1.5 rounded-[2px] bg-status-declined px-4 py-2.5 text-xs font-bold text-white transition-transform hover:scale-[1.02] disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-[10px] bg-status-declined px-4 py-2.5 text-xs font-bold text-white transition-transform hover:scale-[1.02] disabled:opacity-50"
                   >
                     <X size={14} /> Decline
                   </button>
@@ -378,7 +378,7 @@ function SectionHeading({ label, count }: { label: string; count: number }) {
   return (
     <div className="mb-4 flex items-center gap-2.5">
       <p className="text-sm font-semibold uppercase tracking-wide text-muted">{label}</p>
-      <span className="rounded-[2px] border border-black/10 px-2 py-0.5 text-[11px] font-semibold text-gold">
+      <span className="rounded-[10px] border border-black/10 px-2 py-0.5 text-[11px] font-semibold text-gold">
         {count}
       </span>
     </div>
