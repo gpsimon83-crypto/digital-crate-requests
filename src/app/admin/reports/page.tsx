@@ -1,105 +1,167 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatTile } from "@/components/ui/stat-tile";
-import { Percent, Trophy, XCircle } from "lucide-react";
+import { Percent, Trophy, XCircle, Clock, DollarSign } from "lucide-react";
 
-interface EventRow {
-  id: string;
-  title: string;
-  status: string;
-  starts_at: string | null;
-  quoted_amount: number | null;
-  final_amount: number | null;
-  paid_cents: number;
-  event_type: string | null;
-  dj_id: string | null;
-  djs: { display_name: string } | null;
+type ReportRange = "last_6_months" | "last_12_months" | "this_year" | "last_year" | "all_time";
+
+const RANGE_OPTIONS: { value: ReportRange; label: string }[] = [
+  { value: "last_6_months", label: "Last 6 Months" },
+  { value: "last_12_months", label: "Last 12 Months" },
+  { value: "this_year", label: "This Year" },
+  { value: "last_year", label: "Last Year" },
+  { value: "all_time", label: "All Time" }
+];
+
+interface RevenueMonth {
+  month: string;
+  bookedCents: number;
+  collectedCents: number;
+}
+
+interface LeadSourceStat {
+  source: string;
+  total: number;
+  won: number;
+  lost: number;
+  pending: number;
+}
+
+interface DjPerformance {
+  djId: string;
+  djName: string;
+  gigs: number;
+  revenueCents: number;
+  avgDealCents: number;
+}
+
+interface EventTypeStat {
+  type: string;
+  count: number;
+  revenueCents: number;
+}
+
+interface ReportsSummary {
+  revenueTrend: RevenueMonth[];
+  leadConversion: { total: number; won: number; lost: number; pending: number; bySource: LeadSourceStat[] };
+  djPerformance: DjPerformance[];
+  eventTypes: EventTypeStat[];
 }
 
 function money(cents: number) {
-  return `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+  const dollars = cents / 100;
+  const sign = dollars < 0 ? "-" : "";
+  return `${sign}$${Math.abs(dollars).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
 }
 
-const MONTH_LABELS = Array.from({ length: 12 }, (_, i) =>
-  new Date(2000, i, 1).toLocaleDateString(undefined, { month: "short" })
-);
+function monthLabel(key: string) {
+  const [year, month] = key.split("-").map(Number);
+  return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+}
 
 export default function AdminReportsPage() {
-  const [events, setEvents] = useState<EventRow[] | null>(null);
+  const [range, setRange] = useState<ReportRange>("last_12_months");
+  const [summary, setSummary] = useState<ReportsSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function load() {
-      const res = await fetch("/api/admin/events");
-      const data = await res.json();
-      setEvents(res.ok ? data.events : []);
-    }
-    load();
-  }, []);
+    fetch(`/api/admin/reports?range=${range}`)
+      .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok) throw new Error(data.error || "Failed to load reports");
+        setSummary(data.summary);
+        setError(null);
+      })
+      .catch((err) => setError(err instanceof Error ? err.message : "Something went wrong."));
+  }, [range]);
 
-  const year = new Date().getFullYear();
+  const loading = summary === null && !error;
+  const winRate = summary && summary.leadConversion.total > 0 ? Math.round((summary.leadConversion.won / summary.leadConversion.total) * 100) : 0;
 
-  const stats = useMemo(() => {
-    const all = events ?? [];
-    const decided = all.filter((e) => e.status === "confirmed" || e.status === "live" || e.status === "ended" || e.status === "declined");
-    const won = decided.filter((e) => e.status !== "declined");
-    const conversionRate = decided.length ? Math.round((won.length / decided.length) * 100) : 0;
-
-    const monthlyRevenueCents = Array(12).fill(0) as number[];
-    for (const e of won) {
-      if (!e.starts_at) continue;
-      const d = new Date(e.starts_at);
-      if (d.getFullYear() !== year) continue;
-      monthlyRevenueCents[d.getMonth()] += Math.round((e.final_amount ?? e.quoted_amount ?? 0) * 100);
-    }
-    const maxMonth = Math.max(1, ...monthlyRevenueCents);
-
-    const byDj = new Map<string, { name: string; count: number; cents: number }>();
-    for (const e of won) {
-      if (!e.dj_id) continue; // "Unassigned" isn't a DJ — excluded from the leaderboard, not counted as one
-      const entry = byDj.get(e.dj_id) ?? { name: e.djs?.display_name ?? "Unknown DJ", count: 0, cents: 0 };
-      entry.count += 1;
-      entry.cents += Math.round((e.final_amount ?? e.quoted_amount ?? 0) * 100);
-      byDj.set(e.dj_id, entry);
-    }
-    const djLeaderboard = [...byDj.entries()].sort((a, b) => b[1].cents - a[1].cents);
-
-    const byType = new Map<string, number>();
-    for (const e of won) {
-      const type = e.event_type || "Other";
-      byType.set(type, (byType.get(type) ?? 0) + 1);
-    }
-    const typeBreakdown = [...byType.entries()].sort((a, b) => b[1] - a[1]);
-
-    return { conversionRate, wonCount: won.length, declinedCount: decided.length - won.length, monthlyRevenueCents, maxMonth, djLeaderboard, typeBreakdown };
-  }, [events, year]);
-
-  const loading = events === null;
+  const maxMonthCents = summary ? Math.max(1, ...summary.revenueTrend.flatMap((m) => [m.bookedCents, m.collectedCents])) : 1;
 
   return (
     <>
-      <PageHeader title="Reports" subtitle="Booking performance and revenue trends." />
+      <PageHeader title="Reports" subtitle="Revenue trends, lead conversion, and DJ performance." />
       <div className="flex flex-col gap-6 p-6">
+        <div className="flex flex-wrap gap-1.5 border-b border-border pb-4">
+          {RANGE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setRange(opt.value)}
+              className={`rounded-[2px] px-3 py-1.5 text-xs font-medium transition-colors ${
+                range === opt.value ? "bg-gold text-black" : "border border-black/10 text-muted hover:border-gold/40 hover:text-gold"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {error && <p className="text-sm text-status-declined">{error}</p>}
+
         <div className="flex flex-wrap border border-border">
-          <StatTile icon={Percent} label="Lead conversion rate" value={loading ? "…" : `${stats.conversionRate}%`} />
-          <StatTile icon={Trophy} label="Events won" value={loading ? "…" : stats.wonCount} />
-          <StatTile icon={XCircle} label="Events declined" value={loading ? "…" : stats.declinedCount} tone={stats.declinedCount > 0 ? "urgent" : "default"} />
+          <StatTile icon={Percent} label="Lead win rate" value={loading ? "…" : `${winRate}%`} />
+          <StatTile icon={Trophy} label="Leads won" value={loading ? "…" : summary!.leadConversion.won} />
+          <StatTile icon={Clock} label="Leads pending" value={loading ? "…" : summary!.leadConversion.pending} />
+          <StatTile
+            icon={XCircle}
+            label="Leads lost"
+            value={loading ? "…" : summary!.leadConversion.lost}
+            tone={summary && summary.leadConversion.lost > 0 ? "urgent" : "default"}
+          />
         </div>
 
         <div>
-          <p className="mb-3 text-sm font-semibold border-b border-border pb-2">Revenue by month — {year}</p>
-          <div className="flex items-end gap-2 sm:gap-3">
-            {stats.monthlyRevenueCents.map((cents, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                <div className="flex h-32 w-full items-end">
-                  <div
-                    className="w-full bg-gold/70"
-                    style={{ height: `${Math.max(2, (cents / stats.maxMonth) * 100)}%` }}
-                    title={money(cents)}
-                  />
+          <div className="mb-3 flex items-center justify-between border-b border-border pb-2">
+            <p className="text-sm font-semibold">Revenue trend</p>
+            <div className="flex items-center gap-4 text-[11px] text-muted">
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-gold/70" /> Booked
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-status-approved" /> Collected
+              </span>
+            </div>
+          </div>
+          {loading && <p className="text-sm text-muted">Loading...</p>}
+          {summary && summary.revenueTrend.length === 0 && <p className="text-sm text-muted">No revenue in this range yet.</p>}
+          {summary && summary.revenueTrend.length > 0 && (
+            <div className="flex items-end gap-2 overflow-x-auto sm:gap-3">
+              {summary.revenueTrend.map((m) => (
+                <div key={m.month} className="flex flex-1 min-w-[36px] flex-col items-center gap-1.5">
+                  <div className="flex h-32 w-full items-end gap-0.5">
+                    <div
+                      className="w-1/2 bg-gold/70"
+                      style={{ height: `${Math.max(2, (m.bookedCents / maxMonthCents) * 100)}%` }}
+                      title={`Booked: ${money(m.bookedCents)}`}
+                    />
+                    <div
+                      className="w-1/2 bg-status-approved"
+                      style={{ height: `${Math.max(2, (m.collectedCents / maxMonthCents) * 100)}%` }}
+                      title={`Collected: ${money(m.collectedCents)}`}
+                    />
+                  </div>
+                  <span className="text-[10px] text-muted">{monthLabel(m.month)}</span>
                 </div>
-                <span className="text-[10px] text-muted">{MONTH_LABELS[i]}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <p className="mb-2 border-b border-border pb-2 text-sm font-semibold">Leads by source</p>
+          <div className="flex flex-col divide-y divide-border">
+            {loading && <p className="py-2 text-sm text-muted">Loading...</p>}
+            {summary && summary.leadConversion.bySource.length === 0 && <p className="py-2 text-sm text-muted">No leads in this range yet.</p>}
+            {summary?.leadConversion.bySource.map((s) => (
+              <div key={s.source} className="flex items-center justify-between py-2.5 first:pt-0">
+                <span className="text-sm capitalize">{s.source}</span>
+                <span className="text-sm text-muted">
+                  {s.total} lead{s.total === 1 ? "" : "s"} · {s.won} won · {s.pending} pending · {s.lost} lost
+                </span>
               </div>
             ))}
           </div>
@@ -107,17 +169,15 @@ export default function AdminReportsPage() {
 
         <div className="grid gap-6 lg:grid-cols-2">
           <div>
-            <p className="mb-2 text-sm font-semibold border-b border-border pb-2">DJ leaderboard</p>
+            <p className="mb-2 border-b border-border pb-2 text-sm font-semibold">DJ performance</p>
             <div className="flex flex-col divide-y divide-border">
               {loading && <p className="py-2 text-sm text-muted">Loading...</p>}
-              {!loading && stats.djLeaderboard.length === 0 && (
-                <p className="py-2 text-sm text-muted">No booked events yet.</p>
-              )}
-              {stats.djLeaderboard.map(([djId, entry]) => (
-                <div key={djId} className="flex items-center justify-between py-2.5 first:pt-0">
-                  <span className="text-sm">{entry.name}</span>
+              {summary && summary.djPerformance.length === 0 && <p className="py-2 text-sm text-muted">No booked events yet.</p>}
+              {summary?.djPerformance.map((d) => (
+                <div key={d.djId} className="flex items-center justify-between py-2.5 first:pt-0">
+                  <span className="text-sm">{d.djName}</span>
                   <span className="text-sm text-muted">
-                    {entry.count} event{entry.count === 1 ? "" : "s"} · {money(entry.cents)}
+                    {d.gigs} gig{d.gigs === 1 ? "" : "s"} · {money(d.revenueCents)} · avg {money(d.avgDealCents)}
                   </span>
                 </div>
               ))}
@@ -125,16 +185,16 @@ export default function AdminReportsPage() {
           </div>
 
           <div>
-            <p className="mb-2 text-sm font-semibold border-b border-border pb-2">Event types</p>
+            <p className="mb-2 border-b border-border pb-2 text-sm font-semibold">Event types</p>
             <div className="flex flex-col divide-y divide-border">
               {loading && <p className="py-2 text-sm text-muted">Loading...</p>}
-              {!loading && stats.typeBreakdown.length === 0 && (
-                <p className="py-2 text-sm text-muted">No booked events yet.</p>
-              )}
-              {stats.typeBreakdown.map(([type, count]) => (
-                <div key={type} className="flex items-center justify-between py-2.5 first:pt-0">
-                  <span className="text-sm capitalize">{type}</span>
-                  <span className="text-sm text-muted">{count}</span>
+              {summary && summary.eventTypes.length === 0 && <p className="py-2 text-sm text-muted">No booked events yet.</p>}
+              {summary?.eventTypes.map((t) => (
+                <div key={t.type} className="flex items-center justify-between py-2.5 first:pt-0">
+                  <span className="text-sm capitalize">{t.type}</span>
+                  <span className="flex items-center gap-1.5 text-sm text-muted">
+                    <DollarSign size={12} /> {t.count} · {money(t.revenueCents)}
+                  </span>
                 </div>
               ))}
             </div>

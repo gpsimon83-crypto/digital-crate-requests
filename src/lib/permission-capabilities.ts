@@ -39,6 +39,10 @@ export const CAPABILITY_GROUPS: { group: string; capabilities: { value: string; 
     ]
   },
   {
+    group: "Reports",
+    capabilities: [{ value: "reports.view", label: "View business reports" }]
+  },
+  {
     group: "Admin",
     capabilities: [
       { value: "members.manage", label: "Manage staff/DJ members" },
