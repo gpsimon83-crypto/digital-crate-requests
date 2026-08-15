@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
-import { getAvailability, getSlotMinutes, getConsultationEventsOnDate } from "@/lib/data/scheduler";
+import { getAvailability, getSlotMinutes, getConsultationEventsOnDate, getBusyBlocksOnDate } from "@/lib/data/scheduler";
 import { generateSlotStarts, zonedTimeToUtc, utcToZonedDateStr, BUSINESS_TIMEZONE } from "@/lib/scheduler-time";
 
 export async function GET(req: NextRequest) {
@@ -10,10 +10,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const [availability, slotMinutes, existing] = await Promise.all([
+    const [availability, slotMinutes, existing, busyBlocks] = await Promise.all([
       getAvailability(),
       getSlotMinutes(),
-      getConsultationEventsOnDate(date)
+      getConsultationEventsOnDate(date),
+      getBusyBlocksOnDate(date)
     ]);
 
     const dayOfWeek = new Date(`${date}T00:00:00Z`).getUTCDay();
@@ -26,9 +27,14 @@ export async function GET(req: NextRequest) {
     const starts = generateSlotStarts(day.start_time.slice(0, 5), day.end_time.slice(0, 5), slotMinutes);
     const now = Date.now();
 
-    const bookedRanges = existing
-      .filter((e) => utcToZonedDateStr(new Date(e.starts_at)) === date)
-      .map((e) => ({ start: new Date(e.starts_at).getTime(), end: new Date(e.ends_at ?? e.starts_at).getTime() }));
+    const bookedRanges = [
+      ...existing
+        .filter((e) => utcToZonedDateStr(new Date(e.starts_at)) === date)
+        .map((e) => ({ start: new Date(e.starts_at).getTime(), end: new Date(e.ends_at ?? e.starts_at).getTime() })),
+      ...busyBlocks
+        .filter((b) => utcToZonedDateStr(new Date(b.starts_at)) === date)
+        .map((b) => ({ start: new Date(b.starts_at).getTime(), end: new Date(b.ends_at).getTime() }))
+    ];
 
     const slots = starts.map((time) => {
       const slotStart = zonedTimeToUtc(date, time);

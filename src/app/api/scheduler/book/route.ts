@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getAvailability, getSlotMinutes, getConsultationEventsOnDate } from "@/lib/data/scheduler";
+import { getAvailability, getSlotMinutes, getConsultationEventsOnDate, getBusyBlocksOnDate } from "@/lib/data/scheduler";
 import { zonedTimeToUtc, utcToZonedDateStr } from "@/lib/scheduler-time";
 import { logActivity } from "@/lib/activity";
 import { runAutomations } from "@/lib/automations-engine";
@@ -33,10 +33,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const [availability, slotMinutes, existing] = await Promise.all([
+    const [availability, slotMinutes, existing, busyBlocks] = await Promise.all([
       getAvailability(),
       getSlotMinutes(),
-      getConsultationEventsOnDate(date)
+      getConsultationEventsOnDate(date),
+      getBusyBlocksOnDate(date)
     ]);
 
     const dayOfWeek = new Date(`${date}T00:00:00Z`).getUTCDay();
@@ -59,7 +60,10 @@ export async function POST(req: NextRequest) {
         const bEnd = new Date(e.ends_at ?? e.starts_at).getTime();
         return slotStart.getTime() < bEnd && slotEnd.getTime() > bStart;
       });
-    if (overlapsBooked) {
+    const overlapsBusy = busyBlocks
+      .filter((b) => utcToZonedDateStr(new Date(b.starts_at)) === date)
+      .some((b) => slotStart.getTime() < new Date(b.ends_at).getTime() && slotEnd.getTime() > new Date(b.starts_at).getTime());
+    if (overlapsBooked || overlapsBusy) {
       return NextResponse.json({ error: "That time was just booked — pick another slot" }, { status: 409 });
     }
 

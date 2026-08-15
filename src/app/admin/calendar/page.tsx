@@ -24,12 +24,20 @@ interface PaymentRow {
   events: { title: string } | { title: string }[] | null;
 }
 
-type CategoryKey = "booked" | "tentative" | "payments" | "archived";
+interface BusyBlockRow {
+  id: string;
+  summary: string | null;
+  starts_at: string;
+  ends_at: string;
+}
+
+type CategoryKey = "booked" | "tentative" | "payments" | "archived" | "external";
 
 const CATEGORIES: { key: CategoryKey; label: string; defaultOn: boolean }[] = [
   { key: "booked", label: "Booked Projects", defaultOn: true },
   { key: "tentative", label: "Tentative Projects", defaultOn: true },
   { key: "payments", label: "Payments", defaultOn: true },
+  { key: "external", label: "Busy (Google Calendar)", defaultOn: true },
   { key: "archived", label: "Archived Projects", defaultOn: false }
 ];
 
@@ -45,6 +53,7 @@ function CategorySwatch({ category }: { category: CategoryKey }) {
   if (category === "booked") return <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-gold" />;
   if (category === "payments") return <span className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-status-approved" />;
   if (category === "archived") return <span className="h-2.5 w-2.5 shrink-0 rounded-[2px] border border-muted" />;
+  if (category === "external") return <span className="h-2.5 w-2.5 shrink-0 rounded-[2px] bg-muted" />;
   return (
     <span
       className="h-2.5 w-2.5 shrink-0 rounded-[2px] border border-gold"
@@ -65,9 +74,16 @@ function sameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
 
+function overlapsDay(block: BusyBlockRow, day: Date) {
+  const startOfDay = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+  const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
+  return new Date(block.starts_at).getTime() < endOfDay && new Date(block.ends_at).getTime() > startOfDay;
+}
+
 export default function AdminCalendarPage() {
   const [events, setEvents] = useState<EventRow[] | null>(null);
   const [payments, setPayments] = useState<PaymentRow[] | null>(null);
+  const [busyBlocks, setBusyBlocks] = useState<BusyBlockRow[] | null>(null);
   const [cursor, setCursor] = useState(() => new Date());
   const [selected, setSelected] = useState<Date | null>(null);
   const [visible, setVisible] = useState<Set<CategoryKey>>(
@@ -76,11 +92,17 @@ export default function AdminCalendarPage() {
 
   useEffect(() => {
     async function load() {
-      const [eventsRes, paymentsRes] = await Promise.all([fetch("/api/admin/events"), fetch("/api/admin/payments")]);
+      const [eventsRes, paymentsRes, busyRes] = await Promise.all([
+        fetch("/api/admin/events"),
+        fetch("/api/admin/payments"),
+        fetch("/api/admin/calendar/busy-blocks")
+      ]);
       const eventsData = await eventsRes.json();
       const paymentsData = await paymentsRes.json();
+      const busyData = await busyRes.json();
       setEvents(eventsRes.ok ? eventsData.events : []);
       setPayments(paymentsRes.ok ? paymentsData.payments : []);
+      setBusyBlocks(busyRes.ok ? busyData.blocks : []);
     }
     load();
   }, []);
@@ -104,6 +126,8 @@ export default function AdminCalendarPage() {
     [payments, visible]
   );
 
+  const visibleBusyBlocks = useMemo(() => (visible.has("external") ? busyBlocks ?? [] : []), [busyBlocks, visible]);
+
   const monthLabel = cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
   const days = useMemo(() => {
@@ -123,6 +147,7 @@ export default function AdminCalendarPage() {
   const selectedDay = selected ?? today;
   const dayEvents = eventsWithDate.filter((e) => sameDay(new Date(e.starts_at as string), selectedDay));
   const dayPayments = paymentsWithDate.filter((p) => sameDay(new Date(p.paid_at as string), selectedDay));
+  const dayBusyBlocks = visibleBusyBlocks.filter((b) => overlapsDay(b, selectedDay));
 
   return (
     <>
@@ -184,7 +209,8 @@ export default function AdminCalendarPage() {
                 const isSelected = sameDay(d, selectedDay);
                 const dayItems = eventsWithDate.filter((e) => sameDay(new Date(e.starts_at as string), d));
                 const dayPays = paymentsWithDate.filter((p) => sameDay(new Date(p.paid_at as string), d));
-                const totalItems = dayItems.length + dayPays.length;
+                const dayBusy = visibleBusyBlocks.filter((b) => overlapsDay(b, d));
+                const totalItems = dayItems.length + dayPays.length + dayBusy.length;
                 return (
                   <button
                     key={d.toISOString()}
@@ -210,10 +236,16 @@ export default function AdminCalendarPage() {
                           <span className="truncate">{e.title}</span>
                         </span>
                       ))}
-                      {dayPays.slice(0, totalItems > 2 ? 0 : 2 - dayItems.length).map((p) => (
+                      {dayPays.slice(0, Math.max(0, 2 - dayItems.length)).map((p) => (
                         <span key={p.id} className="flex items-center gap-1 text-[10px] text-muted">
                           <CategorySwatch category="payments" />
                           <span className="truncate">${(p.amount_cents / 100).toFixed(0)} paid</span>
+                        </span>
+                      ))}
+                      {dayBusy.slice(0, Math.max(0, 2 - dayItems.length - dayPays.length)).map((b) => (
+                        <span key={b.id} className="flex items-center gap-1 text-[10px] text-muted">
+                          <CategorySwatch category="external" />
+                          <span className="truncate">{b.summary ?? "Busy"}</span>
                         </span>
                       ))}
                       {totalItems > 2 && <span className="text-[10px] text-muted">+{totalItems - 2} more</span>}
@@ -229,9 +261,18 @@ export default function AdminCalendarPage() {
               {selectedDay.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
             </p>
             <div className="flex flex-col divide-y divide-border">
-              {dayEvents.length === 0 && dayPayments.length === 0 && (
+              {dayEvents.length === 0 && dayPayments.length === 0 && dayBusyBlocks.length === 0 && (
                 <p className="py-2 text-sm text-muted">Nothing scheduled.</p>
               )}
+              {dayBusyBlocks.map((b) => (
+                <div key={b.id} className="flex items-center gap-2.5 py-2.5 first:pt-0">
+                  <CategorySwatch category="external" />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{b.summary ?? "Busy"}</span>
+                    <span className="text-xs text-muted">From your Google Calendar</span>
+                  </div>
+                </div>
+              ))}
               {dayEvents.map((e) => (
                 <Link key={e.id} href="/admin/events" className="group flex items-center gap-2.5 py-2.5 first:pt-0">
                   <CategorySwatch category={categoryOf(e.status)} />

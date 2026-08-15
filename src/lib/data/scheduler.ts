@@ -61,3 +61,22 @@ export async function getConsultationEventsOnDate(dateStr: string) {
   if (error) throw error;
   return data;
 }
+
+/**
+ * Same +/- 1 day window as getConsultationEventsOnDate, but pulled from
+ * the synced Google Calendar rather than `events` — a personal commitment
+ * on the connected calendar blocks a public consultation slot too.
+ */
+export async function getBusyBlocksOnDate(dateStr: string) {
+  const db = createAdminClient();
+  const dayStartUtc = new Date(`${dateStr}T00:00:00Z`);
+  const rangeStart = new Date(dayStartUtc.getTime() - 24 * 60 * 60 * 1000).toISOString();
+  const rangeEnd = new Date(dayStartUtc.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await db
+    .from("external_calendar_busy_blocks")
+    .select("starts_at, ends_at")
+    .gte("starts_at", rangeStart)
+    .lte("starts_at", rangeEnd);
+  if (error) throw error;
+  return data as { starts_at: string; ends_at: string }[];
+}

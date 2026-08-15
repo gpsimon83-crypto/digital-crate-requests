@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, ChevronRight } from "lucide-react";
+import { ShieldCheck, ChevronRight, CalendarDays } from "lucide-react";
 
 interface Settings {
   allow_dj_self_registration: boolean;
@@ -14,7 +15,88 @@ interface Settings {
   push_notifications_enabled: boolean;
 }
 
-export default function AdminSettingsPage() {
+interface CalendarConnection {
+  googleCalendarId: string;
+  connectedEmail: string | null;
+  connectedAt: string;
+  lastSyncedAt: string | null;
+  lastSyncStatus: string | null;
+  lastSyncError: string | null;
+}
+
+function GoogleCalendarCard() {
+  const searchParams = useSearchParams();
+  const justConnected = searchParams.get("calendar") === "connected";
+  const connectError = searchParams.get("calendar") === "error";
+
+  const [connection, setConnection] = useState<CalendarConnection | null | undefined>(undefined);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  function load() {
+    fetch("/api/admin/calendar")
+      .then((r) => r.json())
+      .then((data) => setConnection(data.connection ?? null))
+      .catch(() => setConnection(null));
+  }
+
+  useEffect(load, []);
+
+  async function handleDisconnect() {
+    setDisconnecting(true);
+    try {
+      await fetch("/api/admin/calendar", { method: "DELETE" });
+      load();
+    } finally {
+      setDisconnecting(false);
+    }
+  }
+
+  return (
+    <GlassCard className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <CalendarDays size={18} className="shrink-0 text-gold" />
+        <div className="flex-1">
+          <p className="text-sm font-semibold">Google Calendar</p>
+          <p className="text-xs text-muted">Two-way sync — confirmed bookings appear on your calendar, and your busy times block public booking slots.</p>
+        </div>
+      </div>
+
+      {justConnected && <p className="text-xs text-status-approved">Connected — the next sync runs within 15 minutes.</p>}
+      {connectError && <p className="text-xs text-status-declined">Something went wrong connecting to Google. Try again.</p>}
+
+      {connection === undefined && <p className="text-xs text-muted">Loading…</p>}
+
+      {connection === null && (
+        <a href="/api/admin/calendar/oauth/start">
+          <Button variant="primary" size="sm">
+            Connect Google Calendar
+          </Button>
+        </a>
+      )}
+
+      {connection && (
+        <div className="flex flex-col gap-2 text-xs text-muted">
+          <p>
+            Connected as <span className="text-foreground">{connection.connectedEmail ?? "unknown account"}</span>
+          </p>
+          <p>
+            {connection.lastSyncedAt
+              ? `Last synced ${new Date(connection.lastSyncedAt).toLocaleString()}${connection.lastSyncStatus === "error" ? " — last run failed" : ""}`
+              : "Not synced yet — first run within 15 minutes."}
+          </p>
+          {connection.lastSyncStatus === "error" && connection.lastSyncError && (
+            <p className="text-status-declined">{connection.lastSyncError}</p>
+          )}
+          <Button variant="destructive" size="sm" onClick={handleDisconnect} disabled={disconnecting} className="w-fit">
+            {disconnecting ? "Disconnecting…" : "Disconnect"}
+          </Button>
+        </div>
+      )}
+    </GlassCard>
+  );
+}
+
+function AdminSettingsPageInner() {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -78,6 +160,8 @@ export default function AdminSettingsPage() {
           </GlassCard>
         </Link>
 
+        <GoogleCalendarCard />
+
         {!settings && !error && <p className="text-sm text-muted">Loading...</p>}
 
         {settings && (
@@ -120,6 +204,14 @@ export default function AdminSettingsPage() {
         )}
       </div>
     </>
+  );
+}
+
+export default function AdminSettingsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-sm text-muted">Loading...</div>}>
+      <AdminSettingsPageInner />
+    </Suspense>
   );
 }
 
