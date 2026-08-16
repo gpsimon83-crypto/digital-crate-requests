@@ -2,6 +2,26 @@ import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/require-admin";
+import { requireAuth } from "@/lib/require-auth";
+
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requireAuth();
+  if (denied) return denied;
+
+  const { id } = await params;
+  try {
+    const db = createAdminClient();
+    const { data, error } = await db
+      .from("djs")
+      .select("id, display_name, auth_user_id, photo_url, hero_settings, events(id, title, starts_at, status, final_amount, quoted_amount, venues(name))")
+      .eq("id", id)
+      .single();
+    if (error) throw error;
+    return NextResponse.json({ dj: data });
+  } catch (err) {
+    return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
+  }
+}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const denied = await requireAdmin();

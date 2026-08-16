@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +11,7 @@ import { DEFAULT_HERO_SETTINGS, mergeHeroSettings, type HeroSettings } from "@/l
 import { StatusChip } from "@/components/ui/status-chip";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { SideDrawer } from "@/components/ui/side-drawer";
-import { Disc3 } from "lucide-react";
+import { Disc3, ArrowUpRight } from "lucide-react";
 
 interface DjRow {
   id: string;
@@ -20,6 +22,7 @@ interface DjRow {
 }
 
 export default function AdminDjsPage() {
+  const router = useRouter();
   const [djs, setDjs] = useState<DjRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
@@ -218,7 +221,7 @@ export default function AdminDjsPage() {
           columns={columns(openDrawer)}
           rows={djs ?? []}
           rowKey={(dj) => dj.id}
-          onRowClick={openDrawer}
+          onRowClick={(dj) => router.push(`/admin/djs/${dj.id}`)}
           loading={djs === null}
           searchFn={(dj, q) => dj.display_name.toLowerCase().includes(q)}
           searchPlaceholder="Search DJs…"
@@ -228,9 +231,12 @@ export default function AdminDjsPage() {
         />
       </div>
 
-      <SideDrawer open={!!drawerDj} onClose={closeDrawer} title={drawerDj?.display_name ?? ""} subtitle="DJ profile">
+      <SideDrawer open={!!drawerDj} onClose={closeDrawer} title={drawerDj?.display_name ?? ""} subtitle="Quick edit">
         {drawerDj && (
           <div className="flex flex-col gap-6">
+            <Link href={`/admin/djs/${drawerDj.id}`} className="flex w-fit items-center gap-1 text-xs text-gold hover:underline">
+              View full profile <ArrowUpRight size={12} />
+            </Link>
             <div className="flex items-center gap-3">
               <div className="relative shrink-0">
                 <DjAvatar name={drawerDj.display_name} photoUrl={drawerDj.photo_url} size={56} />
@@ -370,7 +376,13 @@ function columns(onEdit: (dj: DjRow) => void): DataTableColumn<DjRow>[] {
       header: "",
       align: "right",
       render: (dj) => (
-        <button onClick={() => onEdit(dj)} className="text-xs text-gold hover:underline">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(dj);
+          }}
+          className="text-xs text-gold hover:underline"
+        >
           Manage
         </button>
       )

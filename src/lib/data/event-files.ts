@@ -38,6 +38,22 @@ export async function listFilesForClient(clientId: string) {
   return data as unknown as ClientEventFile[];
 }
 
+export interface DjEventFile extends EventFileRow {
+  events: { title: string | null } | null;
+}
+
+/** Every file across every event this DJ has been assigned to, newest first — the DJ Workspace rollup. */
+export async function listFilesForDj(djId: string) {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("event_files")
+    .select("*, events!inner(title, dj_id)")
+    .eq("events.dj_id", djId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data as unknown as DjEventFile[];
+}
+
 export async function createEventFile(
   eventId: string,
   input: { category: EventFileCategory; fileUrl: string; fileName: string; source?: EventFileSource; emailMessageId?: string; uploadedBy?: string }
