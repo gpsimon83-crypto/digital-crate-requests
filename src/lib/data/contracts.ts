@@ -110,6 +110,22 @@ export async function listContractsForEvent(eventId: string) {
   return data as ContractRow[];
 }
 
+export interface ClientContract extends ContractRow {
+  events: { title: string | null; event_code: string } | null;
+}
+
+/** Every contract across every event this client has ever booked, newest first — the Client Workspace rollup. */
+export async function listContractsForClient(clientId: string) {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("contracts")
+    .select("*, events!inner(title, event_code, client_id)")
+    .eq("events.client_id", clientId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data as unknown as ClientContract[];
+}
+
 export async function createDraftFromTemplate(eventId: string, templateId: string, origin: string) {
   const template = await getLibraryItem(templateId);
   if (!template || template.category !== "contract_template" || !template.body) {

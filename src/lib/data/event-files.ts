@@ -22,6 +22,22 @@ export async function listEventFiles(eventId: string): Promise<EventFileRow[]> {
   return data;
 }
 
+export interface ClientEventFile extends EventFileRow {
+  events: { title: string | null } | null;
+}
+
+/** Every file across every event this client has ever booked, newest first — the Client Workspace rollup. */
+export async function listFilesForClient(clientId: string) {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("event_files")
+    .select("*, events!inner(title, client_id)")
+    .eq("events.client_id", clientId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data as unknown as ClientEventFile[];
+}
+
 export async function createEventFile(
   eventId: string,
   input: { category: EventFileCategory; fileUrl: string; fileName: string; source?: EventFileSource; emailMessageId?: string; uploadedBy?: string }

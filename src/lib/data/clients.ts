@@ -16,7 +16,7 @@ export async function getClient(clientId: string) {
   const db = createAdminClient();
   const { data, error } = await db
     .from("clients")
-    .select("*, events(id, title, starts_at, status, final_amount)")
+    .select("*, events(id, title, starts_at, status, final_amount, quoted_amount, contract_status)")
     .eq("id", clientId)
     .single();
   if (error) throw error;
