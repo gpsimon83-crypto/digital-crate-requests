@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { StatTile } from "@/components/ui/stat-tile";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/ui/status-chip";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { clientName } from "@/lib/format";
 import { Wallet, CheckCircle2, Clock, Users, Receipt, TrendingUp, Plus, X, Trash2 } from "lucide-react";
 
@@ -58,6 +59,7 @@ const inputClass = "w-full rounded-[10px] border border-black/10 bg-panel px-3 p
 const labelClass = "mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted";
 
 export default function AdminFinancePage() {
+  const router = useRouter();
   const [events, setEvents] = useState<EventRow[] | null>(null);
   const [djs, setDjs] = useState<DjOption[]>([]);
   const [payouts, setPayouts] = useState<PayoutRow[] | null>(null);
@@ -168,48 +170,16 @@ export default function AdminFinancePage() {
 
         <div>
           <p className="mb-2 text-sm font-semibold">Outstanding balances</p>
-          {loading && <p className="text-sm text-muted">Loading…</p>}
-          {!loading && outstanding.length === 0 && (
-            <EmptyState icon={CheckCircle2} title="Nothing outstanding" body="Every booked event is paid in full." />
-          )}
-          {outstanding.length > 0 && (
-            <div className="overflow-x-auto">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Project</th>
-                    <th>Contact</th>
-                    <th>Date</th>
-                    <th>Paid</th>
-                    <th>Balance Due</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {outstanding.map((e) => {
-                    const total = Math.round((e.final_amount ?? e.quoted_amount ?? 0) * 100);
-                    const balance = total - e.paid_cents;
-                    return (
-                      <tr key={e.id} className="is-linked" onClick={() => (window.location.href = `/admin/events/${e.id}`)}>
-                        <td>
-                          <Link href={`/admin/events/${e.id}`} className="font-medium hover:text-gold hover:underline">
-                            {e.title}
-                          </Link>
-                        </td>
-                        <td className="text-muted">{clientName(e.clients) ?? "No client"}</td>
-                        <td className="whitespace-nowrap tabular-nums text-muted">
-                          {e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—"}
-                        </td>
-                        <td className="tabular-nums text-muted">
-                          {money(e.paid_cents)} / {money(total)}
-                        </td>
-                        <td className="font-semibold tabular-nums">{money(balance)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <DataTable
+            columns={outstandingColumns()}
+            rows={outstanding}
+            rowKey={(e) => e.id}
+            loading={loading}
+            onRowClick={(e) => router.push(`/admin/events/${e.id}`)}
+            emptyIcon={CheckCircle2}
+            emptyTitle="Nothing outstanding"
+            emptyBody="Every booked event is paid in full."
+          />
         </div>
 
         <PayoutsSection events={events ?? []} djs={djs} payouts={payouts} onCreate={handleCreatePayout} onTogglePaid={handleTogglePaid} onDelete={handleDeletePayout} />
@@ -218,6 +188,57 @@ export default function AdminFinancePage() {
       </div>
     </>
   );
+}
+
+function outstandingColumns(): DataTableColumn<EventRow>[] {
+  function balanceOf(e: EventRow) {
+    const total = Math.round((e.final_amount ?? e.quoted_amount ?? 0) * 100);
+    return { total, balance: total - e.paid_cents };
+  }
+  return [
+    {
+      key: "project",
+      header: "Project",
+      sortValue: (e) => e.title,
+      render: (e) => <span className="font-medium hover:text-gold hover:underline">{e.title}</span>
+    },
+    {
+      key: "contact",
+      header: "Contact",
+      sortValue: (e) => clientName(e.clients) ?? "",
+      render: (e) => <span className="text-muted">{clientName(e.clients) ?? "No client"}</span>
+    },
+    {
+      key: "date",
+      header: "Date",
+      sortValue: (e) => e.starts_at ?? "",
+      render: (e) => (
+        <span className="whitespace-nowrap tabular-nums text-muted">
+          {e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—"}
+        </span>
+      )
+    },
+    {
+      key: "paid",
+      header: "Paid",
+      hideBelow: "md",
+      render: (e) => {
+        const { total } = balanceOf(e);
+        return (
+          <span className="tabular-nums text-muted">
+            {money(e.paid_cents)} / {money(total)}
+          </span>
+        );
+      }
+    },
+    {
+      key: "balance",
+      header: "Balance Due",
+      align: "right",
+      sortValue: (e) => balanceOf(e).balance,
+      render: (e) => <span className="font-semibold tabular-nums">{money(balanceOf(e).balance)}</span>
+    }
+  ];
 }
 
 function PayoutsSection({
