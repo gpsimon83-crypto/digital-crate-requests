@@ -109,7 +109,7 @@ export function Sidebar({
               const active = item.isActive ? item.isActive(pathname) : pathname === item.href;
               return (
                 <Link
-                  key={item.href}
+                  key={item.label}
                   href={item.href}
                   aria-disabled={item.disabled}
                   target={item.external ? "_blank" : undefined}
