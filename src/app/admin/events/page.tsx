@@ -1,14 +1,15 @@
 "use client";
 
-import { Fragment, Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Tabs } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { EVENT_TYPES, EVENT_CATEGORY_GROUPS } from "@/lib/event-types";
 import { PIPELINE_STAGES, PIPELINE_STAGE_DOT } from "@/lib/pipeline-stage";
 import { clientName } from "@/lib/format";
@@ -62,6 +63,7 @@ const STAGE_TABS = [
 ];
 
 function AdminEventsPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const stage = searchParams.get("stage") === "inquiries" ? "inquiries" : "active";
   const category = searchParams.get("category") ?? "all";
@@ -335,8 +337,22 @@ function AdminEventsPageContent() {
 
         {events === null && <p className="text-sm text-muted">Loading projects…</p>}
 
-        {events !== null && stage === "active" && visibleEvents.length === 0 && (
-          <EmptyState icon={Briefcase} title="No projects in this view" body="Create a project or adjust the filters above." />
+        {stage === "active" && events !== null && (
+          <DataTable
+            columns={eventColumns(handleStageChange)}
+            rows={visibleEvents}
+            rowKey={(e) => e.id}
+            onRowClick={(e) => router.push(`/admin/events/${e.id}`)}
+            searchFn={(e, q) =>
+              e.title.toLowerCase().includes(q) ||
+              (clientName(e.clients, "") ?? "").toLowerCase().includes(q) ||
+              (e.venues?.name ?? "").toLowerCase().includes(q)
+            }
+            searchPlaceholder="Search projects…"
+            emptyIcon={Briefcase}
+            emptyTitle="No projects in this view"
+            emptyBody="Create a project or adjust the filters above."
+          />
         )}
 
         {events !== null && stage === "inquiries" && visibleEvents.length === 0 && (
@@ -385,146 +401,122 @@ function AdminEventsPageContent() {
           </div>
         )}
 
-        {stage === "active" && visibleEvents.length > 0 && (
-          <>
-            {/* Desktop/tablet: full compact table */}
-            <div className="hidden overflow-x-auto md:block">
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th>Date</th>
-                    <th>Project</th>
-                    <th>Venue</th>
-                    <th>DJ</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Stage</th>
-                    <th>Payment</th>
-                    <th>Contract</th>
-                    <th className="sr-only">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleEvents.map((e) => {
-                    const totalDue = e.final_amount ?? e.quoted_amount;
-                    const totalDueCents = totalDue ? Math.round(totalDue * 100) : 0;
-                    const name = clientName(e.clients, "Unnamed contact");
-                    return (
-                      <Fragment key={e.id}>
-                        <tr>
-                          <td className="whitespace-nowrap tabular-nums text-muted">
-                            {e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
-                          </td>
-                          <td>
-                            <Link href={`/admin/events/${e.id}`} className="font-medium hover:text-gold hover:underline">
-                              {e.title}
-                            </Link>
-                            {name ? (
-                              <div className="text-xs text-muted">{name}</div>
-                            ) : (
-                              <div className="text-xs text-status-urgent">No client linked</div>
-                            )}
-                          </td>
-                          <td className="text-muted">{e.venues?.name ?? "—"}</td>
-                          <td className={e.djs ? "" : "text-status-urgent"}>{e.djs?.display_name ?? "Unassigned"}</td>
-                          <td className="text-muted">{e.event_type ?? "—"}</td>
-                          <td>
-                            <StatusChip tone={(STATUS_DOT[e.status] as StatusTone) ?? "muted"} variant="dot">
-                              {STATUS_LABEL[e.status] ?? e.status}
-                            </StatusChip>
-                          </td>
-                          <td>
-                            <select
-                              value={e.pipeline_stage ?? "Inquiry"}
-                              onChange={(ev) => handleStageChange(e.id, ev.target.value)}
-                              className={cn(
-                                "status-dot rounded-[10px] border-0 bg-transparent py-0.5 pl-0 pr-5 text-xs focus:outline-none",
-                                PIPELINE_STAGE_DOT[e.pipeline_stage ?? "Inquiry"] ?? ""
-                              )}
-                            >
-                              {PIPELINE_STAGES.map((s) => (
-                                <option key={s} value={s}>
-                                  {s}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                          <td className="whitespace-nowrap">
-                            {totalDue ? (
-                              <span className={e.paid_cents >= totalDueCents ? "text-status-approved" : e.paid_cents > 0 ? "text-status-pending" : "text-muted"}>
-                                {e.paid_cents >= totalDueCents ? "Paid" : `$${(e.paid_cents / 100).toFixed(0)}/$${totalDue.toFixed(0)}`}
-                              </span>
-                            ) : (
-                              <span className="text-muted">—</span>
-                            )}
-                          </td>
-                          <td className="whitespace-nowrap">
-                            {e.contract_status === "signed" ? (
-                              <Link href={`/admin/events/${e.id}`} className="text-status-approved hover:underline">
-                                Signed
-                              </Link>
-                            ) : e.contract_status === "sent" ? (
-                              <Link href={`/admin/events/${e.id}`} className="text-status-pending hover:underline">
-                                Sent
-                              </Link>
-                            ) : (
-                              <Link href={`/admin/events/${e.id}`} className="text-gold hover:underline">
-                                Send
-                              </Link>
-                            )}
-                          </td>
-                          <td>
-                            <Link href={`/admin/events/${e.id}`} className="flex items-center justify-center text-muted hover:text-gold">
-                              <ChevronRight size={15} />
-                            </Link>
-                          </td>
-                        </tr>
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile: structured compact rows instead of a squeezed table */}
-            <div className="flex flex-col divide-y divide-border border-y border-border md:hidden">
-              {visibleEvents.map((e) => {
-                const totalDue = e.final_amount ?? e.quoted_amount;
-                const totalDueCents = totalDue ? Math.round(totalDue * 100) : 0;
-                const name = clientName(e.clients, "Unnamed contact");
-                return (
-                  <div key={e.id} className="flex flex-col gap-1.5 py-3 first:pt-0 last:pb-0">
-                    <Link href={`/admin/events/${e.id}`} className="flex items-center justify-between gap-2">
-                      <span className="font-medium">{e.title}</span>
-                      <ChevronRight size={15} className="shrink-0 text-muted" />
-                    </Link>
-                    {name ? <span className="text-xs text-muted">{name}</span> : <span className="text-xs text-status-urgent">No client linked</span>}
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                      <span className="tabular-nums text-muted">
-                        {e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
-                      </span>
-                      <StatusChip tone={(STATUS_DOT[e.status] as StatusTone) ?? "muted"} variant="dot">
-                        {STATUS_LABEL[e.status] ?? e.status}
-                      </StatusChip>
-                      <StatusChip tone={(PIPELINE_STAGE_DOT[e.pipeline_stage ?? "Inquiry"] as StatusTone) ?? "muted"} variant="dot">
-                        {e.pipeline_stage ?? "Inquiry"}
-                      </StatusChip>
-                      <span className={e.djs ? "text-muted" : "text-status-urgent"}>{e.djs?.display_name ?? "Unassigned"}</span>
-                      {totalDue && (
-                        <span className={e.paid_cents >= totalDueCents ? "text-status-approved" : "text-muted"}>
-                          {e.paid_cents >= totalDueCents ? "Paid" : `$${(e.paid_cents / 100).toFixed(0)}/$${totalDue.toFixed(0)}`}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </>
-        )}
       </div>
     </>
   );
+}
+
+function eventColumns(onStageChange: (eventId: string, stage: string) => void): DataTableColumn<EventRow>[] {
+  return [
+    {
+      key: "date",
+      header: "Date",
+      sortValue: (e) => e.starts_at ?? "",
+      render: (e) => (
+        <span className="whitespace-nowrap tabular-nums text-muted">
+          {e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "TBD"}
+        </span>
+      )
+    },
+    {
+      key: "project",
+      header: "Project",
+      sortValue: (e) => e.title,
+      render: (e) => {
+        const name = clientName(e.clients, "Unnamed contact");
+        return (
+          <>
+            <Link href={`/admin/events/${e.id}`} className="font-medium hover:text-gold hover:underline">
+              {e.title}
+            </Link>
+            {name ? <div className="text-xs text-muted">{name}</div> : <div className="text-xs text-status-urgent">No client linked</div>}
+          </>
+        );
+      }
+    },
+    { key: "venue", header: "Venue", hideBelow: "md", render: (e) => <span className="text-muted">{e.venues?.name ?? "—"}</span> },
+    {
+      key: "dj",
+      header: "DJ",
+      sortValue: (e) => e.djs?.display_name ?? "",
+      render: (e) => <span className={e.djs ? "" : "text-status-urgent"}>{e.djs?.display_name ?? "Unassigned"}</span>
+    },
+    { key: "type", header: "Type", hideBelow: "lg", render: (e) => <span className="text-muted">{e.event_type ?? "—"}</span> },
+    {
+      key: "status",
+      header: "Status",
+      sortValue: (e) => e.status,
+      render: (e) => (
+        <StatusChip tone={(STATUS_DOT[e.status] as StatusTone) ?? "muted"} variant="dot">
+          {STATUS_LABEL[e.status] ?? e.status}
+        </StatusChip>
+      )
+    },
+    {
+      key: "stage",
+      header: "Stage",
+      render: (e) => (
+        <select
+          value={e.pipeline_stage ?? "Inquiry"}
+          onChange={(ev) => onStageChange(e.id, ev.target.value)}
+          onClick={(ev) => ev.stopPropagation()}
+          className={cn(
+            "status-dot rounded-[10px] border-0 bg-transparent py-0.5 pl-0 pr-5 text-xs focus:outline-none",
+            PIPELINE_STAGE_DOT[e.pipeline_stage ?? "Inquiry"] ?? ""
+          )}
+        >
+          {PIPELINE_STAGES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      )
+    },
+    {
+      key: "payment",
+      header: "Payment",
+      hideBelow: "md",
+      render: (e) => {
+        const totalDue = e.final_amount ?? e.quoted_amount;
+        const totalDueCents = totalDue ? Math.round(totalDue * 100) : 0;
+        if (!totalDue) return <span className="whitespace-nowrap text-muted">—</span>;
+        return (
+          <span
+            className={cn(
+              "whitespace-nowrap",
+              e.paid_cents >= totalDueCents ? "text-status-approved" : e.paid_cents > 0 ? "text-status-pending" : "text-muted"
+            )}
+          >
+            {e.paid_cents >= totalDueCents ? "Paid" : `$${(e.paid_cents / 100).toFixed(0)}/$${totalDue.toFixed(0)}`}
+          </span>
+        );
+      }
+    },
+    {
+      key: "contract",
+      header: "Contract",
+      hideBelow: "lg",
+      render: (e) => (
+        <Link
+          href={`/admin/events/${e.id}`}
+          onClick={(ev) => ev.stopPropagation()}
+          className={cn(
+            "whitespace-nowrap hover:underline",
+            e.contract_status === "signed" ? "text-status-approved" : e.contract_status === "sent" ? "text-status-pending" : "text-gold"
+          )}
+        >
+          {e.contract_status === "signed" ? "Signed" : e.contract_status === "sent" ? "Sent" : "Send"}
+        </Link>
+      )
+    },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: () => <ChevronRight size={15} className="text-muted" />
+    }
+  ];
 }
 
 export default function AdminEventsPage() {
