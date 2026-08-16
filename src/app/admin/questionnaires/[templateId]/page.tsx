@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, ChevronDown, ChevronUp, Trash2, Plus, ExternalLink } from "lucide-react";
 import type { QuestionType, QuestionOption } from "@/lib/questionnaire-engine";
@@ -90,6 +91,8 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
   const [openingBody, setOpeningBody] = useState("");
   const [openingCta, setOpeningCta] = useState("");
   const [savingOpening, setSavingOpening] = useState(false);
+  const [pendingDeleteSection, setPendingDeleteSection] = useState<SectionRow | null>(null);
+  const [pendingDeleteQuestion, setPendingDeleteQuestion] = useState<QuestionRow | null>(null);
 
   function load() {
     fetch(`/api/admin/questionnaires/${templateId}`)
@@ -204,11 +207,10 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
   }
 
   async function handleDeleteSection(section: SectionRow) {
-    const qCount = questions.filter((q) => q.section_id === section.id).length;
-    if (!window.confirm(`Delete "${section.title}"${qCount > 0 ? ` and its ${qCount} question(s)` : ""}? This can't be undone.`)) return;
     setSections((prev) => prev.filter((s) => s.id !== section.id));
     setQuestions((prev) => prev.filter((q) => q.section_id !== section.id));
     await fetch(`/api/admin/questionnaires/sections/${section.id}`, { method: "DELETE" });
+    setPendingDeleteSection(null);
   }
 
   async function handleAddQuestion(section: SectionRow) {
@@ -264,9 +266,9 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
   }
 
   async function handleDeleteQuestion(question: QuestionRow) {
-    if (!window.confirm(`Delete "${question.prompt}"? This can't be undone.`)) return;
     setQuestions((prev) => prev.filter((q) => q.id !== question.id));
     await fetch(`/api/admin/questionnaires/questions/${question.id}`, { method: "DELETE" });
+    setPendingDeleteQuestion(null);
   }
 
   if (error && !template) {
@@ -348,11 +350,11 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
             priorQuestions={priorQuestions}
             onUpdateSection={(updates) => handleUpdateSection(section, updates)}
             onMoveSection={(dir) => handleMoveSection(section, dir)}
-            onDeleteSection={() => handleDeleteSection(section)}
+            onDeleteSection={() => setPendingDeleteSection(section)}
             onAddQuestion={() => handleAddQuestion(section)}
             onUpdateQuestion={handleUpdateQuestion}
             onMoveQuestion={handleMoveQuestion}
-            onDeleteQuestion={handleDeleteQuestion}
+            onDeleteQuestion={setPendingDeleteQuestion}
           />
         ))}
 
@@ -363,6 +365,28 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
           <Plus size={15} /> Add Chapter
         </button>
       </div>
+
+      <ConfirmModal
+        open={!!pendingDeleteSection}
+        title={pendingDeleteSection ? `Delete "${pendingDeleteSection.title}"?` : ""}
+        body={
+          pendingDeleteSection && questions.filter((q) => q.section_id === pendingDeleteSection.id).length > 0
+            ? `This will also delete its ${questions.filter((q) => q.section_id === pendingDeleteSection.id).length} question(s). This can't be undone.`
+            : "This can't be undone."
+        }
+        confirmLabel="Delete"
+        onConfirm={() => pendingDeleteSection && handleDeleteSection(pendingDeleteSection)}
+        onCancel={() => setPendingDeleteSection(null)}
+      />
+
+      <ConfirmModal
+        open={!!pendingDeleteQuestion}
+        title={pendingDeleteQuestion ? `Delete "${pendingDeleteQuestion.prompt}"?` : ""}
+        body="This can't be undone."
+        confirmLabel="Delete"
+        onConfirm={() => pendingDeleteQuestion && handleDeleteQuestion(pendingDeleteQuestion)}
+        onCancel={() => setPendingDeleteQuestion(null)}
+      />
     </>
   );
 }
