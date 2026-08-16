@@ -11,6 +11,7 @@ import { DEFAULT_HERO_SETTINGS, mergeHeroSettings, type HeroSettings } from "@/l
 import { StatusChip } from "@/components/ui/status-chip";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { SideDrawer } from "@/components/ui/side-drawer";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { Disc3, ArrowUpRight } from "lucide-react";
 
 interface DjRow {
@@ -37,6 +38,7 @@ export default function AdminDjsPage() {
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const [heroDraft, setHeroDraft] = useState<HeroSettings>(DEFAULT_HERO_SETTINGS);
   const [drawerDjId, setDrawerDjId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -87,7 +89,6 @@ export default function AdminDjsPage() {
   }
 
   async function handleDelete(djId: string) {
-    if (!confirm("Remove this DJ from the roster? This cannot be undone.")) return;
     try {
       const res = await fetch(`/api/admin/djs/${djId}`, { method: "DELETE" });
       const data = await res.json();
@@ -96,6 +97,8 @@ export default function AdminDjsPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setPendingDeleteId(null);
     }
   }
 
@@ -341,12 +344,21 @@ export default function AdminDjsPage() {
               </Button>
             </div>
 
-            <Button variant="destructive" size="sm" onClick={() => handleDelete(drawerDj.id)} className="w-fit">
+            <Button variant="destructive" size="sm" onClick={() => setPendingDeleteId(drawerDj.id)} className="w-fit">
               Remove from Roster
             </Button>
           </div>
         )}
       </SideDrawer>
+
+      <ConfirmModal
+        open={!!pendingDeleteId}
+        title="Remove this DJ from the roster?"
+        body="This cannot be undone."
+        confirmLabel="Remove"
+        onConfirm={() => pendingDeleteId && handleDelete(pendingDeleteId)}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </>
   );
 }
