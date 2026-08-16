@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Field } from "@/components/ui/field";
+import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { Plus, X, Boxes } from "lucide-react";
 
 interface EquipmentRow {
@@ -32,6 +33,7 @@ export default function AdminEquipmentPage() {
   const [showCreate, setShowCreate] = useState(
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("new") === "1"
   );
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -80,7 +82,6 @@ export default function AdminEquipmentPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Remove this equipment? This cannot be undone.")) return;
     try {
       const res = await fetch(`/api/admin/equipment/${id}`, { method: "DELETE" });
       const data = await res.json();
@@ -88,6 +89,8 @@ export default function AdminEquipmentPage() {
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setPendingDeleteId(null);
     }
   }
 
@@ -148,43 +151,48 @@ export default function AdminEquipmentPage() {
           </div>
         )}
 
-        {items === null && <p className="text-sm text-muted">Loading…</p>}
-        {items?.length === 0 && <EmptyState icon={Boxes} title="No equipment yet" body="Add your first piece of gear." />}
-        {items && items.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Category</th>
-                  <th>Brand</th>
-                  <th>Qty</th>
-                  <th>Status</th>
-                  <th>Location</th>
-                  <th className="sr-only">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="font-medium">{item.name}</td>
-                    <td className="capitalize text-muted">{item.category}</td>
-                    <td className="text-muted">{item.brand ?? "—"}</td>
-                    <td className="tabular-nums">{item.quantity_owned}</td>
-                    <td className="capitalize text-muted">{item.status}</td>
-                    <td className="text-muted">{item.storage_location ?? "—"}</td>
-                    <td>
-                      <button onClick={() => handleDelete(item.id)} className="text-xs text-status-declined hover:underline">
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable
+          columns={equipmentColumns(setPendingDeleteId)}
+          rows={items ?? []}
+          rowKey={(item) => item.id}
+          loading={items === null}
+          searchFn={(item, q) => item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q) || (item.brand ?? "").toLowerCase().includes(q)}
+          searchPlaceholder="Search equipment…"
+          emptyIcon={Boxes}
+          emptyTitle="No equipment yet"
+          emptyBody="Add your first piece of gear."
+        />
       </div>
+
+      <ConfirmModal
+        open={!!pendingDeleteId}
+        title="Remove this equipment?"
+        body="This cannot be undone."
+        confirmLabel="Remove"
+        onConfirm={() => pendingDeleteId && handleDelete(pendingDeleteId)}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </>
   );
+}
+
+function equipmentColumns(onDelete: (id: string) => void): DataTableColumn<EquipmentRow>[] {
+  return [
+    { key: "name", header: "Name", sortValue: (i) => i.name, render: (i) => <span className="font-medium">{i.name}</span> },
+    { key: "category", header: "Category", sortValue: (i) => i.category, render: (i) => <span className="capitalize text-muted">{i.category}</span> },
+    { key: "brand", header: "Brand", hideBelow: "md", render: (i) => <span className="text-muted">{i.brand ?? "—"}</span> },
+    { key: "qty", header: "Qty", sortValue: (i) => i.quantity_owned, render: (i) => <span className="tabular-nums">{i.quantity_owned}</span> },
+    { key: "status", header: "Status", hideBelow: "md", render: (i) => <span className="capitalize text-muted">{i.status}</span> },
+    { key: "location", header: "Location", hideBelow: "lg", render: (i) => <span className="text-muted">{i.storage_location ?? "—"}</span> },
+    {
+      key: "actions",
+      header: "",
+      align: "right",
+      render: (i) => (
+        <button onClick={() => onDelete(i.id)} className="text-xs text-status-declined hover:underline">
+          Remove
+        </button>
+      )
+    }
+  ];
 }
