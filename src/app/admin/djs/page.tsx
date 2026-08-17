@@ -12,7 +12,8 @@ import { StatusChip } from "@/components/ui/status-chip";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { SideDrawer } from "@/components/ui/side-drawer";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
-import { Disc3, ArrowUpRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Disc3, ArrowUpRight, PenLine, Mail, SlidersHorizontal, AlertTriangle, type LucideIcon } from "lucide-react";
 
 interface DjRow {
   id: string;
@@ -236,35 +237,11 @@ export default function AdminDjsPage() {
 
       <SideDrawer open={!!drawerDj} onClose={closeDrawer} title={drawerDj?.display_name ?? ""} subtitle="Quick edit">
         {drawerDj && (
-          <div className="flex flex-col gap-6">
-            <Link href={`/admin/djs/${drawerDj.id}`} className="flex w-fit items-center gap-1 text-xs text-gold hover:underline">
-              View full profile <ArrowUpRight size={12} />
-            </Link>
-            <div className="flex items-center gap-3">
-              <div className="relative shrink-0">
-                <DjAvatar name={drawerDj.display_name} photoUrl={drawerDj.photo_url} size={56} />
-                <input
-                  ref={(el) => {
-                    fileInputs.current[drawerDj.id] = el;
-                  }}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handlePhotoSelected(drawerDj.id, file);
-                    e.target.value = "";
-                  }}
-                />
-                <button
-                  onClick={() => fileInputs.current[drawerDj.id]?.click()}
-                  disabled={savingId === drawerDj.id}
-                  className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-gold text-[10px] font-bold text-black disabled:opacity-50"
-                  title="Change photo"
-                >
-                  ✎
-                </button>
-              </div>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <Link href={`/admin/djs/${drawerDj.id}`} className="flex w-fit items-center gap-1 text-xs text-gold hover:underline">
+                View full profile <ArrowUpRight size={12} />
+              </Link>
               {drawerDj.auth_user_id ? (
                 <StatusChip tone="approved">Has Login</StatusChip>
               ) : (
@@ -272,8 +249,38 @@ export default function AdminDjsPage() {
               )}
             </div>
 
-            <div className="flex flex-col gap-1.5">
-              <span className="text-xs uppercase tracking-wide text-muted">Display Name</span>
+            <GlassCard className="flex items-center gap-4">
+              <DjAvatar name={drawerDj.display_name} photoUrl={drawerDj.photo_url} size={64} />
+              <div className="flex-1">
+                <p className="font-semibold">Photo</p>
+                <p className="text-xs text-muted">Used across the DJ Portal and as the event hero image.</p>
+              </div>
+              <input
+                ref={(el) => {
+                  fileInputs.current[drawerDj.id] = el;
+                }}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handlePhotoSelected(drawerDj.id, file);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => fileInputs.current[drawerDj.id]?.click()}
+                disabled={savingId === drawerDj.id}
+                className="shrink-0"
+              >
+                {savingId === drawerDj.id ? "Uploading…" : "Browse…"}
+              </Button>
+            </GlassCard>
+
+            <GlassCard className="flex flex-col gap-3">
+              <SectionHeader icon={PenLine} title="Display Name" />
               <div className="flex items-center gap-2">
                 <input
                   value={editName}
@@ -284,11 +291,11 @@ export default function AdminDjsPage() {
                   Save
                 </Button>
               </div>
-            </div>
+            </GlassCard>
 
             {!drawerDj.auth_user_id && (
-              <div className="flex flex-col gap-2">
-                <span className="text-xs uppercase tracking-wide text-muted">Create Login</span>
+              <GlassCard className="flex flex-col gap-3">
+                <SectionHeader icon={Mail} title="Dashboard Login" description="Give this DJ access to their own dashboard." />
                 <input
                   type="email"
                   value={loginEmail}
@@ -317,7 +324,7 @@ export default function AdminDjsPage() {
                   </Button>
                 </div>
                 {credentials?.djId === drawerDj.id && (
-                  <GlassCard className="border border-gold/40 text-xs">
+                  <div className="rounded-[10px] border border-gold/40 bg-gold/5 p-3 text-xs">
                     <p className="mb-1 font-semibold text-gold">Share this with the DJ once:</p>
                     <p>
                       Email: <span className="font-mono">{credentials.email}</span>
@@ -325,28 +332,39 @@ export default function AdminDjsPage() {
                     <p>
                       Password: <span className="font-mono">{credentials.tempPassword}</span>
                     </p>
-                  </GlassCard>
+                  </div>
                 )}
                 {invited?.djId === drawerDj.id && (
                   <p className="text-xs text-status-approved">Invite sent to {invited.email}.</p>
                 )}
-              </div>
+              </GlassCard>
             )}
 
-            <div className="flex flex-col gap-4">
-              <span className="text-xs uppercase tracking-wide text-muted">Hero Settings</span>
+            <GlassCard className="flex flex-col gap-4">
+              <SectionHeader icon={SlidersHorizontal} title="Hero Image" description="How this DJ's photo is framed on event pages." />
               <HeroSlider label="Horizontal Position" value={heroDraft.xPosition} min={0} max={100} onChange={(v) => setHeroDraft((s) => ({ ...s, xPosition: v }))} />
               <HeroSlider label="Vertical Position" value={heroDraft.yPosition} min={0} max={100} onChange={(v) => setHeroDraft((s) => ({ ...s, yPosition: v }))} />
               <HeroSlider label="Zoom" value={heroDraft.zoom} min={100} max={180} suffix="%" onChange={(v) => setHeroDraft((s) => ({ ...s, zoom: v }))} />
               <HeroSlider label="Overlay Darkness" value={heroDraft.overlayDarkness} min={0} max={80} suffix="%" onChange={(v) => setHeroDraft((s) => ({ ...s, overlayDarkness: v }))} />
-              <Button variant="primary" size="sm" onClick={() => handleSaveHero(drawerDj.id)} disabled={savingId === drawerDj.id} className="w-fit">
-                {savingId === drawerDj.id ? "Saving..." : "Save Hero Settings"}
+              <div className="flex items-center gap-3">
+                <Button variant="primary" size="sm" onClick={() => handleSaveHero(drawerDj.id)} disabled={savingId === drawerDj.id} className="w-fit">
+                  {savingId === drawerDj.id ? "Saving..." : "Save"}
+                </Button>
+                <button
+                  onClick={() => setHeroDraft(DEFAULT_HERO_SETTINGS)}
+                  className="ml-auto text-xs text-muted hover:text-foreground"
+                >
+                  Restore Default
+                </button>
+              </div>
+            </GlassCard>
+
+            <div className="rounded-[10px] border border-status-declined/25 bg-status-declined/5 p-4">
+              <SectionHeader icon={AlertTriangle} title="Danger Zone" description="Remove this DJ from the roster. This cannot be undone." tone="destructive" />
+              <Button variant="destructive" size="sm" onClick={() => setPendingDeleteId(drawerDj.id)} className="mt-3 w-fit">
+                Remove from Roster
               </Button>
             </div>
-
-            <Button variant="destructive" size="sm" onClick={() => setPendingDeleteId(drawerDj.id)} className="w-fit">
-              Remove from Roster
-            </Button>
           </div>
         )}
       </SideDrawer>
@@ -400,6 +418,35 @@ function columns(onEdit: (dj: DjRow) => void): DataTableColumn<DjRow>[] {
       )
     }
   ];
+}
+
+function SectionHeader({
+  icon: Icon,
+  title,
+  description,
+  tone = "default"
+}: {
+  icon: LucideIcon;
+  title: string;
+  description?: string;
+  tone?: "default" | "destructive";
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      <span
+        className={cn(
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
+          tone === "destructive" ? "bg-status-declined/10 text-status-declined" : "bg-gold/15 text-gold"
+        )}
+      >
+        <Icon size={16} />
+      </span>
+      <div>
+        <p className={cn("text-sm font-semibold", tone === "destructive" && "text-status-declined")}>{title}</p>
+        {description && <p className="text-xs text-muted">{description}</p>}
+      </div>
+    </div>
+  );
 }
 
 function HeroSlider({
