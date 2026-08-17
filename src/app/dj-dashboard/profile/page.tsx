@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft, LayoutDashboard, CalendarDays, Disc3, MapPin, KeyRound, Settings,
-  ListMusic, BarChart3, DollarSign, LayoutTemplate, Mail, type LucideIcon,
+  ListMusic, BarChart3, DollarSign, LayoutTemplate, Mail, PenLine, type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { DEFAULT_HERO_SETTINGS, mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
 import { isStaffRole } from "@/lib/roles";
+import { buildEmailSignature } from "@/lib/email-signature";
 
 const ADMIN_SECTIONS: { href: string; label: string; desc: string; icon: LucideIcon }[] = [
   { href: "/admin", label: "Overview", desc: "Revenue, activity, and at-a-glance stats.", icon: LayoutDashboard },
@@ -43,6 +44,8 @@ interface DjRecord {
   display_name: string;
   photo_url: string | null;
   hero_settings: Partial<HeroSettings> | null;
+  signature_phone: string | null;
+  signature_email: string | null;
 }
 
 interface EmailAccount {
@@ -79,6 +82,11 @@ export default function DjProfilePage() {
   const [savingEmail, setSavingEmail] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
 
+  const [signaturePhone, setSignaturePhone] = useState("");
+  const [signatureEmail, setSignatureEmail] = useState("");
+  const [savingSignature, setSavingSignature] = useState(false);
+  const [signatureSaved, setSignatureSaved] = useState(false);
+
   async function load() {
     try {
       const res = await fetch("/api/dj/profile");
@@ -86,8 +94,31 @@ export default function DjProfilePage() {
       if (!res.ok) throw new Error(data.error || "Failed to load profile");
       setDj(data.dj);
       setSettings(mergeHeroSettings(data.dj.hero_settings));
+      setSignaturePhone(data.dj.signature_phone ?? "");
+      setSignatureEmail(data.dj.signature_email ?? "");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  }
+
+  async function handleSaveSignature() {
+    setSavingSignature(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/dj/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signaturePhone, signatureEmail })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save signature");
+      setDj(data.dj);
+      setSignatureSaved(true);
+      setTimeout(() => setSignatureSaved(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSavingSignature(false);
     }
   }
 
@@ -351,6 +382,37 @@ export default function DjProfilePage() {
               </div>
             </div>
           )}
+        </GlassCard>
+
+        <GlassCard className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold/15 text-gold">
+              <PenLine size={18} />
+            </span>
+            <div className="flex-1">
+              <p className="font-semibold">Email Signature</p>
+              <p className="text-xs text-muted">Shown at the bottom of every client email you send from a project&rsquo;s Activity tab. Phone and email are optional.</p>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <EmailField label="Phone (optional)" value={signaturePhone} onChange={setSignaturePhone} placeholder="(555) 123-4567" />
+            <EmailField label="Email (optional)" value={signatureEmail} onChange={setSignatureEmail} placeholder="you@digitalcratedjs.com" />
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Preview</span>
+            <pre className="whitespace-pre-wrap rounded-[10px] border border-black/10 bg-panel px-3 py-2.5 font-sans text-sm text-muted">
+              {buildEmailSignature({ display_name: dj.display_name, signature_phone: signaturePhone, signature_email: signatureEmail })}
+            </pre>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button variant="primary" size="sm" onClick={handleSaveSignature} disabled={savingSignature} className="w-fit">
+              {savingSignature ? "Saving..." : "Save Signature"}
+            </Button>
+            {signatureSaved && <span className="text-xs text-status-approved">Saved</span>}
+          </div>
         </GlassCard>
 
         {/* Live preview */}

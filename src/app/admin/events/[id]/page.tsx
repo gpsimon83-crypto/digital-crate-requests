@@ -572,6 +572,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 eventId={id}
                 hasClient={!!event.clients}
                 clientDisplayName={clientName(event.clients)}
+                clientEmail={event.clients?.email ?? null}
                 mergeContext={buildMergeContext()}
               />
 

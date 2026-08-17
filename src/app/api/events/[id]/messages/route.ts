@@ -3,6 +3,7 @@ import { requireEventAccess } from "@/lib/require-event-access";
 import { listEventMessages, recordOutboundMessage } from "@/lib/data/email";
 import { getEmailAccountWithSecretForDj } from "@/lib/data/email-accounts";
 import { sendEmailFromAccount } from "@/lib/send-email";
+import { buildEmailSignature } from "@/lib/email-signature";
 import { createEventFile } from "@/lib/data/event-files";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
@@ -29,7 +30,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   try {
     const messages = await listEventMessages(id);
-    return NextResponse.json({ messages });
+    const signature = access.dj ? buildEmailSignature(access.dj) : null;
+    return NextResponse.json({ messages, signature });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }
@@ -74,6 +76,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const tag = `[${access.event.event_code}]`;
   const baseSubject = subjectInput?.trim() || access.event.title;
   const subject = baseSubject.includes(tag) ? baseSubject : `${baseSubject} ${tag}`;
+  const fullBody = `${body}\n\n${buildEmailSignature(access.dj)}`;
 
   try {
     const uploaded = await Promise.all(attachmentFiles.map((f) => uploadAttachment(id, f)));
@@ -81,7 +84,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const messageId = await sendEmailFromAccount(account, {
       to: clientEmail,
       subject,
-      text: body,
+      text: fullBody,
       fromName: access.dj.display_name,
       attachments: uploaded.map((u) => ({ filename: u.filename, content: u.buffer, contentType: u.contentType }))
     });
@@ -93,7 +96,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       fromName: access.dj.display_name,
       toEmail: clientEmail,
       subject,
-      body,
+      body: fullBody,
       resendMessageId: messageId,
       sentByUserId: access.user.id
     });

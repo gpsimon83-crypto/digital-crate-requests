@@ -65,16 +65,16 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    if (!body.heroSettings || typeof body.heroSettings !== "object") {
-      return NextResponse.json({ error: "heroSettings is required" }, { status: 400 });
+    const update: Record<string, unknown> = {};
+    if (body.heroSettings && typeof body.heroSettings === "object") update.hero_settings = body.heroSettings;
+    if (typeof body.signaturePhone === "string") update.signature_phone = body.signaturePhone.trim() || null;
+    if (typeof body.signatureEmail === "string") update.signature_email = body.signatureEmail.trim() || null;
+
+    if (Object.keys(update).length === 0) {
+      return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
     }
 
-    const { data, error } = await db
-      .from("djs")
-      .update({ hero_settings: body.heroSettings })
-      .eq("id", djId)
-      .select()
-      .single();
+    const { data, error } = await db.from("djs").update(update).eq("id", djId).select().single();
     if (error) throw error;
     return NextResponse.json({ dj: data });
   } catch (err) {

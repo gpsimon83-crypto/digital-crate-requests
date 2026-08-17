@@ -130,7 +130,13 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
 
         <FilesPanel eventId={id} />
 
-        <EmailThreadPanel eventId={id} hasClient={!!event.clients} clientDisplayName={name} mergeContext={mergeContext} />
+        <EmailThreadPanel
+          eventId={id}
+          hasClient={!!event.clients}
+          clientDisplayName={name}
+          clientEmail={event.clients?.email ?? null}
+          mergeContext={mergeContext}
+        />
       </div>
     </>
   );

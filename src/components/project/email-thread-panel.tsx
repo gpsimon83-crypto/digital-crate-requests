@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { EmailPreviewModal } from "@/components/ui/email-preview-modal";
 import { cn } from "@/lib/utils";
 import { fillMergeFields, type MergeContext } from "@/lib/merge-fields";
 import { Paperclip, X } from "lucide-react";
@@ -29,11 +30,13 @@ export function EmailThreadPanel({
   eventId,
   hasClient,
   clientDisplayName,
+  clientEmail,
   mergeContext
 }: {
   eventId: string;
   hasClient: boolean;
   clientDisplayName: string | null;
+  clientEmail: string | null;
   mergeContext: MergeContext;
 }) {
   const [messages, setMessages] = useState<EmailMessage[] | null>(null);
@@ -44,6 +47,8 @@ export function EmailThreadPanel({
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplateOption[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [signature, setSignature] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadMessages() {
@@ -51,6 +56,7 @@ export function EmailThreadPanel({
       const res = await fetch(`/api/events/${eventId}/messages`);
       const data = await res.json();
       setMessages(res.ok ? data.messages : []);
+      if (res.ok) setSignature(data.signature ?? null);
     } catch {
       setMessages([]);
     }
@@ -106,6 +112,7 @@ export function EmailThreadPanel({
       setComposeText("");
       setSelectedTemplateId("");
       setAttachments([]);
+      setShowPreview(false);
       await loadMessages();
     } catch (err) {
       setMessageError(err instanceof Error ? err.message : "Something went wrong.");
@@ -211,11 +218,22 @@ export function EmailThreadPanel({
           >
             <Paperclip size={12} /> Attach
           </button>
-          <Button variant="primary" size="sm" onClick={handleSendMessage} disabled={sendingMessage || !composeText.trim()} className="w-fit">
-            {sendingMessage ? "Sending…" : "Send"}
+          <Button variant="primary" size="sm" onClick={() => setShowPreview(true)} disabled={sendingMessage || !composeText.trim()} className="w-fit">
+            Preview &amp; Send
           </Button>
         </div>
       </div>
+
+      <EmailPreviewModal
+        open={showPreview}
+        to={clientEmail}
+        subject={composeSubject.trim()}
+        body={composeText.trim()}
+        signature={signature}
+        sending={sendingMessage}
+        onSend={handleSendMessage}
+        onCancel={() => setShowPreview(false)}
+      />
     </section>
   );
 }

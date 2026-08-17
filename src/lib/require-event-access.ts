@@ -18,7 +18,11 @@ export async function requireEventAccess(eventId: string) {
   const isAdmin = isStaffRole(user.user_metadata?.role);
 
   const db = createAdminClient();
-  const { data: dj } = await db.from("djs").select("id, display_name").eq("auth_user_id", user.id).maybeSingle();
+  const { data: dj } = await db
+    .from("djs")
+    .select("id, display_name, signature_phone, signature_email")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
 
   if (!isAdmin && !dj) return { authorized: false as const, status: 403, error: "No access to this project" };
 
