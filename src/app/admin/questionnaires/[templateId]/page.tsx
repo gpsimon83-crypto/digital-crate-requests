@@ -6,8 +6,23 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ChevronDown, ChevronUp, Trash2, Plus, ExternalLink } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  Trash2,
+  Plus,
+  ExternalLink,
+  MessageSquareText,
+  GripVertical,
+  MoreHorizontal,
+  Pencil,
+  Monitor,
+  Smartphone,
+  RefreshCw
+} from "lucide-react";
 import type { QuestionType, QuestionOption } from "@/lib/questionnaire-engine";
 
 interface TemplateRow {
@@ -59,6 +74,8 @@ const HAS_OPTIONS: QuestionType[] = ["single_select", "multi_select"];
 
 const inputClass = "w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none";
 const labelClass = "mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted";
+const pillSelectClass =
+  "shrink-0 rounded-full border border-border bg-panel px-3 py-1.5 text-xs font-medium text-foreground focus:border-gold focus:outline-none";
 
 function slugify(text: string) {
   return text
@@ -93,6 +110,11 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
   const [savingOpening, setSavingOpening] = useState(false);
   const [pendingDeleteSection, setPendingDeleteSection] = useState<SectionRow | null>(null);
   const [pendingDeleteQuestion, setPendingDeleteQuestion] = useState<QuestionRow | null>(null);
+
+  const [activeTab, setActiveTab] = useState<string>("opening");
+  const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
+  const [previewNonce, setPreviewNonce] = useState(0);
+  const bumpPreview = () => setPreviewNonce((n) => n + 1);
 
   function load() {
     fetch(`/api/admin/questionnaires/${templateId}`)
@@ -154,6 +176,7 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
       if (!res.ok) throw new Error(data.error || "Failed to save");
       setTemplate(data.template);
       setSaved(true);
+      bumpPreview();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -162,7 +185,7 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
   }
 
   async function handleAddSection() {
-    const title = window.prompt("Chapter title (e.g. \"Reception Timeline\")");
+    const title = window.prompt('Chapter title (e.g. "Reception Timeline")');
     if (!title?.trim()) return;
     const key = uniqueKey(title, new Set(sections.map((s) => s.key)));
     const res = await fetch(`/api/admin/questionnaires/${templateId}/sections`, {
@@ -176,6 +199,8 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
       return;
     }
     setSections((prev) => [...prev, data.section]);
+    setActiveTab(data.section.id);
+    bumpPreview();
   }
 
   async function handleUpdateSection(section: SectionRow, updates: Partial<SectionRow>) {
@@ -190,6 +215,7 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
         transitionSubheading: updates.transition_subheading
       })
     });
+    bumpPreview();
   }
 
   async function handleMoveSection(section: SectionRow, direction: -1 | 1) {
@@ -204,13 +230,21 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
       fetch(`/api/admin/questionnaires/sections/${section.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ position: other.position }) }),
       fetch(`/api/admin/questionnaires/sections/${other.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ position: section.position }) })
     ]);
+    bumpPreview();
   }
 
   async function handleDeleteSection(section: SectionRow) {
+    const ordered = [...sections].sort((a, b) => a.position - b.position);
+    const idx = ordered.findIndex((s) => s.id === section.id);
     setSections((prev) => prev.filter((s) => s.id !== section.id));
     setQuestions((prev) => prev.filter((q) => q.section_id !== section.id));
     await fetch(`/api/admin/questionnaires/sections/${section.id}`, { method: "DELETE" });
     setPendingDeleteSection(null);
+    if (activeTab === section.id) {
+      const remaining = ordered.filter((s) => s.id !== section.id);
+      setActiveTab(remaining[idx]?.id ?? remaining[idx - 1]?.id ?? "opening");
+    }
+    bumpPreview();
   }
 
   async function handleAddQuestion(section: SectionRow) {
@@ -230,6 +264,7 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
       return;
     }
     setQuestions((prev) => [...prev, data.question]);
+    bumpPreview();
   }
 
   async function handleUpdateQuestion(question: QuestionRow, updates: Partial<QuestionRow>) {
@@ -249,6 +284,7 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
         dependsOnValues: updates.depends_on_values
       })
     });
+    bumpPreview();
   }
 
   async function handleMoveQuestion(question: QuestionRow, direction: -1 | 1) {
@@ -263,12 +299,14 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
       fetch(`/api/admin/questionnaires/questions/${question.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ position: other.position }) }),
       fetch(`/api/admin/questionnaires/questions/${other.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ position: question.position }) })
     ]);
+    bumpPreview();
   }
 
   async function handleDeleteQuestion(question: QuestionRow) {
     setQuestions((prev) => prev.filter((q) => q.id !== question.id));
     await fetch(`/api/admin/questionnaires/questions/${question.id}`, { method: "DELETE" });
     setPendingDeleteQuestion(null);
+    bumpPreview();
   }
 
   if (error && !template) {
@@ -290,19 +328,28 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
   }
 
   const orderedSections = [...sections].sort((a, b) => a.position - b.position);
+  const activeSection = orderedSections.find((s) => s.id === activeTab) ?? null;
+  const previewSrc = `/portal/questionnaire/preview/${templateId}?r=${previewNonce}`;
 
   return (
     <>
       <PageHeader
         title={template.title}
-        subtitle={`/${template.event_type}`}
+        subtitle="Questionnaire"
         action={
           <div className="flex items-center gap-2">
             <a href={`/portal/questionnaire/preview/${templateId}`} target="_blank" rel="noreferrer">
-              <button className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground">
+              <Button variant="secondary" size="sm">
                 Preview <ExternalLink size={13} />
-              </button>
+              </Button>
             </a>
+            {activeTab === "opening" ? (
+              <Button variant="primary" size="sm" onClick={handleSaveOpening} disabled={savingOpening}>
+                {savingOpening ? "Saving..." : "Save changes"}
+              </Button>
+            ) : (
+              <p className="hidden text-xs text-muted sm:block">Saved automatically</p>
+            )}
             <button
               onClick={handleToggleActive}
               className={cn(
@@ -317,53 +364,106 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
         }
       />
 
-      <div className="flex flex-col gap-6 p-6">
-        {error && <p className="text-sm text-status-declined">{error}</p>}
+      <div className="grid gap-6 p-6 xl:grid-cols-[minmax(0,640px)_400px] xl:items-start">
+        <div className="flex flex-col gap-4">
+          {error && <p className="text-sm text-status-declined">{error}</p>}
 
-        <GlassCard className="flex flex-col gap-3">
-          <p className="text-sm font-semibold">Opening Screen</p>
-          <label className="block">
-            <span className={labelClass}>Heading</span>
-            <input value={openingHeading} onChange={(e) => setOpeningHeading(e.target.value)} className={inputClass} />
-          </label>
-          <label className="block">
-            <span className={labelClass}>Body</span>
-            <textarea value={openingBody} onChange={(e) => setOpeningBody(e.target.value)} className={cn(inputClass, "min-h-[70px]")} />
-          </label>
-          <label className="block">
-            <span className={labelClass}>Button Label</span>
-            <input value={openingCta} onChange={(e) => setOpeningCta(e.target.value)} className={inputClass} />
-          </label>
-          <div className="flex items-center gap-3">
-            <Button variant="cta" onClick={handleSaveOpening} disabled={savingOpening} className="w-fit">
-              {savingOpening ? "Saving..." : "Save Opening Screen"}
-            </Button>
-            {saved && <p className="text-xs text-status-approved">Saved.</p>}
+          <div className="flex flex-wrap items-center gap-1.5" role="tablist">
+            <TabPill active={activeTab === "opening"} onClick={() => setActiveTab("opening")}>
+              Opening Screen
+            </TabPill>
+            {orderedSections.map((s) => (
+              <TabPill key={s.id} active={activeTab === s.id} onClick={() => setActiveTab(s.id)} badge={questions.filter((q) => q.section_id === s.id).length}>
+                {s.title}
+              </TabPill>
+            ))}
+            <button
+              onClick={handleAddSection}
+              aria-label="Add chapter"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-dashed border-gold/40 text-gold transition-colors hover:bg-gold/10"
+            >
+              <Plus size={16} />
+            </button>
           </div>
-        </GlassCard>
 
-        {orderedSections.map((section) => (
-          <SectionBlock
-            key={section.id}
-            section={section}
-            questions={questions.filter((q) => q.section_id === section.id).sort((a, b) => a.position - b.position)}
-            priorQuestions={priorQuestions}
-            onUpdateSection={(updates) => handleUpdateSection(section, updates)}
-            onMoveSection={(dir) => handleMoveSection(section, dir)}
-            onDeleteSection={() => setPendingDeleteSection(section)}
-            onAddQuestion={() => handleAddQuestion(section)}
-            onUpdateQuestion={handleUpdateQuestion}
-            onMoveQuestion={handleMoveQuestion}
-            onDeleteQuestion={setPendingDeleteQuestion}
-          />
-        ))}
+          {activeTab === "opening" ? (
+            <GlassCard className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <MessageSquareText size={18} className="shrink-0 text-gold" />
+                <div>
+                  <p className="text-sm font-semibold">Opening Screen</p>
+                  <p className="text-xs text-muted">The first thing your client sees before the questions start.</p>
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className={labelClass}>Heading</span>
+                  <input value={openingHeading} onChange={(e) => setOpeningHeading(e.target.value)} className={inputClass} />
+                </label>
+                <label className="block">
+                  <span className={labelClass}>Button Label</span>
+                  <input value={openingCta} onChange={(e) => setOpeningCta(e.target.value)} className={inputClass} />
+                </label>
+              </div>
+              <label className="block">
+                <span className={labelClass}>Body</span>
+                <textarea value={openingBody} onChange={(e) => setOpeningBody(e.target.value)} className={cn(inputClass, "min-h-[56px]")} />
+              </label>
+              {saved && <p className="text-xs text-status-approved">Saved.</p>}
+            </GlassCard>
+          ) : activeSection ? (
+            <SectionPanel
+              key={activeSection.id}
+              section={activeSection}
+              questions={questions.filter((q) => q.section_id === activeSection.id).sort((a, b) => a.position - b.position)}
+              priorQuestions={priorQuestions}
+              onUpdateSection={(updates) => handleUpdateSection(activeSection, updates)}
+              onMoveSection={(dir) => handleMoveSection(activeSection, dir)}
+              onDeleteSection={() => setPendingDeleteSection(activeSection)}
+              onAddQuestion={() => handleAddQuestion(activeSection)}
+              onUpdateQuestion={handleUpdateQuestion}
+              onMoveQuestion={handleMoveQuestion}
+              onDeleteQuestion={setPendingDeleteQuestion}
+            />
+          ) : null}
+        </div>
 
-        <button
-          onClick={handleAddSection}
-          className="flex w-fit items-center gap-1.5 rounded-[10px] border border-dashed border-black/20 px-4 py-2.5 text-sm font-medium text-muted hover:border-gold hover:text-gold"
-        >
-          <Plus size={15} /> Add Chapter
-        </button>
+        <div className="xl:sticky xl:top-6">
+          <GlassCard className="overflow-hidden !p-0">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+              <p className="text-sm font-semibold">Client preview</p>
+              <div className="flex items-center gap-1">
+                <button onClick={bumpPreview} aria-label="Refresh preview" className="rounded-md p-1.5 text-muted hover:bg-black/5 hover:text-foreground">
+                  <RefreshCw size={14} />
+                </button>
+                <div className="ml-1 flex rounded-full border border-border bg-panel p-0.5">
+                  <button
+                    onClick={() => setPreviewDevice("desktop")}
+                    aria-label="Desktop preview"
+                    className={cn("flex h-7 w-8 items-center justify-center rounded-full", previewDevice === "desktop" ? "bg-[#161616] text-white" : "text-muted")}
+                  >
+                    <Monitor size={13} />
+                  </button>
+                  <button
+                    onClick={() => setPreviewDevice("mobile")}
+                    aria-label="Mobile preview"
+                    className={cn("flex h-7 w-8 items-center justify-center rounded-full", previewDevice === "mobile" ? "bg-[#161616] text-white" : "text-muted")}
+                  >
+                    <Smartphone size={13} />
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-center bg-panel/60 p-3">
+              <iframe
+                key={previewNonce}
+                src={previewSrc}
+                title="Client preview"
+                className={cn("h-[640px] rounded-[10px] border border-border bg-background transition-[width]", previewDevice === "mobile" ? "w-[360px]" : "w-full")}
+              />
+            </div>
+          </GlassCard>
+        </div>
       </div>
 
       <ConfirmModal
@@ -402,7 +502,80 @@ function BackLink() {
   );
 }
 
-function SectionBlock({
+function TabPill({
+  active,
+  onClick,
+  badge,
+  children
+}: {
+  active: boolean;
+  onClick: () => void;
+  badge?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors",
+        active ? "bg-[#161616] text-white" : "bg-panel text-muted hover:text-foreground"
+      )}
+    >
+      {children}
+      {typeof badge === "number" && (
+        <span
+          className={cn(
+            "flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-semibold",
+            active ? "bg-gold text-[#1A140A]" : "bg-black/10 text-muted"
+          )}
+        >
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
+function OverflowMenu({ items }: { items: { label: string; onClick: () => void; danger?: boolean }[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        aria-label="More actions"
+        className="rounded-md p-1.5 text-muted transition-colors hover:bg-black/5 hover:text-foreground"
+      >
+        <MoreHorizontal size={16} />
+      </button>
+      {open && (
+        <>
+          <button aria-hidden tabIndex={-1} className="fixed inset-0 z-10 cursor-default" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-20 mt-1 min-w-[150px] rounded-[10px] border border-border bg-card py-1 shadow-lg">
+            {items.map((item) => (
+              <button
+                key={item.label}
+                onClick={() => {
+                  item.onClick();
+                  setOpen(false);
+                }}
+                className={cn(
+                  "block w-full px-3 py-1.5 text-left text-xs font-medium hover:bg-black/5",
+                  item.danger ? "text-status-declined" : "text-foreground"
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function SectionPanel({
   section,
   questions,
   priorQuestions,
@@ -426,28 +599,44 @@ function SectionBlock({
   onDeleteQuestion: (question: QuestionRow) => void;
 }) {
   const [editingTransition, setEditingTransition] = useState(false);
+  const [editingTitle, setEditingTitle] = useState(false);
 
   return (
     <GlassCard className="flex flex-col gap-4">
       <div className="flex items-start justify-between gap-3">
-        <input
-          value={section.title}
-          onChange={(e) => onUpdateSection({ title: e.target.value })}
-          className="flex-1 border-none bg-transparent text-sm font-semibold outline-none focus:underline"
-        />
+        <div className="flex-1">
+          {editingTitle ? (
+            <input
+              autoFocus
+              value={section.title}
+              onChange={(e) => onUpdateSection({ title: e.target.value })}
+              onBlur={() => setEditingTitle(false)}
+              onKeyDown={(e) => e.key === "Enter" && setEditingTitle(false)}
+              className="w-full border-none bg-transparent text-sm font-semibold outline-none"
+            />
+          ) : (
+            <button onClick={() => setEditingTitle(true)} className="text-left text-sm font-semibold hover:underline">
+              {section.title}
+            </button>
+          )}
+          <p className="mt-0.5 text-xs text-muted">
+            {questions.length} question{questions.length === 1 ? "" : "s"}
+          </p>
+        </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => onMoveSection(-1)} className="p-1 text-muted hover:text-foreground" aria-label="Move chapter up">
-            <ChevronUp size={15} />
+          <button
+            onClick={() => setEditingTransition((v) => !v)}
+            className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-muted hover:text-gold"
+          >
+            <Pencil size={12} /> Edit transition
           </button>
-          <button onClick={() => onMoveSection(1)} className="p-1 text-muted hover:text-foreground" aria-label="Move chapter down">
-            <ChevronDown size={15} />
-          </button>
-          <button onClick={() => setEditingTransition((v) => !v)} className="px-2 text-xs text-muted hover:text-gold">
-            Transition copy
-          </button>
-          <button onClick={onDeleteSection} className="p-1 text-muted hover:text-status-declined" aria-label="Delete chapter">
-            <Trash2 size={15} />
-          </button>
+          <OverflowMenu
+            items={[
+              { label: "Move chapter up", onClick: () => onMoveSection(-1) },
+              { label: "Move chapter down", onClick: () => onMoveSection(1) },
+              { label: "Delete chapter", onClick: onDeleteSection, danger: true }
+            ]}
+          />
         </div>
       </div>
 
@@ -474,9 +663,10 @@ function SectionBlock({
 
       <div className="flex flex-col gap-2 border-t border-border pt-3">
         {questions.length === 0 && <p className="text-xs text-muted">No questions yet.</p>}
-        {questions.map((q) => (
+        {questions.map((q, i) => (
           <QuestionEditor
             key={q.id}
+            position={i + 1}
             question={q}
             priorQuestions={priorQuestions(q.id)}
             onUpdate={(updates) => onUpdateQuestion(q, updates)}
@@ -485,7 +675,7 @@ function SectionBlock({
           />
         ))}
         <button onClick={onAddQuestion} className="flex w-fit items-center gap-1.5 text-xs font-medium text-muted hover:text-gold">
-          <Plus size={13} /> Add Question
+          <Plus size={13} /> Add question
         </button>
       </div>
     </GlassCard>
@@ -493,12 +683,14 @@ function SectionBlock({
 }
 
 function QuestionEditor({
+  position,
   question,
   priorQuestions,
   onUpdate,
   onMove,
   onDelete
 }: {
+  position: number;
   question: QuestionRow;
   priorQuestions: QuestionRow[];
   onUpdate: (updates: Partial<QuestionRow>) => void;
@@ -523,59 +715,66 @@ function QuestionEditor({
 
   return (
     <div className="rounded-[10px] border border-black/10 bg-panel p-3">
-      <div className="flex items-start justify-between gap-3">
-        <button onClick={() => setExpanded((v) => !v)} className="flex-1 text-left">
-          <p className="text-sm font-medium">{question.prompt}</p>
-          <p className="mt-0.5 text-xs text-muted">
-            {QUESTION_TYPE_LABELS[question.question_type]}
-            {question.required ? " · Required" : ""}
-            {question.depends_on_question_key ? ` · Depends on "${dependsOnQuestion?.prompt ?? question.depends_on_question_key}"` : ""}
-          </p>
+      <div className="flex items-center gap-3">
+        <GripVertical size={15} className="shrink-0 cursor-grab text-muted/50" aria-hidden />
+        <span className="flex h-5 w-6 shrink-0 items-center justify-center rounded-full bg-gold-soft text-[10px] font-semibold text-gold-dim">
+          {String(position).padStart(2, "0")}
+        </span>
+        <button onClick={() => setExpanded((v) => !v)} className="min-w-0 flex-1 text-left">
+          <p className="truncate text-sm font-medium">{question.prompt}</p>
+          {question.depends_on_question_key && (
+            <p className="mt-0.5 truncate text-xs text-muted">Depends on &ldquo;{dependsOnQuestion?.prompt ?? question.depends_on_question_key}&rdquo;</p>
+          )}
         </button>
-        <div className="flex items-center gap-1">
-          <button onClick={() => onMove(-1)} className="p-1 text-muted hover:text-foreground" aria-label="Move question up">
-            <ChevronUp size={14} />
-          </button>
-          <button onClick={() => onMove(1)} className="p-1 text-muted hover:text-foreground" aria-label="Move question down">
-            <ChevronDown size={14} />
-          </button>
-          <button onClick={onDelete} className="p-1 text-muted hover:text-status-declined" aria-label="Delete question">
-            <Trash2 size={14} />
-          </button>
-        </div>
+
+        <select
+          value={question.question_type}
+          onChange={(e) => onUpdate({ question_type: e.target.value as QuestionType })}
+          className={pillSelectClass}
+        >
+          {Object.entries(QUESTION_TYPE_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+
+        <label className="flex shrink-0 items-center gap-1.5">
+          <ToggleSwitch checked={question.required} onChange={(v) => onUpdate({ required: v })} label="Required" />
+          <span className="hidden text-xs text-muted sm:inline">Required</span>
+        </label>
+
+        <OverflowMenu
+          items={[
+            { label: "Move up", onClick: () => onMove(-1) },
+            { label: "Move down", onClick: () => onMove(1) },
+            { label: "Delete question", onClick: onDelete, danger: true }
+          ]}
+        />
+
+        <button onClick={() => setExpanded((v) => !v)} className="shrink-0 p-1 text-muted hover:text-foreground" aria-label={expanded ? "Collapse" : "Expand"}>
+          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
       </div>
 
       {expanded && (
         <div className="mt-3 flex flex-col gap-3 border-t border-black/10 pt-3">
           <label className="block">
-            <span className={labelClass}>Prompt</span>
+            <span className={labelClass}>Question</span>
             <input value={question.prompt} onChange={(e) => onUpdate({ prompt: e.target.value })} className={inputClass} />
           </label>
           <label className="block">
             <span className={labelClass}>Subtext (optional)</span>
             <input value={question.subtext ?? ""} onChange={(e) => onUpdate({ subtext: e.target.value })} className={inputClass} />
           </label>
-          <label className="block">
-            <span className={labelClass}>Answer Type</span>
-            <select
-              value={question.question_type}
-              onChange={(e) => onUpdate({ question_type: e.target.value as QuestionType })}
-              className={inputClass}
-            >
-              {Object.entries(QUESTION_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
 
           {HAS_OPTIONS.includes(question.question_type) && (
             <div>
-              <span className={labelClass}>Answer Choices</span>
-              <div className="flex flex-col gap-2">
+              <span className={labelClass}>Options</span>
+              <div className="grid gap-2 sm:grid-cols-2">
                 {question.options.map((opt, i) => (
                   <div key={i} className="flex items-center gap-2">
+                    <GripVertical size={14} className="shrink-0 cursor-grab text-muted/40" aria-hidden />
                     <input
                       value={opt.label}
                       onChange={(e) => updateOption(i, "label", e.target.value)}
@@ -587,23 +786,17 @@ function QuestionEditor({
                     </button>
                   </div>
                 ))}
-                <button onClick={addOption} className="flex w-fit items-center gap-1.5 text-xs font-medium text-muted hover:text-gold">
-                  <Plus size={13} /> Add Choice
-                </button>
               </div>
+              <button onClick={addOption} className="mt-2 flex w-fit items-center gap-1.5 text-xs font-medium text-muted hover:text-gold">
+                <Plus size={13} /> Add option
+              </button>
             </div>
           )}
 
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 text-xs text-muted">
-              <input type="checkbox" checked={question.required} onChange={(e) => onUpdate({ required: e.target.checked })} />
-              Required
-            </label>
-            <label className="flex items-center gap-2 text-xs text-muted">
-              <input type="checkbox" checked={question.allow_unsure} onChange={(e) => onUpdate({ allow_unsure: e.target.checked })} />
-              Allow &ldquo;I&rsquo;ll decide later&rdquo;
-            </label>
-          </div>
+          <label className="flex items-center gap-2 text-xs text-muted">
+            <input type="checkbox" checked={question.allow_unsure} onChange={(e) => onUpdate({ allow_unsure: e.target.checked })} />
+            Allow &ldquo;I&rsquo;ll decide later&rdquo;
+          </label>
 
           <div className="grid gap-2 sm:grid-cols-2">
             <label className="block">
