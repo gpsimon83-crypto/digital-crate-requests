@@ -46,9 +46,11 @@ export async function POST(req: NextRequest) {
         `Important: sign up with this exact email address (${email}) so it connects automatically to your event.\n\n` +
         `Talk soon,\nDigital Crate DJs`;
       await sendSystemEmail({ to: email, subject: "We got your booking request — set up your event portal", text });
-    } catch {
+    } catch (err) {
       // Best-effort — an unconfigured/failed system email should never take down inquiry creation.
       // The WordPress site's own fallback email covers this case when this CRM call fails outright.
+      // Still logged (unlike a silent swallow) so a Resend/domain misconfig shows up in Vercel logs.
+      console.error("sendSystemEmail failed for inquiry", event.id, err);
     }
 
     return NextResponse.json({ event });
