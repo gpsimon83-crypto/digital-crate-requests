@@ -34,6 +34,26 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      const opsEmails = (process.env.OPS_ALERT_EMAILS ?? "")
+        .split(",")
+        .map((e) => e.trim())
+        .filter(Boolean);
+      if (opsEmails.length > 0) {
+        const alertText =
+          `New booking request — ${name}\n` +
+          `Event date: ${new Date(eventDate).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}\n` +
+          `Event type: ${eventType}\n` +
+          `Email: ${email}\n\n` +
+          `View in the admin: ${req.nextUrl.origin}/admin/events/${event.id}`;
+        await sendSystemEmail({ to: opsEmails, subject: `New booking request — ${name}`, text: alertText });
+      }
+    } catch (err) {
+      // Best-effort ops alert — never takes down inquiry creation, but logged so a
+      // misconfig doesn't fail silently the way sendInquiryAlertSms's used to.
+      console.error("ops alert email failed for inquiry", event.id, err);
+    }
+
+    try {
       const firstName = name.trim().split(" ")[0] || name;
       const signupUrl = `${req.nextUrl.origin}/portal/signup`;
       const text =

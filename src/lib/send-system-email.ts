@@ -13,7 +13,7 @@ import { Resend } from "resend";
  * env var never breaks inquiry creation — same pattern as
  * sendInquiryAlertSms in send-sms.ts.
  */
-export async function sendSystemEmail(message: { to: string; subject: string; text: string; replyTo?: string }) {
+export async function sendSystemEmail(message: { to: string | string[]; subject: string; text: string; replyTo?: string }) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.SYSTEM_EMAIL_FROM;
 
