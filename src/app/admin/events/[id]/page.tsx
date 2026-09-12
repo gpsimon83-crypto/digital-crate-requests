@@ -23,6 +23,9 @@ import { ContractsPanel, type ContractRow } from "@/components/project/contracts
 import { EquipmentAssignmentsPanel } from "@/components/project/equipment-assignments-panel";
 import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
 import { PackageRecommendation } from "@/components/project/package-recommendation";
+import { PackageTemplatePicker } from "@/components/project/package-template-picker";
+import { PackageSelectionPanel } from "@/components/project/package-selection-panel";
+import { PortalHeroPanel } from "@/components/project/portal-hero-panel";
 import {
   ArrowLeft,
   Copy,
@@ -79,6 +82,12 @@ interface EventDetail {
   deposit_amount: number | null;
   internal_notes: string | null;
   contract_status: "none" | "draft" | "sent" | "signed" | "void";
+  couple_display_name: string | null;
+  portal_hero_image_url: string | null;
+  portal_hero_settings: Record<string, number> | null;
+  portal_hero_headline_override: string | null;
+  portal_hero_subheading_override: string | null;
+  timezone: string | null;
   djs: { display_name: string } | null;
   venues: { name: string } | null;
   clients: ClientRow | null;
@@ -743,6 +752,22 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               <QuestionnaireSummary eventId={id} />
 
               <PackageRecommendation eventId={id} />
+
+              <PackageTemplatePicker eventId={id} />
+
+              <PackageSelectionPanel eventId={id} />
+
+              <PortalHeroPanel
+                eventId={id}
+                initial={{
+                  couple_display_name: event.couple_display_name,
+                  portal_hero_image_url: event.portal_hero_image_url,
+                  portal_hero_settings: event.portal_hero_settings,
+                  portal_hero_headline_override: event.portal_hero_headline_override,
+                  portal_hero_subheading_override: event.portal_hero_subheading_override,
+                  timezone: event.timezone
+                }}
+              />
 
               <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
                 <GlassCard className="flex flex-col gap-1">

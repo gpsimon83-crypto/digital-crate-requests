@@ -16,25 +16,25 @@ export function PortalSidebarNav({ primaryEventId }: { primaryEventId: string | 
   const items: SidebarNavItem[] = [
     { href: "/portal", label: "Home", icon: Home, isActive: (p) => p === "/portal" },
     {
-      href: primaryEventId ? `/portal/events/${primaryEventId}?tab=files` : "#",
-      label: "Files",
+      href: primaryEventId ? `/portal/events/${primaryEventId}?tab=documents` : "#",
+      label: "Documents",
       icon: FolderOpen,
       disabled: !primaryEventId,
-      isActive: () => onEventPage && currentTab === "files"
+      isActive: () => onEventPage && currentTab === "documents"
     },
     {
-      href: primaryEventId ? `/portal/events/${primaryEventId}?tab=services` : "#",
-      label: "Services",
+      href: primaryEventId ? `/portal/events/${primaryEventId}?tab=forms` : "#",
+      label: "Forms",
       icon: Sparkles,
       disabled: !primaryEventId,
-      isActive: () => onEventPage && currentTab === "services"
+      isActive: () => onEventPage && currentTab === "forms"
     },
     {
-      href: primaryEventId ? `/portal/events/${primaryEventId}?tab=payment` : "#",
+      href: primaryEventId ? `/portal/events/${primaryEventId}?tab=payments` : "#",
       label: "Payments",
       icon: Wallet,
       disabled: !primaryEventId,
-      isActive: () => onEventPage && currentTab === "payment"
+      isActive: () => onEventPage && currentTab === "payments"
     }
   ];
 

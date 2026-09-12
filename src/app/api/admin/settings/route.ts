@@ -8,6 +8,13 @@ const DEFAULT_SETTINGS = {
   require_disclaimer_acceptance: true,
   crowd_vote_boosts_enabled: true,
   push_notifications_enabled: false,
+  portal_hero_image_url: null,
+  portal_hero_heading: null,
+  portal_hero_subheading: null,
+  admin_hero_image_url: null,
+  admin_hero_heading: null,
+  admin_hero_subheading: null,
+  portal_hero_settings: null,
 };
 
 export async function GET() {
@@ -40,6 +47,13 @@ export async function PATCH(req: NextRequest) {
         require_disclaimer_acceptance: body.requireDisclaimerAcceptance,
         crowd_vote_boosts_enabled: body.crowdVoteBoostsEnabled,
         push_notifications_enabled: body.pushNotificationsEnabled,
+        ...(body.portalHeroImageUrl !== undefined ? { portal_hero_image_url: body.portalHeroImageUrl } : {}),
+        ...(body.portalHeroHeading !== undefined ? { portal_hero_heading: body.portalHeroHeading } : {}),
+        ...(body.portalHeroSubheading !== undefined ? { portal_hero_subheading: body.portalHeroSubheading } : {}),
+        ...(body.adminHeroImageUrl !== undefined ? { admin_hero_image_url: body.adminHeroImageUrl } : {}),
+        ...(body.adminHeroHeading !== undefined ? { admin_hero_heading: body.adminHeroHeading } : {}),
+        ...(body.adminHeroSubheading !== undefined ? { admin_hero_subheading: body.adminHeroSubheading } : {}),
+        ...(body.portalHeroSettings !== undefined ? { portal_hero_settings: body.portalHeroSettings } : {})
       })
       .eq("id", true)
       .select()

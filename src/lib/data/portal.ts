@@ -49,7 +49,7 @@ export async function listClientEvents(clientId: string) {
   const db = createAdminClient();
   const { data, error } = await db
     .from("events")
-    .select("*, djs(display_name, photo_url), venues(name)")
+    .select("*, djs(display_name, photo_url, bio, hero_settings), venues(name)")
     .eq("client_id", clientId)
     .order("starts_at", { ascending: true });
   if (error) throw error;
@@ -60,7 +60,7 @@ export async function getClientEvent(clientId: string, eventId: string) {
   const db = createAdminClient();
   const { data, error } = await db
     .from("events")
-    .select("*, djs(display_name, photo_url), venues(name)")
+    .select("*, djs(display_name, photo_url, bio, hero_settings), venues(name)")
     .eq("id", eventId)
     .eq("client_id", clientId)
     .maybeSingle();

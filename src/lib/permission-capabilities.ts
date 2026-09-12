@@ -43,6 +43,14 @@ export const CAPABILITY_GROUPS: { group: string; capabilities: { value: string; 
     capabilities: [{ value: "reports.view", label: "View business reports" }]
   },
   {
+    group: "Packages",
+    capabilities: [
+      { value: "packages.manage", label: "Manage package templates, catalog & deals" },
+      { value: "packages.view_cost", label: "View internal cost & margin" },
+      { value: "equipment_rules.manage", label: "Manage gig equipment calculator rules (owner/admin only)" }
+    ]
+  },
+  {
     group: "Admin",
     capabilities: [
       { value: "members.manage", label: "Manage staff/DJ members" },

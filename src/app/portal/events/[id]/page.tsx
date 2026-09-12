@@ -2,14 +2,20 @@
 
 import { Suspense, useEffect, useState, use as usePromise } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
 import { TagPicker } from "@/components/dashboard/tag-picker";
 import { SongSlotField } from "@/components/portal/song-slot-field";
 import { PortalFilesList } from "@/components/portal/portal-files-list";
-import { ArrowLeft, X, CalendarDays, FileText } from "lucide-react";
+import { PortalHeroPhoto, PortalWelcomeRow } from "@/components/portal/portal-hero";
+import { PortalTopHeader } from "@/components/portal/portal-top-header";
+import { DjProfileCard } from "@/components/portal/dj-profile-card";
+import { ConversationPanel } from "@/components/portal/conversation-panel";
+import { NextStepsCard } from "@/components/portal/next-steps-card";
+import { ArrowLeft, X, FileText, FileSignature, DollarSign, Music2, ChevronRight, MessageCircle, ClipboardList, type LucideIcon } from "lucide-react";
+import type { HeroSettings } from "@/lib/hero-settings";
 
 interface WeddingMusicPlan {
   processional_song?: string;
@@ -29,6 +35,7 @@ interface WeddingMusicPlan {
 
 interface EventDetail {
   id: string;
+  event_code: string;
   title: string;
   starts_at: string | null;
   status: string;
@@ -44,8 +51,20 @@ interface EventDetail {
   final_amount: number | null;
   deposit_amount: number | null;
   contract_status: "none" | "draft" | "sent" | "signed" | "void";
-  djs: { display_name: string } | null;
+  couple_display_name: string | null;
+  portal_hero_image_url: string | null;
+  portal_hero_settings: Partial<HeroSettings> | null;
+  portal_hero_headline_override: string | null;
+  portal_hero_subheading_override: string | null;
+  timezone: string | null;
+  djs: { display_name: string; photo_url: string | null; bio: string | null; hero_settings: Partial<HeroSettings> | null } | null;
   venues: { name: string } | null;
+}
+
+interface Branding {
+  imageUrl: string | null;
+  heading: string | null;
+  subheading: string | null;
 }
 
 const SPECIAL_DANCE_OPTIONS = ["Snowball Dance", "Anniversary Dance", "Surprise Guest First Dance", "None"] as const;
@@ -83,9 +102,12 @@ interface ContractInfo {
 
 const TABS = [
   { key: "overview", label: "Overview" },
-  { key: "files", label: "Files" },
-  { key: "payment", label: "Payment" },
-  { key: "services", label: "Services" }
+  { key: "conversations", label: "Conversations" },
+  { key: "contracts", label: "Contracts" },
+  { key: "forms", label: "Forms" },
+  { key: "documents", label: "Documents" },
+  { key: "music", label: "Music" },
+  { key: "payments", label: "Payments" }
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -100,6 +122,7 @@ export default function PortalEventPage({ params }: { params: Promise<{ id: stri
 
 function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params);
+  const router = useRouter();
   const searchParams = useSearchParams();
   const activeTab = (searchParams.get("tab") as TabKey | null) ?? "overview";
 
@@ -110,6 +133,11 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const [saved, setSaved] = useState(false);
   const [savingPlan, setSavingPlan] = useState(false);
   const [planSaved, setPlanSaved] = useState(false);
+  const [firstName, setFirstName] = useState<string | null>(null);
+  const [branding, setBranding] = useState<Branding | null>(null);
+  const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false);
+  const [lastMessage, setLastMessage] = useState<{ body: string; created_at: string; direction: "inbound" | "outbound"; from_name: string | null } | null>(null);
+  const [documentCount, setDocumentCount] = useState(0);
 
   const [mustPlay, setMustPlay] = useState<string[]>([]);
   const [doNotPlay, setDoNotPlay] = useState<string[]>([]);
@@ -141,7 +169,28 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetches for this event, doesn't set state synchronously from a prop
     load();
+    fetch("/api/portal/me")
+      .then((r) => r.json())
+      .then((data) => setFirstName(data.client?.first_name ?? null))
+      .catch(() => {});
+    fetch("/api/branding")
+      .then((r) => r.json())
+      .then((data) => setBranding(data.portalHero ?? null))
+      .catch(() => {});
+    fetch(`/api/portal/events/${id}/questionnaire`)
+      .then((r) => r.json())
+      .then((data) => setQuestionnaireCompleted(!!data.response?.completed_at))
+      .catch(() => {});
+    fetch(`/api/portal/events/${id}/messages`)
+      .then((r) => r.json())
+      .then((data) => setLastMessage(data.messages?.[data.messages.length - 1] ?? null))
+      .catch(() => {});
+    fetch(`/api/portal/events/${id}/files`)
+      .then((r) => r.json())
+      .then((data) => setDocumentCount(data.files?.length ?? 0))
+      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -234,298 +283,195 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
     });
   }
 
+  function goTo(tab: TabKey) {
+    router.push(`/portal/events/${id}?tab=${tab}`);
+  }
+
   const isWedding = event.event_type?.toLowerCase() === "wedding";
+  const heroImage = event.portal_hero_image_url ?? branding?.imageUrl ?? null;
+  const heroSettings = event.portal_hero_image_url ? event.portal_hero_settings : null;
+  const headline = event.portal_hero_headline_override ?? branding?.heading ?? null;
+  const displayName = event.couple_display_name ?? event.title;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 md:py-12">
-      <Link href="/portal" className="mb-6 flex items-center gap-1.5 text-sm text-muted hover:text-foreground">
-        <ArrowLeft size={14} /> Your events
-      </Link>
+    <>
+      <PortalTopHeader eventId={id} firstName={firstName} />
 
-      <h1 className="font-display text-4xl font-light">{event.title}</h1>
-      <p className="mt-1 flex items-center gap-1 text-sm text-muted">
-        <CalendarDays size={13} />
-        {event.starts_at ? new Date(event.starts_at).toLocaleString() : "Date TBD"}
-        {event.venues?.name ? ` · ${event.venues.name}` : ""}
-        {event.djs?.display_name ? ` · ${event.djs.display_name}` : ""}
-      </p>
+      <PortalHeroPhoto
+        imageUrl={heroImage}
+        heroSettings={heroSettings}
+        headline={headline}
+        displayName={displayName}
+        eventDateLabel={event.starts_at ? new Date(event.starts_at).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }) : null}
+        venueName={event.venues?.name ?? null}
+        tagline="Great music brings people closer."
+      />
 
-      <Tabs items={TABS} active={activeTab} hrefFor={(key) => `/portal/events/${id}?tab=${key}`} className="mt-6" />
-
-      {activeTab === "overview" && (
-        <div className="mt-6 flex flex-col gap-4">
-          <GlassCard className="flex flex-col gap-2">
-            <p className="text-sm font-semibold">At a glance</p>
-            <Row
-              label="Contract"
-              value={event.contract_status === "signed" ? "Signed" : event.contract_status === "sent" ? "Awaiting signature" : "Not sent yet"}
-            />
-            <Row
-              label="Balance due"
-              value={balance ? `$${(balance.balanceCents / 100).toFixed(2)}` : "—"}
-            />
-            <Row label="Night plan" value={`${mustPlay.length} must-play · ${doNotPlay.length} do-not-play`} />
-          </GlassCard>
-          {event.djs?.display_name && (
-            <GlassCard className="flex flex-col gap-2">
-              <p className="text-sm font-semibold">Your DJ</p>
-              <p className="text-sm text-muted">{event.djs.display_name}</p>
-            </GlassCard>
-          )}
+      <div className="px-[4%] py-8">
+        <div className="mb-4 flex items-center justify-between">
+          <Link href="/portal" className="flex items-center gap-1.5 text-sm text-muted hover:text-foreground">
+            <ArrowLeft size={14} /> Your events
+          </Link>
+          <Link href={`/portal/events/${id}/package`} className="shrink-0 text-sm font-medium text-gold hover:underline">
+            Build Your Package →
+          </Link>
         </div>
-      )}
 
-      {activeTab === "files" && (
-        <div className="mt-6 flex flex-col gap-8">
-          <section>
-            {contract ? (
-              <GlassCard neon className="flex flex-col gap-3">
-                <p className="text-sm font-semibold">{contract.title}</p>
+        <PortalWelcomeRow firstName={firstName} startsAt={event.starts_at} timezone={event.timezone} />
 
-                {contract.file_url && (
-                  <a
-                    href={contract.file_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-1.5 text-sm text-gold hover:underline"
-                  >
-                    <FileText size={14} /> View contract document
-                  </a>
-                )}
-                {contract.body && (
-                  <div className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-[10px] border border-black/10 bg-panel/60 p-3 text-sm">
-                    {contract.body}
-                  </div>
-                )}
+        <div className="mt-6 overflow-x-auto">
+          <Tabs items={TABS} active={activeTab} hrefFor={(key) => `/portal/events/${id}?tab=${key}`} className="min-w-max" />
+        </div>
 
-                {contract.status === "signed" ? (
-                  <p className="text-sm text-status-approved">
-                    Signed by {contract.signed_by_name} on {contract.signed_at ? new Date(contract.signed_at).toLocaleDateString() : "—"}
-                  </p>
-                ) : (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-xs text-muted">
-                      Typing your full legal name below and clicking Sign counts as your electronic signature on this
-                      contract.
-                    </p>
-                    <input
-                      value={signName}
-                      onChange={(e) => setSignName(e.target.value)}
-                      placeholder="Your full legal name"
-                      className="rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
-                    />
-                    {signError && <p className="text-xs text-status-declined">{signError}</p>}
-                    <Button variant="cta" onClick={handleSign} disabled={signing} className="w-fit">
-                      {signing ? "Signing..." : "Sign Contract"}
-                    </Button>
-                  </div>
-                )}
-              </GlassCard>
-            ) : (
+        {activeTab === "overview" && (
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+            <div className="flex flex-col gap-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <SummaryCard
+                  icon={FileSignature}
+                  label="Contract"
+                  value={event.contract_status === "signed" ? "Signed" : event.contract_status === "sent" ? "Awaiting signature" : "Not sent yet"}
+                  onClick={() => goTo("contracts")}
+                />
+                <SummaryCard icon={DollarSign} label="Balance due" value={balance ? `$${(balance.balanceCents / 100).toFixed(2)}` : "—"} onClick={() => goTo("payments")} />
+                <SummaryCard
+                  icon={Music2}
+                  label="Music plan"
+                  value={event.wedding_music_plan_sent_at ? (weddingPlan.first_dance_song ? "In progress" : "Not started") : "Not sent yet"}
+                  onClick={() => goTo("music")}
+                />
+              </div>
+
+              <NextStepsCard
+                questionnaireCompleted={questionnaireCompleted}
+                firstDanceSongSet={!!weddingPlan.first_dance_song}
+                isWedding={isWedding}
+                onOpenForms={() => goTo("forms")}
+                onOpenMusic={() => goTo("music")}
+              />
+
               <GlassCard className="flex flex-col gap-1">
-                <p className="text-sm font-semibold">No files yet</p>
-                <p className="text-sm text-muted">Your contract will show up here once it&rsquo;s sent.</p>
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-sm font-semibold">Recent conversations</p>
+                  <button onClick={() => goTo("conversations")} className="text-xs font-medium text-gold hover:underline">
+                    View all
+                  </button>
+                </div>
+                {lastMessage ? (
+                  <button onClick={() => goTo("conversations")} className="flex items-center gap-3 rounded-[10px] px-1 py-2 text-left hover:bg-panel">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-panel text-xs font-semibold text-muted">
+                      {(lastMessage.direction === "inbound" ? "You" : (lastMessage.from_name ?? "DJ")).slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm">{lastMessage.body}</span>
+                      <span className="text-xs text-muted">{new Date(lastMessage.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                    </span>
+                    <ChevronRight size={15} className="shrink-0 text-muted" />
+                  </button>
+                ) : (
+                  <p className="flex items-center gap-2 px-1 py-2 text-xs text-muted">
+                    <MessageCircle size={14} /> No messages yet — say hello from the Conversations tab.
+                  </p>
+                )}
               </GlassCard>
-            )}
-          </section>
 
-          <PortalFilesList eventId={id} />
-
-          {isWedding && !event.wedding_music_plan_sent_at && (
-            <section className="border border-border p-4">
-              <p className="text-sm font-medium">Wedding Music Plan</p>
-              <p className="mt-1 text-sm text-muted">
-                Your DJ sends this planning form once your deposit is in — check back after your first payment.
-              </p>
-            </section>
-          )}
-
-          {isWedding && event.wedding_music_plan_sent_at && (
-            <section className="flex flex-col gap-6">
-              <div>
-                <p className="font-display text-2xl font-light">Wedding Music Plan</p>
-                <p className="mt-1 text-sm text-muted">
-                  Type each song yourself, or search Spotify to fill it in for you. Changes save separately from the
-                  rest of this page.
-                </p>
-              </div>
-
-              <div className="grid gap-6 sm:grid-cols-2">
-                <div>
-                  <p className="mb-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-gold">
-                    Ceremony
-                  </p>
-                  <div className="flex flex-col gap-3">
-                    <SongSlotField
-                      label="Processional Song"
-                      value={weddingPlan.processional_song ?? ""}
-                      onChange={(v, sid) => updateSong("processional_song", v, sid)}
-                    />
-                    <SongSlotField
-                      label="Wedding Party Entrance Song"
-                      value={weddingPlan.wedding_party_entrance_song ?? ""}
-                      onChange={(v, sid) => updateSong("wedding_party_entrance_song", v, sid)}
-                      required
-                    />
-                    <SongSlotField
-                      label="Bride Entrance Song"
-                      value={weddingPlan.bride_entrance_song ?? ""}
-                      onChange={(v, sid) => updateSong("bride_entrance_song", v, sid)}
-                      required
-                    />
-                    <SongSlotField
-                      label="Recessional Song"
-                      value={weddingPlan.recessional_song ?? ""}
-                      onChange={(v, sid) => updateSong("recessional_song", v, sid)}
-                    />
-                  </div>
+              <GlassCard className="flex flex-col gap-1">
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-sm font-semibold">Forms &amp; documents</p>
+                  <button onClick={() => goTo("documents")} className="text-xs font-medium text-gold hover:underline">
+                    View all
+                  </button>
                 </div>
+                <button onClick={() => goTo("forms")} className="flex items-center gap-3 rounded-[10px] px-1 py-2 text-left hover:bg-panel">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-soft text-gold-dim">
+                    <ClipboardList size={15} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">Wedding questionnaire</span>
+                    <span className="text-xs text-muted">{questionnaireCompleted ? "Completed" : "Not started"}</span>
+                  </span>
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${questionnaireCompleted ? "bg-status-approved/15 text-status-approved" : "bg-panel text-muted"}`}>
+                    {questionnaireCompleted ? "Done" : "Not started"}
+                  </span>
+                </button>
+                <button onClick={() => goTo("documents")} className="flex items-center gap-3 rounded-[10px] px-1 py-2 text-left hover:bg-panel">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-soft text-gold-dim">
+                    <FileText size={15} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">Shared documents</span>
+                    <span className="text-xs text-muted">{documentCount} file{documentCount === 1 ? "" : "s"}</span>
+                  </span>
+                  <ChevronRight size={15} className="shrink-0 text-muted" />
+                </button>
+              </GlassCard>
+            </div>
 
-                <div>
-                  <p className="mb-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-gold">
-                    Reception
-                  </p>
-                  <div className="flex flex-col gap-3">
-                    <label className="block">
-                      <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">
-                        Bridal Party Order of Entry (bride &amp; groom last)
-                      </span>
-                      <textarea
-                        value={weddingPlan.bridal_party_order ?? ""}
-                        onChange={(e) => updatePlan("bridal_party_order", e.target.value)}
-                        placeholder="Names in order..."
-                        className="min-h-[70px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
-                      />
-                    </label>
-                    <SongSlotField
-                      label="Grand March Song"
-                      value={weddingPlan.grand_march_song ?? ""}
-                      onChange={(v, sid) => updateSong("grand_march_song", v, sid)}
-                      required
-                    />
-                    <SongSlotField
-                      label="First Dance"
-                      value={weddingPlan.first_dance_song ?? ""}
-                      onChange={(v, sid) => updateSong("first_dance_song", v, sid)}
-                      required
-                    />
-                    <SongSlotField
-                      label="Father/Daughter Dance"
-                      value={weddingPlan.father_daughter_song ?? ""}
-                      onChange={(v, sid) => updateSong("father_daughter_song", v, sid)}
-                    />
-                    <SongSlotField
-                      label="Mother/Son Dance"
-                      value={weddingPlan.mother_son_song ?? ""}
-                      onChange={(v, sid) => updateSong("mother_son_song", v, sid)}
-                    />
-                  </div>
-                </div>
-              </div>
+            <DjProfileCard
+              name={event.djs?.display_name ?? null}
+              photoUrl={event.djs?.photo_url ?? null}
+              heroSettings={event.djs?.hero_settings ?? null}
+              bio={event.djs?.bio ?? null}
+              onStartConversation={() => goTo("conversations")}
+            />
+          </div>
+        )}
 
-              <div className="grid gap-6 sm:grid-cols-2">
-                <div>
-                  <p className="mb-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-gold">
-                    Special Dances <span className="text-muted normal-case">(at most 2 recommended)</span>
-                  </p>
-                  <TagPicker
-                    options={SPECIAL_DANCE_OPTIONS}
-                    selected={weddingPlan.special_dances ?? []}
-                    onChange={(v) => updatePlan("special_dances", v)}
-                  />
-                  <div className="mt-2 flex flex-col gap-1.5">
-                    {(weddingPlan.special_dances ?? [])
-                      .filter((d) => SPECIAL_DANCE_INFO[d])
-                      .map((d) => (
-                        <p key={d} className="text-xs text-muted">
-                          <span className="font-medium text-foreground">{d}:</span> {SPECIAL_DANCE_INFO[d]}
-                        </p>
-                      ))}
-                  </div>
-                  {(weddingPlan.special_dances ?? []).some((d) => d !== "None") && (
-                    <textarea
-                      value={weddingPlan.special_dance_songs ?? ""}
-                      onChange={(e) => updatePlan("special_dance_songs", e.target.value)}
-                      placeholder="A song for each special dance picked above..."
-                      className="mt-2 min-h-[60px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
-                    />
-                  )}
-                </div>
-
-                <div>
-                  <p className="mb-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-gold">
-                    Reception Games
-                  </p>
-                  <TagPicker options={GAME_OPTIONS} selected={weddingPlan.games ?? []} onChange={(v) => updatePlan("games", v)} />
-                  <div className="mt-2 flex flex-col gap-1.5">
-                    {(weddingPlan.games ?? [])
-                      .filter((g) => GAME_INFO[g])
-                      .map((g) => (
-                        <p key={g} className="text-xs text-muted">
-                          <span className="font-medium text-foreground">{g}:</span> {GAME_INFO[g]}
-                        </p>
-                      ))}
-                  </div>
-                </div>
-              </div>
-
-              {error && <p className="text-sm text-status-declined">{error}</p>}
-              {planSaved && <p className="text-sm text-status-approved">Saved.</p>}
-
-              <div className="flex items-center gap-3 border-t border-border pt-4">
-                <Button variant="cta" onClick={handleSaveMusicPlan} disabled={savingPlan} className="w-fit">
-                  {savingPlan ? "Saving..." : "Save Music Plan"}
-                </Button>
-              </div>
-            </section>
-          )}
+      {activeTab === "conversations" && (
+        <div className="mt-6">
+          <ConversationPanel eventId={id} />
         </div>
       )}
 
-      {activeTab === "payment" && (
+      {activeTab === "contracts" && (
         <div className="mt-6">
-          {balance && balance.totalDueCents > 0 ? (
+          {contract ? (
             <GlassCard neon className="flex flex-col gap-3">
-              <p className="text-sm font-semibold">Payment</p>
-              <div className="flex flex-col gap-1 text-sm">
-                <Row label="Total" value={`$${(balance.totalDueCents / 100).toFixed(2)}`} />
-                <Row label="Paid so far" value={`$${(balance.paidCents / 100).toFixed(2)}`} />
-                <Row label="Balance due" value={`$${(balance.balanceCents / 100).toFixed(2)}`} bold />
-              </div>
-              {balance.balanceCents > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {event.deposit_amount && balance.paidCents === 0 && (
-                    <Link
-                      href={`/portal/events/${id}/pay?kind=deposit&amount=${Math.min(Math.round(event.deposit_amount * 100), balance.balanceCents)}`}
-                    >
-                      <Button variant="cta">Pay Deposit (${event.deposit_amount.toFixed(2)})</Button>
-                    </Link>
-                  )}
-                  <Link href={`/portal/events/${id}/pay?kind=balance&amount=${balance.balanceCents}`}>
-                    <Button variant="cta">Pay Full Balance (${(balance.balanceCents / 100).toFixed(2)})</Button>
-                  </Link>
+              <p className="text-sm font-semibold">{contract.title}</p>
+
+              {contract.file_url && (
+                <a href={contract.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-sm text-gold hover:underline">
+                  <FileText size={14} /> View contract document
+                </a>
+              )}
+              {contract.body && <div className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-[10px] border border-black/10 bg-panel/60 p-3 text-sm">{contract.body}</div>}
+
+              {contract.status === "signed" ? (
+                <p className="text-sm text-status-approved">
+                  Signed by {contract.signed_by_name} on {contract.signed_at ? new Date(contract.signed_at).toLocaleDateString() : "—"}
+                </p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs text-muted">Typing your full legal name below and clicking Sign counts as your electronic signature on this contract.</p>
+                  <input
+                    value={signName}
+                    onChange={(e) => setSignName(e.target.value)}
+                    placeholder="Your full legal name"
+                    className="rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                  />
+                  {signError && <p className="text-xs text-status-declined">{signError}</p>}
+                  <Button variant="cta" onClick={handleSign} disabled={signing} className="w-fit">
+                    {signing ? "Signing..." : "Sign Contract"}
+                  </Button>
                 </div>
               )}
             </GlassCard>
           ) : (
             <GlassCard className="flex flex-col gap-1">
-              <p className="text-sm font-semibold">Nothing due</p>
-              <p className="text-sm text-muted">You&rsquo;re all paid up, or a total hasn&rsquo;t been set yet.</p>
+              <p className="text-sm font-semibold">No contract yet</p>
+              <p className="text-sm text-muted">Your contract will show up here once it&rsquo;s sent.</p>
             </GlassCard>
           )}
         </div>
       )}
 
-      {activeTab === "services" && (
+      {activeTab === "forms" && (
         <div className="mt-6 flex flex-col gap-4">
           <GlassCard neon className="flex flex-col gap-2">
             <p className="text-sm font-semibold">Planning Questionnaire</p>
-            <p className="text-sm text-muted">
-              A quick, guided walkthrough to tell us everything about your event — songs, timeline, and all the
-              details your DJ needs.
-            </p>
+            <p className="text-sm text-muted">A quick, guided walkthrough to tell us everything about your event — songs, timeline, and all the details your DJ needs.</p>
             <Link href={`/portal/questionnaire/${id}`} className="w-fit">
-              <Button variant="cta">Open Questionnaire →</Button>
+              <Button variant="cta">{questionnaireCompleted ? "Review Questionnaire →" : "Open Questionnaire →"}</Button>
             </Link>
           </GlassCard>
 
@@ -537,11 +483,117 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
               {event.expected_guests != null && <Row label="Expected guests" value={String(event.expected_guests)} />}
             </GlassCard>
           )}
+        </div>
+      )}
 
-          <p className="text-sm text-muted">
-            Build your night — tell your DJ exactly what to play and what to skip. Changes save to your event
-            automatically for the DJ to see.
-          </p>
+      {activeTab === "documents" && (
+        <div className="mt-6">
+          <PortalFilesList eventId={id} />
+        </div>
+      )}
+
+      {activeTab === "music" && (
+        <div className="mt-6 flex flex-col gap-6">
+          {isWedding ? (
+            !event.wedding_music_plan_sent_at ? (
+              <GlassCard className="flex flex-col gap-1">
+                <p className="text-sm font-semibold">Wedding Music Plan</p>
+                <p className="text-sm text-muted">Your DJ sends this planning form once your deposit is in — check back after your first payment.</p>
+              </GlassCard>
+            ) : (
+              <>
+                <div>
+                  <p className="font-display text-2xl font-light">Wedding Music Plan</p>
+                  <p className="mt-1 text-sm text-muted">Type each song yourself, or search Spotify to fill it in for you. Changes save separately from the rest of this page.</p>
+                </div>
+
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-gold">Ceremony</p>
+                    <div className="flex flex-col gap-3">
+                      <SongSlotField label="Processional Song" value={weddingPlan.processional_song ?? ""} onChange={(v, sid) => updateSong("processional_song", v, sid)} />
+                      <SongSlotField label="Wedding Party Entrance Song" value={weddingPlan.wedding_party_entrance_song ?? ""} onChange={(v, sid) => updateSong("wedding_party_entrance_song", v, sid)} required />
+                      <SongSlotField label="Bride Entrance Song" value={weddingPlan.bride_entrance_song ?? ""} onChange={(v, sid) => updateSong("bride_entrance_song", v, sid)} required />
+                      <SongSlotField label="Recessional Song" value={weddingPlan.recessional_song ?? ""} onChange={(v, sid) => updateSong("recessional_song", v, sid)} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-gold">Reception</p>
+                    <div className="flex flex-col gap-3">
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Bridal Party Order of Entry (bride &amp; groom last)</span>
+                        <textarea
+                          value={weddingPlan.bridal_party_order ?? ""}
+                          onChange={(e) => updatePlan("bridal_party_order", e.target.value)}
+                          placeholder="Names in order..."
+                          className="min-h-[70px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                        />
+                      </label>
+                      <SongSlotField label="Grand March Song" value={weddingPlan.grand_march_song ?? ""} onChange={(v, sid) => updateSong("grand_march_song", v, sid)} required />
+                      <SongSlotField label="First Dance" value={weddingPlan.first_dance_song ?? ""} onChange={(v, sid) => updateSong("first_dance_song", v, sid)} required />
+                      <SongSlotField label="Father/Daughter Dance" value={weddingPlan.father_daughter_song ?? ""} onChange={(v, sid) => updateSong("father_daughter_song", v, sid)} />
+                      <SongSlotField label="Mother/Son Dance" value={weddingPlan.mother_son_song ?? ""} onChange={(v, sid) => updateSong("mother_son_song", v, sid)} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-6 sm:grid-cols-2">
+                  <div>
+                    <p className="mb-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-gold">
+                      Special Dances <span className="text-muted normal-case">(at most 2 recommended)</span>
+                    </p>
+                    <TagPicker options={SPECIAL_DANCE_OPTIONS} selected={weddingPlan.special_dances ?? []} onChange={(v) => updatePlan("special_dances", v)} />
+                    <div className="mt-2 flex flex-col gap-1.5">
+                      {(weddingPlan.special_dances ?? [])
+                        .filter((d) => SPECIAL_DANCE_INFO[d])
+                        .map((d) => (
+                          <p key={d} className="text-xs text-muted">
+                            <span className="font-medium text-foreground">{d}:</span> {SPECIAL_DANCE_INFO[d]}
+                          </p>
+                        ))}
+                    </div>
+                    {(weddingPlan.special_dances ?? []).some((d) => d !== "None") && (
+                      <textarea
+                        value={weddingPlan.special_dance_songs ?? ""}
+                        onChange={(e) => updatePlan("special_dance_songs", e.target.value)}
+                        placeholder="A song for each special dance picked above..."
+                        className="mt-2 min-h-[60px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="mb-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-gold">Reception Games</p>
+                    <TagPicker options={GAME_OPTIONS} selected={weddingPlan.games ?? []} onChange={(v) => updatePlan("games", v)} />
+                    <div className="mt-2 flex flex-col gap-1.5">
+                      {(weddingPlan.games ?? [])
+                        .filter((g) => GAME_INFO[g])
+                        .map((g) => (
+                          <p key={g} className="text-xs text-muted">
+                            <span className="font-medium text-foreground">{g}:</span> {GAME_INFO[g]}
+                          </p>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+
+                {error && <p className="text-sm text-status-declined">{error}</p>}
+                {planSaved && <p className="text-sm text-status-approved">Saved.</p>}
+
+                <div className="flex items-center gap-3 border-t border-border pt-4">
+                  <Button variant="cta" onClick={handleSaveMusicPlan} disabled={savingPlan} className="w-fit">
+                    {savingPlan ? "Saving..." : "Save Music Plan"}
+                  </Button>
+                </div>
+              </>
+            )
+          ) : (
+            <GlassCard className="flex flex-col gap-1">
+              <p className="text-sm font-semibold">Music preferences</p>
+              <p className="text-sm text-muted">Build your night below — tell your DJ exactly what to play and what to skip.</p>
+            </GlassCard>
+          )}
 
           <GlassCard neon className="flex flex-col gap-3">
             <p className="text-sm font-semibold">Must-Play List</p>
@@ -610,7 +662,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
             <textarea
               value={specialRequests}
               onChange={(e) => setSpecialRequests(e.target.value)}
-              placeholder="First dance song, timeline details, anything else your DJ should know..."
+              placeholder="Timeline details, anything else your DJ should know..."
               className="min-h-[100px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </GlassCard>
@@ -623,7 +675,57 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
           </Button>
         </div>
       )}
-    </div>
+
+      {activeTab === "payments" && (
+        <div className="mt-6">
+          {balance && balance.totalDueCents > 0 ? (
+            <GlassCard neon className="flex flex-col gap-3">
+              <p className="text-sm font-semibold">Payment</p>
+              <div className="flex flex-col gap-1 text-sm">
+                <Row label="Total" value={`$${(balance.totalDueCents / 100).toFixed(2)}`} />
+                <Row label="Paid so far" value={`$${(balance.paidCents / 100).toFixed(2)}`} />
+                <Row label="Balance due" value={`$${(balance.balanceCents / 100).toFixed(2)}`} bold />
+              </div>
+              {balance.balanceCents > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {event.deposit_amount && balance.paidCents === 0 && (
+                    <Link href={`/portal/events/${id}/pay?kind=deposit&amount=${Math.min(Math.round(event.deposit_amount * 100), balance.balanceCents)}`}>
+                      <Button variant="cta">Pay Deposit (${event.deposit_amount.toFixed(2)})</Button>
+                    </Link>
+                  )}
+                  <Link href={`/portal/events/${id}/pay?kind=balance&amount=${balance.balanceCents}`}>
+                    <Button variant="cta">Pay Full Balance (${(balance.balanceCents / 100).toFixed(2)})</Button>
+                  </Link>
+                </div>
+              )}
+            </GlassCard>
+          ) : (
+            <GlassCard className="flex flex-col gap-1">
+              <p className="text-sm font-semibold">Nothing due</p>
+              <p className="text-sm text-muted">You&rsquo;re all paid up, or a total hasn&rsquo;t been set yet.</p>
+            </GlassCard>
+          )}
+        </div>
+      )}
+      </div>
+    </>
+  );
+}
+
+function SummaryCard({ icon: Icon, label, value, onClick }: { icon: LucideIcon; label: string; value: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="text-left">
+      <GlassCard className="flex items-center gap-3 transition-colors hover:border-gold/40">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-soft text-gold-dim">
+          <Icon size={17} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[10px] font-semibold uppercase tracking-wide text-muted">{label}</span>
+          <span className="block truncate text-sm font-semibold">{value}</span>
+        </span>
+        <ChevronRight size={15} className="shrink-0 text-muted" />
+      </GlassCard>
+    </button>
   );
 }
 

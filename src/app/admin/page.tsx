@@ -7,6 +7,7 @@ import { StatTile } from "@/components/ui/stat-tile";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
+import { HeroBanner } from "@/components/ui/hero-banner";
 import { RevenueAreaChart } from "@/components/charts/revenue-area-chart";
 import { EventTypeDonut } from "@/components/charts/event-type-donut";
 import { cn } from "@/lib/utils";
@@ -123,6 +124,14 @@ export default function AdminOverviewPage() {
   const [payments, setPayments] = useState<PaymentRow[] | null>(null);
   const [cursor, setCursor] = useState(() => new Date());
   const [performance, setPerformance] = useState<PerformanceSummary | null>(null);
+  const [hero, setHero] = useState<{ imageUrl: string | null; heading: string | null; subheading: string | null } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/branding")
+      .then((r) => r.json())
+      .then((data) => setHero(data.adminHero ?? null))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/admin/reports?range=last_6_months")
@@ -230,6 +239,8 @@ export default function AdminOverviewPage() {
 
   return (
     <div className="flex flex-col gap-6 p-6 md:p-8">
+      {hero && <HeroBanner imageUrl={hero.imageUrl} heading={hero.heading} subheading={hero.subheading} />}
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="font-display text-3xl font-light">

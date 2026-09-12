@@ -13,9 +13,9 @@ export function PortalMobileTabBar({ primaryEventId }: { primaryEventId: string 
 
   const items = [
     { href: "/portal", label: "Home", icon: Home, tab: null, disabled: false },
-    { href: primaryEventId ? `/portal/events/${primaryEventId}?tab=files` : "#", label: "Files", icon: FolderOpen, tab: "files", disabled: !primaryEventId },
-    { href: primaryEventId ? `/portal/events/${primaryEventId}?tab=services` : "#", label: "Services", icon: Sparkles, tab: "services", disabled: !primaryEventId },
-    { href: primaryEventId ? `/portal/events/${primaryEventId}?tab=payment` : "#", label: "Payments", icon: Wallet, tab: "payment", disabled: !primaryEventId }
+    { href: primaryEventId ? `/portal/events/${primaryEventId}?tab=documents` : "#", label: "Documents", icon: FolderOpen, tab: "documents", disabled: !primaryEventId },
+    { href: primaryEventId ? `/portal/events/${primaryEventId}?tab=forms` : "#", label: "Forms", icon: Sparkles, tab: "forms", disabled: !primaryEventId },
+    { href: primaryEventId ? `/portal/events/${primaryEventId}?tab=payments` : "#", label: "Payments", icon: Wallet, tab: "payments", disabled: !primaryEventId }
   ];
 
   return (

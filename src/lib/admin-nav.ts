@@ -21,7 +21,8 @@ import {
   CalendarClock,
   ClipboardList,
   LifeBuoy,
-  ArrowLeft
+  ArrowLeft,
+  PackageOpen
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -85,6 +86,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: "/admin/monetization", label: "Monetization", icon: DollarSign },
       { href: "/admin/venues", label: "Venues", icon: MapPin },
       { href: "/admin/services", label: "Services", icon: Sparkles },
+      { href: "/admin/packages", label: "Packages", icon: PackageOpen },
       { href: "/admin/tools/scheduler", label: "Scheduler", icon: CalendarClock },
       { href: "/admin/questionnaires", label: "Questionnaire Builder", icon: ClipboardList },
       { href: "/admin/automations", label: "Automations", icon: Zap },

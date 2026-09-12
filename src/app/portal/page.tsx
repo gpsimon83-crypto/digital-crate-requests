@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/glass-card";
+import { HeroBanner } from "@/components/ui/hero-banner";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { createClient } from "@/lib/supabase/client";
 import { pickPrimaryEvent } from "@/lib/portal-primary-event";
@@ -49,6 +50,14 @@ export default function PortalHomePage() {
   const [events, setEvents] = useState<EventRow[] | null>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hero, setHero] = useState<{ imageUrl: string | null; heading: string | null; subheading: string | null } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/branding")
+      .then((r) => r.json())
+      .then((data) => setHero(data.portalHero ?? null))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -60,6 +69,16 @@ export default function PortalHomePage() {
         setHasClient(!!data.client);
         setEvents(data.events ?? []);
 
+        // A client with exactly one booking goes straight into that
+        // event's full experience (hero, tabs, everything) instead of
+        // this summary list — multi-event clients keep the list so they
+        // can pick which one, since there's no single "primary" that's
+        // obviously right to jump into.
+        if ((data.events ?? []).length === 1) {
+          router.replace(`/portal/events/${data.events[0].id}`);
+          return;
+        }
+
         const primary = pickPrimaryEvent(data.events ?? []);
         if (primary) {
           const detailRes = await fetch(`/api/portal/events/${primary.id}`);
@@ -70,6 +89,7 @@ export default function PortalHomePage() {
         setError(err instanceof Error ? err.message : "Something went wrong.");
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const primaryEvent = events ? pickPrimaryEvent(events) : null;
@@ -89,6 +109,8 @@ export default function PortalHomePage() {
           <LogOut size={12} /> Sign out
         </button>
       </div>
+
+      {hero && <div className="mb-6"><HeroBanner imageUrl={hero.imageUrl} heading={hero.heading} subheading={hero.subheading} /></div>}
 
       {error && <p className="mb-6 text-sm text-status-declined">{error}</p>}
 

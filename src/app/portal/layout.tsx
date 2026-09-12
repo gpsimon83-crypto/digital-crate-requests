@@ -7,12 +7,16 @@ import { PortalMobileTabBar } from "@/components/portal/portal-mobile-tab-bar";
 import { pickPrimaryEvent } from "@/lib/portal-primary-event";
 
 const NO_CHROME_PREFIXES = ["/portal/login", "/portal/signup", "/portal/questionnaire"];
+// The main event page (its own top header + hero, per the luxury portal
+// redesign) — but not its subpages (/pay, /package), which still use the
+// sidebar shell.
+const EVENT_HOME_PATTERN = /^\/portal\/events\/[^/]+\/?$/;
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [primaryEventId, setPrimaryEventId] = useState<string | null>(null);
 
-  const showChrome = !NO_CHROME_PREFIXES.some((p) => pathname.startsWith(p));
+  const showChrome = !NO_CHROME_PREFIXES.some((p) => pathname.startsWith(p)) && !EVENT_HOME_PATTERN.test(pathname);
 
   useEffect(() => {
     if (!showChrome) return;

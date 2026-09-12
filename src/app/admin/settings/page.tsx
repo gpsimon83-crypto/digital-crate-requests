@@ -7,13 +7,24 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
-import { ShieldCheck, ChevronRight, CalendarDays } from "lucide-react";
+import { Field } from "@/components/ui/field";
+import { HeroBanner } from "@/components/ui/hero-banner";
+import { HeroCropControls } from "@/components/ui/hero-crop-controls";
+import { mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
+import { ShieldCheck, ChevronRight, CalendarDays, Image as ImageIcon } from "lucide-react";
 
 interface Settings {
   allow_dj_self_registration: boolean;
   require_disclaimer_acceptance: boolean;
   crowd_vote_boosts_enabled: boolean;
   push_notifications_enabled: boolean;
+  portal_hero_image_url: string | null;
+  portal_hero_heading: string | null;
+  portal_hero_subheading: string | null;
+  portal_hero_settings: Partial<HeroSettings> | null;
+  admin_hero_image_url: string | null;
+  admin_hero_heading: string | null;
+  admin_hero_subheading: string | null;
 }
 
 interface CalendarConnection {
@@ -131,6 +142,13 @@ function AdminSettingsPageInner() {
           requireDisclaimerAcceptance: settings.require_disclaimer_acceptance,
           crowdVoteBoostsEnabled: settings.crowd_vote_boosts_enabled,
           pushNotificationsEnabled: settings.push_notifications_enabled,
+          portalHeroImageUrl: settings.portal_hero_image_url,
+          portalHeroHeading: settings.portal_hero_heading,
+          portalHeroSubheading: settings.portal_hero_subheading,
+          portalHeroSettings: settings.portal_hero_settings,
+          adminHeroImageUrl: settings.admin_hero_image_url,
+          adminHeroHeading: settings.admin_hero_heading,
+          adminHeroSubheading: settings.admin_hero_subheading
         }),
       });
       const data = await res.json();
@@ -183,6 +201,41 @@ function AdminSettingsPageInner() {
                 checked={settings.crowd_vote_boosts_enabled}
                 onChange={(v) => setSettings((s) => s && { ...s, crowd_vote_boosts_enabled: v })}
               />
+            </GlassCard>
+
+            <GlassCard className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <ImageIcon size={18} className="shrink-0 text-gold" />
+                <div>
+                  <p className="text-sm font-semibold">Branding — Hero Banners</p>
+                  <p className="text-xs text-muted">Optional banners at the top of the client portal home and the admin dashboard. Leave blank to show nothing.</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">Client Portal</p>
+                  <Field label="Image URL" value={settings.portal_hero_image_url ?? ""} onChange={(v) => setSettings((s) => s && { ...s, portal_hero_image_url: v || null })} />
+                  <Field label="Heading" value={settings.portal_hero_heading ?? ""} onChange={(v) => setSettings((s) => s && { ...s, portal_hero_heading: v || null })} />
+                  <Field label="Subheading" value={settings.portal_hero_subheading ?? ""} onChange={(v) => setSettings((s) => s && { ...s, portal_hero_subheading: v || null })} />
+                  <HeroBanner imageUrl={settings.portal_hero_image_url} heading={settings.portal_hero_heading} subheading={settings.portal_hero_subheading} />
+                  {settings.portal_hero_image_url && (
+                    <HeroCropControls
+                      photoUrl={settings.portal_hero_image_url}
+                      settings={mergeHeroSettings(settings.portal_hero_settings)}
+                      onChange={(v) => setSettings((s) => s && { ...s, portal_hero_settings: v })}
+                      previewLabel="Default Portal Hero"
+                    />
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">Admin Dashboard</p>
+                  <Field label="Image URL" value={settings.admin_hero_image_url ?? ""} onChange={(v) => setSettings((s) => s && { ...s, admin_hero_image_url: v || null })} />
+                  <Field label="Heading" value={settings.admin_hero_heading ?? ""} onChange={(v) => setSettings((s) => s && { ...s, admin_hero_heading: v || null })} />
+                  <Field label="Subheading" value={settings.admin_hero_subheading ?? ""} onChange={(v) => setSettings((s) => s && { ...s, admin_hero_subheading: v || null })} />
+                  <HeroBanner imageUrl={settings.admin_hero_image_url} heading={settings.admin_hero_heading} subheading={settings.admin_hero_subheading} />
+                </div>
+              </div>
             </GlassCard>
 
             <div className="flex items-center gap-3">

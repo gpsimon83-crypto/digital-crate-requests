@@ -1,0 +1,43 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { getClientForAuthUser, getClientEvent } from "@/lib/data/portal";
+import { priceTemplate } from "@/lib/data/package-builder";
+import { errorMessage } from "@/lib/error-message";
+import type { SelectionInput, EventPricingContext } from "@/lib/packages/types";
+
+// Client's live total — recomputed server-side on every change via the
+// exact same engine the admin preview uses. The request never carries a
+// total; only selections and event context.
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+
+  const { id } = await params;
+  const body = await req.json();
+  const { templateId } = body as { templateId?: string };
+  if (!templateId) return NextResponse.json({ error: "templateId is required" }, { status: 400 });
+
+  try {
+    const client = await getClientForAuthUser(user.id);
+    if (!client) return NextResponse.json({ error: "No client record linked to this account" }, { status: 403 });
+    const event = await getClientEvent(client.id, id);
+    if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
+
+    const selections = (body.selections ?? []) as SelectionInput[];
+    const eventContext: EventPricingContext = {
+      eventDate: event.starts_at ? String(event.starts_at).slice(0, 10) : (body.eventContext?.eventDate ?? null),
+      guestCount: body.eventContext?.guestCount ?? event.expected_guests ?? null,
+      travelMiles: body.eventContext?.travelMiles ?? null,
+      hoursBooked: body.eventContext?.hoursBooked ?? null
+    };
+
+    const breakdown = await priceTemplate(templateId, selections, eventContext, body.appliedDealIds);
+    if (!breakdown) return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    return NextResponse.json({ breakdown });
+  } catch (err) {
+    return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
+  }
+}

@@ -10,6 +10,8 @@ import { TasksPanel } from "@/components/project/tasks-panel";
 import { FilesPanel } from "@/components/project/files-panel";
 import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
 import { PackageRecommendation } from "@/components/project/package-recommendation";
+import { PackageTemplatePicker } from "@/components/project/package-template-picker";
+import { PackageSelectionPanel } from "@/components/project/package-selection-panel";
 import type { MergeContext } from "@/lib/merge-fields";
 
 interface ClientRow {
@@ -125,6 +127,10 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
         <QuestionnaireSummary eventId={id} />
 
         <PackageRecommendation eventId={id} />
+
+        <PackageTemplatePicker eventId={id} />
+
+        <PackageSelectionPanel eventId={id} />
 
         <TasksPanel eventId={id} />
 
