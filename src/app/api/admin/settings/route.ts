@@ -36,6 +36,45 @@ export async function PATCH(req: NextRequest) {
   const denied = await requireAdmin();
   if (denied) return denied;
 
+  const contentType = req.headers.get("content-type") ?? "";
+
+  if (contentType.includes("multipart/form-data")) {
+    try {
+      const db = createAdminClient();
+      const form = await req.formData();
+      const update: Record<string, string | null> = {};
+
+      for (const [field, column] of [
+        ["portalHeroPhoto", "portal_hero_image_url"],
+        ["adminHeroPhoto", "admin_hero_image_url"],
+      ] as const) {
+        const photo = form.get(field);
+        const clear = form.get(`clear_${column}`);
+        if (photo instanceof File && photo.size > 0) {
+          const ext = photo.name.split(".").pop() || "jpg";
+          const path = `branding-${column}-${Date.now()}.${ext}`;
+          const buffer = Buffer.from(await photo.arrayBuffer());
+          const { error: uploadError } = await db.storage.from("event-photos").upload(path, buffer, { contentType: photo.type, upsert: true });
+          if (uploadError) throw uploadError;
+          const { data: publicUrl } = db.storage.from("event-photos").getPublicUrl(path);
+          update[column] = publicUrl.publicUrl;
+        } else if (clear === "true") {
+          update[column] = null;
+        }
+      }
+
+      if (Object.keys(update).length === 0) {
+        return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+      }
+
+      const { data, error } = await db.from("platform_settings").update(update).eq("id", true).select().single();
+      if (error) throw error;
+      return NextResponse.json({ settings: data });
+    } catch (err) {
+      return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
+    }
+  }
+
   const body = await req.json();
 
   try {

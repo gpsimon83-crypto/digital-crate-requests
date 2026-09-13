@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
@@ -11,7 +11,88 @@ import { Field } from "@/components/ui/field";
 import { HeroBanner } from "@/components/ui/hero-banner";
 import { HeroCropControls } from "@/components/ui/hero-crop-controls";
 import { mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
-import { ShieldCheck, ChevronRight, CalendarDays, Image as ImageIcon } from "lucide-react";
+import { ShieldCheck, ChevronRight, CalendarDays, Image as ImageIcon, Sparkles } from "lucide-react";
+
+const HERO_COPY_EXAMPLES: Record<"portal" | "admin", { heading: string; subheading: string }> = {
+  portal: {
+    heading: "Welcome to your event hub",
+    subheading: "Everything for your big day, all in one place."
+  },
+  admin: {
+    heading: "Digital Crate DJs",
+    subheading: "Book smarter, play better."
+  }
+};
+
+function HeroImageUpload({
+  imageUrl,
+  uploading,
+  onUpload,
+  onClear
+}: {
+  imageUrl: string | null;
+  uploading: boolean;
+  onUpload: (file: File) => void;
+  onClear: () => void;
+}) {
+  const fileInput = useRef<HTMLInputElement>(null);
+  return (
+    <div>
+      <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Banner Image</span>
+      <div className="flex items-center gap-2">
+        <input
+          ref={fileInput}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onUpload(file);
+            e.target.value = "";
+          }}
+        />
+        <Button variant="secondary" size="sm" onClick={() => fileInput.current?.click()} disabled={uploading}>
+          {uploading ? "Uploading…" : imageUrl ? "Replace image" : "Upload image"}
+        </Button>
+        {imageUrl && (
+          <Button variant="text" size="sm" onClick={onClear} disabled={uploading}>
+            Remove
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CopyFieldWithAI({
+  label,
+  value,
+  placeholder,
+  onChange,
+  onGenerate,
+  generating
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  onChange: (v: string) => void;
+  onGenerate: () => void;
+  generating: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <Field label={label} value={value} placeholder={placeholder} onChange={onChange} />
+      <button
+        type="button"
+        onClick={onGenerate}
+        disabled={generating}
+        className="flex w-fit items-center gap-1 text-[11px] font-medium text-gold hover:underline disabled:opacity-60"
+      >
+        <Sparkles size={11} /> {generating ? "Writing…" : "Write with AI"}
+      </button>
+    </div>
+  );
+}
 
 interface Settings {
   allow_dj_self_registration: boolean;
@@ -113,6 +194,64 @@ function AdminSettingsPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uploading, setUploading] = useState<"portal" | "admin" | null>(null);
+  const [generating, setGenerating] = useState<string | null>(null);
+
+  async function uploadHeroImage(surface: "portal" | "admin", file: File) {
+    setUploading(surface);
+    setError(null);
+    try {
+      const form = new FormData();
+      form.append(surface === "portal" ? "portalHeroPhoto" : "adminHeroPhoto", file);
+      const res = await fetch("/api/admin/settings", { method: "PATCH", body: form });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to upload image");
+      setSettings((s) => s && { ...s, [surface === "portal" ? "portal_hero_image_url" : "admin_hero_image_url"]: json.settings[surface === "portal" ? "portal_hero_image_url" : "admin_hero_image_url"] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  async function clearHeroImage(surface: "portal" | "admin") {
+    setUploading(surface);
+    setError(null);
+    try {
+      const column = surface === "portal" ? "portal_hero_image_url" : "admin_hero_image_url";
+      const form = new FormData();
+      form.append(`clear_${column}`, "true");
+      const res = await fetch("/api/admin/settings", { method: "PATCH", body: form });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to remove image");
+      setSettings((s) => s && { ...s, [column]: null });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  async function generateHeroCopy(surface: "portal" | "admin", field: "heading" | "subheading") {
+    const key = `${surface}-${field}`;
+    setGenerating(key);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/settings/generate-hero-copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ surface, field })
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Failed to generate copy");
+      const column = `${surface}_hero_${field}` as "portal_hero_heading" | "portal_hero_subheading" | "admin_hero_heading" | "admin_hero_subheading";
+      setSettings((s) => s && { ...s, [column]: json.text });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setGenerating(null);
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -213,11 +352,30 @@ function AdminSettingsPageInner() {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted">Client Portal</p>
-                  <Field label="Image URL" value={settings.portal_hero_image_url ?? ""} onChange={(v) => setSettings((s) => s && { ...s, portal_hero_image_url: v || null })} />
-                  <Field label="Heading" value={settings.portal_hero_heading ?? ""} onChange={(v) => setSettings((s) => s && { ...s, portal_hero_heading: v || null })} />
-                  <Field label="Subheading" value={settings.portal_hero_subheading ?? ""} onChange={(v) => setSettings((s) => s && { ...s, portal_hero_subheading: v || null })} />
+                  <HeroImageUpload
+                    imageUrl={settings.portal_hero_image_url}
+                    uploading={uploading === "portal"}
+                    onUpload={(f) => uploadHeroImage("portal", f)}
+                    onClear={() => clearHeroImage("portal")}
+                  />
+                  <CopyFieldWithAI
+                    label="Heading"
+                    value={settings.portal_hero_heading ?? ""}
+                    placeholder={`e.g. "${HERO_COPY_EXAMPLES.portal.heading}"`}
+                    onChange={(v) => setSettings((s) => s && { ...s, portal_hero_heading: v || null })}
+                    onGenerate={() => generateHeroCopy("portal", "heading")}
+                    generating={generating === "portal-heading"}
+                  />
+                  <CopyFieldWithAI
+                    label="Subheading"
+                    value={settings.portal_hero_subheading ?? ""}
+                    placeholder={`e.g. "${HERO_COPY_EXAMPLES.portal.subheading}"`}
+                    onChange={(v) => setSettings((s) => s && { ...s, portal_hero_subheading: v || null })}
+                    onGenerate={() => generateHeroCopy("portal", "subheading")}
+                    generating={generating === "portal-subheading"}
+                  />
                   <HeroBanner imageUrl={settings.portal_hero_image_url} heading={settings.portal_hero_heading} subheading={settings.portal_hero_subheading} />
                   {settings.portal_hero_image_url && (
                     <HeroCropControls
@@ -228,11 +386,30 @@ function AdminSettingsPageInner() {
                     />
                   )}
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-3">
                   <p className="text-xs font-semibold uppercase tracking-wide text-muted">Admin Dashboard</p>
-                  <Field label="Image URL" value={settings.admin_hero_image_url ?? ""} onChange={(v) => setSettings((s) => s && { ...s, admin_hero_image_url: v || null })} />
-                  <Field label="Heading" value={settings.admin_hero_heading ?? ""} onChange={(v) => setSettings((s) => s && { ...s, admin_hero_heading: v || null })} />
-                  <Field label="Subheading" value={settings.admin_hero_subheading ?? ""} onChange={(v) => setSettings((s) => s && { ...s, admin_hero_subheading: v || null })} />
+                  <HeroImageUpload
+                    imageUrl={settings.admin_hero_image_url}
+                    uploading={uploading === "admin"}
+                    onUpload={(f) => uploadHeroImage("admin", f)}
+                    onClear={() => clearHeroImage("admin")}
+                  />
+                  <CopyFieldWithAI
+                    label="Heading"
+                    value={settings.admin_hero_heading ?? ""}
+                    placeholder={`e.g. "${HERO_COPY_EXAMPLES.admin.heading}"`}
+                    onChange={(v) => setSettings((s) => s && { ...s, admin_hero_heading: v || null })}
+                    onGenerate={() => generateHeroCopy("admin", "heading")}
+                    generating={generating === "admin-heading"}
+                  />
+                  <CopyFieldWithAI
+                    label="Subheading"
+                    value={settings.admin_hero_subheading ?? ""}
+                    placeholder={`e.g. "${HERO_COPY_EXAMPLES.admin.subheading}"`}
+                    onChange={(v) => setSettings((s) => s && { ...s, admin_hero_subheading: v || null })}
+                    onGenerate={() => generateHeroCopy("admin", "subheading")}
+                    generating={generating === "admin-subheading"}
+                  />
                   <HeroBanner imageUrl={settings.admin_hero_image_url} heading={settings.admin_hero_heading} subheading={settings.admin_hero_subheading} />
                 </div>
               </div>

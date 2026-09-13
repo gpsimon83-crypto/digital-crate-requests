@@ -70,3 +70,36 @@ export async function generatePackageCopy(input: GeneratePackageCopyInput): Prom
   const textBlock = message.content.find((b): b is Anthropic.TextBlock => b.type === "text");
   return textBlock?.text.trim() ?? null;
 }
+
+export interface GenerateHeroCopyInput {
+  field: "heading" | "subheading";
+  surface: "portal" | "admin";
+}
+
+/** Same soft-unavailable contract as generatePackageCopy — null means "not configured yet," never a thrown error. */
+export async function generateHeroCopy(input: GenerateHeroCopyInput): Promise<string | null> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+
+  const client = new Anthropic({ apiKey });
+
+  const audience =
+    input.surface === "portal"
+      ? "the hero banner at the top of a wedding/event client's private portal home page, for Digital Crate DJs (a Wisconsin DJ collective)"
+      : "the hero banner at the top of the internal admin dashboard, seen by DJs and staff of Digital Crate DJs";
+
+  const fieldInstruction =
+    input.field === "heading"
+      ? "Write ONE short heading (3-7 words, title case, no punctuation at the end) for this banner."
+      : "Write ONE short supporting subheading (one sentence, under 14 words) for this banner, to appear beneath the heading.";
+
+  const message = await client.messages.create({
+    model: "claude-opus-5",
+    max_tokens: 100,
+    system: "You write short banner copy for a DJ booking company's software. Output ONLY the line itself — no quotes, no preamble, no options.",
+    messages: [{ role: "user", content: `${fieldInstruction}\n\nThis is ${audience}.` }]
+  });
+
+  const textBlock = message.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+  return textBlock?.text.trim().replace(/^["']|["']$/g, "") ?? null;
+}
