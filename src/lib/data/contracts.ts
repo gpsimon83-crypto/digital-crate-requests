@@ -187,10 +187,47 @@ export async function updateDraftBody(id: string, body: string) {
   return data as ContractRow;
 }
 
-export async function sendContract(id: string) {
+/**
+ * A contract's price comes from events.quoted_amount/final_amount, typed
+ * in freely at event creation — with zero connection to the Package
+ * Builder. If that event has since had a package approved for payment
+ * (events.package_selection_id, set by approveSelectionForPayment), those
+ * two numbers should agree; if they don't, someone edited one without the
+ * other and a client is about to sign a contract for the wrong amount.
+ * Forced-confirmation, not a hard block — plenty of bookings never touch
+ * the Package Builder at all, and that's a legitimate manual-pricing path.
+ */
+async function checkPriceAgainstPackageSelection(eventId: string): Promise<string | null> {
+  const db = createAdminClient();
+  const { data: event } = await db.from("events").select("quoted_amount, final_amount, package_selection_id").eq("id", eventId).maybeSingle();
+  if (!event?.package_selection_id) return null;
+
+  const { data: selection } = await db.from("event_package_selections").select("price_snapshot").eq("id", event.package_selection_id).maybeSingle();
+  const snapshotTotalCents = (selection?.price_snapshot as { totalCents?: number } | null)?.totalCents;
+  if (snapshotTotalCents == null) return null;
+
+  const contractCents = Math.round(((event.final_amount ?? event.quoted_amount ?? 0) as number) * 100);
+  if (contractCents === snapshotTotalCents) return null;
+
+  return (
+    `This event's approved package price is $${(snapshotTotalCents / 100).toFixed(2)}, but the contract is set to ` +
+    `$${(contractCents / 100).toFixed(2)}.`
+  );
+}
+
+export async function sendContract(id: string, force = false) {
   const db = createAdminClient();
   const { data: existing } = await db.from("contracts").select("event_id, status").eq("id", id).maybeSingle();
   if (!existing || existing.status !== "draft") throw new Error("Only a draft contract can be sent");
+
+  if (!force) {
+    const mismatch = await checkPriceAgainstPackageSelection(existing.event_id);
+    if (mismatch) {
+      const err = new Error(mismatch) as Error & { requiresForce?: boolean };
+      err.requiresForce = true;
+      throw err;
+    }
+  }
 
   const { data, error } = await db
     .from("contracts")

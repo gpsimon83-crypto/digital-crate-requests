@@ -34,6 +34,12 @@ interface WeddingMusicPlan {
   spotify_ids?: Record<string, string>;
 }
 
+interface TimelineEntry {
+  time: string;
+  label: string;
+  note?: string;
+}
+
 interface VendorContact {
   role: string;
   name: string;
@@ -56,6 +62,7 @@ interface EventDetail {
   wedding_music_plan: WeddingMusicPlan | null;
   wedding_music_plan_sent_at: string | null;
   vendor_contacts: VendorContact[] | null;
+  day_timeline: TimelineEntry[] | null;
   quoted_amount: number | null;
   final_amount: number | null;
   deposit_amount: number | null;
@@ -157,6 +164,9 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const [vendorContacts, setVendorContacts] = useState<VendorContact[]>([]);
   const [savingVendors, setSavingVendors] = useState(false);
   const [vendorsSaved, setVendorsSaved] = useState(false);
+  const [dayTimeline, setDayTimeline] = useState<TimelineEntry[]>([]);
+  const [savingTimeline, setSavingTimeline] = useState(false);
+  const [timelineSaved, setTimelineSaved] = useState(false);
 
   const [contract, setContract] = useState<ContractInfo | null>(null);
   const [signName, setSignName] = useState("");
@@ -176,6 +186,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       setSpecialRequests(data.event.special_requests ?? "");
       setWeddingPlan(data.event.wedding_music_plan ?? {});
       setVendorContacts(data.event.vendor_contacts ?? []);
+      setDayTimeline(data.event.day_timeline ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     }
@@ -647,6 +658,69 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                           </p>
                         ))}
                     </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-border pt-4">
+                  <p className="mb-1 text-sm font-semibold">Day-Of Timeline</p>
+                  <p className="mb-3 text-xs text-muted">Your actual schedule with real clock times — the one sheet your DJ prints for the day. You know it better than we do.</p>
+                  <div className="flex flex-col gap-2">
+                    {dayTimeline.map((entry, i) => (
+                      <div key={i} className="grid gap-2 sm:grid-cols-[110px_1fr_1fr_auto]">
+                        <input
+                          value={entry.time}
+                          onChange={(e) => setDayTimeline(dayTimeline.map((x, idx) => (idx === i ? { ...x, time: e.target.value } : x)))}
+                          placeholder="5:00 PM"
+                          className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                        />
+                        <input
+                          value={entry.label}
+                          onChange={(e) => setDayTimeline(dayTimeline.map((x, idx) => (idx === i ? { ...x, label: e.target.value } : x)))}
+                          placeholder="Ceremony begins"
+                          className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                        />
+                        <input
+                          value={entry.note ?? ""}
+                          onChange={(e) => setDayTimeline(dayTimeline.map((x, idx) => (idx === i ? { ...x, note: e.target.value } : x)))}
+                          placeholder="Note (optional)"
+                          className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setDayTimeline(dayTimeline.filter((_, idx) => idx !== i))}
+                          className="shrink-0 rounded-[10px] border border-black/10 px-2.5 text-xs text-muted hover:text-status-declined"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                    <Button variant="secondary" size="sm" className="w-fit" onClick={() => setDayTimeline([...dayTimeline, { time: "", label: "" }])}>
+                      + Add moment
+                    </Button>
+                  </div>
+                  <div className="mt-3 flex items-center gap-3">
+                    <Button variant="secondary" size="sm" onClick={async () => {
+                      setSavingTimeline(true);
+                      setTimelineSaved(false);
+                      setError(null);
+                      try {
+                        const res = await fetch(`/api/portal/events/${id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ dayTimeline })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.error || "Failed to save");
+                        setTimelineSaved(true);
+                      } catch (err) {
+                        setError(err instanceof Error ? err.message : "Something went wrong.");
+                      } finally {
+                        setSavingTimeline(false);
+                      }
+                    }} disabled={savingTimeline} className="w-fit">
+                      {savingTimeline ? "Saving..." : "Save timeline"}
+                    </Button>
+                    {timelineSaved && <span className="text-xs text-status-approved">Saved</span>}
                   </div>
                 </div>
 

@@ -9,11 +9,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (denied) return denied;
 
   const { id } = await params;
-  const { action, body, reason } = (await req.json()) as { action?: "send" | "void" | "edit"; body?: string; reason?: string };
+  const { action, body, reason, force } = (await req.json()) as { action?: "send" | "void" | "edit"; body?: string; reason?: string; force?: boolean };
 
   try {
     if (action === "send") {
-      const contract = await sendContract(id);
+      const contract = await sendContract(id, force === true);
       await logActivity({ action: "contract.sent", entityType: "contract", entityId: id, eventId: contract.event_id });
       return NextResponse.json({ contract });
     }
@@ -29,6 +29,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   } catch (err) {
+    if (err instanceof Error && (err as Error & { requiresForce?: boolean }).requiresForce) {
+      return NextResponse.json({ error: err.message, requiresForce: true }, { status: 409 });
+    }
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }
 }

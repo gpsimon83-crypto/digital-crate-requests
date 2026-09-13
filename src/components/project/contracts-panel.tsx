@@ -89,7 +89,12 @@ export function ContractsPanel({ eventId, contracts, onChange }: { eventId: stri
         body: JSON.stringify(body)
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save");
+      if (!res.ok) {
+        if (data.requiresForce && confirm(`${data.error} Send it anyway?`)) {
+          return patchContract(id, { ...body, force: true });
+        }
+        throw new Error(data.error || "Failed to save");
+      }
       onChange();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");

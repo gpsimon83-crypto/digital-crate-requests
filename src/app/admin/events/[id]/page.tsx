@@ -85,6 +85,7 @@ interface EventDetail {
     | null;
   wedding_music_plan_sent_at: string | null;
   vendor_contacts: { role: string; name: string; phone?: string; email?: string }[] | null;
+  day_timeline: { time: string; label: string; note?: string }[] | null;
   quoted_amount: number | null;
   final_amount: number | null;
   deposit_amount: number | null;
@@ -827,6 +828,15 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                       if (!value || (Array.isArray(value) && value.length === 0)) return null;
                       return <Row key={key} label={label} value={Array.isArray(value) ? value.join(", ") : value} />;
                     })}
+                  </GlassCard>
+                )}
+
+                {event.day_timeline && event.day_timeline.length > 0 && (
+                  <GlassCard className="flex flex-col gap-1">
+                    <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Day-of timeline</p>
+                    {event.day_timeline.map((entry, i) => (
+                      <Row key={i} label={entry.time || "—"} value={entry.label + (entry.note ? ` — ${entry.note}` : "")} />
+                    ))}
                   </GlassCard>
                 )}
 
