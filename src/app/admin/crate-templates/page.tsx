@@ -121,6 +121,7 @@ export default function AdminCrateTemplatesPage() {
         }
       />
       <div className="flex flex-col gap-4 p-6">
+        {error && !showCreate && <p className="text-xs text-status-declined">{error}</p>}
         {showCreate && (
         <div className="flex flex-col gap-3 border border-border p-4">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -180,7 +181,7 @@ export default function AdminCrateTemplatesPage() {
         </div>
         )}
 
-        {templates === null && <p className="text-sm text-muted">Loading...</p>}
+        {templates === null && !error && <p className="text-sm text-muted">Loading...</p>}
         {templates?.length === 0 && <EmptyState icon={LayoutTemplate} title="No templates yet" body="Create your first crate template." />}
         {templates && templates.length > 0 && (
           <div className="flex flex-col divide-y divide-border border-y border-border">
