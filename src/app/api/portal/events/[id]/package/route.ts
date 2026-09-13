@@ -51,7 +51,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     let templateDetail = null;
     if (detailTemplateId) {
-      const detail = await getTemplateDetail(detailTemplateId);
+      const detail = await getTemplateDetail(detailTemplateId, event.dj_id);
       if (detail) templateDetail = { ...detail, sections: forClient(detail.sections) };
     }
 

@@ -9,6 +9,7 @@ import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
 import { StatTile } from "@/components/ui/stat-tile";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
+import { DjServicesEditor } from "@/components/services/dj-services-editor";
 import { money } from "@/lib/format";
 import type { HeroSettings } from "@/lib/hero-settings";
 import { ArrowLeft, CalendarDays, ChevronRight, FolderOpen, TrendingUp, Wallet, ExternalLink, Briefcase, DollarSign } from "lucide-react";
@@ -57,7 +58,8 @@ const TABS = [
   { key: "events", label: "Events" },
   { key: "performance", label: "Performance" },
   { key: "payments", label: "Payments" },
-  { key: "documents", label: "Documents" }
+  { key: "documents", label: "Documents" },
+  { key: "services", label: "Services & Pricing" }
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
@@ -162,6 +164,8 @@ function DjDetailInner({ params }: { params: Promise<{ id: string }> }) {
             <Row label="Hero photo" value={dj.photo_url ? "Uploaded" : "Not set"} />
           </GlassCard>
         )}
+
+        {activeTab === "services" && <DjServicesEditor endpoint={`/api/admin/djs/${id}/services`} />}
 
         {activeTab === "events" && (
           <GlassCard className="flex flex-col gap-3">

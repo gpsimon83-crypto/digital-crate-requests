@@ -45,6 +45,87 @@ export async function deleteCatalogItem(id: string) {
   if (error) throw error;
 }
 
+// ── Per-DJ service offerings ─────────────────────────────────────────
+// service_catalog_items stays the shared definition of what a service IS;
+// each DJ's own price/availability lives in dj_service_offerings.
+
+export interface DjServiceOfferingRow {
+  id: string;
+  dj_id: string;
+  catalog_item_id: string;
+  price_cents: number;
+  internal_cost_cents: number | null;
+  min_quantity: number | null;
+  max_quantity: number | null;
+  is_offered: boolean;
+}
+
+export async function listDjServiceOfferings(djId: string): Promise<DjServiceOfferingRow[]> {
+  const db = createAdminClient();
+  const { data, error } = await db.from("dj_service_offerings").select("*").eq("dj_id", djId);
+  if (error) throw error;
+  return data as DjServiceOfferingRow[];
+}
+
+export async function upsertDjServiceOffering(
+  djId: string,
+  catalogItemId: string,
+  input: { priceCents: number; internalCostCents?: number | null; minQuantity?: number | null; maxQuantity?: number | null; isOffered: boolean }
+): Promise<DjServiceOfferingRow> {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("dj_service_offerings")
+    .upsert(
+      {
+        dj_id: djId,
+        catalog_item_id: catalogItemId,
+        price_cents: input.priceCents,
+        internal_cost_cents: input.internalCostCents ?? null,
+        min_quantity: input.minQuantity ?? null,
+        max_quantity: input.maxQuantity ?? null,
+        is_offered: input.isOffered,
+        updated_at: new Date().toISOString()
+      },
+      { onConflict: "dj_id,catalog_item_id" }
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return data as DjServiceOfferingRow;
+}
+
+/**
+ * Overlays each catalog-linked line item with that DJ's own price/cost/
+ * quantity bounds, and forces selection_mode to "hidden" when the DJ
+ * doesn't offer it (no row, or is_offered: false) — the pricing engine
+ * already skips hidden items entirely, so this is enough to both exclude
+ * it from pricing and keep it out of client-selectable options. Custom
+ * line items with no catalog_item_id (template-authored, not a shared
+ * service) are never touched.
+ */
+function applyDjOfferings(sections: PackageSectionData[], offeringsByCatalogId: Map<string, DjServiceOfferingRow>): PackageSectionData[] {
+  return sections.map((s) => ({
+    ...s,
+    line_items: s.line_items.map((li) => {
+      if (!li.catalog_item_id || !li.catalog_item) return li;
+      const offering = offeringsByCatalogId.get(li.catalog_item_id);
+      if (!offering || !offering.is_offered) {
+        return { ...li, selection_mode: "hidden" as const };
+      }
+      return {
+        ...li,
+        catalog_item: {
+          ...li.catalog_item,
+          price_cents: offering.price_cents,
+          internal_cost_cents: offering.internal_cost_cents,
+          min_quantity: offering.min_quantity,
+          max_quantity: offering.max_quantity
+        }
+      };
+    })
+  }));
+}
+
 // ── Package templates ────────────────────────────────────────────────
 
 export interface TemplateSummary extends PackageTemplateData {
@@ -102,13 +183,18 @@ export interface TemplateDetail {
   eligibleDealIds: string[];
 }
 
-export async function getTemplateDetail(templateId: string): Promise<TemplateDetail | null> {
+export async function getTemplateDetail(templateId: string, djId?: string | null): Promise<TemplateDetail | null> {
   const db = createAdminClient();
   const { data: template, error } = await db.from("package_templates").select("*").eq("id", templateId).maybeSingle();
   if (error) throw error;
   if (!template) return null;
 
-  const sections = await loadSectionsWithLineItems(templateId);
+  let sections = await loadSectionsWithLineItems(templateId);
+  if (djId) {
+    const offerings = await listDjServiceOfferings(djId);
+    const offeringsByCatalogId = new Map(offerings.map((o) => [o.catalog_item_id, o]));
+    sections = applyDjOfferings(sections, offeringsByCatalogId);
+  }
 
   const { data: pricingRules, error: pricingRulesError } = await db
     .from("package_pricing_rules")
@@ -384,9 +470,10 @@ export async function priceTemplate(
   templateId: string,
   selections: SelectionInput[],
   eventContext: EventPricingContext,
-  appliedDealIds?: string[]
+  appliedDealIds?: string[],
+  djId?: string | null
 ): Promise<PriceBreakdown | null> {
-  const detail = await getTemplateDetail(templateId);
+  const detail = await getTemplateDetail(templateId, djId);
   if (!detail) return null;
 
   const lineItems = detail.sections.flatMap((s) => s.line_items);

@@ -214,7 +214,7 @@ export default function PackageBuilderPage({ params }: { params: Promise<{ id: s
             <div className="flex items-center justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold">Live preview</p>
-                <p className="text-xs text-muted">Same pricing engine the client sees — try different inputs below.</p>
+                <p className="text-xs text-muted">Uses each service&rsquo;s default price — a specific DJ&rsquo;s actual event may price differently once assigned.</p>
               </div>
               <Button variant="secondary" size="sm" onClick={() => setShowInvoice(true)} disabled={!breakdown}>
                 Invoice Preview

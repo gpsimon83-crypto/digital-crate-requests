@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
-
-async function getOwnDjId() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return null;
-
-  const db = createAdminClient();
-  const { data } = await db.from("djs").select("id").eq("auth_user_id", user.id).maybeSingle();
-  return data?.id ?? null;
-}
+import { getOwnDjId } from "@/lib/dj-auth";
 
 export async function GET() {
   const djId = await getOwnDjId();

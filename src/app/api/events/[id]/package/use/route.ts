@@ -21,11 +21,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!templateId) return NextResponse.json({ error: "templateId is required" }, { status: 400 });
 
   try {
-    const detail = await getTemplateDetail(templateId);
+    const detail = await getTemplateDetail(templateId, access.event.dj_id);
     if (!detail) return NextResponse.json({ error: "Template not found" }, { status: 404 });
 
     const selections = defaultSelectionsForTemplate(detail.sections);
-    const breakdown = await priceTemplate(templateId, selections, { eventDate: null, guestCount: null, travelMiles: null, hoursBooked: null });
+    const breakdown = await priceTemplate(
+      templateId,
+      selections,
+      { eventDate: null, guestCount: null, travelMiles: null, hoursBooked: null },
+      undefined,
+      access.event.dj_id
+    );
     if (!breakdown) return NextResponse.json({ error: "Template not found" }, { status: 404 });
 
     const selectionMap: Record<string, number> = {};

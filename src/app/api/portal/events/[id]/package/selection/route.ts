@@ -29,7 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const event = await getClientEvent(client.id, id);
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
-    const detail = await getTemplateDetail(templateId);
+    const detail = await getTemplateDetail(templateId, event.dj_id);
     if (!detail) return NextResponse.json({ error: "Template not found" }, { status: 404 });
 
     const selections = (body.selections ?? []) as SelectionInput[];
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       hoursBooked: body.eventContext?.hoursBooked ?? null
     };
 
-    const breakdown = await priceTemplate(templateId, selections, eventContext, body.appliedDealIds);
+    const breakdown = await priceTemplate(templateId, selections, eventContext, body.appliedDealIds, event.dj_id);
     if (!breakdown) return NextResponse.json({ error: "Template not found" }, { status: 404 });
 
     const selection = await saveSelection(id, {

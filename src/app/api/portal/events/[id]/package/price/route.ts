@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       hoursBooked: body.eventContext?.hoursBooked ?? null
     };
 
-    const breakdown = await priceTemplate(templateId, selections, eventContext, body.appliedDealIds);
+    const breakdown = await priceTemplate(templateId, selections, eventContext, body.appliedDealIds, event.dj_id);
     if (!breakdown) return NextResponse.json({ error: "Template not found" }, { status: 404 });
     return NextResponse.json({ breakdown });
   } catch (err) {

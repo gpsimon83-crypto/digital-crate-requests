@@ -288,7 +288,7 @@ function CatalogTab() {
     { key: "name", header: "Name", sortValue: (i) => i.name, render: (i) => <p className="font-medium">{i.name}</p> },
     { key: "category", header: "Category", sortValue: (i) => i.category, render: (i) => <span className="capitalize">{i.category}</span>, hideBelow: "sm" },
     { key: "method", header: "Pricing", render: (i) => PRICING_METHOD_LABELS[i.pricing_method], hideBelow: "md" },
-    { key: "price", header: "Price", align: "right", sortValue: (i) => i.price_cents, render: (i) => (i.pricing_method === "quote_only" ? "Quote" : money(i.price_cents)) },
+    { key: "price", header: "Default price", align: "right", sortValue: (i) => i.price_cents, render: (i) => (i.pricing_method === "quote_only" ? "Quote" : money(i.price_cents)) },
     {
       key: "visible",
       header: "Client visible",
@@ -317,7 +317,10 @@ function CatalogTab() {
     <GlassCard className="flex flex-col gap-4">
       {error && <p className="text-sm text-status-declined">{error}</p>}
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold">Reusable service catalog</p>
+        <div>
+          <p className="text-sm font-semibold">Reusable service catalog</p>
+          <p className="text-xs text-muted">Shared service types every DJ can offer — each DJ sets their own actual price under their profile&rsquo;s Services & Pricing.</p>
+        </div>
         <Button variant="primary" size="sm" onClick={() => setEditing({ pricing_method: "fixed", is_client_visible: true, is_active: true, category: "other" })}>
           <Plus size={14} /> Add item
         </Button>
@@ -355,7 +358,7 @@ function CatalogTab() {
               </select>
             </label>
             <DraftField
-              label="Price (USD)"
+              label="Default price (USD) — each DJ can set their own"
               type="number"
               value={editing.price_cents != null ? String(editing.price_cents / 100) : ""}
               onCommit={(v) => setEditing({ ...editing, price_cents: Math.round(parseFloat(v || "0") * 100) })}

@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   try {
     const db = createAdminClient();
-    const { data: event } = await db.from("events").select("event_type, expected_guests, starts_at, ends_at").eq("id", id).maybeSingle();
+    const { data: event } = await db.from("events").select("event_type, expected_guests, starts_at, ends_at, dj_id").eq("id", id).maybeSingle();
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
     const response = await getResponse(id);
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const { matched, unmatched } = await recommendEquipmentForTemplate(templateId, ctx);
 
     const existing = await getCurrentSelection(id);
-    const detail = await getTemplateDetail(templateId);
+    const detail = await getTemplateDetail(templateId, event.dj_id);
     if (!detail) return NextResponse.json({ error: "Template not found" }, { status: 404 });
 
     const baseSelections: Record<string, number> = existing?.selections ?? Object.fromEntries(defaultSelectionsForTemplate(detail.sections).map((s) => [s.lineItemId, s.quantity]));
@@ -64,12 +64,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     const selectionInputs = Object.entries(selections).map(([lineItemId, quantity]) => ({ lineItemId, quantity }));
-    const breakdown = await priceTemplate(templateId, selectionInputs, {
-      eventDate: event.starts_at ? String(event.starts_at).slice(0, 10) : null,
-      guestCount: ctx.guestCount,
-      travelMiles: null,
-      hoursBooked: ctx.hoursBooked
-    });
+    const breakdown = await priceTemplate(
+      templateId,
+      selectionInputs,
+      {
+        eventDate: event.starts_at ? String(event.starts_at).slice(0, 10) : null,
+        guestCount: ctx.guestCount,
+        travelMiles: null,
+        hoursBooked: ctx.hoursBooked
+      },
+      undefined,
+      event.dj_id
+    );
     if (!breakdown) return NextResponse.json({ error: "Template not found" }, { status: 404 });
 
     // If this selection was already staff-confirmed, changing what
