@@ -90,10 +90,17 @@ function conditionsMatch(event: EventContext, conditions: AutomationCondition[],
   });
 }
 
-function buildMergeContext(event: EventContext, origin: string): MergeContext {
+async function getReviewUrl(): Promise<string | undefined> {
+  const db = createAdminClient();
+  const { data } = await db.from("platform_settings").select("review_url").eq("id", true).maybeSingle();
+  return data?.review_url ?? undefined;
+}
+
+function buildMergeContext(event: EventContext, origin: string, reviewUrl?: string): MergeContext {
   const client = event.clients;
   const clientName = client ? client.company_name || [client.first_name, client.last_name].filter(Boolean).join(" ") : undefined;
   return {
+    reviewLink: reviewUrl,
     clientFirstName: client?.first_name ?? clientName,
     clientFullName: clientName,
     eventType: event.event_type ?? undefined,
@@ -141,7 +148,8 @@ async function runAction(action: AutomationAction, event: EventContext, origin: 
       const template = await getLibraryItem(action.templateId);
       if (!template || !template.body) return "Skipped — email template not found";
 
-      const ctx = buildMergeContext(event, origin);
+      const reviewUrl = await getReviewUrl();
+      const ctx = buildMergeContext(event, origin, reviewUrl);
       const subject = fillMergeFields(template.subject || event.title || "Update from Digital Crate DJs", ctx);
       const body = fillMergeFields(template.body, ctx);
 

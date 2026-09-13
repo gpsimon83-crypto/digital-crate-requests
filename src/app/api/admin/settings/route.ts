@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS = {
   admin_hero_heading: null,
   admin_hero_subheading: null,
   portal_hero_settings: null,
+  review_url: null,
 };
 
 export async function GET() {
@@ -92,7 +93,8 @@ export async function PATCH(req: NextRequest) {
         ...(body.adminHeroImageUrl !== undefined ? { admin_hero_image_url: body.adminHeroImageUrl } : {}),
         ...(body.adminHeroHeading !== undefined ? { admin_hero_heading: body.adminHeroHeading } : {}),
         ...(body.adminHeroSubheading !== undefined ? { admin_hero_subheading: body.adminHeroSubheading } : {}),
-        ...(body.portalHeroSettings !== undefined ? { portal_hero_settings: body.portalHeroSettings } : {})
+        ...(body.portalHeroSettings !== undefined ? { portal_hero_settings: body.portalHeroSettings } : {}),
+        ...(body.reviewUrl !== undefined ? { review_url: body.reviewUrl } : {})
       })
       .eq("id", true)
       .select()

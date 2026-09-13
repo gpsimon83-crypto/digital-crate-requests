@@ -77,8 +77,14 @@ interface EventDetail {
   special_requests: string | null;
   must_play: string[] | null;
   do_not_play: string[] | null;
-  wedding_music_plan: (Record<string, string | string[] | undefined> & { spotify_ids?: Record<string, string> }) | null;
+  wedding_music_plan:
+    | (Record<string, string | string[] | undefined> & {
+        spotify_ids?: Record<string, string>;
+        wedding_party?: { name: string; pronunciation?: string }[];
+      })
+    | null;
   wedding_music_plan_sent_at: string | null;
+  vendor_contacts: { role: string; name: string; phone?: string; email?: string }[] | null;
   quoted_amount: number | null;
   final_amount: number | null;
   deposit_amount: number | null;
@@ -805,11 +811,31 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 {event.wedding_music_plan && Object.keys(event.wedding_music_plan).length > 0 && (
                   <GlassCard className="flex flex-col gap-1">
                     <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Wedding music plan</p>
+                    {(event.wedding_music_plan.wedding_party ?? []).length > 0 && (
+                      <div className="pb-1">
+                        <p className="text-xs font-medium text-muted">Wedding party order of entry</p>
+                        {event.wedding_music_plan.wedding_party!.map((p, i) => (
+                          <p key={i} className="text-sm">
+                            {i + 1}. {p.name}
+                            {p.pronunciation ? ` (${p.pronunciation})` : ""}
+                          </p>
+                        ))}
+                      </div>
+                    )}
                     {WEDDING_PLAN_FIELDS.map(({ key, label }) => {
                       const value = event.wedding_music_plan?.[key];
                       if (!value || (Array.isArray(value) && value.length === 0)) return null;
                       return <Row key={key} label={label} value={Array.isArray(value) ? value.join(", ") : value} />;
                     })}
+                  </GlassCard>
+                )}
+
+                {event.vendor_contacts && event.vendor_contacts.length > 0 && (
+                  <GlassCard className="flex flex-col gap-1">
+                    <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Vendor contacts</p>
+                    {event.vendor_contacts.map((v, i) => (
+                      <Row key={i} label={v.role || "Vendor"} value={[v.name, v.phone, v.email].filter(Boolean).join(" · ") || "—"} />
+                    ))}
                   </GlassCard>
                 )}
 

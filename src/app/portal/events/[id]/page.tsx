@@ -23,6 +23,7 @@ interface WeddingMusicPlan {
   bride_entrance_song?: string;
   recessional_song?: string;
   bridal_party_order?: string;
+  wedding_party?: { name: string; pronunciation?: string }[];
   grand_march_song?: string;
   first_dance_song?: string;
   father_daughter_song?: string;
@@ -31,6 +32,13 @@ interface WeddingMusicPlan {
   special_dance_songs?: string;
   games?: string[];
   spotify_ids?: Record<string, string>;
+}
+
+interface VendorContact {
+  role: string;
+  name: string;
+  phone?: string;
+  email?: string;
 }
 
 interface EventDetail {
@@ -47,6 +55,7 @@ interface EventDetail {
   special_requests: string | null;
   wedding_music_plan: WeddingMusicPlan | null;
   wedding_music_plan_sent_at: string | null;
+  vendor_contacts: VendorContact[] | null;
   quoted_amount: number | null;
   final_amount: number | null;
   deposit_amount: number | null;
@@ -145,6 +154,9 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const [newMustPlay, setNewMustPlay] = useState("");
   const [newDoNotPlay, setNewDoNotPlay] = useState("");
   const [weddingPlan, setWeddingPlan] = useState<WeddingMusicPlan>({});
+  const [vendorContacts, setVendorContacts] = useState<VendorContact[]>([]);
+  const [savingVendors, setSavingVendors] = useState(false);
+  const [vendorsSaved, setVendorsSaved] = useState(false);
 
   const [contract, setContract] = useState<ContractInfo | null>(null);
   const [signName, setSignName] = useState("");
@@ -163,6 +175,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       setDoNotPlay(data.event.do_not_play ?? []);
       setSpecialRequests(data.event.special_requests ?? "");
       setWeddingPlan(data.event.wedding_music_plan ?? {});
+      setVendorContacts(data.event.vendor_contacts ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     }
@@ -231,6 +244,26 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSavingPlan(false);
+    }
+  }
+
+  async function handleSaveVendors() {
+    setSavingVendors(true);
+    setVendorsSaved(false);
+    setError(null);
+    try {
+      const res = await fetch(`/api/portal/events/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vendorContacts })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save");
+      setVendorsSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSavingVendors(false);
     }
   }
 
@@ -521,13 +554,52 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                   <div>
                     <p className="mb-3 border-b border-border pb-2 text-xs font-semibold uppercase tracking-wide text-gold">Reception</p>
                     <div className="flex flex-col gap-3">
+                      <div>
+                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Wedding Party Order of Entry (bride &amp; groom last)</span>
+                        <div className="flex flex-col gap-2">
+                          {(weddingPlan.wedding_party ?? []).map((person, i) => (
+                            <div key={i} className="flex gap-2">
+                              <input
+                                value={person.name}
+                                onChange={(e) => {
+                                  const next = [...(weddingPlan.wedding_party ?? [])];
+                                  next[i] = { ...next[i], name: e.target.value };
+                                  updatePlan("wedding_party", next);
+                                }}
+                                placeholder="Name"
+                                className="flex-1 rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                              />
+                              <input
+                                value={person.pronunciation ?? ""}
+                                onChange={(e) => {
+                                  const next = [...(weddingPlan.wedding_party ?? [])];
+                                  next[i] = { ...next[i], pronunciation: e.target.value };
+                                  updatePlan("wedding_party", next);
+                                }}
+                                placeholder="Pronunciation (optional)"
+                                className="flex-1 rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => updatePlan("wedding_party", (weddingPlan.wedding_party ?? []).filter((_, idx) => idx !== i))}
+                                className="shrink-0 rounded-[10px] border border-black/10 px-2.5 text-xs text-muted hover:text-status-declined"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                          <Button variant="secondary" size="sm" className="w-fit" onClick={() => updatePlan("wedding_party", [...(weddingPlan.wedding_party ?? []), { name: "" }])}>
+                            + Add person
+                          </Button>
+                        </div>
+                      </div>
                       <label className="block">
-                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Bridal Party Order of Entry (bride &amp; groom last)</span>
+                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Additional entry notes</span>
                         <textarea
                           value={weddingPlan.bridal_party_order ?? ""}
                           onChange={(e) => updatePlan("bridal_party_order", e.target.value)}
-                          placeholder="Names in order..."
-                          className="min-h-[70px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                          placeholder="e.g. groomsmen enter from the left, bridesmaids from the right..."
+                          className="min-h-[50px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                         />
                       </label>
                       <SongSlotField label="Grand March Song" value={weddingPlan.grand_march_song ?? ""} onChange={(v, sid) => updateSong("grand_march_song", v, sid)} required />
@@ -665,6 +737,59 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
               placeholder="Timeline details, anything else your DJ should know..."
               className="min-h-[100px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
+          </GlassCard>
+
+          <GlassCard className="flex flex-col gap-3">
+            <div>
+              <p className="text-sm font-semibold">Vendor Contacts</p>
+              <p className="text-xs text-muted">Photographer, planner, venue coordinator — anyone your DJ might need to reach on the day.</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {vendorContacts.map((v, i) => (
+                <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+                  <input
+                    value={v.role}
+                    onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, role: e.target.value } : x)))}
+                    placeholder="Role (e.g. Photographer)"
+                    className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                  />
+                  <input
+                    value={v.name}
+                    onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, name: e.target.value } : x)))}
+                    placeholder="Name"
+                    className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                  />
+                  <input
+                    value={v.phone ?? ""}
+                    onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, phone: e.target.value } : x)))}
+                    placeholder="Phone"
+                    className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                  />
+                  <input
+                    value={v.email ?? ""}
+                    onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, email: e.target.value } : x)))}
+                    placeholder="Email"
+                    className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setVendorContacts(vendorContacts.filter((_, idx) => idx !== i))}
+                    className="shrink-0 rounded-[10px] border border-black/10 px-2.5 text-xs text-muted hover:text-status-declined"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+              <Button variant="secondary" size="sm" className="w-fit" onClick={() => setVendorContacts([...vendorContacts, { role: "", name: "" }])}>
+                + Add vendor
+              </Button>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="secondary" size="sm" onClick={handleSaveVendors} disabled={savingVendors} className="w-fit">
+                {savingVendors ? "Saving..." : "Save vendors"}
+              </Button>
+              {vendorsSaved && <span className="text-xs text-status-approved">Saved</span>}
+            </div>
           </GlassCard>
 
           {error && <p className="text-sm text-status-declined">{error}</p>}

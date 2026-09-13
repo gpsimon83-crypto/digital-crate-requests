@@ -19,6 +19,7 @@ export interface MergeContext {
   portalLink?: string;
   schedulerLink?: string;
   eventCode?: string;
+  reviewLink?: string;
 }
 
 export const COMPANY_NAME = "Digital Crate DJs";
@@ -39,7 +40,8 @@ export const MERGE_TOKENS: { token: string; label: string }[] = [
   { token: "balance_due", label: "Balance due" },
   { token: "portal_link", label: "Client portal link" },
   { token: "scheduler_link", label: "Booking/scheduler link" },
-  { token: "event_code", label: "Event code" }
+  { token: "event_code", label: "Event code" },
+  { token: "review_link", label: "Review link (Google/The Knot/etc.)" }
 ];
 
 export function fillMergeFields(text: string, ctx: MergeContext): string {
@@ -59,7 +61,8 @@ export function fillMergeFields(text: string, ctx: MergeContext): string {
     balance_due: ctx.balanceDue || "$0",
     portal_link: ctx.portalLink || "",
     scheduler_link: ctx.schedulerLink || "",
-    event_code: ctx.eventCode || ""
+    event_code: ctx.eventCode || "",
+    review_link: ctx.reviewLink || ""
   };
 
   let result = text;

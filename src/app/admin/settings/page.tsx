@@ -106,6 +106,7 @@ interface Settings {
   admin_hero_image_url: string | null;
   admin_hero_heading: string | null;
   admin_hero_subheading: string | null;
+  review_url: string | null;
 }
 
 interface CalendarConnection {
@@ -287,7 +288,8 @@ function AdminSettingsPageInner() {
           portalHeroSettings: settings.portal_hero_settings,
           adminHeroImageUrl: settings.admin_hero_image_url,
           adminHeroHeading: settings.admin_hero_heading,
-          adminHeroSubheading: settings.admin_hero_subheading
+          adminHeroSubheading: settings.admin_hero_subheading,
+          reviewUrl: settings.review_url
         }),
       });
       const data = await res.json();
@@ -339,6 +341,19 @@ function AdminSettingsPageInner() {
                 label="Enable Crowd Vote boosts platform-wide"
                 checked={settings.crowd_vote_boosts_enabled}
                 onChange={(v) => setSettings((s) => s && { ...s, crowd_vote_boosts_enabled: v })}
+              />
+            </GlassCard>
+
+            <GlassCard className="flex flex-col gap-3">
+              <div>
+                <p className="text-sm font-semibold">Reviews</p>
+                <p className="text-xs text-muted">Used by the &ldquo;Post-Event Review Request&rdquo; automation (Library → Automations) — it&rsquo;s seeded off by default until you set this and confirm the email copy.</p>
+              </div>
+              <Field
+                label="Review link"
+                value={settings.review_url ?? ""}
+                onChange={(v) => setSettings((s) => s && { ...s, review_url: v || null })}
+                placeholder="Your Google Business / The Knot / WeddingWire review link"
               />
             </GlassCard>
 
