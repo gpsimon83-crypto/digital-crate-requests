@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { ArrowLeft, CalendarDays, MapPin } from "lucide-react";
 import { EmailThreadPanel } from "@/components/project/email-thread-panel";
+import { ChangeOrdersPanel, type ChangeOrderData } from "@/components/project/change-orders-panel";
 import { TasksPanel } from "@/components/project/tasks-panel";
 import { FilesPanel } from "@/components/project/files-panel";
 import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
@@ -66,6 +67,7 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
   const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [changeOrders, setChangeOrders] = useState<ChangeOrderData[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -76,6 +78,7 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
         setEvent(data.event);
         setBalance(data.balance);
         setPayments(data.payments ?? []);
+        setChangeOrders(data.changeOrders ?? []);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Something went wrong."));
   }, [id]);
@@ -134,6 +137,17 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
           </span>
           {balanceCents > 0 && <span>Balance due: {money(balanceCents)}</span>}
         </GlassCard>
+
+        <ChangeOrdersPanel
+          changeOrders={changeOrders}
+          role="dj"
+          onAcknowledge={async (changeOrderId) => {
+            const res = await fetch(`/api/events/${id}/change-orders/${changeOrderId}/acknowledge`, { method: "POST" });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to acknowledge");
+            setChangeOrders((prev) => prev.map((c) => (c.id === changeOrderId ? data.changeOrder : c)));
+          }}
+        />
 
         {balance && (
           <GlassCard className="flex flex-col gap-3">

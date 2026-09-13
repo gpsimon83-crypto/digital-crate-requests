@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getClientForAuthUser, getClientEvent, updateClientEventNight } from "@/lib/data/portal";
 import { listEventPayments, computeBalance } from "@/lib/data/payments";
 import { listContractsForEvent } from "@/lib/data/contracts";
+import { listChangeOrdersForEvent } from "@/lib/data/contract-change-orders";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createClient();
@@ -34,8 +35,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     const contracts = await listContractsForEvent(id);
     const contract = contracts.find((c) => c.status !== "void") ?? null;
+    const changeOrders = await listChangeOrdersForEvent(id).catch(() => []);
 
-    return NextResponse.json({ event, payments, balance, contract });
+    return NextResponse.json({ event, payments, balance, contract, changeOrders });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }

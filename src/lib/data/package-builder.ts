@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { diffTrackedFields, recordChangeOrderIfSigned } from "@/lib/data/contract-change-orders";
 import { computePackagePrice } from "@/lib/packages/pricing-engine";
 import { calculateGigEquipment, type GigContext, type GigEquipmentRuleData, type GigEquipmentRecommendation } from "@/lib/packages/gig-calculator";
 import type {
@@ -666,6 +667,8 @@ export async function approveSelectionForPayment(selectionId: string): Promise<v
   const { data: selection, error } = await db.from("event_package_selections").select("*").eq("id", selectionId).single();
   if (error) throw error;
 
+  const { data: before } = await db.from("events").select("quoted_amount, final_amount, package_selection_id").eq("id", selection.event_id).maybeSingle();
+
   const snapshot = selection.price_snapshot as PriceBreakdown;
   const { error: eventError } = await db
     .from("events")
@@ -679,4 +682,9 @@ export async function approveSelectionForPayment(selectionId: string): Promise<v
 
   const { error: selectionError } = await db.from("event_package_selections").update({ status: "confirmed" }).eq("id", selectionId);
   if (selectionError) throw selectionError;
+
+  if (before) {
+    const changes = diffTrackedFields(before, { quoted_amount: snapshot.totalCents / 100, final_amount: before.final_amount, package_selection_id: selectionId });
+    await recordChangeOrderIfSigned(selection.event_id, changes);
+  }
 }

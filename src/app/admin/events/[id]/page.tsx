@@ -20,6 +20,7 @@ import { EmailThreadPanel } from "@/components/project/email-thread-panel";
 import { TasksPanel } from "@/components/project/tasks-panel";
 import { FilesPanel } from "@/components/project/files-panel";
 import { ContractsPanel, type ContractRow } from "@/components/project/contracts-panel";
+import { type ChangeOrderData } from "@/components/project/change-orders-panel";
 import { EquipmentAssignmentsPanel } from "@/components/project/equipment-assignments-panel";
 import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
 import { PackageRecommendation } from "@/components/project/package-recommendation";
@@ -177,6 +178,16 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
   const [balance, setBalance] = useState<Balance | null>(null);
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
+  const [venueOptions, setVenueOptions] = useState<ClientOption[]>([]);
+  const [changeOrders, setChangeOrders] = useState<ChangeOrderData[]>([]);
+  const [editingDetails, setEditingDetails] = useState(false);
+  const [detailsDraft, setDetailsDraft] = useState<{ startsAt: string; endsAt: string; venueId: string; finalAmount: string }>({
+    startsAt: "",
+    endsAt: "",
+    venueId: "",
+    finalAmount: ""
+  });
+  const [savingDetails, setSavingDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [changingContact, setChangingContact] = useState(false);
@@ -224,19 +235,24 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
   async function load() {
     try {
-      const [eventRes, clientsRes, contractsRes] = await Promise.all([
+      const [eventRes, clientsRes, contractsRes, venuesRes] = await Promise.all([
         fetch(`/api/admin/events/${id}`),
         fetch("/api/admin/clients"),
-        fetch(`/api/events/${id}/contracts`)
+        fetch(`/api/events/${id}/contracts`),
+        fetch("/api/admin/venues")
       ]);
       const eventData = await eventRes.json();
       if (!eventRes.ok) throw new Error(eventData.error || "Failed to load project");
       setEvent(eventData.event);
       setPayments(eventData.payments ?? []);
       setBalance(eventData.balance);
+      setChangeOrders(eventData.changeOrders ?? []);
 
       const contractsData = await contractsRes.json();
       setContracts(contractsRes.ok ? contractsData.contracts ?? [] : []);
+
+      const venuesData = await venuesRes.json();
+      if (venuesRes.ok) setVenueOptions((venuesData.venues ?? []).map((v: { id: string; name: string }) => ({ id: v.id, label: v.name })));
       setNotesDraft(eventData.event.internal_notes ?? "");
       setLeadSourceDraft(eventData.event.clients?.referral_source ?? "");
 
@@ -778,16 +794,147 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 }}
               />
 
-              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-                <GlassCard className="flex flex-col gap-1">
-                  <Row label="Event type" value={event.event_type ?? "—"} />
-                  <Row label="Service" value={event.service_type ?? "—"} />
-                  <Row label="Expected guests" value={event.expected_guests != null ? String(event.expected_guests) : "—"} />
-                  <Row label="DJ" value={event.djs?.display_name ?? "Unassigned"} />
-                  <Row label="Venue" value={event.venues?.name ?? (event.venue_name ? `${event.venue_name} (not linked yet)` : "No venue")} />
-                  <Row label="Budget range" value={event.budget_range ?? "—"} />
-                </GlassCard>
+              <GlassCard className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold">Event Details</p>
+                  {!editingDetails && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => {
+                        setDetailsDraft({
+                          startsAt: event.starts_at ? event.starts_at.slice(0, 16) : "",
+                          endsAt: event.ends_at ? event.ends_at.slice(0, 16) : "",
+                          venueId: event.venues ? (venueOptions.find((v) => v.label === event.venues?.name)?.id ?? "") : "",
+                          finalAmount: event.final_amount != null ? String(event.final_amount) : ""
+                        });
+                        setEditingDetails(true);
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  )}
+                </div>
 
+                {editingDetails ? (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-xs text-status-declined">
+                      If this contract is already signed, changing these creates a change order both the client and DJ must acknowledge — nothing is silently altered.
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Start time</span>
+                        <input
+                          type="datetime-local"
+                          value={detailsDraft.startsAt}
+                          onChange={(e) => setDetailsDraft((d) => ({ ...d, startsAt: e.target.value }))}
+                          className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">End time</span>
+                        <input
+                          type="datetime-local"
+                          value={detailsDraft.endsAt}
+                          onChange={(e) => setDetailsDraft((d) => ({ ...d, endsAt: e.target.value }))}
+                          className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Venue</span>
+                        <select
+                          value={detailsDraft.venueId}
+                          onChange={(e) => setDetailsDraft((d) => ({ ...d, venueId: e.target.value }))}
+                          className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                        >
+                          <option value="">No venue</option>
+                          {venueOptions.map((v) => (
+                            <option key={v.id} value={v.id}>
+                              {v.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Final amount ($)</span>
+                        <input
+                          type="number"
+                          value={detailsDraft.finalAmount}
+                          onChange={(e) => setDetailsDraft((d) => ({ ...d, finalAmount: e.target.value }))}
+                          className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                        />
+                      </label>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={savingDetails}
+                        onClick={async () => {
+                          setSavingDetails(true);
+                          try {
+                            const res = await fetch(`/api/admin/events/${id}`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                startsAt: detailsDraft.startsAt ? new Date(detailsDraft.startsAt).toISOString() : null,
+                                endsAt: detailsDraft.endsAt ? new Date(detailsDraft.endsAt).toISOString() : null,
+                                venueId: detailsDraft.venueId || null,
+                                finalAmount: detailsDraft.finalAmount ? Number(detailsDraft.finalAmount) : null
+                              })
+                            });
+                            const data = await res.json();
+                            if (!res.ok) throw new Error(data.error || "Failed to save");
+                            setEditingDetails(false);
+                            await load();
+                          } catch (err) {
+                            setError(err instanceof Error ? err.message : "Something went wrong.");
+                          } finally {
+                            setSavingDetails(false);
+                          }
+                        }}
+                      >
+                        {savingDetails ? "Saving..." : "Save"}
+                      </Button>
+                      <Button variant="text" size="sm" onClick={() => setEditingDetails(false)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Row label="Event type" value={event.event_type ?? "—"} />
+                    <Row label="Service" value={event.service_type ?? "—"} />
+                    <Row label="Expected guests" value={event.expected_guests != null ? String(event.expected_guests) : "—"} />
+                    <Row label="DJ" value={event.djs?.display_name ?? "Unassigned"} />
+                    <Row label="Venue" value={event.venues?.name ?? (event.venue_name ? `${event.venue_name} (not linked yet)` : "No venue")} />
+                    <Row label="Budget range" value={event.budget_range ?? "—"} />
+                    <Row label="Final amount" value={event.final_amount != null ? `$${event.final_amount.toFixed(2)}` : "—"} />
+                  </>
+                )}
+              </GlassCard>
+
+              {changeOrders.length > 0 && (
+                <GlassCard className="flex flex-col gap-2">
+                  <p className="text-xs uppercase tracking-[1.5px] text-muted">Change orders</p>
+                  {changeOrders.map((c) => (
+                    <div key={c.id} className="flex flex-col gap-1 border-b border-border pb-2 text-sm last:border-0 last:pb-0">
+                      <p className="text-xs text-muted">{new Date(c.created_at).toLocaleString()}</p>
+                      {c.changes.map((change, i) => (
+                        <p key={i}>
+                          <span className="font-medium">{change.label}:</span> {change.oldValue} → {change.newValue}
+                        </p>
+                      ))}
+                      <p className="text-xs">
+                        Client: {c.client_acknowledged_at ? `Acknowledged by ${c.client_acknowledged_by}` : "Pending"} · DJ:{" "}
+                        {c.dj_acknowledged_at ? "Acknowledged" : "Pending"}
+                      </p>
+                    </div>
+                  ))}
+                </GlassCard>
+              )}
+
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
                 <ContractsPanel eventId={id} contracts={contracts} onChange={load} />
 
                 <EquipmentAssignmentsPanel eventId={id} />

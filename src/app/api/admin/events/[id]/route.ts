@@ -5,6 +5,7 @@ import { listEventPayments, computeBalance } from "@/lib/data/payments";
 import { requireAdmin } from "@/lib/require-admin";
 import { requireEventAccess } from "@/lib/require-event-access";
 import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
+import { diffTrackedFields, recordChangeOrderIfSigned, listChangeOrdersForEvent } from "@/lib/data/contract-change-orders";
 
 const VALID_STATUSES = ["inquiry", "pending_confirmation", "confirmed", "live", "ended", "declined"];
 
@@ -28,7 +29,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       // leave payments/balance at their zeroed defaults
     }
 
-    return NextResponse.json({ event, payments, balance });
+    const changeOrders = await listChangeOrdersForEvent(id).catch(() => []);
+
+    return NextResponse.json({ event, payments, balance, changeOrders });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }
@@ -40,12 +43,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { status, pipelineStage, internalNotes, clientId, sendWeddingMusicPlan } = body as {
+  const { status, pipelineStage, internalNotes, clientId, sendWeddingMusicPlan, startsAt, endsAt, venueId, finalAmount } = body as {
     status?: string;
     pipelineStage?: string;
     internalNotes?: string;
     clientId?: string | null;
     sendWeddingMusicPlan?: boolean;
+    startsAt?: string;
+    endsAt?: string;
+    venueId?: string | null;
+    finalAmount?: number | null;
   };
 
   if (status && !VALID_STATUSES.includes(status)) {
@@ -65,8 +72,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (internalNotes !== undefined) updates.internal_notes = internalNotes;
     if (clientId !== undefined) updates.client_id = clientId || null;
     if (sendWeddingMusicPlan) updates.wedding_music_plan_sent_at = new Date().toISOString();
+    if (startsAt !== undefined) updates.starts_at = startsAt;
+    if (endsAt !== undefined) updates.ends_at = endsAt;
+    if (venueId !== undefined) updates.venue_id = venueId || null;
+    if (finalAmount !== undefined) updates.final_amount = finalAmount;
+
+    // These specific fields are what a signed contract's terms cover —
+    // changing any of them while a contract is already signed needs both
+    // parties to acknowledge it, not just silently take effect.
+    const tracksChangeOrder = startsAt !== undefined || endsAt !== undefined || venueId !== undefined || finalAmount !== undefined;
+    const before = tracksChangeOrder ? await getEvent(id) : null;
 
     const event = Object.keys(updates).length > 0 ? await updateEvent(id, updates) : await getEvent(id);
+
+    if (before) {
+      const changes = diffTrackedFields(
+        { ...before, venue_name: before.venues?.name },
+        { ...event, venue_name: event.venues?.name }
+      );
+      await recordChangeOrderIfSigned(id, changes);
+    }
+
     return NextResponse.json({ event });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });

@@ -14,6 +14,7 @@ import { PortalTopHeader } from "@/components/portal/portal-top-header";
 import { DjProfileCard } from "@/components/portal/dj-profile-card";
 import { ConversationPanel } from "@/components/portal/conversation-panel";
 import { NextStepsCard } from "@/components/portal/next-steps-card";
+import { ChangeOrdersPanel, type ChangeOrderData } from "@/components/project/change-orders-panel";
 import { ArrowLeft, X, FileText, FileSignature, DollarSign, Music2, ChevronRight, MessageCircle, ClipboardList, type LucideIcon } from "lucide-react";
 import type { HeroSettings } from "@/lib/hero-settings";
 
@@ -170,6 +171,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const [timelineSaved, setTimelineSaved] = useState(false);
 
   const [contract, setContract] = useState<ContractInfo | null>(null);
+  const [changeOrders, setChangeOrders] = useState<ChangeOrderData[]>([]);
   const [signName, setSignName] = useState("");
   const [signing, setSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
@@ -182,6 +184,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       setEvent(data.event);
       setBalance(data.balance);
       setContract(data.contract ?? null);
+      setChangeOrders(data.changeOrders ?? []);
       setMustPlay(data.event.must_play ?? []);
       setDoNotPlay(data.event.do_not_play ?? []);
       setSpecialRequests(data.event.special_requests ?? "");
@@ -371,6 +374,20 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
         {activeTab === "overview" && (
           <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
             <div className="flex flex-col gap-4">
+              <ChangeOrdersPanel
+                changeOrders={changeOrders}
+                role="client"
+                onAcknowledge={async (changeOrderId, fullName) => {
+                  const res = await fetch(`/api/portal/events/${id}/change-orders/${changeOrderId}/acknowledge`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ fullName })
+                  });
+                  const data = await res.json();
+                  if (!res.ok) throw new Error(data.error || "Failed to acknowledge");
+                  setChangeOrders((prev) => prev.map((c) => (c.id === changeOrderId ? data.changeOrder : c)));
+                }}
+              />
               <div className="grid gap-3 sm:grid-cols-3">
                 <SummaryCard
                   icon={FileSignature}
