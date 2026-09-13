@@ -87,6 +87,9 @@ interface EventDetail {
   wedding_music_plan_sent_at: string | null;
   vendor_contacts: { role: string; name: string; phone?: string; email?: string }[] | null;
   day_timeline: { time: string; label: string; note?: string }[] | null;
+  weather_backup_plan: string | null;
+  vendor_meal_count: number | null;
+  venue_load_in_notes: string | null;
   quoted_amount: number | null;
   final_amount: number | null;
   deposit_amount: number | null;
@@ -139,7 +142,8 @@ const WEDDING_PLAN_FIELDS: { key: string; label: string }[] = [
   { key: "mother_son_song", label: "Mother/son dance" },
   { key: "special_dances", label: "Special dances" },
   { key: "special_dance_songs", label: "Special dance songs" },
-  { key: "games", label: "Reception games" }
+  { key: "games", label: "Reception games" },
+  { key: "mc_announcements", label: "MC announcements & pronunciations" }
 ];
 
 const WEDDING_SONG_FIELDS = WEDDING_PLAN_FIELDS.filter(
@@ -993,6 +997,15 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                     {event.vendor_contacts.map((v, i) => (
                       <Row key={i} label={v.role || "Vendor"} value={[v.name, v.phone, v.email].filter(Boolean).join(" · ") || "—"} />
                     ))}
+                  </GlassCard>
+                )}
+
+                {(event.vendor_meal_count != null || event.venue_load_in_notes || event.weather_backup_plan) && (
+                  <GlassCard className="flex flex-col gap-1">
+                    <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Day-of logistics</p>
+                    {event.vendor_meal_count != null && <Row label="Vendor meal count" value={String(event.vendor_meal_count)} />}
+                    {event.venue_load_in_notes && <Row label="Load-in / parking" value={event.venue_load_in_notes} />}
+                    {event.weather_backup_plan && <Row label="Weather backup plan" value={event.weather_backup_plan} />}
                   </GlassCard>
                 )}
 

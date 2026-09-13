@@ -25,6 +25,7 @@ interface WeddingMusicPlan {
   recessional_song?: string;
   bridal_party_order?: string;
   wedding_party?: { name: string; pronunciation?: string }[];
+  mc_announcements?: string;
   grand_march_song?: string;
   first_dance_song?: string;
   father_daughter_song?: string;
@@ -64,6 +65,9 @@ interface EventDetail {
   wedding_music_plan_sent_at: string | null;
   vendor_contacts: VendorContact[] | null;
   day_timeline: TimelineEntry[] | null;
+  weather_backup_plan: string | null;
+  vendor_meal_count: number | null;
+  venue_load_in_notes: string | null;
   quoted_amount: number | null;
   final_amount: number | null;
   deposit_amount: number | null;
@@ -164,6 +168,9 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const [newDoNotPlay, setNewDoNotPlay] = useState("");
   const [weddingPlan, setWeddingPlan] = useState<WeddingMusicPlan>({});
   const [vendorContacts, setVendorContacts] = useState<VendorContact[]>([]);
+  const [weatherBackupPlan, setWeatherBackupPlan] = useState("");
+  const [vendorMealCount, setVendorMealCount] = useState("");
+  const [venueLoadInNotes, setVenueLoadInNotes] = useState("");
   const [savingVendors, setSavingVendors] = useState(false);
   const [vendorsSaved, setVendorsSaved] = useState(false);
   const [dayTimeline, setDayTimeline] = useState<TimelineEntry[]>([]);
@@ -190,6 +197,9 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       setSpecialRequests(data.event.special_requests ?? "");
       setWeddingPlan(data.event.wedding_music_plan ?? {});
       setVendorContacts(data.event.vendor_contacts ?? []);
+      setWeatherBackupPlan(data.event.weather_backup_plan ?? "");
+      setVendorMealCount(data.event.vendor_meal_count != null ? String(data.event.vendor_meal_count) : "");
+      setVenueLoadInNotes(data.event.venue_load_in_notes ?? "");
       setDayTimeline(data.event.day_timeline ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -270,7 +280,12 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       const res = await fetch(`/api/portal/events/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vendorContacts })
+        body: JSON.stringify({
+          vendorContacts,
+          weatherBackupPlan: weatherBackupPlan || null,
+          vendorMealCount: vendorMealCount ? Number(vendorMealCount) : null,
+          venueLoadInNotes: venueLoadInNotes || null
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
@@ -636,6 +651,15 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                           className="min-h-[50px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
                         />
                       </label>
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">MC announcements &amp; name pronunciations</span>
+                        <textarea
+                          value={weddingPlan.mc_announcements ?? ""}
+                          onChange={(e) => updatePlan("mc_announcements", e.target.value)}
+                          placeholder="Anything specific you want announced, and how to say tricky names..."
+                          className="min-h-[70px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+                        />
+                      </label>
                       <SongSlotField label="Grand March Song" value={weddingPlan.grand_march_song ?? ""} onChange={(v, sid) => updateSong("grand_march_song", v, sid)} required />
                       <SongSlotField label="First Dance" value={weddingPlan.first_dance_song ?? ""} onChange={(v, sid) => updateSong("first_dance_song", v, sid)} required />
                       <SongSlotField label="Father/Daughter Dance" value={weddingPlan.father_daughter_song ?? ""} onChange={(v, sid) => updateSong("father_daughter_song", v, sid)} />
@@ -838,8 +862,8 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
 
           <GlassCard className="flex flex-col gap-3">
             <div>
-              <p className="text-sm font-semibold">Vendor Contacts</p>
-              <p className="text-xs text-muted">Photographer, planner, venue coordinator — anyone your DJ might need to reach on the day.</p>
+              <p className="text-sm font-semibold">Vendor Contacts &amp; Day-of Logistics</p>
+              <p className="text-xs text-muted">Photographer, planner, venue coordinator, and anything else your DJ needs to know before showing up.</p>
             </div>
             <div className="flex flex-col gap-2">
               {vendorContacts.map((v, i) => (
@@ -881,6 +905,38 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                 + Add vendor
               </Button>
             </div>
+
+            <div className="grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Vendor meal count</span>
+                <input
+                  type="number"
+                  value={vendorMealCount}
+                  onChange={(e) => setVendorMealCount(e.target.value)}
+                  placeholder="How many vendor meals to plan for"
+                  className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Venue load-in / parking notes</span>
+                <input
+                  value={venueLoadInNotes}
+                  onChange={(e) => setVenueLoadInNotes(e.target.value)}
+                  placeholder="Loading dock, parking instructions, load-in time..."
+                  className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                />
+              </label>
+            </div>
+            <label className="block">
+              <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Weather backup plan (outdoor ceremony/reception)</span>
+              <textarea
+                value={weatherBackupPlan}
+                onChange={(e) => setWeatherBackupPlan(e.target.value)}
+                placeholder="What happens if it rains — alternate location, tent, timing change..."
+                className="min-h-[60px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              />
+            </label>
+
             <div className="flex items-center gap-3">
               <Button variant="secondary" size="sm" onClick={handleSaveVendors} disabled={savingVendors} className="w-fit">
                 {savingVendors ? "Saving..." : "Save vendors"}

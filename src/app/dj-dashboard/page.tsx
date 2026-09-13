@@ -8,7 +8,6 @@ import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { GlassCard } from "@/components/ui/glass-card";
 import {
   CalendarClock,
-  Boxes,
   UserCircle,
   ShieldCheck,
   LogOut,
@@ -277,7 +276,6 @@ export default function DjPortalHomePage() {
 
           <section className="flex flex-wrap gap-3">
             <QuickLink href="/dj-dashboard/bookings" label="My Bookings" icon={CalendarClock} />
-            <QuickLink href="/dj-dashboard/library" label="Crate Builder" icon={Boxes} />
             <QuickLink href="/dj-dashboard/payouts" label="My Payouts" icon={DollarSign} />
             <QuickLink href="/dj-dashboard/profile" label="My Profile" icon={UserCircle} />
           </section>

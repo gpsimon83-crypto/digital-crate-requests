@@ -7,7 +7,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
-import { Check, X, LogOut, ShieldCheck, CalendarClock, MapPin, Plus, PartyPopper, UserCircle, Boxes, DollarSign } from "lucide-react";
+import { Check, X, LogOut, ShieldCheck, CalendarClock, MapPin, Plus, PartyPopper, UserCircle, DollarSign } from "lucide-react";
 import { isStaffRole } from "@/lib/roles";
 import { EVENT_CATEGORY_GROUPS } from "@/lib/event-types";
 import { PIPELINE_STAGE_DOT } from "@/lib/pipeline-stage";
@@ -175,14 +175,6 @@ export default function DjBookingsPage() {
         action={
           <div className="flex items-center gap-2">
             {djName && !isAdmin && <DjAvatar name={djName} photoUrl={djPhoto} size={32} />}
-            {roleReady && !isAdmin && (
-              <Link
-                href="/dj-dashboard/library"
-                className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
-              >
-                <Boxes size={14} /> Crate Builder
-              </Link>
-            )}
             {roleReady && !isAdmin && (
               <Link
                 href="/dj-dashboard/services"

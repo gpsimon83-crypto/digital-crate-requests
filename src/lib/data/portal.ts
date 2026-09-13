@@ -71,7 +71,17 @@ export async function getClientEvent(clientId: string, eventId: string) {
 export async function updateClientEventNight(
   clientId: string,
   eventId: string,
-  updates: { must_play?: unknown; do_not_play?: unknown; special_requests?: string; wedding_music_plan?: unknown; vendor_contacts?: unknown; day_timeline?: unknown }
+  updates: {
+    must_play?: unknown;
+    do_not_play?: unknown;
+    special_requests?: string;
+    wedding_music_plan?: unknown;
+    vendor_contacts?: unknown;
+    day_timeline?: unknown;
+    weather_backup_plan?: string | null;
+    vendor_meal_count?: number | null;
+    venue_load_in_notes?: string | null;
+  }
 ) {
   const db = createAdminClient();
   const { data, error } = await db
