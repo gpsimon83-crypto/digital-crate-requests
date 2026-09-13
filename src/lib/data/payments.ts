@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { maybeAdvancePipelineStage } from "@/lib/pipeline-stage";
 
 export interface PaymentRow {
   id: string;
@@ -81,4 +82,8 @@ export async function recordSucceededPayment(eventId: string, kind: string, amou
     paid_at: new Date().toISOString()
   });
   if (error) throw error;
+
+  if (kind === "deposit") {
+    await maybeAdvancePipelineStage(eventId, "Retainer Paid");
+  }
 }

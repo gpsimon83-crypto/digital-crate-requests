@@ -28,6 +28,9 @@ export async function createInquiry(input: {
   eventType: string;
   preferredDjId?: string;
   message?: string;
+  venueName?: string;
+  expectedGuests?: number;
+  budgetRange?: string;
 }) {
   const db = createAdminClient();
 
@@ -64,7 +67,10 @@ export async function createInquiry(input: {
       status: "inquiry",
       event_status: "tentative",
       event_type: input.eventType,
-      special_requests: input.message || null
+      special_requests: input.message || null,
+      venue_name: input.venueName || null,
+      expected_guests: input.expectedGuests || null,
+      budget_range: input.budgetRange || null
     })
     .select()
     .single();

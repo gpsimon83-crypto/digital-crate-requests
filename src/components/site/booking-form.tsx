@@ -5,6 +5,8 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
 import { EVENT_TYPES } from "@/lib/event-types";
 
+const BUDGET_RANGES = ["Under $1,000", "$1,000–$2,000", "$2,000–$3,500", "$3,500–$5,000", "$5,000+"];
+
 export function BookingForm({ djs }: { djs: { id: string; display_name: string }[] }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -12,6 +14,9 @@ export function BookingForm({ djs }: { djs: { id: string; display_name: string }
   const [eventDate, setEventDate] = useState("");
   const [eventType, setEventType] = useState("");
   const [preferredDjId, setPreferredDjId] = useState("");
+  const [venueName, setVenueName] = useState("");
+  const [expectedGuests, setExpectedGuests] = useState("");
+  const [budgetRange, setBudgetRange] = useState("");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,6 +37,9 @@ export function BookingForm({ djs }: { djs: { id: string; display_name: string }
           eventDate,
           eventType,
           preferredDjId: preferredDjId || undefined,
+          venueName: venueName || undefined,
+          expectedGuests: expectedGuests ? Number(expectedGuests) : undefined,
+          budgetRange: budgetRange || undefined,
           message: message || undefined
         })
       });
@@ -70,6 +78,15 @@ export function BookingForm({ djs }: { djs: { id: string; display_name: string }
           onChange={setPreferredDjId}
           options={djs.map((d) => ({ id: d.id, label: d.display_name }))}
           placeholder="No preference"
+        />
+        <Field label="Venue" value={venueName} onChange={setVenueName} placeholder="Venue or location name" />
+        <Field label="Expected guest count" value={expectedGuests} onChange={setExpectedGuests} type="number" placeholder="e.g. 120" />
+        <SelectField
+          label="Budget range"
+          value={budgetRange}
+          onChange={setBudgetRange}
+          options={BUDGET_RANGES.map((b) => ({ id: b, label: b }))}
+          placeholder="Prefer not to say"
         />
       </div>
       <label className="block">

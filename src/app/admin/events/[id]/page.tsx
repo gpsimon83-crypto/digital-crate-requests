@@ -72,6 +72,8 @@ interface EventDetail {
   event_type: string | null;
   service_type: string | null;
   expected_guests: number | null;
+  venue_name: string | null;
+  budget_range: string | null;
   special_requests: string | null;
   must_play: string[] | null;
   do_not_play: string[] | null;
@@ -775,7 +777,8 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                   <Row label="Service" value={event.service_type ?? "—"} />
                   <Row label="Expected guests" value={event.expected_guests != null ? String(event.expected_guests) : "—"} />
                   <Row label="DJ" value={event.djs?.display_name ?? "Unassigned"} />
-                  <Row label="Venue" value={event.venues?.name ?? "No venue"} />
+                  <Row label="Venue" value={event.venues?.name ?? (event.venue_name ? `${event.venue_name} (not linked yet)` : "No venue")} />
+                  <Row label="Budget range" value={event.budget_range ?? "—"} />
                 </GlassCard>
 
                 <ContractsPanel eventId={id} contracts={contracts} onChange={load} />

@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getLibraryItem } from "@/lib/data/library";
 import { fillMergeFields, type MergeContext } from "@/lib/merge-fields";
+import { maybeAdvancePipelineStage } from "@/lib/pipeline-stage";
 
 export interface ContractRow {
   id: string;
@@ -91,6 +92,10 @@ async function syncEventContractStatus(eventId: string) {
     .from("events")
     .update({ contract_status: data?.status ?? "none" })
     .eq("id", eventId);
+
+  if (data?.status === "signed") {
+    await maybeAdvancePipelineStage(eventId, "Proposal Signed");
+  }
 }
 
 /** Only one contract can be in flight per event at a time — starting a new one supersedes whatever wasn't finished. */

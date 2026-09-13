@@ -9,14 +9,19 @@ import { runAutomations } from "@/lib/automations-engine";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { name, email, eventDate, eventType, preferredDjId } = body;
+  const { name, email, eventDate, eventType, preferredDjId, venueName, expectedGuests, budgetRange } = body;
 
   if (!name || !email || !eventDate || !eventType) {
     return NextResponse.json({ error: "name, email, eventDate, and eventType are required" }, { status: 400 });
   }
 
   try {
-    const event = await createInquiry(body);
+    const event = await createInquiry({
+      ...body,
+      expectedGuests: expectedGuests ? Number(expectedGuests) : undefined,
+      venueName: venueName || undefined,
+      budgetRange: budgetRange || undefined
+    });
 
     await logActivity({ actorLabel: "Website inquiry form", action: "lead.created", entityType: "event", entityId: event.id, eventId: event.id });
     await runAutomations("lead_created", event.id, req.nextUrl.origin);
