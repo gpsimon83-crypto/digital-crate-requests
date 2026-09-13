@@ -35,3 +35,15 @@ export async function requireEventAccess(eventId: string) {
 
   return { authorized: true as const, user, isAdmin, dj, event };
 }
+
+/**
+ * Same ownership check as requireEventAccess, but for an action keyed by a
+ * song_requests.id rather than an events.id directly (approve/decline/
+ * mark-played) — resolves the request's event first, then delegates.
+ */
+export async function requireRequestEventAccess(requestId: string) {
+  const db = createAdminClient();
+  const { data: request } = await db.from("song_requests").select("event_id").eq("id", requestId).maybeSingle();
+  if (!request) return { authorized: false as const, status: 404, error: "Request not found" };
+  return requireEventAccess(request.event_id);
+}

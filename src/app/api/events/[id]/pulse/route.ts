@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAuth } from "@/lib/require-auth";
+import { requireEventAccess } from "@/lib/require-event-access";
 import { errorMessage } from "@/lib/error-message";
 
 interface RequestRow {
@@ -15,9 +15,9 @@ interface RequestRow {
 
 /** Computed on the fly from live requests/votes/boosts/tips — no separate snapshot table needed. */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const denied = await requireAuth();
-  if (denied) return denied;
   const { id } = await params;
+  const access = await requireEventAccess(id);
+  if (!access.authorized) return NextResponse.json({ error: access.error }, { status: access.status });
   try {
     const db = createAdminClient();
     const [{ data: requests, error: reqErr }, { data: tips, error: tipErr }] = await Promise.all([

@@ -103,12 +103,26 @@ export default function EventOverviewPage({
     }
   }
 
-  async function lifecycleAction(action: "start" | "close") {
+  async function lifecycleAction(action: "start" | "close", force = false) {
     if (!event) return;
     setBusy(true);
+    setError(null);
     try {
-      await fetch(`/api/events/${event.id}/${action}`, { method: "POST" });
+      const res = await fetch(`/api/events/${event.id}/${action}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ force })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        if (data.requiresForce && confirm(`${data.error} Close it anyway?`)) {
+          return lifecycleAction(action, true);
+        }
+        throw new Error(data.error || "Something went wrong.");
+      }
       await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setBusy(false);
     }
