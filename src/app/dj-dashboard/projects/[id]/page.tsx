@@ -43,6 +43,15 @@ interface Balance {
   balanceCents: number;
 }
 
+interface PaymentRow {
+  id: string;
+  kind: string;
+  amount_cents: number;
+  status: string;
+  paid_at: string | null;
+  created_at: string;
+}
+
 function clientName(c: ClientRow | null) {
   if (!c) return null;
   return c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed contact";
@@ -56,6 +65,7 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
   const { id } = usePromise(params);
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [balance, setBalance] = useState<Balance | null>(null);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,6 +75,7 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
         if (!ok) throw new Error(data.error || "Failed to load project");
         setEvent(data.event);
         setBalance(data.balance);
+        setPayments(data.payments ?? []);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Something went wrong."));
   }, [id]);
@@ -123,6 +134,35 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
           </span>
           {balanceCents > 0 && <span>Balance due: {money(balanceCents)}</span>}
         </GlassCard>
+
+        {balance && (
+          <GlassCard className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold">Payments</p>
+              <div className="flex gap-4 text-xs text-muted">
+                <span>Total: {money(balance.totalDueCents)}</span>
+                <span>Paid: {money(balance.paidCents)}</span>
+                <span className={balance.balanceCents > 0 ? "font-semibold text-status-declined" : "font-semibold text-status-approved"}>
+                  Balance: {money(balance.balanceCents)}
+                </span>
+              </div>
+            </div>
+            {payments.length === 0 ? (
+              <p className="text-xs text-muted">No payments recorded yet.</p>
+            ) : (
+              <div className="flex flex-col divide-y divide-border">
+                {payments.map((p) => (
+                  <div key={p.id} className="flex items-center justify-between py-2 text-sm first:pt-0">
+                    <span className="capitalize">{p.kind}</span>
+                    <span className="text-xs text-muted">{p.status}</span>
+                    <span className="text-xs text-muted">{p.paid_at ? new Date(p.paid_at).toLocaleDateString() : new Date(p.created_at).toLocaleDateString()}</span>
+                    <span className="font-medium">{money(p.amount_cents)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </GlassCard>
+        )}
 
         <QuestionnaireSummary eventId={id} />
 
