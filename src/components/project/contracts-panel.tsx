@@ -22,6 +22,8 @@ export interface ContractRow {
   signed_user_agent: string | null;
   voided_at: string | null;
   void_reason: string | null;
+  esign_document_id: string | null;
+  esign_status: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -213,7 +215,10 @@ export function ContractsPanel({ eventId, contracts, onChange }: { eventId: stri
 
           {current.status === "sent" && (
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted">Sent {current.sent_at ? new Date(current.sent_at).toLocaleString() : "—"} — awaiting signature.</p>
+              <p className="text-xs text-muted">
+                Sent {current.sent_at ? new Date(current.sent_at).toLocaleString() : "—"} — awaiting signature
+                {current.esign_document_id ? ` (via SignWell${current.esign_status && current.esign_status !== "sent" ? `, ${current.esign_status}` : ""})` : ""}.
+              </p>
               <Button variant="destructive" size="sm" onClick={() => handleVoid(current.id)}>
                 Void
               </Button>
@@ -222,8 +227,9 @@ export function ContractsPanel({ eventId, contracts, onChange }: { eventId: stri
 
           {current.status === "signed" && (
             <p className="text-xs text-muted">
-              Signed by {current.signed_by_name} on {current.signed_at ? new Date(current.signed_at).toLocaleString() : "—"}
-              {current.signed_ip ? ` from ${current.signed_ip}` : ""}
+              Signed {current.esign_document_id ? "via SignWell" : `by ${current.signed_by_name}`} on{" "}
+              {current.signed_at ? new Date(current.signed_at).toLocaleString() : "—"}
+              {current.signed_ip && !current.esign_document_id ? ` from ${current.signed_ip}` : ""}
             </p>
           )}
         </div>

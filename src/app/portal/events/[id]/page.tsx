@@ -114,6 +114,7 @@ interface ContractInfo {
   file_url: string | null;
   signed_at: string | null;
   signed_by_name: string | null;
+  esign_document_id: string | null;
 }
 
 const TABS = [
@@ -482,7 +483,12 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
 
               {contract.status === "signed" ? (
                 <p className="text-sm text-status-approved">
-                  Signed by {contract.signed_by_name} on {contract.signed_at ? new Date(contract.signed_at).toLocaleDateString() : "—"}
+                  Signed {contract.esign_document_id ? "via SignWell" : `by ${contract.signed_by_name}`} on{" "}
+                  {contract.signed_at ? new Date(contract.signed_at).toLocaleDateString() : "—"}
+                </p>
+              ) : contract.esign_document_id ? (
+                <p className="text-sm text-muted">
+                  We sent a secure link to sign this contract to your email. Check your inbox (and spam folder) — once you sign there, it&rsquo;ll show as signed here automatically.
                 </p>
               ) : (
                 <div className="flex flex-col gap-2">

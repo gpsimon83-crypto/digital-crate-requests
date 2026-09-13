@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getLibraryItem } from "@/lib/data/library";
 import { fillMergeFields, type MergeContext } from "@/lib/merge-fields";
 import { maybeAdvancePipelineStage } from "@/lib/pipeline-stage";
+import { createSignWellDocument, SIGNWELL_SIGNATURE_TAGS } from "@/lib/signwell";
 
 export interface ContractRow {
   id: string;
@@ -19,6 +20,8 @@ export interface ContractRow {
   signed_user_agent: string | null;
   voided_at: string | null;
   void_reason: string | null;
+  esign_document_id: string | null;
+  esign_status: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -78,7 +81,7 @@ async function buildContractMergeContext(eventId: string, origin: string): Promi
 }
 
 /** Keeps events.contract_status (denormalized for cheap list-page reads) in sync with the latest non-void contract. */
-async function syncEventContractStatus(eventId: string) {
+export async function syncEventContractStatus(eventId: string) {
   const db = createAdminClient();
   const { data } = await db
     .from("contracts")
@@ -215,9 +218,50 @@ async function checkPriceAgainstPackageSelection(eventId: string): Promise<strin
   );
 }
 
+/**
+ * If SIGNWELL_API_KEY is configured, sending a contract creates a real
+ * SignWell document (client signs via an email SignWell sends them
+ * directly) instead of the portal's typed-name flow — the webhook at
+ * /api/webhooks/signwell marks it signed once SignWell reports it
+ * completed. Soft-unavailable (returns null) if the client has no email
+ * on file or SignWell isn't configured, so the typed-name fallback still
+ * works exactly as before for any event that can't use it.
+ */
+async function trySendViaSignWell(eventId: string, contractId: string, title: string, body: string | null) {
+  const db = createAdminClient();
+  const { data: event } = await db
+    .from("events")
+    .select("title, clients(first_name, last_name, company_name, email)")
+    .eq("id", eventId)
+    .maybeSingle();
+  const clientsField = event?.clients as unknown;
+  const client = (Array.isArray(clientsField) ? clientsField[0] : clientsField) as {
+    first_name: string | null;
+    last_name: string | null;
+    company_name: string | null;
+    email: string | null;
+  } | null;
+  if (!client?.email || !body) return;
+
+  const signerName = client.company_name || [client.first_name, client.last_name].filter(Boolean).join(" ") || client.email;
+  const htmlBody = `${body.replace(/\n/g, "<br>")}<br><br>${SIGNWELL_SIGNATURE_TAGS}`;
+
+  const doc = await createSignWellDocument({
+    name: title,
+    subject: `Please sign: ${title}`,
+    message: `Hi ${client.first_name || "there"}, please review and sign your contract for ${event?.title ?? "your event"}.`,
+    htmlBody,
+    signerName,
+    signerEmail: client.email
+  });
+  if (!doc) return;
+
+  await db.from("contracts").update({ esign_document_id: doc.id, esign_status: "sent" }).eq("id", contractId);
+}
+
 export async function sendContract(id: string, force = false) {
   const db = createAdminClient();
-  const { data: existing } = await db.from("contracts").select("event_id, status").eq("id", id).maybeSingle();
+  const { data: existing } = await db.from("contracts").select("event_id, status, title, body").eq("id", id).maybeSingle();
   if (!existing || existing.status !== "draft") throw new Error("Only a draft contract can be sent");
 
   if (!force) {
@@ -236,6 +280,16 @@ export async function sendContract(id: string, force = false) {
     .select()
     .single();
   if (error) throw error;
+
+  try {
+    await trySendViaSignWell(existing.event_id, id, existing.title, existing.body);
+  } catch (err) {
+    // A SignWell failure shouldn't block the contract from being marked
+    // sent — staff still see it in Contracts and can retry/investigate;
+    // logged so a misconfigured key doesn't fail silently.
+    console.error("SignWell send failed for contract", id, err);
+  }
+
   await syncEventContractStatus(existing.event_id);
   return data as ContractRow;
 }
@@ -272,6 +326,9 @@ export async function signContractForClient(
   const db = createAdminClient();
   const { data: event } = await db.from("events").select("id").eq("id", eventId).eq("client_id", clientId).maybeSingle();
   if (!event) return null;
+
+  const { data: pending } = await db.from("contracts").select("esign_document_id").eq("event_id", eventId).eq("status", "sent").maybeSingle();
+  if (pending?.esign_document_id) return null; // this contract is signed through SignWell, not the typed-name flow
 
   const { data, error } = await db
     .from("contracts")
