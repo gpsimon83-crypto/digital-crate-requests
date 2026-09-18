@@ -28,6 +28,8 @@ import { PackageTemplatePicker } from "@/components/project/package-template-pic
 import { PackageSelectionPanel } from "@/components/project/package-selection-panel";
 import { PortalHeroPanel } from "@/components/project/portal-hero-panel";
 import type { EventCategory } from "@/lib/event-category";
+import type { HeroSettings } from "@/lib/hero-settings";
+import type { PortalHeroExtras } from "@/components/project/portal-hero-panel";
 import {
   ArrowLeft,
   Copy,
@@ -99,7 +101,7 @@ interface EventDetail {
   contract_status: "none" | "draft" | "sent" | "signed" | "void";
   couple_display_name: string | null;
   portal_hero_image_url: string | null;
-  portal_hero_settings: Record<string, number> | null;
+  portal_hero_settings: (Partial<HeroSettings> & PortalHeroExtras) | null;
   portal_hero_headline_override: string | null;
   portal_hero_subheading_override: string | null;
   timezone: string | null;

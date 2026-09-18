@@ -3,7 +3,25 @@
 import Image from "next/image";
 import { CalendarDays } from "lucide-react";
 import { mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
+import type { PortalHeroBannerSize, PortalHeroExtras } from "@/components/project/portal-hero-panel";
 import { computeCountdown } from "@/lib/portal-countdown";
+
+const BANNER_HEIGHT_CLASSES: Record<PortalHeroBannerSize, string> = {
+  compact: "h-[180px] sm:h-[220px] lg:h-[260px]",
+  standard: "h-[240px] sm:h-[300px] lg:h-[340px]",
+  tall: "h-[320px] sm:h-[380px] lg:h-[440px]"
+};
+
+/** rgba() at the given alpha for a #rrggbb color — used to keep the secondary hero lines lighter than the main name, whatever color is picked. */
+function withAlpha(hex: string, alpha: number): string {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m) return `rgba(255,255,255,${alpha})`;
+  const int = parseInt(m[1], 16);
+  const r = (int >> 16) & 255;
+  const g = (int >> 8) & 255;
+  const b = int & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
 
 /** Full-bleed (edge-to-edge) photo band — render outside any max-width container. */
 export function PortalHeroPhoto({
@@ -16,7 +34,7 @@ export function PortalHeroPhoto({
   tagline
 }: {
   imageUrl: string | null;
-  heroSettings: Partial<HeroSettings> | null;
+  heroSettings: (Partial<HeroSettings> & PortalHeroExtras) | null;
   headline: string | null;
   displayName: string | null;
   eventDateLabel: string | null;
@@ -25,9 +43,11 @@ export function PortalHeroPhoto({
 }) {
   if (!imageUrl) return null;
   const settings = mergeHeroSettings(heroSettings);
+  const bannerSize = heroSettings?.bannerSize ?? "standard";
+  const textColor = heroSettings?.textColor ?? "#ffffff";
 
   return (
-    <div className="relative h-[240px] w-full overflow-hidden sm:h-[300px] lg:h-[340px]">
+    <div className={`relative w-full overflow-hidden ${BANNER_HEIGHT_CLASSES[bannerSize]}`}>
       <Image
         src={imageUrl}
         alt=""
@@ -48,17 +68,28 @@ export function PortalHeroPhoto({
       />
 
       {tagline && (
-        <p className="absolute right-[4%] top-6 max-w-[16ch] text-right text-[10px] font-semibold uppercase leading-relaxed tracking-[2px] text-white/80">
+        <p
+          className="absolute right-[4%] top-6 max-w-[16ch] text-right text-[10px] font-semibold uppercase leading-relaxed tracking-[2px]"
+          style={{ color: withAlpha(textColor, 0.8) }}
+        >
           {tagline}
         </p>
       )}
 
       <div className="absolute inset-x-0 bottom-0 flex flex-col gap-2 px-[4%] pb-9">
-        {headline && <p className="text-[11px] font-semibold uppercase tracking-[3px] text-white/90">{headline}</p>}
+        {headline && (
+          <p className="text-[11px] font-semibold uppercase tracking-[3px]" style={{ color: withAlpha(textColor, 0.9) }}>
+            {headline}
+          </p>
+        )}
         <span className="h-px w-10 bg-gold" />
-        {displayName && <p className="font-display text-3xl italic text-white sm:text-4xl">{displayName}</p>}
+        {displayName && (
+          <p className="font-display text-3xl italic sm:text-4xl" style={{ color: textColor }}>
+            {displayName}
+          </p>
+        )}
         {(eventDateLabel || venueName) && (
-          <p className="text-xs font-medium uppercase tracking-[2px] text-white/80">
+          <p className="text-xs font-medium uppercase tracking-[2px]" style={{ color: withAlpha(textColor, 0.8) }}>
             {eventDateLabel}
             {eventDateLabel && venueName ? " · " : ""}
             {venueName}

@@ -5,12 +5,27 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { HeroCropControls } from "@/components/ui/hero-crop-controls";
+import { cn } from "@/lib/utils";
 import { mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
+
+export type PortalHeroBannerSize = "compact" | "standard" | "tall";
+
+// Portal-hero-only extras, stored alongside the shared HeroSettings
+// fields in the same portal_hero_settings JSON blob — kept out of
+// src/lib/hero-settings.ts and HeroCropControls on purpose, since those
+// are shared with the DJ hero editor, which has no rendering path that
+// would ever honor a banner size or text color.
+export interface PortalHeroExtras {
+  bannerSize?: PortalHeroBannerSize;
+  textColor?: string;
+}
+
+const DEFAULT_TEXT_COLOR = "#ffffff";
 
 interface PortalHeroData {
   couple_display_name: string | null;
   portal_hero_image_url: string | null;
-  portal_hero_settings: Partial<HeroSettings> | null;
+  portal_hero_settings: (Partial<HeroSettings> & PortalHeroExtras) | null;
   portal_hero_headline_override: string | null;
   portal_hero_subheading_override: string | null;
   timezone: string | null;
@@ -132,12 +147,53 @@ export function PortalHeroPanel({ eventId, initial }: { eventId: string; initial
       </div>
 
       {data.portal_hero_image_url && (
-        <HeroCropControls
-          photoUrl={data.portal_hero_image_url}
-          settings={mergeHeroSettings(data.portal_hero_settings)}
-          onChange={(v) => setData((d) => ({ ...d, portal_hero_settings: v }))}
-          previewLabel={data.couple_display_name || "Your Event"}
-        />
+        <>
+          <HeroCropControls
+            photoUrl={data.portal_hero_image_url}
+            settings={mergeHeroSettings(data.portal_hero_settings)}
+            onChange={(v) => setData((d) => ({ ...d, portal_hero_settings: { ...d.portal_hero_settings, ...v } }))}
+            previewLabel={data.couple_display_name || "Your Event"}
+          />
+
+          <div>
+            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Banner Size</span>
+            <div className="flex w-fit rounded-[10px] border border-black/10 bg-panel p-1">
+              {(["compact", "standard", "tall"] as const).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setData((d) => ({ ...d, portal_hero_settings: { ...d.portal_hero_settings, bannerSize: size } }))}
+                  className={cn(
+                    "rounded-[8px] px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                    (data.portal_hero_settings?.bannerSize ?? "standard") === size ? "bg-[#161616] text-white" : "text-muted hover:text-foreground"
+                  )}
+                >
+                  {size}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <label className="block w-fit">
+            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Text Color</span>
+            <div className="flex items-center gap-2 rounded-[10px] border border-black/10 bg-panel px-3 py-2">
+              <input
+                type="color"
+                value={data.portal_hero_settings?.textColor ?? DEFAULT_TEXT_COLOR}
+                onChange={(e) => setData((d) => ({ ...d, portal_hero_settings: { ...d.portal_hero_settings, textColor: e.target.value } }))}
+                className="h-6 w-8 cursor-pointer border-none bg-transparent p-0"
+              />
+              <span className="font-mono text-xs text-muted">{data.portal_hero_settings?.textColor ?? DEFAULT_TEXT_COLOR}</span>
+              {data.portal_hero_settings?.textColor && (
+                <button
+                  onClick={() => setData((d) => ({ ...d, portal_hero_settings: { ...d.portal_hero_settings, textColor: undefined } }))}
+                  className="ml-1 text-xs text-muted hover:text-foreground"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          </label>
+        </>
       )}
 
       <div className="flex items-center gap-3">

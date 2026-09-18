@@ -10,6 +10,7 @@ import { TagPicker } from "@/components/dashboard/tag-picker";
 import { SongSlotField } from "@/components/portal/song-slot-field";
 import { PortalFilesList } from "@/components/portal/portal-files-list";
 import { PortalHeroPhoto, PortalWelcomeRow } from "@/components/portal/portal-hero";
+import type { PortalHeroExtras } from "@/components/project/portal-hero-panel"; // type-only — erased at build, no runtime import of the admin panel
 import { PortalTopHeader } from "@/components/portal/portal-top-header";
 import { DjProfileCard } from "@/components/portal/dj-profile-card";
 import { ConversationPanel } from "@/components/portal/conversation-panel";
@@ -76,7 +77,7 @@ interface EventDetail {
   contract_status: "none" | "draft" | "sent" | "signed" | "void";
   couple_display_name: string | null;
   portal_hero_image_url: string | null;
-  portal_hero_settings: Partial<HeroSettings> | null;
+  portal_hero_settings: (Partial<HeroSettings> & PortalHeroExtras) | null;
   portal_hero_headline_override: string | null;
   portal_hero_subheading_override: string | null;
   timezone: string | null;
