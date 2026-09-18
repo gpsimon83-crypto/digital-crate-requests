@@ -25,7 +25,7 @@ export default function PortalSignupPage() {
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/portal/login` }
+      options: { emailRedirectTo: `${window.location.origin}/portal` }
     });
 
     if (signUpError) {
