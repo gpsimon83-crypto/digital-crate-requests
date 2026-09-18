@@ -7,6 +7,8 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
+import { EmailPreviewModal } from "@/components/ui/email-preview-modal";
+import { fillMergeFields, type MergeContext } from "@/lib/merge-fields";
 import { cn } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -21,7 +23,8 @@ import {
   Pencil,
   Monitor,
   Smartphone,
-  RefreshCw
+  RefreshCw,
+  Send
 } from "lucide-react";
 import type { QuestionType, QuestionOption } from "@/lib/questionnaire-engine";
 
@@ -115,6 +118,7 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
   const [previewDevice, setPreviewDevice] = useState<"desktop" | "mobile">("desktop");
   const [previewNonce, setPreviewNonce] = useState(0);
   const bumpPreview = () => setPreviewNonce((n) => n + 1);
+  const [showSendModal, setShowSendModal] = useState(false);
 
   function load() {
     fetch(`/api/admin/questionnaires/${templateId}`)
@@ -343,6 +347,9 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
                 Preview <ExternalLink size={13} />
               </Button>
             </a>
+            <Button variant="primary" size="sm" onClick={() => setShowSendModal(true)}>
+              <Send size={13} /> Send to a Client
+            </Button>
             {activeTab === "opening" ? (
               <Button variant="primary" size="sm" onClick={handleSaveOpening} disabled={savingOpening}>
                 {savingOpening ? "Saving..." : "Save changes"}
@@ -487,7 +494,162 @@ export default function QuestionnaireBuilderPage({ params }: { params: Promise<{
         onConfirm={() => pendingDeleteQuestion && handleDeleteQuestion(pendingDeleteQuestion)}
         onCancel={() => setPendingDeleteQuestion(null)}
       />
+
+      <SendQuestionnaireModal open={showSendModal} onClose={() => setShowSendModal(false)} templateTitle={template.title} />
     </>
+  );
+}
+
+interface EventOption {
+  id: string;
+  title: string;
+  starts_at: string | null;
+  clients: { company_name: string | null; first_name: string | null; last_name: string | null; email: string | null } | null;
+}
+
+function eventClientLabel(client: EventOption["clients"]) {
+  if (!client) return "No client";
+  return client.company_name || [client.first_name, client.last_name].filter(Boolean).join(" ") || "No name on file";
+}
+
+// Lets staff email a client the link to fill out this questionnaire for
+// one of their bookings, without leaving the builder to find that
+// project's Activity tab first. Reuses the same send endpoint (and so
+// the same signature/thread-history behavior) as a normal project email —
+// this is just a shortcut to compose one for the right event.
+function SendQuestionnaireModal({ open, onClose, templateTitle }: { open: boolean; onClose: () => void; templateTitle: string }) {
+  const [events, setEvents] = useState<EventOption[] | null>(null);
+  const [eventId, setEventId] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [signature, setSignature] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setError(null);
+    setSentTo(null);
+    fetch("/api/admin/events")
+      .then((r) => r.json())
+      .then((data) => {
+        const withClientEmail = ((data.events ?? []) as EventOption[]).filter((e) => e.clients?.email);
+        withClientEmail.sort((a, b) => new Date(a.starts_at ?? 0).getTime() - new Date(b.starts_at ?? 0).getTime());
+        setEvents(withClientEmail);
+      })
+      .catch(() => setEvents([]));
+  }, [open]);
+
+  const selectedEvent = events?.find((e) => e.id === eventId) ?? null;
+
+  useEffect(() => {
+    if (!selectedEvent) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const ctx: MergeContext = {
+      clientFirstName: selectedEvent.clients?.first_name ?? undefined,
+      portalLink: `${origin}/portal/events/${selectedEvent.id}`
+    };
+    setSubject(fillMergeFields(`Your ${templateTitle}`, ctx));
+    setBody(
+      fillMergeFields(
+        "Hi {{client_first_name}},\n\nWe're excited to start planning your event! Please take a few minutes to fill out your planning questionnaire so we can make sure everything is exactly how you want it:\n\n{{portal_link}}\n\nThanks!",
+        ctx
+      )
+    );
+    fetch(`/api/events/${selectedEvent.id}/messages`)
+      .then((r) => r.json())
+      .then((data) => setSignature(data.signature ?? null))
+      .catch(() => setSignature(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
+
+  async function handleSend() {
+    if (!selectedEvent) return;
+    setSending(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/events/${selectedEvent.id}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: body.trim(), subject: subject.trim() || undefined })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send");
+      setSentTo(selectedEvent.clients?.email ?? null);
+      setShowPreview(false);
+      setEventId("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="relative flex w-full max-w-lg flex-col gap-4 rounded-2xl border border-border bg-card p-6 shadow-[0_8px_30px_rgba(0,0,0,0.15)]">
+        <div>
+          <h2 className="text-base font-semibold">Send to a Client</h2>
+          <p className="mt-1 text-sm text-muted">Email a client the link to fill out this questionnaire for one of their bookings.</p>
+        </div>
+
+        {sentTo && <p className="rounded-[10px] border border-status-approved/30 bg-status-approved/5 p-3 text-sm text-status-approved">Sent to {sentTo}.</p>}
+        {error && <p className="text-xs text-status-declined">{error}</p>}
+
+        <label className="block">
+          <span className={labelClass}>Project</span>
+          <select value={eventId} onChange={(e) => setEventId(e.target.value)} className={inputClass}>
+            <option value="">
+              {events === null ? "Loading…" : events.length === 0 ? "No projects with a client email on file" : "Select a project…"}
+            </option>
+            {events?.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.title} — {eventClientLabel(e.clients)}
+                {e.starts_at ? ` (${new Date(e.starts_at).toLocaleDateString()})` : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {selectedEvent && (
+          <>
+            <label className="block">
+              <span className={labelClass}>Subject</span>
+              <input value={subject} onChange={(e) => setSubject(e.target.value)} className={inputClass} />
+            </label>
+            <label className="block">
+              <span className={labelClass}>Message</span>
+              <textarea value={body} onChange={(e) => setBody(e.target.value)} className={cn(inputClass, "min-h-[140px]")} />
+            </label>
+          </>
+        )}
+
+        <div className="flex justify-end gap-2">
+          <Button variant="secondary" size="sm" onClick={onClose}>
+            Close
+          </Button>
+          <Button variant="primary" size="sm" onClick={() => setShowPreview(true)} disabled={!selectedEvent || !body.trim() || sending}>
+            Preview &amp; Send
+          </Button>
+        </div>
+      </div>
+
+      <EmailPreviewModal
+        open={showPreview}
+        to={selectedEvent?.clients?.email ?? null}
+        subject={subject.trim()}
+        body={body.trim()}
+        signature={signature}
+        sending={sending}
+        onSend={handleSend}
+        onCancel={() => setShowPreview(false)}
+      />
+    </div>
   );
 }
 
