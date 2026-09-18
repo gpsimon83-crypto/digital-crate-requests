@@ -144,6 +144,9 @@ export function PortalHeroPanel({ eventId, initial }: { eventId: string; initial
             </Button>
           )}
         </div>
+        {!data.portal_hero_image_url && (
+          <p className="mt-1.5 text-xs text-muted">Upload a photo to unlock framing, banner size, and text color controls.</p>
+        )}
       </div>
 
       {data.portal_hero_image_url && (

@@ -105,6 +105,7 @@ interface EventDetail {
   portal_hero_headline_override: string | null;
   portal_hero_subheading_override: string | null;
   timezone: string | null;
+  dj_id: string | null;
   djs: { display_name: string } | null;
   venues: { name: string } | null;
   clients: ClientRow | null;
@@ -187,13 +188,15 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
   const [contracts, setContracts] = useState<ContractRow[]>([]);
   const [clientOptions, setClientOptions] = useState<ClientOption[]>([]);
   const [venueOptions, setVenueOptions] = useState<ClientOption[]>([]);
+  const [djOptions, setDjOptions] = useState<ClientOption[]>([]);
   const [changeOrders, setChangeOrders] = useState<ChangeOrderData[]>([]);
   const [editingDetails, setEditingDetails] = useState(false);
-  const [detailsDraft, setDetailsDraft] = useState<{ startsAt: string; endsAt: string; venueId: string; finalAmount: string }>({
+  const [detailsDraft, setDetailsDraft] = useState<{ startsAt: string; endsAt: string; venueId: string; finalAmount: string; djId: string }>({
     startsAt: "",
     endsAt: "",
     venueId: "",
-    finalAmount: ""
+    finalAmount: "",
+    djId: ""
   });
   const [savingDetails, setSavingDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -243,11 +246,12 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
   async function load() {
     try {
-      const [eventRes, clientsRes, contractsRes, venuesRes] = await Promise.all([
+      const [eventRes, clientsRes, contractsRes, venuesRes, djsRes] = await Promise.all([
         fetch(`/api/admin/events/${id}`),
         fetch("/api/admin/clients"),
         fetch(`/api/events/${id}/contracts`),
-        fetch("/api/admin/venues")
+        fetch("/api/admin/venues"),
+        fetch("/api/admin/djs")
       ]);
       const eventData = await eventRes.json();
       if (!eventRes.ok) throw new Error(eventData.error || "Failed to load project");
@@ -261,6 +265,9 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
       const venuesData = await venuesRes.json();
       if (venuesRes.ok) setVenueOptions((venuesData.venues ?? []).map((v: { id: string; name: string }) => ({ id: v.id, label: v.name })));
+
+      const djsData = await djsRes.json();
+      if (djsRes.ok) setDjOptions((djsData.djs ?? []).map((d: { id: string; display_name: string }) => ({ id: d.id, label: d.display_name })));
       setNotesDraft(eventData.event.internal_notes ?? "");
       setLeadSourceDraft(eventData.event.clients?.referral_source ?? "");
 
@@ -814,7 +821,8 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                           startsAt: event.starts_at ? event.starts_at.slice(0, 16) : "",
                           endsAt: event.ends_at ? event.ends_at.slice(0, 16) : "",
                           venueId: event.venues ? (venueOptions.find((v) => v.label === event.venues?.name)?.id ?? "") : "",
-                          finalAmount: event.final_amount != null ? String(event.final_amount) : ""
+                          finalAmount: event.final_amount != null ? String(event.final_amount) : "",
+                          djId: event.dj_id ?? ""
                         });
                         setEditingDetails(true);
                       }}
@@ -847,6 +855,21 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                           onChange={(e) => setDetailsDraft((d) => ({ ...d, endsAt: e.target.value }))}
                           className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
                         />
+                      </label>
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">DJ</span>
+                        <select
+                          value={detailsDraft.djId}
+                          onChange={(e) => setDetailsDraft((d) => ({ ...d, djId: e.target.value }))}
+                          className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                        >
+                          <option value="">Unassigned</option>
+                          {djOptions.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.label}
+                            </option>
+                          ))}
+                        </select>
                       </label>
                       <label className="block">
                         <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Venue</span>
@@ -888,7 +911,8 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                                 startsAt: detailsDraft.startsAt ? new Date(detailsDraft.startsAt).toISOString() : null,
                                 endsAt: detailsDraft.endsAt ? new Date(detailsDraft.endsAt).toISOString() : null,
                                 venueId: detailsDraft.venueId || null,
-                                finalAmount: detailsDraft.finalAmount ? Number(detailsDraft.finalAmount) : null
+                                finalAmount: detailsDraft.finalAmount ? Number(detailsDraft.finalAmount) : null,
+                                djId: detailsDraft.djId || null
                               })
                             });
                             const data = await res.json();

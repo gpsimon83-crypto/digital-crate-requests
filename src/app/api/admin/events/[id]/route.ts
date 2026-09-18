@@ -43,7 +43,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params;
   const body = await req.json();
-  const { status, pipelineStage, internalNotes, clientId, sendWeddingMusicPlan, startsAt, endsAt, venueId, finalAmount } = body as {
+  const { status, pipelineStage, internalNotes, clientId, sendWeddingMusicPlan, startsAt, endsAt, venueId, finalAmount, djId } = body as {
     status?: string;
     pipelineStage?: string;
     internalNotes?: string;
@@ -53,6 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     endsAt?: string;
     venueId?: string | null;
     finalAmount?: number | null;
+    djId?: string | null;
   };
 
   if (status && !VALID_STATUSES.includes(status)) {
@@ -76,6 +77,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (endsAt !== undefined) updates.ends_at = endsAt;
     if (venueId !== undefined) updates.venue_id = venueId || null;
     if (finalAmount !== undefined) updates.final_amount = finalAmount;
+    if (djId !== undefined) updates.dj_id = djId || null;
 
     // These specific fields are what a signed contract's terms cover —
     // changing any of them while a contract is already signed needs both
