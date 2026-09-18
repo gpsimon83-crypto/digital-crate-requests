@@ -12,20 +12,25 @@ import { createTask } from "@/lib/data/tasks";
 import { getLibraryItem } from "@/lib/data/library";
 import { getEmailAccountWithSecretForDj } from "@/lib/data/email-accounts";
 import { sendEmailFromAccount } from "@/lib/send-email";
+import { sendSystemEmail } from "@/lib/send-system-email";
 import { fillMergeFields, type MergeContext } from "@/lib/merge-fields";
 import { STAFF_ROLES } from "@/lib/roles";
 import { TRIGGERS, parseDateTrigger } from "@/lib/automation-capabilities";
+import { getDjAuthEmail } from "@/lib/dj-auth";
+import { buildDayOfRecap, type DayOfRecap } from "@/lib/data/day-of-recap";
+import type { EventCategory } from "@/lib/event-category";
 
 export { TRIGGERS };
 
 const EVENT_SELECT =
-  "id, event_code, title, event_type, service_type, status, event_status, starts_at, ends_at, created_at, contract_status, quoted_amount, final_amount, dj_id, djs(display_name), venues(name), clients(first_name, last_name, company_name, email)";
+  "id, event_code, title, event_type, event_category, service_type, status, event_status, starts_at, ends_at, created_at, contract_status, quoted_amount, final_amount, dj_id, djs(display_name), venues(name), clients(first_name, last_name, company_name, email)";
 
 interface EventContext {
   id: string;
   event_code: string;
   title: string | null;
   event_type: string | null;
+  event_category: EventCategory | null;
   service_type: string | null;
   status: string;
   event_status: string;
@@ -62,7 +67,7 @@ async function loadEventContext(eventId: string): Promise<EventContext | null> {
 function conditionField(event: EventContext, field: string, extra: Record<string, string>): string {
   switch (field) {
     case "event_type":
-      return event.event_type ?? "";
+      return event.event_category ?? "";
     case "service_type":
       return event.service_type ?? "";
     case "status":
@@ -114,6 +119,38 @@ function buildMergeContext(event: EventContext, origin: string, reviewUrl?: stri
   };
 }
 
+function renderRecapAsText(recap: DayOfRecap): string {
+  const lines: string[] = [];
+  const dateLabel = recap.startsAt
+    ? new Date(recap.startsAt).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })
+    : "Date TBD";
+  lines.push(`${recap.clientName ?? recap.title ?? "Event"} — ${dateLabel}`);
+  if (recap.venueName) lines.push(`Venue: ${recap.venueName}${recap.venueAddress ? ` — ${recap.venueAddress}` : ""}`);
+  if (recap.expectedGuests != null) lines.push(`Expected guests: ${recap.expectedGuests}`);
+
+  if (recap.timeline.length > 0) {
+    lines.push("\nTimeline:");
+    recap.timeline.forEach((t) => lines.push(`  ${t.time} — ${t.label}${t.note ? ` (${t.note})` : ""}`));
+  }
+  if (recap.weddingParty.length > 0) {
+    lines.push("\nWedding party:");
+    recap.weddingParty.forEach((p) => lines.push(`  ${p.name}${p.pronunciation ? ` (pronounced "${p.pronunciation}")` : ""}`));
+  }
+  if (recap.mcAnnouncements) lines.push(`\nMC announcements:\n${recap.mcAnnouncements}`);
+  if (recap.mustPlay.length > 0) lines.push(`\nMust play: ${recap.mustPlay.join(", ")}`);
+  if (recap.doNotPlay.length > 0) lines.push(`Do not play: ${recap.doNotPlay.join(", ")}`);
+  if (recap.vendorContacts.length > 0) {
+    lines.push("\nVendor contacts:");
+    recap.vendorContacts.forEach((v) => lines.push(`  ${v.role}: ${v.name}${v.phone ? ` · ${v.phone}` : ""}${v.email ? ` · ${v.email}` : ""}`));
+  }
+  if (recap.vendorMealCount != null) lines.push(`\nVendor meal count: ${recap.vendorMealCount}`);
+  if (recap.venueLoadInNotes) lines.push(`Load-in / parking: ${recap.venueLoadInNotes}`);
+  if (recap.weatherBackupPlan) lines.push(`Weather backup plan: ${recap.weatherBackupPlan}`);
+  if (recap.specialRequests) lines.push(`\nSpecial requests: ${recap.specialRequests}`);
+
+  return lines.join("\n");
+}
+
 async function runAction(action: AutomationAction, event: EventContext, origin: string): Promise<string> {
   switch (action.type) {
     case "create_task": {
@@ -156,8 +193,20 @@ async function runAction(action: AutomationAction, event: EventContext, origin: 
       await sendEmailFromAccount(account, { to: clientEmail, subject, text: body, fromName: event.djs?.display_name });
       return `Sent "${template.title}" to ${clientEmail}`;
     }
+    case "email_dj_recap": {
+      if (!event.dj_id) return "Skipped — no DJ assigned";
+      const djEmail = await getDjAuthEmail(event.dj_id);
+      if (!djEmail) return "Skipped — assigned DJ has no login email";
+      const recap = await buildDayOfRecap(event.id);
+      if (!recap) return "Skipped — could not load event details";
+
+      const subject = `Day-of recap: ${recap.clientName ?? event.title ?? "your upcoming event"}`;
+      const text = `${renderRecapAsText(recap)}\n\nFull recap: ${origin}/dj-dashboard/projects/${event.id}/recap`;
+      await sendSystemEmail({ to: djEmail, subject, text });
+      return `Sent day-of recap to ${djEmail}`;
+    }
     case "unlock_music_plan": {
-      if (event.event_type?.toLowerCase() !== "wedding") return "Skipped — not a wedding";
+      if (event.event_category !== "wedding") return "Skipped — not a wedding";
       const db = createAdminClient();
       await db.from("events").update({ wedding_music_plan_sent_at: new Date().toISOString() }).eq("id", event.id);
       return "Unlocked Wedding Music Plan in client portal";

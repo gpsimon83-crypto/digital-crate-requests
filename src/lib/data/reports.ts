@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { EVENT_CATEGORY_LABELS, type EventCategory } from "@/lib/event-category";
 
 export type ReportRange = "last_6_months" | "last_12_months" | "this_year" | "last_year" | "all_time";
 export const REPORT_RANGES: ReportRange[] = ["last_6_months", "last_12_months", "this_year", "last_year", "all_time"];
@@ -28,6 +29,7 @@ function monthKey(d: Date) {
 interface EventRow {
   id: string;
   event_type: string | null;
+  event_category: EventCategory | null;
   status: string;
   starts_at: string | null;
   created_at: string;
@@ -56,7 +58,7 @@ export async function getReportsSummary(range: ReportRange) {
   const { data: eventsData, error } = await db
     .from("events")
     .select(
-      "id, event_type, status, starts_at, created_at, quoted_amount, final_amount, dj_id, djs(display_name), client_id, clients(referral_source)"
+      "id, event_type, event_category, status, starts_at, created_at, quoted_amount, final_amount, dj_id, djs(display_name), client_id, clients(referral_source)"
     );
   if (error) throw error;
   const events = eventsData as unknown as EventRow[];
@@ -138,7 +140,7 @@ export async function getReportsSummary(range: ReportRange) {
 
   const typeStats = new Map<string, { count: number; revenueCents: number }>();
   for (const e of bookedEvents) {
-    const type = e.event_type || "Other";
+    const type = e.event_category ? EVENT_CATEGORY_LABELS[e.event_category] : "Other";
     const bucket = typeStats.get(type) ?? { count: 0, revenueCents: 0 };
     bucket.count += 1;
     bucket.revenueCents += dealValueCents(e);

@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getClientForAuthUser, getClientEvent } from "@/lib/data/portal";
 import { getCurrentSelection, getTemplateDetail } from "@/lib/data/package-builder";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { normalizeEventType } from "@/lib/questionnaire-event-type";
 import { errorMessage } from "@/lib/error-message";
 import type { PackageSectionData } from "@/lib/packages/types";
 
@@ -38,10 +37,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const event = await getClientEvent(client.id, id);
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
-    const eventType = normalizeEventType(event.event_type);
     const db = createAdminClient();
     let query = db.from("package_templates").select("id, name, tier, description, status, display_mode, base_price_cents, icon, image_url").eq("status", "published");
-    if (eventType) query = query.eq("event_type", eventType);
+    if (event.event_category) query = query.eq("event_type", event.event_category);
     const { data: templates, error } = await query.order("position");
     if (error) throw error;
 

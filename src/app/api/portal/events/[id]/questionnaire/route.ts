@@ -3,7 +3,6 @@ import { errorMessage } from "@/lib/error-message";
 import { createClient } from "@/lib/supabase/server";
 import { getClientForAuthUser, getClientEvent } from "@/lib/data/portal";
 import { getTemplateForEventType, getResponse, upsertResponse } from "@/lib/data/questionnaires";
-import { normalizeEventType } from "@/lib/questionnaire-event-type";
 import type { Answers } from "@/lib/questionnaire-engine";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -21,10 +20,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const event = await getClientEvent(client.id, id);
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
-    const eventType = normalizeEventType(event.event_type);
-    if (!eventType) return NextResponse.json({ template: null, response: null });
+    if (!event.event_category) return NextResponse.json({ template: null, response: null });
 
-    const template = await getTemplateForEventType(eventType);
+    const template = await getTemplateForEventType(event.event_category);
     if (!template) return NextResponse.json({ template: null, response: null });
 
     const response = await getResponse(id);
@@ -52,10 +50,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const event = await getClientEvent(client.id, id);
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
-    const eventType = normalizeEventType(event.event_type);
-    if (!eventType) return NextResponse.json({ error: "No questionnaire available for this event type" }, { status: 404 });
+    if (!event.event_category) return NextResponse.json({ error: "No questionnaire available for this event type" }, { status: 404 });
 
-    const template = await getTemplateForEventType(eventType);
+    const template = await getTemplateForEventType(event.event_category);
     if (!template) return NextResponse.json({ error: "No questionnaire available for this event type" }, { status: 404 });
 
     const response = await upsertResponse(id, template.id, { answers, currentQuestionKey });

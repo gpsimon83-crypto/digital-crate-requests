@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { deriveEventCategory } from "@/lib/event-category";
 
 function generateEventCode(title: string) {
   const slug =
@@ -67,6 +68,7 @@ export async function createInquiry(input: {
       status: "inquiry",
       event_status: "tentative",
       event_type: input.eventType,
+      event_category: deriveEventCategory(input.eventType),
       special_requests: input.message || null,
       venue_name: input.venueName || null,
       expected_guests: input.expectedGuests || null,

@@ -32,7 +32,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   try {
     const db = createAdminClient();
-    const { data: event } = await db.from("events").select("event_type, expected_guests, starts_at, ends_at, dj_id").eq("id", id).maybeSingle();
+    const { data: event } = await db.from("events").select("event_category, expected_guests, starts_at, ends_at, dj_id").eq("id", id).maybeSingle();
     if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
 
     const response = await getResponse(id);
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const ctx: GigContext = {
       guestCount: event.expected_guests ?? null,
-      eventType: event.event_type ?? null,
+      eventType: event.event_category ?? null,
       hoursBooked,
       answers: (response?.answers as Record<string, unknown>) ?? {}
     };

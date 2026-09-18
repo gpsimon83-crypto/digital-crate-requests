@@ -27,6 +27,7 @@ import { PackageRecommendation } from "@/components/project/package-recommendati
 import { PackageTemplatePicker } from "@/components/project/package-template-picker";
 import { PackageSelectionPanel } from "@/components/project/package-selection-panel";
 import { PortalHeroPanel } from "@/components/project/portal-hero-panel";
+import type { EventCategory } from "@/lib/event-category";
 import {
   ArrowLeft,
   Copy,
@@ -71,6 +72,7 @@ interface EventDetail {
   created_at: string;
   hero_image_url: string | null;
   event_type: string | null;
+  event_category: EventCategory | null;
   service_type: string | null;
   expected_guests: number | null;
   venue_name: string | null;
@@ -645,7 +647,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
               <FilesPanel eventId={id} />
 
-              {event.event_type?.toLowerCase() === "wedding" && (
+              {event.event_category === "wedding" && (
                 <GlassCard className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <Music2 size={16} className="text-gold" />
@@ -666,7 +668,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 </GlassCard>
               )}
 
-              {event.event_type?.toLowerCase() === "wedding" && event.wedding_music_plan_sent_at && (() => {
+              {event.event_category === "wedding" && event.wedding_music_plan_sent_at && (() => {
                 const plan = event.wedding_music_plan ?? {};
                 const spotifyIds = plan.spotify_ids ?? {};
                 const rows = WEDDING_SONG_FIELDS.map(({ key, label }) => ({

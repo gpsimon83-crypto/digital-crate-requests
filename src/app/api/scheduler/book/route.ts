@@ -5,6 +5,7 @@ import { getAvailability, getSlotMinutes, getConsultationEventsOnDate, getBusyBl
 import { zonedTimeToUtc, utcToZonedDateStr } from "@/lib/scheduler-time";
 import { logActivity } from "@/lib/activity";
 import { runAutomations } from "@/lib/automations-engine";
+import { deriveEventCategory } from "@/lib/event-category";
 
 function generateEventCode() {
   return `CONSULT-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
         status: "inquiry",
         event_status: "tentative",
         event_type: "consultation",
+        event_category: deriveEventCategory("consultation"),
         special_requests: message || null
       })
       .select()

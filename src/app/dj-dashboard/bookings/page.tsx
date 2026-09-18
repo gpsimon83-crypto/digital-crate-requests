@@ -10,6 +10,7 @@ import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { Check, X, LogOut, ShieldCheck, CalendarClock, MapPin, Plus, PartyPopper, UserCircle, DollarSign } from "lucide-react";
 import { isStaffRole } from "@/lib/roles";
 import { EVENT_CATEGORY_GROUPS } from "@/lib/event-types";
+import type { EventCategory } from "@/lib/event-category";
 import { PIPELINE_STAGE_DOT } from "@/lib/pipeline-stage";
 import { cn } from "@/lib/utils";
 import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
@@ -26,6 +27,7 @@ interface EventRow {
   starts_at: string | null;
   status: string;
   event_type: string | null;
+  event_category: EventCategory | null;
   pipeline_stage: string | null;
   dj_id: string | null;
   djs: { display_name: string; photo_url: string | null } | null;
@@ -163,7 +165,7 @@ export default function DjBookingsPage() {
   }
 
   const categoryGroup = EVENT_CATEGORY_GROUPS.find((g) => g.key === category);
-  const categoryFiltered = (events ?? []).filter((e) => (categoryGroup ? categoryGroup.match(e.event_type) : true));
+  const categoryFiltered = (events ?? []).filter((e) => (categoryGroup ? categoryGroup.match(e.event_category) : true));
   const pending = categoryFiltered.filter((e) => e.status === "pending_confirmation");
   const upcoming = categoryFiltered.filter((e) => e.status === "confirmed");
 

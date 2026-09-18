@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { EVENT_TYPES, EVENT_CATEGORY_GROUPS } from "@/lib/event-types";
+import type { EventCategory } from "@/lib/event-category";
 import { PIPELINE_STAGES, PIPELINE_STAGE_DOT } from "@/lib/pipeline-stage";
 import { clientName } from "@/lib/format";
 import { Field } from "@/components/ui/field";
@@ -24,6 +25,7 @@ interface EventRow {
   status: string;
   pipeline_stage: string | null;
   event_type: string | null;
+  event_category: EventCategory | null;
   special_requests: string | null;
   quoted_amount: number | null;
   final_amount: number | null;
@@ -238,7 +240,7 @@ function AdminEventsPageContent() {
   const inquiryCount = (events ?? []).filter((e) => e.status === "inquiry").length;
   const stageFiltered = (events ?? []).filter((e) => (stage === "inquiries" ? e.status === "inquiry" : e.status !== "inquiry"));
   const categoryGroup = EVENT_CATEGORY_GROUPS.find((g) => g.key === category);
-  const visibleEvents = categoryGroup ? stageFiltered.filter((e) => categoryGroup.match(e.event_type)) : stageFiltered;
+  const visibleEvents = categoryGroup ? stageFiltered.filter((e) => categoryGroup.match(e.event_category)) : stageFiltered;
 
   function stageHref(key: string) {
     const params = new URLSearchParams();

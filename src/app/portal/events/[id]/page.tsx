@@ -17,6 +17,7 @@ import { NextStepsCard } from "@/components/portal/next-steps-card";
 import { ChangeOrdersPanel, type ChangeOrderData } from "@/components/project/change-orders-panel";
 import { ArrowLeft, X, FileText, FileSignature, DollarSign, Music2, ChevronRight, MessageCircle, ClipboardList, type LucideIcon } from "lucide-react";
 import type { HeroSettings } from "@/lib/hero-settings";
+import type { EventCategory } from "@/lib/event-category";
 
 interface WeddingMusicPlan {
   processional_song?: string;
@@ -56,6 +57,7 @@ interface EventDetail {
   starts_at: string | null;
   status: string;
   event_type: string | null;
+  event_category: EventCategory | null;
   service_type: string | null;
   expected_guests: number | null;
   must_play: string[] | null;
@@ -350,7 +352,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
     router.push(`/portal/events/${id}?tab=${tab}`);
   }
 
-  const isWedding = event.event_type?.toLowerCase() === "wedding";
+  const isWedding = event.event_category === "wedding";
   const heroImage = event.portal_hero_image_url ?? branding?.imageUrl ?? null;
   const heroSettings = event.portal_hero_image_url ? event.portal_hero_settings : null;
   const headline = event.portal_hero_headline_override ?? branding?.heading ?? null;

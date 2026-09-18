@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { deriveEventCategory } from "@/lib/event-category";
 
 // Mirrors the backfill mapping in migration 0017 — event_status is derived
 // from status everywhere status gets set, so the two can't drift out of
@@ -88,6 +89,7 @@ export async function createEvent(input: {
       status: input.status ?? "pending_confirmation",
       event_status: deriveEventStatus(input.status ?? "pending_confirmation"),
       event_type: input.eventType || null,
+      event_category: deriveEventCategory(input.eventType),
       service_type: input.serviceType || null,
       expected_guests: input.expectedGuests ?? null,
       quoted_amount: input.quotedAmount ?? null,

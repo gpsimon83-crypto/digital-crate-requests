@@ -28,12 +28,14 @@ import {
   Inbox
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { EventCategory } from "@/lib/event-category";
 
 interface EventRow {
   id: string;
   title: string;
   status: string;
   event_type: string | null;
+  event_category: EventCategory | null;
   starts_at: string | null;
   created_at: string;
   quoted_amount: number | null;
@@ -173,7 +175,7 @@ export default function AdminOverviewPage() {
   const weddingsReadyForMusicPlan = useMemo(
     () =>
       (events ?? []).filter(
-        (e) => e.event_type?.toLowerCase() === "wedding" && e.paid_cents > 0 && !e.wedding_music_plan_sent_at
+        (e) => e.event_category === "wedding" && e.paid_cents > 0 && !e.wedding_music_plan_sent_at
       ),
     [events]
   );

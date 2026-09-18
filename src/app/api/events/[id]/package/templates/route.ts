@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireEventAccess } from "@/lib/require-event-access";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { normalizeEventType } from "@/lib/questionnaire-event-type";
 import { errorMessage } from "@/lib/error-message";
 
 // Published templates matching this event's type — same access rule as
@@ -14,14 +13,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   try {
     const db = createAdminClient();
-    const { data: event } = await db.from("events").select("event_type").eq("id", id).maybeSingle();
-    const normalized = normalizeEventType(event?.event_type ?? null);
+    const { data: event } = await db.from("events").select("event_category").eq("id", id).maybeSingle();
 
     let query = db
       .from("package_templates")
       .select("id, name, tier, description, status, display_mode, base_price_cents, icon, image_url, event_type")
       .eq("status", "published");
-    if (normalized) query = query.eq("event_type", normalized);
+    if (event?.event_category) query = query.eq("event_type", event.event_category);
     const { data: templates, error } = await query.order("position");
     if (error) throw error;
 
