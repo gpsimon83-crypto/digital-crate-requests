@@ -22,7 +22,11 @@ export default function PortalSignupPage() {
     setError(null);
 
     const supabase = createClient();
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/portal/login` }
+    });
 
     if (signUpError) {
       setError(signUpError.message);
