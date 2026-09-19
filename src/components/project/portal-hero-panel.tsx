@@ -108,9 +108,19 @@ export function PortalHeroPanel({ eventId, initial }: { eventId: string; initial
 
   return (
     <GlassCard className="flex flex-col gap-4">
-      <div>
-        <p className="text-sm font-semibold">Customize Portal</p>
-        <p className="text-xs text-muted">What the client sees in their own portal — separate from the public guest-request page.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold">Customize Portal</p>
+          <p className="text-xs text-muted">What the client sees in their own portal — separate from the public guest-request page.</p>
+        </div>
+        <a
+          href={`/portal/events/${eventId}`}
+          target="_blank"
+          rel="noreferrer"
+          className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-gold hover:underline"
+        >
+          View Client Portal ↗
+        </a>
       </div>
 
       {error && <p className="text-xs text-status-declined">{error}</p>}

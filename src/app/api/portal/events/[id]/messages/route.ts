@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getClientForAuthUser, getClientEvent } from "@/lib/data/portal";
+import { requirePortalReadAccess } from "@/lib/require-portal-access";
 import { listEventMessages, recordInboundMessage } from "@/lib/data/email";
 import { getEmailAccountWithSecretForDj } from "@/lib/data/email-accounts";
 import { sendSystemEmail } from "@/lib/send-system-email";
@@ -15,19 +16,12 @@ import { errorMessage } from "@/lib/error-message";
  * further replies from the DJ keep landing in this same thread.
  */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
-
   const { id } = await params;
-  try {
-    const client = await getClientForAuthUser(user.id);
-    if (!client) return NextResponse.json({ error: "No client record linked to this account" }, { status: 403 });
-    const event = await getClientEvent(client.id, id);
-    if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
+  const access = await requirePortalReadAccess(id);
+  if (!access.authorized) return NextResponse.json({ error: access.error }, { status: access.status });
 
+  try {
+    const event = access.event;
     const messages = await listEventMessages(id);
     const djEmailConnected = event.dj_id ? !!(await getEmailAccountWithSecretForDj(event.dj_id)) : false;
 
