@@ -22,6 +22,16 @@ export interface PortalHeroExtras {
 
 const DEFAULT_TEXT_COLOR = "#ffffff";
 
+// Scaled-down versions of the real banner heights (240/300/340 standard,
+// see BANNER_HEIGHT_CLASSES in portal-hero.tsx) so this small admin
+// thumbnail changes proportionally instead of staying frozen regardless
+// of which size is selected.
+const PREVIEW_HEIGHT_CLASSES: Record<PortalHeroBannerSize, string> = {
+  compact: "h-[130px]",
+  standard: "h-[180px]",
+  tall: "h-[240px]"
+};
+
 interface PortalHeroData {
   couple_display_name: string | null;
   portal_hero_image_url: string | null;
@@ -166,6 +176,8 @@ export function PortalHeroPanel({ eventId, initial }: { eventId: string; initial
             settings={mergeHeroSettings(data.portal_hero_settings)}
             onChange={(v) => setData((d) => ({ ...d, portal_hero_settings: { ...d.portal_hero_settings, ...v } }))}
             previewLabel={data.couple_display_name || "Your Event"}
+            previewHeightClass={PREVIEW_HEIGHT_CLASSES[data.portal_hero_settings?.bannerSize ?? "standard"]}
+            previewTextColor={data.portal_hero_settings?.textColor ?? DEFAULT_TEXT_COLOR}
           />
 
           <div>

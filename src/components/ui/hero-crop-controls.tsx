@@ -16,18 +16,24 @@ export function HeroCropControls({
   settings,
   onChange,
   previewLabel = "Sample Event",
-  previewName
+  previewName,
+  previewHeightClass = "h-[180px]",
+  previewTextColor = "#ffffff"
 }: {
   photoUrl: string | null;
   settings: HeroSettings;
   onChange: (settings: HeroSettings) => void;
   previewLabel?: string;
   previewName?: string | null;
+  /** Lets a caller show the preview at a height proportional to a real banner-size setting it owns (e.g. the portal hero's Compact/Standard/Tall) — this component has no concept of that itself. */
+  previewHeightClass?: string;
+  /** Same idea, for a caller-owned text-color setting. */
+  previewTextColor?: string;
 }) {
   return (
     <div className="flex flex-col gap-4">
       <GlassCard className="!p-0 overflow-hidden">
-        <div className="relative h-[180px] w-full overflow-hidden">
+        <div className={`relative w-full overflow-hidden ${previewHeightClass}`}>
           {photoUrl ? (
             <Image
               src={photoUrl}
@@ -52,8 +58,8 @@ export function HeroCropControls({
             <span className="w-fit rounded-full border border-gold/50 bg-black/30 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[2px] text-gold backdrop-blur-sm">
               Live Preview
             </span>
-            <p className="mt-1.5 text-lg font-semibold text-white">{previewLabel}</p>
-            {previewName && <p className="text-xs text-white/80">{previewName}</p>}
+            <p className="mt-1.5 text-lg font-semibold" style={{ color: previewTextColor }}>{previewLabel}</p>
+            {previewName && <p className="text-xs opacity-80" style={{ color: previewTextColor }}>{previewName}</p>}
           </div>
         </div>
       </GlassCard>
