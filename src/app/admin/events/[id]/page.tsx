@@ -2,10 +2,11 @@
 
 import { Suspense, useEffect, useRef, useState, use as usePromise } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { Tabs } from "@/components/ui/tabs";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { cn } from "@/lib/utils";
 import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
 import { MilestoneStepper } from "@/components/project/milestone-stepper";
@@ -40,7 +41,9 @@ import {
   MapPin,
   Camera,
   Music2,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle,
+  Trash2
 } from "lucide-react";
 
 interface ClientRow {
@@ -180,6 +183,7 @@ export default function AdminEventDetailPage({ params }: { params: Promise<{ id:
 function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const { id } = usePromise(params);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const activeTab = (searchParams.get("tab") as Tab | null) ?? "Activity";
 
   const [event, setEvent] = useState<EventDetail | null>(null);
@@ -200,6 +204,8 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
   });
   const [savingDetails, setSavingDetails] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const [changingContact, setChangingContact] = useState(false);
   const [savingStage, setSavingStage] = useState(false);
@@ -395,6 +401,23 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
       await patchClient({ tags });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  }
+
+  async function handleDeleteProject() {
+    if (deleting) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/events/${id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete project");
+      router.push("/admin/events");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -1139,8 +1162,31 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               </GlassCard>
             </>
           )}
+
+          <div className="flex flex-col gap-2 rounded-[10px] border border-status-declined/25 bg-status-declined/5 p-4">
+            <div className="flex items-center gap-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-status-declined/10 text-status-declined">
+                <AlertTriangle size={14} />
+              </span>
+              <p className="text-xs font-semibold uppercase tracking-[1.5px] text-status-declined">Danger Zone</p>
+            </div>
+            <p className="text-[11px] text-muted">Permanently delete this project. This cannot be undone.</p>
+            <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(true)} className="mt-1 w-fit gap-1.5">
+              <Trash2 size={13} />
+              Delete Project
+            </Button>
+          </div>
         </div>
       </div>
+
+      <ConfirmModal
+        open={showDeleteConfirm}
+        title="Delete this project?"
+        body="This permanently deletes the project and everything attached to it — contracts, files, messages, tasks, and the client portal. This cannot be undone."
+        confirmLabel={deleting ? "Deleting…" : "Delete Project"}
+        onConfirm={handleDeleteProject}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

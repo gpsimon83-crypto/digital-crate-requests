@@ -6,6 +6,7 @@ import { requireAdmin } from "@/lib/require-admin";
 import { requireEventAccess } from "@/lib/require-event-access";
 import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
 import { diffTrackedFields, recordChangeOrderIfSigned, listChangeOrdersForEvent } from "@/lib/data/contract-change-orders";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const VALID_STATUSES = ["inquiry", "pending_confirmation", "confirmed", "live", "ended", "declined"];
 
@@ -96,6 +97,34 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     return NextResponse.json({ event });
+  } catch (err) {
+    return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
+  }
+}
+
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const denied = await requireAdmin();
+  if (denied) return denied;
+
+  const { id } = await params;
+  try {
+    // Every payment/contract/file/message/task/questionnaire row cascades
+    // away with the event (on delete cascade in the schema) — that's fine
+    // for planning artifacts, but a project with real payment history
+    // shouldn't be one click + a confirm away from losing that record.
+    const payments = await listEventPayments(id);
+    if (payments.length > 0) {
+      return NextResponse.json(
+        { error: "This project has payment history and can't be deleted. Remove its payments first if you're sure." },
+        { status: 409 }
+      );
+    }
+
+    const db = createAdminClient();
+    const { error } = await db.from("events").delete().eq("id", id);
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }
