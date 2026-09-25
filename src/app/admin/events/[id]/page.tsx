@@ -24,7 +24,6 @@ import { ContractsPanel, type ContractRow } from "@/components/project/contracts
 import { type ChangeOrderData } from "@/components/project/change-orders-panel";
 import { EquipmentAssignmentsPanel } from "@/components/project/equipment-assignments-panel";
 import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
-import { PackageRecommendation } from "@/components/project/package-recommendation";
 import { PackageTemplatePicker } from "@/components/project/package-template-picker";
 import { PackageSelectionPanel } from "@/components/project/package-selection-panel";
 import { PortalHeroPanel } from "@/components/project/portal-hero-panel";
@@ -813,8 +812,6 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
           {activeTab === "Details" && (
             <div className="mt-6 flex flex-col gap-4">
               <QuestionnaireSummary eventId={id} />
-
-              <PackageRecommendation eventId={id} />
 
               <PackageTemplatePicker eventId={id} />
 
