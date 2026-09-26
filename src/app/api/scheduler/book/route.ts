@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAvailability, getSlotMinutes, getConsultationEventsOnDate, getBusyBlocksOnDate } from "@/lib/data/scheduler";
-import { zonedTimeToUtc, utcToZonedDateStr } from "@/lib/scheduler-time";
+import { zonedTimeToUtc, utcToZonedDateStr, BUSINESS_TIMEZONE } from "@/lib/scheduler-time";
 import { logActivity } from "@/lib/activity";
 import { runAutomations } from "@/lib/automations-engine";
 import { deriveEventCategory } from "@/lib/event-category";
+import { alertStaffOfSubmission } from "@/lib/notify-submission";
+import { sendSystemEmail } from "@/lib/send-system-email";
 
 function generateEventCode() {
   return `CONSULT-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
@@ -117,6 +119,40 @@ export async function POST(req: NextRequest) {
 
     await logActivity({ actorLabel: "Scheduler", action: "lead.created", entityType: "event", entityId: event.id, eventId: event.id });
     await runAutomations("lead_created", event.id, req.nextUrl.origin);
+
+    const whenLabel = slotStart.toLocaleString("en-US", {
+      timeZone: BUSINESS_TIMEZONE,
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZoneName: "short"
+    });
+
+    await alertStaffOfSubmission({
+      title: `New consultation booked — ${name}`,
+      body: `When: ${whenLabel}\nEmail: ${email}${phone ? `\nPhone: ${phone}` : ""}${message ? `\nMessage: ${message}` : ""}`,
+      eventId: event.id,
+      origin: req.nextUrl.origin
+    });
+
+    try {
+      const firstName = name.trim().split(" ")[0] || name;
+      await sendSystemEmail({
+        to: email,
+        subject: "Your consultation call with Digital Crate DJs is booked",
+        text:
+          `Hi ${firstName},\n\n` +
+          `You're booked! Your consultation call with Digital Crate DJs is scheduled for ${whenLabel}.\n\n` +
+          `We'll reach out at this email address${phone ? " or the phone number you gave us" : ""} around that time. ` +
+          `If you need to change the time, please contact us and we'll sort it out.\n\n` +
+          `Talk soon,\nDigital Crate DJs`
+      });
+    } catch (err) {
+      console.error("consultation confirmation email failed for event", event.id, err);
+    }
 
     return NextResponse.json({ event });
   } catch (err) {

@@ -17,7 +17,10 @@ export async function sendSystemEmail(message: { to: string | string[]; subject:
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.SYSTEM_EMAIL_FROM;
 
-  if (!apiKey || !from) return null;
+  if (!apiKey || !from) {
+    console.error("sendSystemEmail skipped — RESEND_API_KEY or SYSTEM_EMAIL_FROM is not set:", message.subject);
+    return null;
+  }
 
   const resend = new Resend(apiKey);
   const { data, error } = await resend.emails.send({

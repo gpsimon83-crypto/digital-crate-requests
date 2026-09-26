@@ -6,6 +6,7 @@ import { sendSystemEmail } from "@/lib/send-system-email";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logActivity } from "@/lib/activity";
 import { runAutomations } from "@/lib/automations-engine";
+import { alertStaffOfSubmission } from "@/lib/notify-submission";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -38,25 +39,15 @@ export async function POST(req: NextRequest) {
       // Best-effort ops alert — a failed/unconfigured SMS should never take down inquiry creation.
     }
 
-    try {
-      const opsEmails = (process.env.OPS_ALERT_EMAILS ?? "")
-        .split(",")
-        .map((e) => e.trim())
-        .filter(Boolean);
-      if (opsEmails.length > 0) {
-        const alertText =
-          `New booking request — ${name}\n` +
-          `Event date: ${new Date(eventDate).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}\n` +
-          `Event type: ${eventType}\n` +
-          `Email: ${email}\n\n` +
-          `View in the admin: ${req.nextUrl.origin}/admin/events/${event.id}`;
-        await sendSystemEmail({ to: opsEmails, subject: `New booking request — ${name}`, text: alertText });
-      }
-    } catch (err) {
-      // Best-effort ops alert — never takes down inquiry creation, but logged so a
-      // misconfig doesn't fail silently the way sendInquiryAlertSms's used to.
-      console.error("ops alert email failed for inquiry", event.id, err);
-    }
+    await alertStaffOfSubmission({
+      title: `New booking request — ${name}`,
+      body:
+        `Event date: ${new Date(eventDate).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}\n` +
+        `Event type: ${eventType}\n` +
+        `Email: ${email}`,
+      eventId: event.id,
+      origin: req.nextUrl.origin
+    });
 
     try {
       const firstName = name.trim().split(" ")[0] || name;
