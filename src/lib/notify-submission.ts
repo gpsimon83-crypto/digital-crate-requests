@@ -2,6 +2,13 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSystemEmail } from "@/lib/send-system-email";
 import { STAFF_ROLES } from "@/lib/roles";
 
+function opsEmailList(): string[] {
+  return (process.env.OPS_ALERT_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+}
+
 async function notifyStaff(input: { type: string; title: string; body: string; eventId: string }) {
   const db = createAdminClient();
   const { data } = await db.auth.admin.listUsers({ perPage: 200 });
@@ -46,10 +53,13 @@ export async function sendTrackedEmail(input: {
   text: string;
   eventId: string;
   failureTitle: string;
+  /** Set on client-facing emails: bookings@ has no mailbox, so replies go to the alert addresses instead. */
+  repliesToStaff?: boolean;
 }): Promise<boolean> {
   const recipients = Array.isArray(input.to) ? input.to.join(", ") : input.to;
   try {
-    const id = await sendSystemEmail({ to: input.to, subject: input.subject, text: input.text });
+    const replyTo = input.repliesToStaff ? opsEmailList() : [];
+    const id = await sendSystemEmail({ to: input.to, subject: input.subject, text: input.text, replyTo: replyTo.length > 0 ? replyTo : undefined });
     if (!id) throw new Error("the email service isn't configured on the live site");
     return true;
   } catch (err) {
@@ -77,10 +87,7 @@ export async function alertStaffOfSubmission(input: { title: string; body: strin
     console.error("in-app submission alert failed for event", input.eventId, err);
   }
 
-  const opsEmails = (process.env.OPS_ALERT_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim())
-    .filter(Boolean);
+  const opsEmails = opsEmailList();
 
   if (opsEmails.length === 0) {
     console.error("OPS_ALERT_EMAILS is not set — no email alert sent for event", input.eventId);

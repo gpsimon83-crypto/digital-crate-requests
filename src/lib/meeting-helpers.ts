@@ -95,7 +95,8 @@ export async function emailClientAboutMeeting(input: {
       subject,
       text,
       eventId: input.eventId,
-      failureTitle: `Meeting email to ${firstName} didn't send`
+      failureTitle: `Meeting email to ${firstName} didn't send`,
+      repliesToStaff: true
     });
   } catch (err) {
     console.error("meeting email failed for event", input.eventId, err);

@@ -64,7 +64,8 @@ export async function POST(req: NextRequest) {
       subject: "We got your booking request — set up your event portal",
       text,
       eventId: event.id,
-      failureTitle: `Confirmation email to ${name} didn't send`
+      failureTitle: `Confirmation email to ${name} didn't send`,
+      repliesToStaff: true
     });
 
     return NextResponse.json({ event });

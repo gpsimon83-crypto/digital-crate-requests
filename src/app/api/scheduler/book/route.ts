@@ -145,10 +145,11 @@ export async function POST(req: NextRequest) {
         `Hi ${firstName},\n\n` +
         `You're booked! Your consultation call with Digital Crate DJs is scheduled for ${whenLabel}.\n\n` +
         `We'll reach out at this email address${phone ? " or the phone number you gave us" : ""} around that time. ` +
-        `If you need to change the time, please contact us and we'll sort it out.\n\n` +
+        `If you need to change the time, just reply to this email and we'll sort it out.\n\n` +
         `Talk soon,\nDigital Crate DJs`,
       eventId: event.id,
-      failureTitle: `Confirmation email to ${name} didn't send`
+      failureTitle: `Confirmation email to ${name} didn't send`,
+      repliesToStaff: true
     });
 
     return NextResponse.json({ event });
