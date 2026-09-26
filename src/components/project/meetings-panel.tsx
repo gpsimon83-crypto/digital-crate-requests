@@ -4,77 +4,15 @@ import { useEffect, useState } from "react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
-import { BUSINESS_TIMEZONE } from "@/lib/scheduler-time";
+import { MeetingForm, EMPTY_MEETING_DRAFT, draftFromMeeting, meetingWhenLabel, type MeetingRow, type MeetingDraft } from "@/components/project/meeting-form";
 import { CalendarClock, MapPin, Link2, Pencil, X } from "lucide-react";
-
-interface MeetingRow {
-  id: string;
-  starts_at: string;
-  ends_at: string;
-  location: string | null;
-  meeting_url: string | null;
-  notes: string | null;
-  status: "scheduled" | "cancelled";
-}
-
-interface Draft {
-  date: string;
-  time: string;
-  durationMinutes: number;
-  location: string;
-  meetingUrl: string;
-  notes: string;
-}
-
-const EMPTY_DRAFT: Draft = { date: "", time: "", durationMinutes: 30, location: "", meetingUrl: "", notes: "" };
-const DURATIONS = [15, 30, 45, 60, 90, 120];
-
-function whenLabel(startsAt: string) {
-  return new Date(startsAt).toLocaleString("en-US", {
-    timeZone: BUSINESS_TIMEZONE,
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    timeZoneName: "short"
-  });
-}
-
-// The form works in business-local time (same as the public scheduler), so
-// an existing meeting has to be converted back before it can be edited.
-function draftFromMeeting(m: MeetingRow): Draft {
-  const start = new Date(m.starts_at);
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat("en-CA", {
-      timeZone: BUSINESS_TIMEZONE,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23"
-    })
-      .formatToParts(start)
-      .map((p) => [p.type, p.value])
-  );
-  return {
-    date: `${parts.year}-${parts.month}-${parts.day}`,
-    time: `${parts.hour}:${parts.minute}`,
-    durationMinutes: Math.round((new Date(m.ends_at).getTime() - start.getTime()) / 60000),
-    location: m.location ?? "",
-    meetingUrl: m.meeting_url ?? "",
-    notes: m.notes ?? ""
-  };
-}
 
 export function MeetingsPanel({ eventId }: { eventId: string }) {
   const [meetings, setMeetings] = useState<MeetingRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
+  const [draft, setDraft] = useState<MeetingDraft>(EMPTY_MEETING_DRAFT);
   const [saving, setSaving] = useState(false);
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null);
   const [now] = useState(() => Date.now());
@@ -96,7 +34,7 @@ export function MeetingsPanel({ eventId }: { eventId: string }) {
 
   function openNew() {
     setEditingId(null);
-    setDraft(EMPTY_DRAFT);
+    setDraft(EMPTY_MEETING_DRAFT);
     setError(null);
     setFormOpen(true);
   }
@@ -145,8 +83,6 @@ export function MeetingsPanel({ eventId }: { eventId: string }) {
   const upcoming = (meetings ?? []).filter((m) => m.status === "scheduled" && new Date(m.ends_at).getTime() >= now);
   const past = (meetings ?? []).filter((m) => m.status === "scheduled" && new Date(m.ends_at).getTime() < now);
 
-  const inputClass = "w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none";
-
   return (
     <GlassCard className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
@@ -166,7 +102,7 @@ export function MeetingsPanel({ eventId }: { eventId: string }) {
       {upcoming.map((m) => (
         <div key={m.id} className="flex items-start justify-between gap-3 rounded-[10px] border border-black/10 bg-panel px-3 py-2.5">
           <div className="flex flex-col gap-0.5">
-            <p className="text-sm font-medium">{whenLabel(m.starts_at)}</p>
+            <p className="text-sm font-medium">{meetingWhenLabel(m.starts_at)}</p>
             {m.location && (
               <p className="flex items-center gap-1 text-xs text-muted">
                 <MapPin size={12} /> {m.location}
@@ -193,54 +129,8 @@ export function MeetingsPanel({ eventId }: { eventId: string }) {
       {past.length > 0 && <p className="text-[11px] text-muted">{past.length} past meeting{past.length === 1 ? "" : "s"}</p>}
 
       {formOpen && (
-        <div className="flex flex-col gap-3 border-t border-border pt-3">
-          <p className="text-xs uppercase tracking-wide text-muted">{editingId ? "Reschedule meeting" : "New meeting"} (Central time)</p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <label className="block">
-              <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Date</span>
-              <input type="date" value={draft.date} onChange={(e) => setDraft((d) => ({ ...d, date: e.target.value }))} className={inputClass} />
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Time</span>
-              <input type="time" value={draft.time} onChange={(e) => setDraft((d) => ({ ...d, time: e.target.value }))} className={inputClass} />
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Length</span>
-              <select
-                value={draft.durationMinutes}
-                onChange={(e) => setDraft((d) => ({ ...d, durationMinutes: Number(e.target.value) }))}
-                className={inputClass}
-              >
-                {(DURATIONS.includes(draft.durationMinutes) ? DURATIONS : [...DURATIONS, draft.durationMinutes].sort((a, b) => a - b)).map((n) => (
-                  <option key={n} value={n}>
-                    {n} min
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block">
-              <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Location (optional)</span>
-              <input value={draft.location} onChange={(e) => setDraft((d) => ({ ...d, location: e.target.value }))} placeholder="Phone call, office, venue..." className={inputClass} />
-            </label>
-            <label className="block">
-              <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Video link (optional)</span>
-              <input value={draft.meetingUrl} onChange={(e) => setDraft((d) => ({ ...d, meetingUrl: e.target.value }))} placeholder="https://meet.google.com/..." className={inputClass} />
-            </label>
-          </div>
-          <label className="block">
-            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Notes for the client (optional)</span>
-            <textarea value={draft.notes} onChange={(e) => setDraft((d) => ({ ...d, notes: e.target.value }))} rows={2} className={inputClass} />
-          </label>
-          <div className="flex items-center gap-3">
-            <Button variant="primary" size="sm" onClick={handleSave} disabled={saving || !draft.date || !draft.time}>
-              {saving ? "Saving..." : editingId ? "Save & Notify Client" : "Schedule & Notify Client"}
-            </Button>
-            <Button variant="text" size="sm" onClick={() => setFormOpen(false)}>
-              Cancel
-            </Button>
-          </div>
+        <div className="border-t border-border pt-3">
+          <MeetingForm draft={draft} onChange={setDraft} onSave={handleSave} onCancel={() => setFormOpen(false)} saving={saving} editing={!!editingId} />
         </div>
       )}
 

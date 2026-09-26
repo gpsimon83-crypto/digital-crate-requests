@@ -107,3 +107,13 @@ export async function cancelMeeting(eventId: string, meetingId: string): Promise
   if (error) throw error;
   return data;
 }
+
+export async function listAllMeetings() {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("event_meetings")
+    .select("id, event_id, starts_at, ends_at, location, meeting_url, notes, status, events(title, clients(first_name, last_name, company_name))")
+    .order("starts_at", { ascending: true });
+  if (error) throw error;
+  return data;
+}
