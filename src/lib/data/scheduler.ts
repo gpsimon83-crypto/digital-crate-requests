@@ -65,7 +65,8 @@ export async function getConsultationEventsOnDate(dateStr: string) {
 /**
  * Same +/- 1 day window as getConsultationEventsOnDate, but pulled from
  * the synced Google Calendar rather than `events` — a personal commitment
- * on the connected calendar blocks a public consultation slot too.
+ * on the connected calendar blocks a public consultation slot too. Scheduled
+ * project meetings (event_meetings) are included for the same reason.
  */
 export async function getBusyBlocksOnDate(dateStr: string) {
   const db = createAdminClient();
@@ -78,5 +79,15 @@ export async function getBusyBlocksOnDate(dateStr: string) {
     .gte("starts_at", rangeStart)
     .lte("starts_at", rangeEnd);
   if (error) throw error;
-  return data as { starts_at: string; ends_at: string }[];
+
+  // A client meeting staff scheduled on a project blocks the slot too.
+  const { data: meetings, error: meetingsError } = await db
+    .from("event_meetings")
+    .select("starts_at, ends_at")
+    .eq("status", "scheduled")
+    .gte("starts_at", rangeStart)
+    .lte("starts_at", rangeEnd);
+  if (meetingsError) throw meetingsError;
+
+  return [...data, ...meetings] as { starts_at: string; ends_at: string }[];
 }

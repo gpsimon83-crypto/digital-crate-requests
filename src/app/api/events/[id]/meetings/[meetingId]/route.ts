@@ -3,6 +3,7 @@ import { requireEventAccess } from "@/lib/require-event-access";
 import { updateMeeting, cancelMeeting } from "@/lib/data/event-meetings";
 import { parseMeetingBody, emailClientAboutMeeting } from "@/lib/meeting-helpers";
 import { logActivity } from "@/lib/activity";
+import { syncMeetingToGoogle } from "@/lib/calendar-sync";
 import { errorMessage } from "@/lib/error-message";
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string; meetingId: string }> }) {
@@ -16,6 +17,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const meeting = await updateMeeting(id, meetingId, parsed.input);
     await logActivity({ actorUserId: access.user.id, action: "meeting.rescheduled", entityType: "event", entityId: id, eventId: id });
+    await syncMeetingToGoogle(meeting.id);
     await emailClientAboutMeeting({ kind: "rescheduled", client: access.event.clients, eventTitle: access.event.title, meeting, eventId: id });
     return NextResponse.json({ meeting });
   } catch (err) {
@@ -31,6 +33,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   try {
     const meeting = await cancelMeeting(id, meetingId);
     await logActivity({ actorUserId: access.user.id, action: "meeting.cancelled", entityType: "event", entityId: id, eventId: id });
+    await syncMeetingToGoogle(meeting.id);
     await emailClientAboutMeeting({ kind: "cancelled", client: access.event.clients, eventTitle: access.event.title, meeting, eventId: id });
     return NextResponse.json({ meeting });
   } catch (err) {

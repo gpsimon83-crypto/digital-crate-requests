@@ -105,13 +105,99 @@ async function pullExternalEvents(accessToken: string, calendarId: string, syncT
   return count;
 }
 
+interface SyncMeetingRow {
+  id: string;
+  event_id: string;
+  starts_at: string;
+  ends_at: string;
+  location: string | null;
+  meeting_url: string | null;
+  notes: string | null;
+  status: string;
+  google_event_id: string | null;
+  events: {
+    title: string | null;
+    clients: { first_name: string | null; last_name: string | null; company_name: string | null } | null;
+  } | null;
+}
+
+const MEETING_SELECT =
+  "id, event_id, starts_at, ends_at, location, meeting_url, notes, status, google_event_id, events(title, clients(first_name, last_name, company_name))";
+
+async function pushOneMeeting(accessToken: string, calendarId: string, m: SyncMeetingRow): Promise<void> {
+  const db = createAdminClient();
+
+  if (m.status === "cancelled") {
+    if (m.google_event_id) {
+      await deleteGoogleEvent(accessToken, calendarId, m.google_event_id);
+      await db.from("event_meetings").update({ google_event_id: null }).eq("id", m.id);
+    }
+    return;
+  }
+
+  const client = m.events?.clients;
+  const clientName = client ? client.company_name || [client.first_name, client.last_name].filter(Boolean).join(" ") : null;
+  const description = [clientName ? `Client: ${clientName}` : null, m.meeting_url ? `Join: ${m.meeting_url}` : null, m.notes].filter(Boolean).join("\n");
+
+  const googleEventId = await upsertGoogleEvent(accessToken, calendarId, m.google_event_id, {
+    summary: `Meeting — ${m.events?.title || "Digital Crate DJs"}`,
+    description: description || undefined,
+    location: m.location || m.meeting_url || undefined,
+    startsAt: m.starts_at,
+    endsAt: m.ends_at,
+    cratesdjEventId: m.event_id
+  });
+
+  if (googleEventId !== m.google_event_id) {
+    await db.from("event_meetings").update({ google_event_id: googleEventId }).eq("id", m.id);
+  }
+}
+
+/**
+ * Pushes one meeting to Google right when it's scheduled/changed/cancelled.
+ * The batched sync isn't guaranteed to be running on a schedule, and a
+ * client meeting shouldn't wait on it. Best-effort: never throws, so a
+ * Google hiccup can't fail scheduling the meeting itself.
+ */
+export async function syncMeetingToGoogle(meetingId: string): Promise<void> {
+  try {
+    const auth = await getValidAccessToken();
+    if (!auth) return; // Google Calendar isn't connected
+
+    const db = createAdminClient();
+    const { data, error } = await db.from("event_meetings").select(MEETING_SELECT).eq("id", meetingId).single();
+    if (error) throw error;
+    await pushOneMeeting(auth.accessToken, auth.calendarId, data as unknown as SyncMeetingRow);
+  } catch (err) {
+    console.error("Google Calendar sync failed for meeting", meetingId, err);
+  }
+}
+
+async function pushMeetingsToGoogle(accessToken: string, calendarId: string): Promise<number> {
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("event_meetings")
+    .select(MEETING_SELECT)
+    .or(`status.eq.scheduled,google_event_id.not.is.null`)
+    .gte("ends_at", new Date(Date.now() - PAST_CUTOFF_MS).toISOString());
+  if (error) throw error;
+
+  let count = 0;
+  for (const m of data as unknown as SyncMeetingRow[]) {
+    await pushOneMeeting(accessToken, calendarId, m);
+    count += 1;
+  }
+  return count;
+}
+
 export async function runCalendarSync(): Promise<{ connected: boolean; pushed: number; pulled: number }> {
   const auth = await getValidAccessToken();
   if (!auth) return { connected: false, pushed: 0, pulled: 0 };
 
   try {
     const conn = await getConnectionWithSecrets();
-    const pushed = await pushEventsToGoogle(auth.accessToken, auth.calendarId);
+    const pushed =
+      (await pushEventsToGoogle(auth.accessToken, auth.calendarId)) + (await pushMeetingsToGoogle(auth.accessToken, auth.calendarId));
     const pulled = await pullExternalEvents(auth.accessToken, auth.calendarId, conn?.syncToken ?? null);
     await recordSyncResult("ok");
     return { connected: true, pushed, pulled };

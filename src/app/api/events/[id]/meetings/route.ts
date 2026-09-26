@@ -3,6 +3,7 @@ import { requireEventAccess } from "@/lib/require-event-access";
 import { listMeetings, createMeeting } from "@/lib/data/event-meetings";
 import { parseMeetingBody, emailClientAboutMeeting } from "@/lib/meeting-helpers";
 import { logActivity } from "@/lib/activity";
+import { syncMeetingToGoogle } from "@/lib/calendar-sync";
 import { errorMessage } from "@/lib/error-message";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -29,6 +30,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const meeting = await createMeeting(id, { ...parsed.input, createdBy: access.user.id });
     await logActivity({ actorUserId: access.user.id, action: "meeting.scheduled", entityType: "event", entityId: id, eventId: id });
+    await syncMeetingToGoogle(meeting.id);
     await emailClientAboutMeeting({ kind: "scheduled", client: access.event.clients, eventTitle: access.event.title, meeting, eventId: id });
     return NextResponse.json({ meeting });
   } catch (err) {
