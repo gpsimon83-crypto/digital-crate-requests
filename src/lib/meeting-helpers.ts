@@ -1,4 +1,4 @@
-import { sendSystemEmail } from "@/lib/send-system-email";
+import { sendTrackedEmail } from "@/lib/notify-submission";
 import { zonedTimeToUtc, BUSINESS_TIMEZONE } from "@/lib/scheduler-time";
 import type { MeetingInput } from "@/lib/data/event-meetings";
 
@@ -90,7 +90,13 @@ export async function emailClientAboutMeeting(input: {
       (input.kind === "cancelled" ? "" : `${details ? `${details}` : ""}\nYou can also see this in your event portal.\n`) +
       `\nTalk soon,\nDigital Crate DJs`;
 
-    await sendSystemEmail({ to: client.email, subject, text });
+    await sendTrackedEmail({
+      to: client.email,
+      subject,
+      text,
+      eventId: input.eventId,
+      failureTitle: `Meeting email to ${firstName} didn't send`
+    });
   } catch (err) {
     console.error("meeting email failed for event", input.eventId, err);
   }

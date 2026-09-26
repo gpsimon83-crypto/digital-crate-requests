@@ -6,8 +6,7 @@ import { zonedTimeToUtc, utcToZonedDateStr, BUSINESS_TIMEZONE } from "@/lib/sche
 import { logActivity } from "@/lib/activity";
 import { runAutomations } from "@/lib/automations-engine";
 import { deriveEventCategory } from "@/lib/event-category";
-import { alertStaffOfSubmission } from "@/lib/notify-submission";
-import { sendSystemEmail } from "@/lib/send-system-email";
+import { alertStaffOfSubmission, sendTrackedEmail } from "@/lib/notify-submission";
 
 function generateEventCode() {
   return `CONSULT-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
@@ -138,21 +137,19 @@ export async function POST(req: NextRequest) {
       origin: req.nextUrl.origin
     });
 
-    try {
-      const firstName = name.trim().split(" ")[0] || name;
-      await sendSystemEmail({
-        to: email,
-        subject: "Your consultation call with Digital Crate DJs is booked",
-        text:
-          `Hi ${firstName},\n\n` +
-          `You're booked! Your consultation call with Digital Crate DJs is scheduled for ${whenLabel}.\n\n` +
-          `We'll reach out at this email address${phone ? " or the phone number you gave us" : ""} around that time. ` +
-          `If you need to change the time, please contact us and we'll sort it out.\n\n` +
-          `Talk soon,\nDigital Crate DJs`
-      });
-    } catch (err) {
-      console.error("consultation confirmation email failed for event", event.id, err);
-    }
+    const firstName = name.trim().split(" ")[0] || name;
+    await sendTrackedEmail({
+      to: email,
+      subject: "Your consultation call with Digital Crate DJs is booked",
+      text:
+        `Hi ${firstName},\n\n` +
+        `You're booked! Your consultation call with Digital Crate DJs is scheduled for ${whenLabel}.\n\n` +
+        `We'll reach out at this email address${phone ? " or the phone number you gave us" : ""} around that time. ` +
+        `If you need to change the time, please contact us and we'll sort it out.\n\n` +
+        `Talk soon,\nDigital Crate DJs`,
+      eventId: event.id,
+      failureTitle: `Confirmation email to ${name} didn't send`
+    });
 
     return NextResponse.json({ event });
   } catch (err) {

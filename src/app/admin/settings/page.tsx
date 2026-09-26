@@ -118,6 +118,77 @@ interface CalendarConnection {
   lastSyncError: string | null;
 }
 
+function NotificationHealthCard() {
+  const [health, setHealth] = useState<{
+    email: { apiKeySet: boolean; fromSet: boolean; from: string | null; alertRecipients: number };
+    sms: { twilioSet: boolean; alertPhoneSet: boolean };
+  } | null>(null);
+  const [testing, setTesting] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/notification-health")
+      .then((r) => r.json())
+      .then((data) => setHealth(data.email ? data : null))
+      .catch(() => setHealth(null));
+  }, []);
+
+  async function sendTest() {
+    setTesting(true);
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin/notification-health", { method: "POST" });
+      const data = await res.json();
+      setResult(
+        data.ok
+          ? { ok: true, message: `Test sent to ${data.recipients.join(", ")}. Check those inboxes (and spam).` }
+          : { ok: false, message: data.error || "The test email failed." }
+      );
+    } catch {
+      setResult({ ok: false, message: "Something went wrong sending the test." });
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  const rows = health
+    ? [
+        { ok: health.email.apiKeySet, label: "Email service connected" },
+        { ok: health.email.fromSet, label: health.email.from ? `Sending as ${health.email.from}` : "Sender address set" },
+        { ok: health.email.alertRecipients > 0, label: `Alert emails go to ${health.email.alertRecipients} address${health.email.alertRecipients === 1 ? "" : "es"}` },
+        { ok: health.sms.twilioSet && health.sms.alertPhoneSet, label: "Text alerts to your phone" }
+      ]
+    : [];
+
+  return (
+    <GlassCard className="flex flex-col gap-3">
+      <div>
+        <p className="text-sm font-semibold">Email &amp; text alerts</p>
+        <p className="text-xs text-muted">Client confirmations and new-submission alerts. If one ever fails, it shows up in your Notifications.</p>
+      </div>
+      {health === null ? (
+        <p className="text-xs text-muted">Checking…</p>
+      ) : (
+        <div className="flex flex-col gap-1.5">
+          {rows.map((r) => (
+            <p key={r.label} className={`flex items-center gap-2 text-sm ${r.ok ? "" : "text-status-declined"}`}>
+              <span className={`h-2 w-2 shrink-0 rounded-full ${r.ok ? "bg-status-approved" : "bg-status-declined"}`} />
+              {r.label}
+              {!r.ok && <span className="text-xs">— not set up</span>}
+            </p>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-3">
+        <Button variant="secondary" size="sm" onClick={sendTest} disabled={testing || health === null}>
+          {testing ? "Sending…" : "Send test email"}
+        </Button>
+        {result && <span className={`text-xs ${result.ok ? "text-status-approved" : "text-status-declined"}`}>{result.message}</span>}
+      </div>
+    </GlassCard>
+  );
+}
+
 function GoogleCalendarCard() {
   const searchParams = useSearchParams();
   const justConnected = searchParams.get("calendar") === "connected";
@@ -319,6 +390,8 @@ function AdminSettingsPageInner() {
             <ChevronRight size={16} className="shrink-0 text-muted" />
           </GlassCard>
         </Link>
+
+        <NotificationHealthCard />
 
         <GoogleCalendarCard />
 
