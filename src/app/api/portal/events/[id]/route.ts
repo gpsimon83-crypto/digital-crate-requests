@@ -6,6 +6,7 @@ import { requirePortalReadAccess } from "@/lib/require-portal-access";
 import { listEventPayments, computeBalance } from "@/lib/data/payments";
 import { listContractsForEvent } from "@/lib/data/contracts";
 import { listChangeOrdersForEvent } from "@/lib/data/contract-change-orders";
+import { listUpcomingMeetingsForClient } from "@/lib/data/event-meetings";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -30,8 +31,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const contracts = await listContractsForEvent(id);
     const contract = contracts.find((c) => c.status !== "void") ?? null;
     const changeOrders = await listChangeOrdersForEvent(id).catch(() => []);
+    // Optional — a missing event_meetings table shouldn't take the page down.
+    const meetings = await listUpcomingMeetingsForClient(id).catch(() => []);
 
-    return NextResponse.json({ event, payments, balance, contract, changeOrders });
+    return NextResponse.json({ event, payments, balance, contract, changeOrders, meetings });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }

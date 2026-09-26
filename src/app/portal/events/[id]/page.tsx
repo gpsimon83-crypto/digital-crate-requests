@@ -15,6 +15,7 @@ import { PortalTopHeader } from "@/components/portal/portal-top-header";
 import { DjProfileCard } from "@/components/portal/dj-profile-card";
 import { ConversationPanel } from "@/components/portal/conversation-panel";
 import { NextStepsCard } from "@/components/portal/next-steps-card";
+import { UpcomingMeetingCard, type PortalMeeting } from "@/components/portal/upcoming-meeting-card";
 import { ChangeOrdersPanel, type ChangeOrderData } from "@/components/project/change-orders-panel";
 import { ArrowLeft, X, FileText, FileSignature, DollarSign, Music2, ChevronRight, MessageCircle, ClipboardList, type LucideIcon } from "lucide-react";
 import type { HeroSettings } from "@/lib/hero-settings";
@@ -182,6 +183,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
 
   const [contract, setContract] = useState<ContractInfo | null>(null);
   const [changeOrders, setChangeOrders] = useState<ChangeOrderData[]>([]);
+  const [meetings, setMeetings] = useState<PortalMeeting[]>([]);
   const [signName, setSignName] = useState("");
   const [signing, setSigning] = useState(false);
   const [signError, setSignError] = useState<string | null>(null);
@@ -195,6 +197,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       setBalance(data.balance);
       setContract(data.contract ?? null);
       setChangeOrders(data.changeOrders ?? []);
+      setMeetings(data.meetings ?? []);
       setMustPlay(data.event.must_play ?? []);
       setDoNotPlay(data.event.do_not_play ?? []);
       setSpecialRequests(data.event.special_requests ?? "");
@@ -421,6 +424,8 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                   onClick={() => goTo("music")}
                 />
               </div>
+
+              <UpcomingMeetingCard meetings={meetings} />
 
               <NextStepsCard
                 questionnaireCompleted={questionnaireCompleted}

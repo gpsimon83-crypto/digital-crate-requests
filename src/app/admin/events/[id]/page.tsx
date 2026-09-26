@@ -27,6 +27,7 @@ import { QuestionnaireSummary } from "@/components/project/questionnaire-summary
 import { PackageTemplatePicker } from "@/components/project/package-template-picker";
 import { PackageSelectionPanel } from "@/components/project/package-selection-panel";
 import { PortalHeroPanel } from "@/components/project/portal-hero-panel";
+import { MeetingsPanel } from "@/components/project/meetings-panel";
 import type { EventCategory } from "@/lib/event-category";
 import type { HeroSettings } from "@/lib/hero-settings";
 import type { PortalHeroExtras } from "@/components/project/portal-hero-panel";
@@ -812,6 +813,8 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
           {activeTab === "Details" && (
             <div className="mt-6 flex flex-col gap-4">
               <QuestionnaireSummary eventId={id} />
+
+              <MeetingsPanel eventId={id} />
 
               <PackageTemplatePicker eventId={id} />
 
