@@ -7,9 +7,9 @@ import type { PortalHeroBannerSize, PortalHeroExtras } from "@/components/projec
 import { computeCountdown } from "@/lib/portal-countdown";
 
 const BANNER_HEIGHT_CLASSES: Record<PortalHeroBannerSize, string> = {
-  compact: "h-[180px] sm:h-[220px] lg:h-[260px]",
-  standard: "h-[240px] sm:h-[300px] lg:h-[340px]",
-  tall: "h-[320px] sm:h-[380px] lg:h-[440px]"
+  compact: "h-[343px]",
+  standard: "h-[343px]",
+  tall: "h-[343px]"
 };
 
 /** rgba() at the given alpha for a #rrggbb color — used to keep the secondary hero lines lighter than the main name, whatever color is picked. */
