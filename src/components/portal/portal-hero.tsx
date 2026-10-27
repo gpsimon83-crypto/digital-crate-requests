@@ -60,7 +60,7 @@ export function PortalHeroPhoto({
       <div className="pointer-events-none absolute inset-0" style={{ backgroundColor: `rgba(10,8,4,${settings.overlayDarkness / 100})` }} />
       <div
         className="pointer-events-none absolute inset-0"
-        style={{ background: "linear-gradient(90deg, rgba(10,8,4,0.7) 0%, rgba(10,8,4,0.15) 55%, transparent 85%)" }}
+        style={{ background: "linear-gradient(90deg, rgba(10,8,4,0.85) 0%, rgba(10,8,4,0.15) 55%, transparent 85%)" }}
       />
       <div
         className="pointer-events-none absolute inset-x-0 bottom-0 h-28"
@@ -78,18 +78,18 @@ export function PortalHeroPhoto({
 
       <div className="absolute inset-x-0 bottom-0 flex flex-col gap-2 px-[4%] pb-9">
         {headline && (
-          <p className="text-[11px] font-semibold uppercase tracking-[3px]" style={{ color: withAlpha(textColor, 0.9) }}>
+          <p className="text-xs font-bold uppercase tracking-[3px]" style={{ color: textColor, textShadow: "0 2px 6px rgba(0,0,0,0.6)" }}>
             {headline}
           </p>
         )}
         <span className="h-px w-10 bg-gold" />
         {displayName && (
-          <p className="font-display text-3xl italic sm:text-4xl" style={{ color: textColor }}>
+          <p className="font-display text-4xl font-bold italic sm:text-5xl" style={{ color: textColor, textShadow: "0 2px 8px rgba(0,0,0,0.6)" }}>
             {displayName}
           </p>
         )}
         {(eventDateLabel || venueName) && (
-          <p className="text-xs font-medium uppercase tracking-[2px]" style={{ color: withAlpha(textColor, 0.8) }}>
+          <p className="text-sm font-bold uppercase tracking-[2px]" style={{ color: textColor, textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}>
             {eventDateLabel}
             {eventDateLabel && venueName ? " · " : ""}
             {venueName}
