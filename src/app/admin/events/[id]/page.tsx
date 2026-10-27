@@ -550,7 +550,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
         <p
           className={cn(
-            "font-display text-4xl font-light sm:text-5xl",
+            "font-display text-4xl font-bold italic [text-shadow:0_2px_8px_rgba(0,0,0,0.6)] sm:text-5xl",
             event.hero_image_url ? "text-white" : "text-[#1A140A]"
           )}
         >
@@ -558,8 +558,8 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
         </p>
         <p
           className={cn(
-            "mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm",
-            event.hero_image_url ? "text-white/85" : "text-[#1A140A]/80"
+            "mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]",
+            event.hero_image_url ? "text-white" : "text-[#1A140A]/80"
           )}
         >
           {event.event_type && <span className="capitalize">{event.event_type}</span>}
