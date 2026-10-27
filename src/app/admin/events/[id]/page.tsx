@@ -508,7 +508,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
       <div
         className={cn(
-          "relative mx-6 mt-3 flex min-h-[160px] flex-col justify-end overflow-hidden border border-border bg-cover bg-center p-6 sm:mx-8 sm:p-8",
+          "relative mx-6 mt-3 flex min-h-[343px] flex-col justify-end overflow-hidden border border-border bg-cover bg-center p-6 sm:mx-8 sm:p-8",
           !event.hero_image_url && "bg-none"
         )}
         style={
