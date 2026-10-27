@@ -25,13 +25,13 @@ const EDGE_FADE_MASK = "linear-gradient(to right, transparent, black 12%, black 
 export function PhotoBanner({
   section,
   title,
-  height = 260,
+  height = 343,
   rotateMs = 30000,
 }: {
   section: string;
   title: string;
   height?: number;
-  height = 343,
+  height = rotateMs?: number;
 }) {
   const [photos, setPhotos] = useState<Photo[] | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
