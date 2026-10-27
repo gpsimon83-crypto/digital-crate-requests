@@ -485,7 +485,7 @@ export default function LibraryDashboardPage() {
       </div>
 
       <main className="relative z-10 mx-auto flex max-w-7xl flex-col gap-8 px-6 py-8 sm:px-8">
-        <PhotoBanner section="hero" title="Studio & Crate Gallery" height={280} />
+        <PhotoBanner section="hero" title="Studio & Crate Gallery" height={343} />
 
         {!supported && (
           <GlassCard className="flex items-center gap-3 border-status-pending/30 text-sm">
@@ -1019,7 +1019,7 @@ export default function LibraryDashboardPage() {
           </>
         )}
 
-        <PhotoBanner section="behind-the-decks" title="Behind the Decks" height={220} />
+        <PhotoBanner section="behind-the-decks" title="Behind the Decks" height={343} />
       </main>
     </div>
     </MasterPlayerProvider>
