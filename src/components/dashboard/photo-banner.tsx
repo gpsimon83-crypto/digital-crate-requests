@@ -31,7 +31,7 @@ export function PhotoBanner({
   section: string;
   title: string;
   height?: number;
-  height = rotateMs?: number;
+  rotateMs?: number;
 }) {
   const [photos, setPhotos] = useState<Photo[] | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
