@@ -102,7 +102,7 @@ export function EventHero({
       <div className="relative w-full">
         <div
           ref={heroRef}
-          className="relative h-[420px] overflow-hidden sm:h-[500px] lg:h-[640px]"
+          className="relative h-[343px] overflow-hidden"
           style={{ transform: `translateY(${parallax * 0.3}px)` }}
         >
           {/* Layer 1: image or luxury fallback */}
