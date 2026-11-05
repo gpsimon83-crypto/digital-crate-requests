@@ -23,7 +23,8 @@ import {
   LifeBuoy,
   ArrowLeft,
   PackageOpen,
-  CalendarCheck
+  CalendarCheck,
+  Mail
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -71,7 +72,10 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   },
   {
     label: "Communication",
-    items: [{ href: "/admin/files", label: "Library", icon: FolderOpen }]
+    items: [
+      { href: "/admin/communications", label: "Communications", icon: Mail },
+      { href: "/admin/files", label: "Library", icon: FolderOpen }
+    ]
   },
   {
     label: "Team",
