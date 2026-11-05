@@ -26,12 +26,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid design" }, { status: 400 });
   const design = sanitizeDesign(body);
-  const audience = ["client", "dj", "venue", "personal"].includes(body.audience) ? body.audience : "client";
   try {
     const db = createAdminClient();
     const { data, error } = await db
       .from("comm_email_designs")
-      .update({ ...design, audience, updated_by: auth.userId, updated_at: new Date().toISOString() })
+      .update({ ...design, updated_by: auth.userId, updated_at: new Date().toISOString() })
       .eq("id", id)
       .is("archived_at", null)
       .select("id, updated_at")

@@ -24,11 +24,11 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const auth = await requireStaffUser();
   if (auth instanceof NextResponse) return auth;
-  const body = (await req.json().catch(() => ({}))) as { fromId?: string; name?: string };
+  const body = (await req.json().catch(() => ({}))) as { fromId?: string; name?: string; audience?: string };
   try {
     const db = createAdminClient();
     let design;
-    let audience = "client";
+    let audience = body.audience === "dj" ? "dj" : "client";
     if (body.fromId) {
       const { data: src, error } = await db.from("comm_email_designs").select("*").eq("id", body.fromId).single();
       if (error) throw error;
@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
     } else {
       design = sanitizeDesign({
         name: body.name || "Untitled email",
+        audience,
         subject: "",
         theme: "dark",
         blocks: [defaultBlock("logo"), defaultBlock("heading"), defaultBlock("text"), defaultBlock("button"), defaultBlock("footer")]

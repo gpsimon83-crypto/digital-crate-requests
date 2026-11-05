@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  AUDIENCE_LABELS,
   BLOCK_LABELS,
   MERGE_FIELDS,
   SAMPLE_MERGE_VALUES,
@@ -276,6 +277,23 @@ export function EmailStudio({ designId }: { designId: string }) {
               <span className={labelCls}>Preview text (shows after the subject in the inbox)</span>
               <input value={design.preheader} onChange={(e) => update((d) => ({ ...d, preheader: e.target.value }))} className={inputCls} />
             </label>
+            <div>
+              <span className={labelCls}>Who it&apos;s for</span>
+              <div className="flex gap-2">
+                {(["client", "dj"] as const).map((a) => (
+                  <button
+                    key={a}
+                    onClick={() => update((d) => ({ ...d, audience: a }))}
+                    className={cn(
+                      "flex-1 rounded-[10px] border px-3 py-2 text-sm",
+                      design.audience === a ? "border-gold bg-gold-soft font-medium" : "border-black/10 hover:border-gold"
+                    )}
+                  >
+                    {AUDIENCE_LABELS[a]}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div>
               <span className={labelCls}>Style</span>
               <div className="flex gap-2">
@@ -653,6 +671,8 @@ interface RecipientOption {
 }
 
 function SendModal({ designId, design, onClose }: { designId: string; design: EmailDesign; onClose: () => void }) {
+  const isDj = design.audience === "dj";
+  const who = isDj ? "DJs" : "clients";
   const [q, setQ] = useState("");
   const [upcomingOnly, setUpcomingOnly] = useState(false);
   const [options, setOptions] = useState<RecipientOption[] | null>(null);
@@ -666,12 +686,12 @@ function SendModal({ designId, design, onClose }: { designId: string; design: Em
 
   useEffect(() => {
     const t = setTimeout(() => {
-      api<{ recipients: RecipientOption[] }>(`/api/admin/communications/recipients?q=${encodeURIComponent(q)}${upcomingOnly ? "&upcoming=1" : ""}`)
+      api<{ recipients: RecipientOption[] }>(`/api/admin/communications/recipients?q=${encodeURIComponent(q)}${isDj ? "&type=dj" : upcomingOnly ? "&upcoming=1" : ""}`)
         .then((d) => setOptions(d.recipients))
         .catch((e) => setErr(e.message));
     }, 250);
     return () => clearTimeout(t);
-  }, [q, upcomingOnly]);
+  }, [q, upcomingOnly, isDj]);
 
   const extraEmails = extra
     .split(/[\s,;]+/)
@@ -691,7 +711,7 @@ function SendModal({ designId, design, onClose }: { designId: string; design: Em
     setBusy(true);
     setErr(null);
     try {
-      const body = JSON.stringify({ designId, design, clientIds: [...picked.keys()], emails: extraEmails, confirm });
+      const body = JSON.stringify({ designId, design, [isDj ? "djIds" : "clientIds"]: [...picked.keys()], emails: extraEmails, confirm });
       const r = await api<{ check?: typeof check; result?: typeof result }>("/api/admin/communications/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -715,22 +735,22 @@ function SendModal({ designId, design, onClose }: { designId: string; design: Em
   const fieldLabel = (t: string) => MERGE_FIELDS.find((f) => f.token === t)?.label ?? t;
 
   return (
-    <Modal title={step === "done" ? "Sent" : "Send to clients"} onClose={onClose}>
+    <Modal title={step === "done" ? "Sent" :  `Send to ${who}`} onClose={onClose}>
       {step === "pick" && (
         <>
-          <p className="text-sm text-muted">Each person gets their own copy, personalized from their client record. Nobody sees anyone else&apos;s address.</p>
+          <p className="text-sm text-muted">Each person gets their own copy, personalized from their {isDj ? "DJ profile and next assigned gig" : "client record"}. Nobody sees anyone else&apos;s address.</p>
           <div className="mt-3 flex items-center gap-2">
-            <input value={q} onChange={(e) => setQ(e.target.value)} className={inputCls} placeholder="Search clients by name or email" aria-label="Search clients" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} className={inputCls} placeholder={`Search ${who} by name or email`} aria-label={`Search ${who}`} />
           </div>
-          <label className="mt-2 flex items-center gap-2 text-xs">
+          {!isDj && <label className="mt-2 flex items-center gap-2 text-xs">
             <input type="checkbox" checked={upcomingOnly} onChange={(e) => setUpcomingOnly(e.target.checked)} className="accent-[var(--gold)]" />
             Only clients with an upcoming event
-          </label>
+          </label>}
           <div className="mt-2 max-h-64 overflow-y-auto rounded-[10px] border border-border">
             {!options ? (
-              <p className="p-3 text-sm text-muted">Loading clients…</p>
+              <p className="p-3 text-sm text-muted">Loading {who}…</p>
             ) : !options.length ? (
-              <p className="p-3 text-sm text-muted">No clients with an email address match.</p>
+              <p className="p-3 text-sm text-muted">{isDj ? "No DJs with an email address match. A DJ needs a CRM login or signature email to show here; you can also type addresses below." : "No clients with an email address match."}</p>
             ) : (
               <>
                 <button
@@ -767,7 +787,7 @@ function SendModal({ designId, design, onClose }: { designId: string; design: Em
           <label className="mt-3 block">
             <span className={labelCls}>Other email addresses (optional, separated by commas)</span>
             <textarea value={extra} onChange={(e) => setExtra(e.target.value)} rows={2} className={inputCls} placeholder="name@example.com, other@example.com" />
-            <span className="mt-1 block text-[11px] text-muted">These aren&apos;t CRM clients, so only the company name can be filled in for them.</span>
+            <span className="mt-1 block text-[11px] text-muted">These aren&apos;t CRM {who}, so only the company name can be filled in for them.</span>
           </label>
           {err && <p className="mt-3 text-sm text-status-declined">{err}</p>}
           <div className="mt-4 flex items-center justify-between gap-2">

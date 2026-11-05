@@ -27,6 +27,7 @@ interface DesignRow {
   name: string;
   subject: string;
   theme: "dark" | "light";
+  audience: string;
   is_starter: boolean;
   updated_at: string;
 }
@@ -92,6 +93,7 @@ export function CommunicationsCenter({ tab }: { tab: CommTab }) {
   const [busy, setBusy] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [openSend, setOpenSend] = useState<string | null>(null);
+  const [audienceFilter, setAudienceFilter] = useState<"all" | "client" | "dj">("all");
 
   const load = useCallback(async () => {
     try {
@@ -112,14 +114,14 @@ export function CommunicationsCenter({ tab }: { tab: CommTab }) {
     load();
   }, [load]);
 
-  async function createDesign(fromId?: string) {
+  async function createDesign(fromId?: string, audience?: "client" | "dj") {
     setBusy(true);
     setError(null);
     try {
       const { design } = await api<{ design: DesignRow }>("/api/admin/communications/designs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(fromId ? { fromId } : {})
+        body: JSON.stringify(fromId ? { fromId } : { audience: audience ?? "client" })
       });
       router.push(`/admin/communications/studio/${design.id}`);
     } catch (err) {
@@ -189,7 +191,7 @@ export function CommunicationsCenter({ tab }: { tab: CommTab }) {
                   <h2 className="font-display text-2xl font-light">Start from a template</h2>
                   <Link href="/admin/communications?tab=templates" className="text-sm text-gold hover:underline">All templates</Link>
                 </div>
-                <DesignGrid designs={(designs ?? []).slice(0, 4)} loading={!designs} onDuplicate={createDesign} onDelete={setDeleteId} compact />
+                <DesignGrid designs={(designs ?? []).slice(0, 4)} loading={!designs} onDuplicate={(id) => createDesign(id)} onDelete={setDeleteId} compact />
               </div>
               <div>
                 <div className="mb-3 flex items-center justify-between">
@@ -204,7 +206,37 @@ export function CommunicationsCenter({ tab }: { tab: CommTab }) {
 
         {tab === "templates" && (
           <section className="py-6">
-            <DesignGrid designs={designs ?? []} loading={!designs} onDuplicate={createDesign} onDelete={setDeleteId} onNew={() => createDesign()} />
+            <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Filter templates">
+              {([
+                ["all", "All"],
+                ["client", "Clients"],
+                ["dj", "DJ team"]
+              ] as const).map(([k, label]) => {
+                const n = k === "all" ? (designs ?? []).length : (designs ?? []).filter((d) => (d.audience === "dj" ? "dj" : "client") === k).length;
+                return (
+                  <button
+                    key={k}
+                    role="tab"
+                    aria-selected={audienceFilter === k}
+                    onClick={() => setAudienceFilter(k)}
+                    className={
+                      audienceFilter === k
+                        ? "rounded-full border border-gold bg-gold-soft px-3 py-1 text-xs font-medium"
+                        : "rounded-full border border-black/10 px-3 py-1 text-xs hover:border-gold"
+                    }
+                  >
+                    {label} <span className="text-muted">{n}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <DesignGrid
+              designs={(designs ?? []).filter((d) => audienceFilter === "all" || (d.audience === "dj" ? "dj" : "client") === audienceFilter)}
+              loading={!designs}
+              onDuplicate={(id) => createDesign(id)}
+              onDelete={setDeleteId}
+              onNew={() => createDesign(undefined, audienceFilter === "dj" ? "dj" : "client")}
+            />
           </section>
         )}
 
@@ -269,7 +301,7 @@ function DesignGrid({
               <Button size="sm" variant="icon" title="Delete" aria-label={`Delete ${d.name}`} onClick={() => onDelete(d.id)}>
                 <Trash2 size={14} />
               </Button>
-              <span className="ml-auto text-[11px] text-muted">{d.theme === "dark" ? "Dark" : "Light"}</span>
+              <span className="ml-auto text-[11px] text-muted">{d.audience === "dj" ? "DJ team" : "Clients"}</span>
             </div>
           </div>
         </div>

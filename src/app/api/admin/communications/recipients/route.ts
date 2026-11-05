@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireStaffUser, isValidEmail } from "@/lib/comm/server";
+import { requireStaffUser, isValidEmail, djRecipientOptions } from "@/lib/comm/server";
 
 /** Client picker for the Studio: clients with a usable email, searchable. */
 export async function GET(req: NextRequest) {
@@ -9,6 +9,13 @@ export async function GET(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   const q = (req.nextUrl.searchParams.get("q") || "").trim().replace(/[%,()]/g, " ");
   const upcoming = req.nextUrl.searchParams.get("upcoming") === "1";
+  if (req.nextUrl.searchParams.get("type") === "dj") {
+    try {
+      return NextResponse.json({ recipients: await djRecipientOptions(q) });
+    } catch (err) {
+      return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
+    }
+  }
   try {
     const db = createAdminClient();
     let query = db.from("clients").select("id, first_name, last_name, company_name, email, status").not("email", "is", null).order("created_at", { ascending: false }).limit(200);

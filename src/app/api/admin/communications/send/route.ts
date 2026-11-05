@@ -7,6 +7,7 @@ import {
   recipientWarnings,
   recipientsForAddresses,
   recipientsForClients,
+  recipientsForDjs,
   requireStaffUser,
   sendDesign,
   isValidEmail
@@ -21,6 +22,7 @@ interface SendBody {
   test?: boolean;
   testEmail?: string;
   clientIds?: string[];
+  djIds?: string[];
   emails?: string[];
   eventId?: string | null;
   /** Only send when true; otherwise the route just returns the pre-send check. */
@@ -63,7 +65,12 @@ export async function POST(req: NextRequest) {
 
     const clientIds = Array.isArray(body.clientIds) ? body.clientIds.filter((x) => typeof x === "string").slice(0, MAX_RECIPIENTS_PER_SEND) : [];
     const emails = Array.isArray(body.emails) ? body.emails.filter((x) => typeof x === "string").slice(0, MAX_RECIPIENTS_PER_SEND) : [];
-    const recipients = [...(await recipientsForClients(clientIds, body.eventId ?? null)), ...recipientsForAddresses(emails)];
+    const djIds = Array.isArray(body.djIds) ? body.djIds.filter((x) => typeof x === "string").slice(0, MAX_RECIPIENTS_PER_SEND) : [];
+    const recipients = [
+      ...(await recipientsForClients(clientIds, body.eventId ?? null)),
+      ...(await recipientsForDjs(djIds)),
+      ...recipientsForAddresses(emails)
+    ];
     if (!recipients.length) return NextResponse.json({ error: "Choose at least one recipient with a valid email address." }, { status: 400 });
     if (recipients.length > MAX_RECIPIENTS_PER_SEND) {
       return NextResponse.json({ error: `Send to ${MAX_RECIPIENTS_PER_SEND} people or fewer at a time.` }, { status: 400 });

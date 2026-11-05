@@ -21,8 +21,13 @@ export type EmailBlock =
 
 export type EmailBlockType = EmailBlock["type"];
 
+export type EmailAudience = "client" | "dj";
+
+export const AUDIENCE_LABELS: Record<EmailAudience, string> = { client: "Clients", dj: "DJ team" };
+
 export interface EmailDesign {
   name: string;
+  audience: EmailAudience;
   subject: string;
   preheader: string;
   theme: EmailTheme;
@@ -81,7 +86,8 @@ export const MERGE_FIELDS: { token: string; label: string; sample: string }[] = 
   { token: "venue_name", label: "Venue", sample: "The Edgewater" },
   { token: "dj_name", label: "Assigned DJ", sample: "DJ Peace" },
   { token: "portal_link", label: "Client portal link", sample: "https://cratesdjs.com/portal" },
-  { token: "review_link", label: "Review link (from Settings)", sample: "https://g.page/r/digital-crate-djs/review" }
+  { token: "review_link", label: "Review link (from Settings)", sample: "https://g.page/r/digital-crate-djs/review" },
+  { token: "members_link", label: "DJ members area link", sample: "https://digitalcratedjs.com/members/" }
 ];
 
 export type MergeValues = Partial<Record<string, string>>;
@@ -135,6 +141,7 @@ export function sanitizeDesign(input: unknown): EmailDesign {
   }
   return {
     name: str(d.name, 200) || "Untitled email",
+    audience: d.audience === "dj" ? "dj" : "client",
     subject: str(d.subject, 300),
     preheader: str(d.preheader, 300),
     theme: d.theme === "light" ? "light" : "dark",

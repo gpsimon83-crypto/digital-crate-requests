@@ -47,15 +47,88 @@ function replyToAddress(): string {
   return (process.env.COMM_REPLY_TO || (process.env.OPS_ALERT_EMAILS || "").split(",")[0] || "").trim();
 }
 
-/** Inserts the starter designs the first time the Communications Center is opened. */
+/**
+ * Adds starter designs for any audience that has none yet (so new starter
+ * sets, like the DJ team templates, appear without touching designs the
+ * admin already has). A deleted starter isn't brought back.
+ */
 export async function ensureStarterDesigns() {
   const db = createAdminClient();
-  const { count, error } = await db.from("comm_email_designs").select("id", { count: "exact", head: true });
+  const { data, error } = await db.from("comm_email_designs").select("audience, is_starter");
   if (error) throw error;
-  if ((count ?? 0) > 0) return;
-  await db.from("comm_email_designs").insert(
-    STARTER_DESIGNS.map((d) => ({ name: d.name, audience: d.audience, subject: d.subject, preheader: d.preheader, theme: d.theme, blocks: d.blocks, is_starter: true }))
+  const seeded = new Set((data ?? []).filter((r) => r.is_starter).map((r) => r.audience));
+  const isEmpty = (data ?? []).length === 0;
+  // Client starters only go into an empty library; other audiences are added once.
+  const toAdd = STARTER_DESIGNS.filter((d) => (d.audience === "client" ? isEmpty : !seeded.has(d.audience)));
+  if (!toAdd.length) return;
+  const { error: insErr } = await db.from("comm_email_designs").insert(
+    toAdd.map((d) => ({ name: d.name, audience: d.audience, subject: d.subject, preheader: d.preheader, theme: d.theme, blocks: d.blocks, is_starter: true }))
   );
+  if (insErr) throw insErr;
+}
+
+export const MEMBERS_LINK = "https://digitalcratedjs.com/members/";
+
+/**
+ * DJ team recipients. Email comes from the DJ's CRM login (auth user), or
+ * their email-signature address if they have no login. Event fields come
+ * from the DJ's next assigned upcoming event, if any.
+ */
+export async function recipientsForDjs(djIds: string[]): Promise<Recipient[]> {
+  if (!djIds.length) return [];
+  const db = createAdminClient();
+  const { data: djs, error } = await db.from("djs").select("id, display_name, auth_user_id, signature_email").in("id", djIds);
+  if (error) throw error;
+  const emails = await authEmailsById();
+  const { data: events } = await db
+    .from("events")
+    .select("id, dj_id, event_type, starts_at, venues(name)")
+    .in("dj_id", djIds)
+    .gte("starts_at", new Date().toISOString())
+    .order("starts_at", { ascending: true });
+  return (djs ?? [])
+    .map((d) => {
+      const email = (d.auth_user_id && emails.get(d.auth_user_id)) || d.signature_email || "";
+      const next = (events ?? []).find((e) => e.dj_id === d.id);
+      const venue = next ? (next.venues as unknown as { name?: string } | null)?.name : undefined;
+      const values: MergeValues = {
+        dj_name: d.display_name || "",
+        first_name: d.display_name || "",
+        full_name: d.display_name || "",
+        company_name: COMPANY_NAME,
+        members_link: MEMBERS_LINK,
+        event_type: next?.event_type || "",
+        event_date: next?.starts_at ? fmtDate(next.starts_at) : "",
+        event_time: next?.starts_at ? fmtTime(next.starts_at) : "",
+        venue_name: venue || ""
+      };
+      return { email: email.trim(), name: d.display_name || null, clientId: null, eventId: next?.id ?? null, values };
+    })
+    .filter((r) => isValidEmail(r.email));
+}
+
+async function authEmailsById(): Promise<Map<string, string>> {
+  const db = createAdminClient();
+  const out = new Map<string, string>();
+  for (let page = 1; page <= 10; page++) {
+    const { data, error } = await db.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) break;
+    for (const u of data.users) if (u.email) out.set(u.id, u.email);
+    if (data.users.length < 200) break;
+  }
+  return out;
+}
+
+/** DJ picker list for the Studio (only DJs with a usable email). */
+export async function djRecipientOptions(q: string) {
+  const db = createAdminClient();
+  const { data, error } = await db.from("djs").select("id, display_name, auth_user_id, signature_email").order("display_name");
+  if (error) throw error;
+  const emails = await authEmailsById();
+  const needle = q.trim().toLowerCase();
+  return (data ?? [])
+    .map((d) => ({ id: d.id as string, name: (d.display_name as string) || "DJ", email: ((d.auth_user_id && emails.get(d.auth_user_id)) || d.signature_email || "") as string, nextEvent: null }))
+    .filter((d) => isValidEmail(d.email) && (!needle || d.name.toLowerCase().includes(needle) || d.email.toLowerCase().includes(needle)));
 }
 
 export interface Recipient {
@@ -139,7 +212,7 @@ export function recipientsForAddresses(emails: string[]): Recipient[] {
   return emails
     .map((e) => e.trim())
     .filter(isValidEmail)
-    .map((email) => ({ email, name: null, clientId: null, eventId: null, values: { company_name: COMPANY_NAME, portal_link: `${appOrigin()}/portal` } }));
+    .map((email) => ({ email, name: null, clientId: null, eventId: null, values: { company_name: COMPANY_NAME, portal_link: `${appOrigin()}/portal`, members_link: MEMBERS_LINK } }));
 }
 
 export interface SendResult {
