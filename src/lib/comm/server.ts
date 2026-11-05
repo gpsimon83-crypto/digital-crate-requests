@@ -57,10 +57,10 @@ export async function ensureStarterDesigns() {
   const { data, error } = await db.from("comm_email_designs").select("id, name, audience, is_starter, subject, preheader, blocks, created_at, updated_at");
   if (error) throw error;
   await refreshUneditedStarters(data ?? []);
-  const seeded = new Set((data ?? []).filter((r) => r.is_starter).map((r) => r.audience));
-  const isEmpty = (data ?? []).length === 0;
-  // Client starters only go into an empty library; other audiences are added once.
-  const toAdd = STARTER_DESIGNS.filter((d) => (d.audience === "client" ? isEmpty : !seeded.has(d.audience)));
+  // Any starter not in the library yet is added (deleted designs are only
+  // archived, so their rows still count and they don't come back).
+  const names = new Set((data ?? []).map((r) => `${r.audience}|${r.name}`));
+  const toAdd = STARTER_DESIGNS.filter((d) => !names.has(`${d.audience}|${d.name}`));
   if (!toAdd.length) return;
   const { error: insErr } = await db.from("comm_email_designs").insert(
     toAdd.map((d) => ({ name: d.name, audience: d.audience, subject: d.subject, preheader: d.preheader, theme: d.theme, blocks: d.blocks, is_starter: true }))

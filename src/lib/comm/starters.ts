@@ -203,6 +203,21 @@ function DJ_TEAM_STARTERS(): EmailDesign[] {
       b("text", { text: "Hi {{dj_name}},\n\n[Write the update here.]\n\nIf this changes any policy, you'll see it in the DCDJs Academy to review and acknowledge." }),
       b("button", { label: "Open members area", url: MEMBERS })
     ]),
+    dj("DJ: Create your members account", "Set up your Digital Crate DJs members account", "Your invite code and three quick steps to get in.", [
+      b("heading", { text: "Your members account is ready to set up", size: "md", align: "center" }),
+      b("text", {
+        text: "Hi there,\n\nYou're all set to join the Digital Crate DJs members area, your home base for submitting availability, seeing your gigs, completing DCDJs Academy training and using the music pool.\n\n**Your invite code: [INVITE CODE]**\n(One-time use, just for you.)\n\n- Click **Create my account** below\n- Enter your DJ name, real name and this email address\n- Create a password and enter your invite code"
+      }),
+      b("button", { label: "Create my account", url: DJ_REGISTER }),
+      b("text", {
+        text: "**Your username** is the DJ name you enter when you sign up (accents are dropped, so DJ Omertà becomes DJ Omerta). You can also sign in with your email address.\n\nOnce management approves your account, sign in any time at [digitalcratedjs.com/members](" + SITE + "/members/)."
+      }),
+      b("divider"),
+      b("text", {
+        align: "center",
+        text: "Forgot your password later? Click **Forgot your password?** on the sign-in page, or [reset it here](" + LOST_PASSWORD + ") and we'll email you a link to set a new one."
+      })
+    ]),
     dj("DJ: Welcome to the members area", "Welcome to the DCDJs members area, {{dj_name}}", "Your schedule, gigs, training and music pool in one place.", [
       b("heading", { text: "Welcome to the team", align: "center" }),
       b("text", {
