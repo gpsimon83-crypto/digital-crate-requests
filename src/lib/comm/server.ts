@@ -54,8 +54,9 @@ function replyToAddress(): string {
  */
 export async function ensureStarterDesigns() {
   const db = createAdminClient();
-  const { data, error } = await db.from("comm_email_designs").select("audience, is_starter");
+  const { data, error } = await db.from("comm_email_designs").select("id, name, audience, is_starter, subject, preheader, blocks, created_at, updated_at");
   if (error) throw error;
+  await refreshUneditedStarters(data ?? []);
   const seeded = new Set((data ?? []).filter((r) => r.is_starter).map((r) => r.audience));
   const isEmpty = (data ?? []).length === 0;
   // Client starters only go into an empty library; other audiences are added once.
@@ -65,6 +66,50 @@ export async function ensureStarterDesigns() {
     toAdd.map((d) => ({ name: d.name, audience: d.audience, subject: d.subject, preheader: d.preheader, theme: d.theme, blocks: d.blocks, is_starter: true }))
   );
   if (insErr) throw insErr;
+}
+
+/**
+ * When a starter's built-in content improves, copies that have never been
+ * edited (updated_at still equals created_at) pick up the new version.
+ * Anything an admin has changed is left alone.
+ */
+async function refreshUneditedStarters(
+  rows: { id: string; name: string; audience: string; is_starter: boolean; subject: string; preheader: string; blocks: unknown; created_at: string; updated_at: string }[]
+) {
+  const db = createAdminClient();
+  for (const row of rows) {
+    if (!row.is_starter || new Date(row.updated_at).getTime() - new Date(row.created_at).getTime() > 1000) continue;
+    const latest = STARTER_DESIGNS.find((d) => d.name === row.name && d.audience === row.audience);
+    if (!latest) continue;
+    if (stableJson(stripIds(row.blocks)) === stableJson(stripIds(latest.blocks)) && row.subject === latest.subject && row.preheader === latest.preheader) continue;
+    await db
+      .from("comm_email_designs")
+      .update({ subject: latest.subject, preheader: latest.preheader, blocks: latest.blocks, updated_at: row.created_at })
+      .eq("id", row.id)
+      .eq("updated_at", row.updated_at);
+  }
+}
+
+function stripIds(blocks: unknown) {
+  return Array.isArray(blocks)
+    ? blocks.map((b) => {
+        const { id: _id, ...rest } = b as Record<string, unknown>;
+        void _id;
+        return rest;
+      })
+    : [];
+}
+
+/** JSON with sorted keys (Postgres jsonb doesn't keep key order). */
+function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(",")}]`;
+  if (v && typeof v === "object") {
+    return `{${Object.keys(v as object)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson((v as Record<string, unknown>)[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(v ?? null);
 }
 
 export const MEMBERS_LINK = "https://digitalcratedjs.com/members/";

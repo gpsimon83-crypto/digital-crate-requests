@@ -138,6 +138,8 @@ export const STARTER_DESIGNS: EmailDesign[] = [
 
 function DJ_TEAM_STARTERS(): EmailDesign[] {
   const MEMBERS = "{{members_link}}";
+  const DJ_REGISTER = SITE + "/dj-register";
+  const LOST_PASSWORD = SITE + "/wp-login.php?action=lostpassword";
   const dj = (name: string, subject: string, preheader: string, blocks: EmailBlock[], theme: "dark" | "light" = "dark"): EmailDesign => ({
     audience: "dj",
     name,
@@ -204,9 +206,21 @@ function DJ_TEAM_STARTERS(): EmailDesign[] {
     dj("DJ: Welcome to the members area", "Welcome to the DCDJs members area, {{dj_name}}", "Your schedule, gigs, training and music pool in one place.", [
       b("heading", { text: "Welcome to the team", align: "center" }),
       b("text", {
-        text: "Hi {{dj_name}},\n\nThe members area is your home base at Digital Crate DJs:\n\n- Submit your monthly availability\n- See your gigs and assignments\n- Complete DCDJs Academy training\n- Use the music pool and Crate Builder\n\nSign in with the email address this message was sent to."
+        text: "Hi {{dj_name}},\n\nThe members area is your home base at Digital Crate DJs:\n\n- Submit your monthly availability\n- See your gigs and assignments\n- Complete DCDJs Academy training\n- Use the music pool and Crate Builder"
       }),
-      b("button", { label: "Sign in", url: MEMBERS })
+      b("heading", { text: "New to the members area?", size: "md", align: "center" }),
+      b("text", {
+        align: "center",
+        text: "Create your account with the one-time invite code from management: **[CODE]**"
+      }),
+      b("button", { label: "Create my account", url: DJ_REGISTER }),
+      b("divider"),
+      b("heading", { text: "Already have an account?", size: "md", align: "center" }),
+      b("button", { label: "Sign in", url: MEMBERS }),
+      b("text", {
+        align: "center",
+        text: "Can't remember your password? [Reset it here](" + LOST_PASSWORD + ") and we'll email you a link to set a new one."
+      })
     ]),
     dj("DJ: Update your profile", "Please update your DJ profile", "Your bio and photos help us book you.", [
       b("heading", { text: "Keep your profile fresh", size: "md", align: "center" }),
