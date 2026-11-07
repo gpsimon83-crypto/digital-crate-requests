@@ -74,8 +74,9 @@ function ResetForm() {
       return;
     }
     setDone(true);
+    const { data } = await supabase.auth.getUser();
     setTimeout(() => {
-      router.push("/dj-dashboard/bookings");
+      router.push(data.user?.app_metadata?.role === "venue" ? "/venue" : "/dj-dashboard/bookings");
       router.refresh();
     }, 1500);
   }

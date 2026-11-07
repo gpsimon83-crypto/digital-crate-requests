@@ -3,10 +3,13 @@ import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/require-admin";
 import { requireAuth } from "@/lib/require-auth";
+import { currentUser, isVenueUser } from "@/lib/venue/server";
 
 export async function GET() {
   const denied = await requireAuth();
   if (denied) return denied;
+  // Venue partner logins only ever see their own venue (via /api/venue/*).
+  if (isVenueUser(await currentUser())) return NextResponse.json({ error: "Not allowed" }, { status: 403 });
 
   try {
     const db = createAdminClient();

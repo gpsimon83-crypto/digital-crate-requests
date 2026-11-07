@@ -11,7 +11,10 @@ const PORTAL_LOGIN_PATH = "/portal/login";
 const PORTAL_SIGNUP_PATH = "/portal/signup";
 const PORTAL_PREFIX = "/portal";
 
-const PUBLIC_EXCEPTIONS = [LOGIN_PATH, SIGNUP_PATH, PORTAL_LOGIN_PATH, PORTAL_SIGNUP_PATH];
+const VENUE_LOGIN_PATH = "/venue/login";
+const VENUE_PREFIX = "/venue";
+
+const PUBLIC_EXCEPTIONS = [LOGIN_PATH, SIGNUP_PATH, PORTAL_LOGIN_PATH, PORTAL_SIGNUP_PATH, VENUE_LOGIN_PATH];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -19,9 +22,10 @@ export async function middleware(request: NextRequest) {
   const needsDjAuth = pathname.startsWith(DJ_PREFIX);
   const needsStaffAuth = STAFF_PREFIXES.some((p) => pathname.startsWith(p));
   const needsPortalAuth = pathname.startsWith(PORTAL_PREFIX);
+  const needsVenueAuth = pathname === VENUE_PREFIX || pathname.startsWith(`${VENUE_PREFIX}/`);
   const isPublicException = PUBLIC_EXCEPTIONS.some((p) => pathname.startsWith(p));
 
-  if ((!needsDjAuth && !needsStaffAuth && !needsPortalAuth) || isPublicException) {
+  if ((!needsDjAuth && !needsStaffAuth && !needsPortalAuth && !needsVenueAuth) || isPublicException) {
     return NextResponse.next();
   }
 
@@ -49,9 +53,15 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    const loginUrl = new URL(needsPortalAuth ? PORTAL_LOGIN_PATH : LOGIN_PATH, request.url);
+    const loginUrl = new URL(needsVenueAuth ? VENUE_LOGIN_PATH : needsPortalAuth ? PORTAL_LOGIN_PATH : LOGIN_PATH, request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Venue partner logins (role set server-side in app_metadata) only get
+  // the venue portal; every other area sends them back to it.
+  if (user.app_metadata?.role === "venue" && !needsVenueAuth) {
+    return NextResponse.redirect(new URL(VENUE_PREFIX, request.url));
   }
 
   // /admin and /analytics require an owner/admin/manager role. /dj-dashboard
@@ -70,5 +80,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dj-dashboard/:path*", "/admin/:path*", "/analytics/:path*", "/portal/:path*"],
+  matcher: ["/dj-dashboard/:path*", "/admin/:path*", "/analytics/:path*", "/portal/:path*", "/venue", "/venue/:path*"],
 };
