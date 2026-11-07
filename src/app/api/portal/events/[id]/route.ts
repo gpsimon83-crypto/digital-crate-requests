@@ -34,7 +34,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // Optional — a missing event_meetings table shouldn't take the page down.
     const meetings = await listUpcomingMeetingsForClient(id).catch(() => []);
 
-    return NextResponse.json({ event, payments, balance, contract, changeOrders, meetings });
+    return NextResponse.json({ event, payments, balance, contract, changeOrders, meetings, staffPreview: access.isStaffPreview });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }

@@ -499,12 +499,22 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
   return (
     <div className="pb-16">
-      <Link
-        href="/admin/events"
-        className="ml-6 mt-5 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[1.5px] text-muted hover:text-foreground sm:ml-8"
-      >
-        <ArrowLeft size={14} /> Projects
-      </Link>
+      <div className="mx-6 mt-5 flex items-center justify-between gap-3 sm:mx-8">
+        <Link
+          href="/admin/events"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[1.5px] text-muted hover:text-foreground"
+        >
+          <ArrowLeft size={14} /> Projects
+        </Link>
+        <a
+          href={`/portal/events/${id}`}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-[10px] border border-border px-3 py-1.5 text-xs font-medium hover:border-gold"
+        >
+          <ExternalLink size={13} /> View client portal
+        </a>
+      </div>
 
       <div
         className={cn(

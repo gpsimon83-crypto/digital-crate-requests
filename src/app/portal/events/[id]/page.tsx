@@ -160,6 +160,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const [savingPlan, setSavingPlan] = useState(false);
   const [planSaved, setPlanSaved] = useState(false);
   const [firstName, setFirstName] = useState<string | null>(null);
+  const [staffPreview, setStaffPreview] = useState(false);
   const [branding, setBranding] = useState<Branding | null>(null);
   const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false);
   const [lastMessage, setLastMessage] = useState<{ body: string; created_at: string; direction: "inbound" | "outbound"; from_name: string | null } | null>(null);
@@ -195,6 +196,10 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       if (!res.ok) throw new Error(data.error || "Failed to load event");
       setEvent(data.event);
       setBalance(data.balance);
+      if (data.staffPreview) {
+        setStaffPreview(true);
+        setFirstName(data.event.clients?.first_name ?? null);
+      }
       setContract(data.contract ?? null);
       setChangeOrders(data.changeOrders ?? []);
       setMeetings(data.meetings ?? []);
@@ -217,7 +222,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
     load();
     fetch("/api/portal/me")
       .then((r) => r.json())
-      .then((data) => setFirstName(data.client?.first_name ?? null))
+      .then((data) => data.client && setFirstName(data.client.first_name ?? null))
       .catch(() => {});
     fetch("/api/branding")
       .then((r) => r.json())
@@ -365,6 +370,11 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   return (
     <>
       <PortalTopHeader eventId={id} firstName={firstName} />
+      {staffPreview && (
+        <div className="sticky top-0 z-40 border-b border-[#4c86ff]/30 bg-[#eaf1ff] px-4 py-2 text-center text-xs text-[#24418a]">
+          Admin preview: you&apos;re seeing exactly what the client sees. Changes and payments here only work from the client&apos;s own login.
+        </div>
+      )}
 
       <PortalHeroPhoto
         imageUrl={heroImage}
