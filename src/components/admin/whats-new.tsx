@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, CircleAlert } from "lucide-react";
+import { ArrowUpRight, ChevronRight, CircleAlert, PlayCircle } from "lucide-react";
+import { TOURS } from "@/lib/tours";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { UPDATES, type UpdateArea } from "@/lib/whats-new";
 import { markWhatsNewSeen } from "@/lib/use-whats-new";
@@ -67,7 +68,7 @@ export function WhatsNew() {
             <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-[1.5px] text-muted">{fmtDate(date)}</h2>
             <div className="flex flex-col gap-3">
               {items.map((u) => (
-                <article key={u.id} className="rounded-card border border-border bg-card p-4 shadow-card sm:p-5">
+                <article key={u.id} className="relative rounded-card border border-border bg-card p-4 shadow-card transition-colors hover:border-gold sm:p-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <span
                       className={cn(
@@ -78,8 +79,18 @@ export function WhatsNew() {
                       {u.area}
                     </span>
                     {newIds.has(u.id) && <span className="rounded-full bg-gold px-2 py-0.5 text-[10px] font-semibold text-[#1A140A]">NEW</span>}
+                    {TOURS[u.id] && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 px-2 py-0.5 text-[10px] font-medium text-gold-dim">
+                        <PlayCircle size={11} /> Walkthrough
+                      </span>
+                    )}
+                    <ChevronRight size={16} className="ml-auto text-muted" />
                   </div>
-                  <h3 className="mt-2 text-base font-semibold">{u.title}</h3>
+                  <h3 className="mt-2 text-base font-semibold">
+                    <Link href={`/admin/whats-new/${u.id}`} className="after:absolute after:inset-0 after:content-['']">
+                      {u.title}
+                    </Link>
+                  </h3>
                   <p className="mt-1 text-sm text-muted">{u.summary}</p>
                   {u.bullets && (
                     <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
@@ -96,11 +107,11 @@ export function WhatsNew() {
                   )}
                   {u.link &&
                     (u.link.external ? (
-                      <a href={u.link.href} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-gold-dim hover:underline">
+                      <a href={u.link.href} target="_blank" rel="noreferrer" className="relative z-10 mt-3 inline-flex items-center gap-1 text-xs font-medium text-gold-dim hover:underline">
                         {u.link.label} <ArrowUpRight size={12} />
                       </a>
                     ) : (
-                      <Link href={u.link.href} className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-gold-dim hover:underline">
+                      <Link href={u.link.href} className="relative z-10 mt-3 inline-flex items-center gap-1 text-xs font-medium text-gold-dim hover:underline">
                         {u.link.label} <ArrowUpRight size={12} />
                       </Link>
                     ))}

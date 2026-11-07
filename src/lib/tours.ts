@@ -1,0 +1,213 @@
+// Visual walkthroughs for What's New. Each step points at a real element
+// (data-tour="...") on a real page. The tour engine (GuidedTour) moves
+// between pages on its own when a step's page is fixed, and waits for the
+// viewer to click through when the page depends on their data (e.g.
+// "open any project").
+
+export interface TourStep {
+  /** Page this step lives on. "*" matches one path segment. Query params listed must match. */
+  path: string;
+  /** CSS selector to spotlight. Omit for a centered card. */
+  target?: string;
+  title: string;
+  body: string;
+  /** On Next, follow this link (its href) instead of staying on the page. */
+  follow?: string;
+  /** Shown while the viewer still needs to open this step's page themselves. */
+  waitHint?: string;
+}
+
+export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-06-venue-portal-a": [
+    {
+      path: "/admin/venues",
+      target: '[data-tour="venues-add"]',
+      title: "Add your venues",
+      body: "Type the venue name and city, then Add Venue. Start with Casey Keys, then North 48 and Lake County."
+    },
+    {
+      path: "/admin/venues",
+      target: '[data-tour="venues-table"]',
+      title: "Your venue list",
+      body: "Portal shows whether the venue can sign in (On/Off). Managers shows how many people have a login."
+    },
+    {
+      path: "/admin/venues",
+      target: '[data-tour="venue-manage"]',
+      title: "Manage a venue",
+      body: "Manage opens everything for one venue. Click Next to open the first one, or click Manage on any venue.",
+      follow: '[data-tour="venue-manage"]'
+    },
+    {
+      path: "/admin/venues/*",
+      target: '[data-tour="venue-access"]',
+      title: "Turn the portal on",
+      body: "Venue active and Portal on must both be on before a manager can sign in. Turning either off blocks access right away.",
+      waitHint: "Click Manage on a venue to continue."
+    },
+    {
+      path: "/admin/venues/*",
+      target: '[data-tour="venue-branding"]',
+      title: "Cover photo and logo",
+      body: "Upload a wide photo (1600 × 400 is ideal) and the logo. Click the part of the photo you want centered; the desktop and phone crops are set separately."
+    },
+    {
+      path: "/admin/venues/*",
+      target: '[data-tour="venue-nights"]',
+      title: "Regular entertainment nights",
+      body: "Add their weekly DJ nights (for example Friday 9 PM–1:30 AM). They show on the venue's dashboard and calendar."
+    },
+    {
+      path: "/admin/venues/*",
+      target: '[data-tour="venue-calendar-names"]',
+      title: "Names on the DCDJ calendar",
+      body: "How this venue is written in the shared Google Calendar. This is internal only and lets the next phase show the venue its bar nights."
+    },
+    {
+      path: "/admin/venues/*",
+      target: '[data-tour="venue-managers"]',
+      title: "Add the manager",
+      body: "Enter their name and email, then Add manager. You get a one-time setup link to text or email them. Nothing sends automatically."
+    },
+    {
+      path: "/admin/venues/*",
+      target: '[data-tour="venue-preview"]',
+      title: "See what they see",
+      body: "Preview as venue opens their dashboard read-only. Save changes with the bar that appears at the bottom whenever you edit."
+    }
+  ],
+  "2026-11-06-client-portal-preview": [
+    {
+      path: "/admin/events",
+      target: '[data-tour="project-link"]',
+      title: "Open any project",
+      body: "Click Next to open the first project, or click any project name.",
+      follow: '[data-tour="project-link"]'
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="event-client-portal"]',
+      title: "View client portal",
+      body: "Opens this client's portal in a new tab exactly as they see it, with a blue Admin preview bar. Signing and paying only work from the client's own login.",
+      waitHint: "Open any project to continue."
+    }
+  ],
+  "2026-11-04-comm-center": [
+    {
+      path: "/admin/communications?tab=overview",
+      target: '[data-tour="comm-tabs"]',
+      title: "Four tabs",
+      body: "Overview for the big picture, Templates for your designs, Sent for delivery tracking, Settings for the sender and do-not-email list."
+    },
+    {
+      path: "/admin/communications?tab=overview",
+      target: '[data-tour="comm-stats"]',
+      title: "Last 30 days at a glance",
+      body: "Sent, delivered, opened, clicked and bounced. Delivered/opened/clicked fill in once the Resend webhook is connected."
+    },
+    {
+      path: "/admin/communications?tab=overview",
+      target: '[data-tour="comm-new"]',
+      title: "Start a new email",
+      body: "Opens a blank design in the Email Studio. Most of the time it's faster to start from a template."
+    },
+    {
+      path: "/admin/communications?tab=templates",
+      target: '[data-tour="comm-template"]',
+      title: "Templates",
+      body: "Edit opens the Studio. The copy icon duplicates a template so you can keep the original. Click Next to open this one.",
+      follow: '[data-tour="comm-template"] a'
+    },
+    {
+      path: "/admin/communications/studio/*",
+      target: '[data-tour="studio-blocks"]',
+      title: "Build with blocks",
+      body: "Logo, heading, text, image, button, divider and more. Change the words, move blocks up or down, and watch the live preview.",
+      waitHint: "Open any template to continue."
+    },
+    {
+      path: "/admin/communications/studio/*",
+      target: '[data-tour="studio-test"]',
+      title: "Always send a test first",
+      body: "Send test emails only you, with sample names filled in, so you can check it on your phone."
+    },
+    {
+      path: "/admin/communications/studio/*",
+      target: '[data-tour="studio-send"]',
+      title: "Send for real",
+      body: "Pick clients (or type addresses), review the check, then confirm. Each person gets their own personalized copy."
+    },
+    {
+      path: "/admin/communications?tab=settings",
+      target: '[data-tour="comm-settings"]',
+      title: "Settings",
+      body: "Shows which address emails come from and the do-not-email list. Bounced and spam-flagged addresses are added automatically."
+    }
+  ],
+  "2026-11-04-dj-templates": [
+    {
+      path: "/admin/communications?tab=templates",
+      target: '[data-tour="comm-filter"]',
+      title: "Filter to the DJ team",
+      body: "Click DJ team to see the team emails: availability request, gig reminders, Academy, meetings and more."
+    },
+    {
+      path: "/admin/communications?tab=templates",
+      target: '[data-tour="comm-template"]',
+      title: "Open a DJ template",
+      body: "Click Edit on any DJ team template to continue.",
+      waitHint: "Open a DJ team template to continue."
+    },
+    {
+      path: "/admin/communications/studio/*",
+      target: '[data-tour="studio-audience"]',
+      title: "Who it's for",
+      body: "DJ team templates send to your DJs. Clients templates send to clients. Switch it here any time.",
+      waitHint: "Open a DJ team template to continue."
+    },
+    {
+      path: "/admin/communications/studio/*",
+      target: '[data-tour="studio-send"]',
+      title: "Send to DJs",
+      body: "For DJ team emails the Send window lists your DJs. Each one gets their own name and their next gig filled in."
+    }
+  ],
+  "2026-11-04-dj-register-template": [
+    {
+      path: "/admin/communications?tab=templates",
+      target: '[data-tour="comm-filter"]',
+      title: "Find the template",
+      body: "Click DJ team, then open DJ: Create your members account."
+    },
+    {
+      path: "/admin/communications/studio/*",
+      target: '[data-tour="studio-blocks"]',
+      title: "Add the invite code",
+      body: "In the text block, replace [INVITE CODE] with that DJ's one-time code from WordPress → Users → DJ Invite Codes.",
+      waitHint: "Open DJ: Create your members account to continue."
+    },
+    {
+      path: "/admin/communications/studio/*",
+      target: '[data-tour="studio-send"]',
+      title: "Send to one DJ",
+      body: "Each code works once, so send to one DJ at a time. Type their email at the bottom of the Send window if they aren't in the CRM."
+    }
+  ]
+};
+
+export function pathMatches(pattern: string, pathname: string, search: URLSearchParams): boolean {
+  const [p, q] = pattern.split("?");
+  const a = p.split("/").filter(Boolean);
+  const b = pathname.split("/").filter(Boolean);
+  if (a.length !== b.length || !a.every((seg, i) => seg === "*" || seg === b[i])) return false;
+  if (!q) return true;
+  const want = new URLSearchParams(q);
+  for (const [k, v] of want) {
+    const got = search.get(k);
+    // A missing ?tab= means the page's default tab ("overview").
+    if (got !== v && !(got === null && v === "overview")) return false;
+  }
+  return true;
+}
+
+export const isConcrete = (pattern: string) => !pattern.includes("*");

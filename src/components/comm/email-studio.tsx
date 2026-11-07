@@ -249,8 +249,8 @@ export function EmailStudio({ designId }: { designId: string }) {
           <Button onClick={save} disabled={saving || !dirty}>
             <Save size={15} /> Save
           </Button>
-          <Button onClick={async () => (dirty ? (await save()) && setModal("test") : setModal("test"))}>Send test</Button>
-          <Button variant="primary" onClick={async () => (dirty ? (await save()) && setModal("send") : setModal("send"))}>
+          <Button data-tour="studio-test" onClick={async () => (dirty ? (await save()) && setModal("test") : setModal("test"))}>Send test</Button>
+          <Button variant="primary" data-tour="studio-send" onClick={async () => (dirty ? (await save()) && setModal("send") : setModal("send"))}>
             <Send size={15} /> Send
           </Button>
         </div>
@@ -277,7 +277,7 @@ export function EmailStudio({ designId }: { designId: string }) {
               <span className={labelCls}>Preview text (shows after the subject in the inbox)</span>
               <input value={design.preheader} onChange={(e) => update((d) => ({ ...d, preheader: e.target.value }))} className={inputCls} />
             </label>
-            <div>
+            <div data-tour="studio-audience">
               <span className={labelCls}>Who it&apos;s for</span>
               <div className="flex gap-2">
                 {(["client", "dj"] as const).map((a) => (
@@ -321,7 +321,7 @@ export function EmailStudio({ designId }: { designId: string }) {
             </ul>
           )}
 
-          <div className="space-y-2">
+          <div className="space-y-2" data-tour="studio-blocks">
             {design.blocks.map((b, idx) => (
               <div
                 key={b.id}

@@ -428,7 +428,7 @@ function eventColumns(onStageChange: (eventId: string, stage: string) => void): 
         const name = clientName(e.clients, "Unnamed contact");
         return (
           <>
-            <Link href={`/admin/events/${e.id}`} className="font-medium hover:text-gold hover:underline">
+            <Link href={`/admin/events/${e.id}`} data-tour="project-link" className="font-medium hover:text-gold hover:underline">
               {e.title}
             </Link>
             {name ? <div className="text-xs text-muted">{name}</div> : <div className="text-xs text-status-urgent">No client linked</div>}

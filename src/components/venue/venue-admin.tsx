@@ -33,9 +33,9 @@ const ACTION_LABELS: Record<string, string> = {
   "manager.removed": "Removed a manager"
 };
 
-function Card({ title, hint, children, className }: { title: string; hint?: string; children: React.ReactNode; className?: string }) {
+function Card({ title, hint, children, className, tour }: { title: string; hint?: string; children: React.ReactNode; className?: string; tour?: string }) {
   return (
-    <section className={cn("rounded-card border border-border bg-card p-5 shadow-card", className)}>
+    <section data-tour={tour} className={cn("rounded-card border border-border bg-card p-5 shadow-card", className)}>
       <h2 className="text-sm font-semibold">{title}</h2>
       {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
       <div className="mt-4">{children}</div>
@@ -174,6 +174,7 @@ export function VenueAdmin({ venueId }: { venueId: string }) {
           <span className="flex-1" />
           <Link
             href={`/venue?venue=${venue.id}`}
+            data-tour="venue-preview"
             target="_blank"
             className="inline-flex items-center gap-1.5 rounded-[10px] border border-black/10 px-3 py-1.5 text-xs hover:border-gold"
           >
@@ -183,7 +184,7 @@ export function VenueAdmin({ venueId }: { venueId: string }) {
 
         {error && <p className="rounded-[10px] border border-status-declined/40 bg-status-declined/10 p-3 text-xs text-status-declined">{error}</p>}
 
-        <Card title="Access">
+        <Card title="Access" tour="venue-access">
           <div className="flex flex-col gap-4 sm:flex-row sm:gap-10">
             <div className="flex items-center gap-3">
               <ToggleSwitch checked={venue.is_active} onChange={(v) => toggle("is_active", v)} label="Venue active" />
@@ -392,6 +393,7 @@ function BrandingCard({
 
   return (
     <Card
+      tour="venue-branding"
       title="Branding"
       hint="Cover photo: 1600 × 400 or larger works best (JPG, PNG or WebP, up to 8 MB). The venue name and logo are placed on top, so don't put text in the photo."
     >
@@ -477,7 +479,7 @@ function Slider({ label, value, onChange }: { label: string; value: number; onCh
 function NightsCard({ nights, onChange }: { nights: RecurringNight[]; onChange: (n: RecurringNight[]) => void }) {
   const set = (i: number, p: Partial<RecurringNight>) => onChange(nights.map((n, j) => (j === i ? { ...n, ...p } : n)));
   return (
-    <Card title="Recurring entertainment nights" hint="The venue's regular DJ nights, shown on their dashboard.">
+    <Card tour="venue-nights" title="Recurring entertainment nights" hint="The venue's regular DJ nights, shown on their dashboard.">
       <div className="flex flex-col gap-3">
         {nights.map((n, i) => (
           <div key={i} className="grid grid-cols-[1fr_auto] gap-2 rounded-[10px] border border-border p-3 sm:grid-cols-[130px_1fr_100px_100px_auto] sm:items-end sm:border-0 sm:p-0">
@@ -527,6 +529,7 @@ function CalendarNamesCard({ names, onChange }: { names: string[]; onChange: (n:
   };
   return (
     <Card
+      tour="venue-calendar-names"
       title="Names on the DCDJ calendar"
       hint="How this venue is written in the shared Google Calendar (e.g. “Casey Keys”, “CK Fri”). Used later to show the venue its bar nights from the members-area schedule. Never shown to the venue."
     >
@@ -618,7 +621,7 @@ function ManagersCard({
   }
 
   return (
-    <Card title="Venue managers" hint="People at the venue who can sign in. Each manager only sees the venues they're added to.">
+    <Card tour="venue-managers" title="Venue managers" hint="People at the venue who can sign in. Each manager only sees the venues they're added to.">
       {managers.length ? (
         <ul className="divide-y divide-border">
           {managers.map((m) => (

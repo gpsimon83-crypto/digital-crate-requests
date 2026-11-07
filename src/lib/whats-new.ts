@@ -22,8 +22,14 @@ export const UPDATES: UpdateEntry[] = [
     id: "2026-11-06-whats-new",
     date: "2026-11-06",
     area: "CRM",
-    title: "What's New page",
-    summary: "This page. Every update to the CRM and the members area in one place, with a badge in the menu when something is new."
+    title: "What's New with visual walkthroughs",
+    summary: "Every update to the CRM and the members area in one place, with a badge in the menu when something is new.",
+    bullets: [
+      "Click any update to open its own page with the full details",
+      "Updates marked Walkthrough have a Start walkthrough button",
+      "The walkthrough takes you to the real screen and highlights each part step by step, with Next and Back",
+      "You can keep clicking around the page while a walkthrough is open; press Esc or × to end it"
+    ]
   },
   {
     id: "2026-11-06-client-portal-preview",

@@ -89,7 +89,7 @@ export default function AdminVenuesPage() {
             The Venue Partner Portal database update (migration 0044) hasn&apos;t been run yet. Run it in Supabase to manage portals and managers.
           </p>
         )}
-        <div className="flex flex-col gap-3 border border-border p-4 sm:flex-row sm:items-end">
+        <div className="flex flex-col gap-3 border border-border p-4 sm:flex-row sm:items-end" data-tour="venues-add">
           <label className="block flex-1">
             <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Venue Name</span>
             <input
@@ -115,6 +115,7 @@ export default function AdminVenuesPage() {
 
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
+        <div data-tour="venues-table">
         <DataTable
           columns={columns(setPendingDeleteId)}
           rows={venues ?? []}
@@ -126,6 +127,7 @@ export default function AdminVenuesPage() {
           emptyTitle="No venues yet"
           emptyBody="Add your first venue partner."
         />
+        </div>
       </div>
 
       <ConfirmModal
@@ -169,7 +171,7 @@ function columns(onDelete: (id: string) => void): DataTableColumn<VenueRow>[] {
       align: "right",
       render: (v) => (
         <span className="flex items-center justify-end gap-4">
-          <Link href={`/admin/venues/${v.id}`} className="text-xs font-medium text-gold-dim hover:underline">
+          <Link href={`/admin/venues/${v.id}`} data-tour="venue-manage" className="text-xs font-medium text-gold-dim hover:underline">
             Manage
           </Link>
           <button onClick={() => onDelete(v.id)} className="text-xs text-status-declined hover:underline">

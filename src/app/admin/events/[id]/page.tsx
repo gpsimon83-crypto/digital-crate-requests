@@ -510,6 +510,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
           href={`/portal/events/${id}`}
           target="_blank"
           rel="noreferrer"
+          data-tour="event-client-portal"
           className="inline-flex items-center gap-1.5 rounded-[10px] border border-border px-3 py-1.5 text-xs font-medium hover:border-gold"
         >
           <ExternalLink size={13} /> View client portal

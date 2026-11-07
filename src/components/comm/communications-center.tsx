@@ -153,14 +153,16 @@ export function CommunicationsCenter({ tab }: { tab: CommTab }) {
         title="Communications Center"
         subtitle="Design branded emails and send them to your clients."
         action={
-          <Button variant="primary" onClick={() => createDesign()} disabled={busy} aria-label="New email" className="shrink-0">
+          <Button variant="primary" onClick={() => createDesign()} disabled={busy} aria-label="New email" className="shrink-0" data-tour="comm-new">
             <Plus size={15} /> <span className="hidden sm:inline">New email</span>
             <span className="sm:hidden">New</span>
           </Button>
         }
       />
       <div className="px-6 sm:px-8">
-        <Tabs items={TAB_ITEMS} active={tab} hrefFor={(k) => `/admin/communications?tab=${k}`} className="mt-2" />
+        <div data-tour="comm-tabs">
+          <Tabs items={TAB_ITEMS} active={tab} hrefFor={(k) => `/admin/communications?tab=${k}`} className="mt-2" />
+        </div>
         {error && <p className="mt-4 rounded-[10px] border border-status-declined/30 bg-status-declined/5 px-3 py-2 text-sm text-status-declined">{error}</p>}
         {provider && !provider.configured && (
           <p className="mt-4 flex items-start gap-2 rounded-[10px] border border-status-pending/40 bg-status-pending/10 px-3 py-2 text-sm">
@@ -174,7 +176,7 @@ export function CommunicationsCenter({ tab }: { tab: CommTab }) {
 
         {tab === "overview" && (
           <section className="py-6">
-            <div className="flex flex-wrap rounded-[var(--radius-card)] border border-border bg-card">
+            <div className="flex flex-wrap rounded-[var(--radius-card)] border border-border bg-card" data-tour="comm-stats">
               <StatTile icon={Send} label="Sent (30 days)" value={sentTotal} />
               <StatTile icon={CheckCircle2} label="Delivered" value={provider?.webhookConfigured ? delivered : "—"} />
               <StatTile icon={Eye} label="Opened" value={provider?.webhookConfigured ? realSends.reduce((n, s) => n + (s.counts.opened ?? 0), 0) : "—"} />
@@ -206,7 +208,7 @@ export function CommunicationsCenter({ tab }: { tab: CommTab }) {
 
         {tab === "templates" && (
           <section className="py-6">
-            <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Filter templates">
+            <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Filter templates" data-tour="comm-filter">
               {([
                 ["all", "All"],
                 ["client", "Clients"],
@@ -282,7 +284,7 @@ function DesignGrid({
   return (
     <div className={compact ? "grid gap-3 sm:grid-cols-2" : "grid gap-4 sm:grid-cols-2 xl:grid-cols-3"}>
       {designs.map((d) => (
-        <div key={d.id} className="group flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--shadow-card)]">
+        <div key={d.id} data-tour="comm-template" data-tour-name={d.name} className="group flex flex-col overflow-hidden rounded-[var(--radius-card)] border border-border bg-card shadow-[var(--shadow-card)]">
           <Link href={`/admin/communications/studio/${d.id}`} className="block">
             <div className={d.theme === "dark" ? "flex h-20 items-center justify-center bg-[#0F0E0C]" : "flex h-20 items-center justify-center bg-[#F4EFE7]"}>
               <span className={d.theme === "dark" ? "font-display text-lg text-[#C9A15B]" : "font-display text-lg text-[#A6763A]"}>{d.name}</span>
@@ -430,7 +432,7 @@ function SettingsPanel({ provider }: { provider: Provider }) {
   }
 
   return (
-    <section className="grid gap-8 py-6 lg:grid-cols-2">
+    <section className="grid gap-8 py-6 lg:grid-cols-2" data-tour="comm-settings">
       <div>
         <h2 className="font-display text-2xl font-light">Email delivery</h2>
         <ul className="mt-2 divide-y divide-border">
