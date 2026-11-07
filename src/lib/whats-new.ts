@@ -1,0 +1,154 @@
+// "What's New" — every update to the CRM (cratesdjs.com) and the DJ
+// members area (digitalcratedjs.com), newest first. Add new entries to
+// the TOP of this list; the admin menu badge counts entries the viewer
+// hasn't opened the What's New page since.
+
+export type UpdateArea = "CRM" | "Members area";
+
+export interface UpdateEntry {
+  id: string; // unique, never reused
+  date: string; // YYYY-MM-DD
+  area: UpdateArea;
+  title: string;
+  summary: string;
+  bullets?: string[];
+  link?: { href: string; label: string; external?: boolean };
+  /** Something someone still has to do for this to fully work. */
+  action?: string;
+}
+
+export const UPDATES: UpdateEntry[] = [
+  {
+    id: "2026-11-06-whats-new",
+    date: "2026-11-06",
+    area: "CRM",
+    title: "What's New page",
+    summary: "This page. Every update to the CRM and the members area in one place, with a badge in the menu when something is new."
+  },
+  {
+    id: "2026-11-06-client-portal-preview",
+    date: "2026-11-06",
+    area: "CRM",
+    title: "View the client portal as admin",
+    summary: "Every project now has a View client portal button at the top right. It opens the client's portal exactly as they see it.",
+    bullets: [
+      "A blue Admin preview bar shows you're looking as staff",
+      "Signing, paying and editing only work from the client's own login, so nothing happens by accident"
+    ],
+    link: { href: "/admin/events", label: "Open Projects" }
+  },
+  {
+    id: "2026-11-06-venue-portal-a",
+    date: "2026-11-06",
+    area: "CRM",
+    title: "Venue Partner Portal (Phase A)",
+    summary: "Venues like Casey Keys, North 48 and Lake County can get their own login at cratesdjs.com/venue.",
+    bullets: [
+      "Admin → Venues: portal on/off, managers, and a Manage page for each venue",
+      "Cover photo and logo upload with separate desktop and phone crops",
+      "Regular entertainment nights, scheduling notes and your DCDJs contact person",
+      "Add a manager to get a one-time setup link you send yourself (nothing emails automatically)",
+      "Preview as venue to see exactly what they see",
+      "Venue dashboard: upcoming events, calendar with holidays, DJ lineup, holiday planning",
+      "Each venue only ever sees its own information, never client names or money"
+    ],
+    link: { href: "/admin/venues", label: "Open Venues" },
+    action: "Coming next (Phase B): bar nights and DJ assignments from the members-area schedule, and venue requests."
+  },
+  {
+    id: "2026-11-04-dj-register-template",
+    date: "2026-11-04",
+    area: "CRM",
+    title: "DJ template: Create your members account",
+    summary: "A ready-made email for DJs who haven't registered yet: invite code, Create my account button, how usernames work, sign-in and password-reset links.",
+    link: { href: "/admin/communications", label: "Open Communications" },
+    action: "Invite codes are one-time use: replace [INVITE CODE] and send to one DJ at a time."
+  },
+  {
+    id: "2026-11-04-dj-templates",
+    date: "2026-11-04",
+    area: "CRM",
+    title: "DJ team email templates",
+    summary: "The Communications Center can now email the DJ team, not just clients.",
+    bullets: [
+      "Templates are for Clients or DJ team; filter them on the Templates tab",
+      "Starter emails: availability request and reminder, new gig, gig reminder, holiday priority, Academy reminder, team meeting, announcement, members welcome, profile update",
+      "New {{members_link}} field links straight into the members area",
+      "Sending to DJs fills in each DJ's name and next gig"
+    ],
+    link: { href: "/admin/communications", label: "Open Communications" }
+  },
+  {
+    id: "2026-11-04-comm-center",
+    date: "2026-11-04",
+    area: "CRM",
+    title: "Communications Center",
+    summary: "The main way to send branded graphic emails to clients, with buttons, pictures and links.",
+    bullets: [
+      "Email Studio: drag-and-drop blocks, live preview, light or dark style",
+      "Personalized fields like first name, event date, venue and DJ",
+      "Send a test to yourself before sending for real",
+      "Sent tab tracks delivered, opened, clicked and bounced",
+      "Bounced and spam-flagged addresses are skipped automatically"
+    ],
+    link: { href: "/admin/communications", label: "Open Communications" },
+    action: "To send from crateservices@digitalcratedjs.com: verify digitalcratedjs.com in Resend and set COMM_EMAIL_FROM in Vercel."
+  },
+  {
+    id: "2026-11-04-members-forgot-password",
+    date: "2026-11-04",
+    area: "Members area",
+    title: "Forgot your password? link on the members login",
+    summary: "DJs who are locked out can reset their own password from the members sign-in page.",
+    link: { href: "https://digitalcratedjs.com/members/", label: "Open members area", external: true },
+    action: "Upload the updated page-members.php to the theme folder if you haven't yet."
+  },
+  {
+    id: "2026-11-03-sms-alerts",
+    date: "2026-11-03",
+    area: "Members area",
+    title: "SMS alerts sign-up (Twilio)",
+    summary: "Text-alert opt-in page plus SMS Terms and an updated Privacy Policy, built to pass Twilio's A2P review.",
+    bullets: ["Opt-in page at /sms-alerts", "SMS Terms at /sms-terms", "Privacy Policy rewritten at /privacy-policy", "Approval list in WordPress admin"],
+    link: { href: "https://digitalcratedjs.com/sms-alerts", label: "Open SMS sign-up", external: true }
+  },
+  {
+    id: "2026-11-02-academy",
+    date: "2026-11-02",
+    area: "Members area",
+    title: "DCDJs Academy",
+    summary: "Training and certification for DJs inside the members area.",
+    bullets: [
+      "Training modules shown in a grid",
+      "Lessons and the final assessment name both owners: DJ Peace and Grand Master O",
+      "Clear rules on established venues (a set payment arrangement), what DJs don't share with venues, and holiday-only venues",
+      "Admin pages for venues, members, settings and representatives"
+    ],
+    link: { href: "https://digitalcratedjs.com/members/#academy", label: "Open Academy", external: true }
+  },
+  {
+    id: "2026-11-02-bios",
+    date: "2026-11-02",
+    area: "Members area",
+    title: "DJ bios cleaned up",
+    summary: "DJ Peace's bio and card now match the other DJs (Founder & CEO removed). DJs can edit their own bio in the members area.",
+    link: { href: "https://digitalcratedjs.com/members/#bio", label: "Open My Bio", external: true }
+  },
+  {
+    id: "2026-11-01-availability",
+    date: "2026-11-01",
+    area: "Members area",
+    title: "Availability grid managers",
+    summary: "Any DJ can be given the full Who's available grid, without making them an admin.",
+    bullets: ["WordPress admin → Settings → Google Calendar Integration → Availability managers", "They can view and change availability squares; confirming DJs on gigs stays admin-only"]
+  }
+];
+
+export const LAST_SEEN_KEY = "dcdj-whats-new-seen";
+
+/** How many updates are newer than the last one this browser has seen. */
+export function unseenCount(lastSeenId: string | null): number {
+  if (!lastSeenId) return UPDATES.length;
+  const i = UPDATES.findIndex((u) => u.id === lastSeenId);
+  return i === -1 ? UPDATES.length : i;
+}

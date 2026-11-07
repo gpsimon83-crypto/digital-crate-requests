@@ -24,7 +24,8 @@ import {
   ArrowLeft,
   PackageOpen,
   CalendarCheck,
-  Mail
+  Mail,
+  Megaphone
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -51,6 +52,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { href: "/admin", label: "Home", icon: Home },
       { href: "/admin/notifications", label: "Notifications", icon: Bell },
+      { href: "/admin/whats-new", label: "What's New", icon: Megaphone },
       { href: "/admin/calendar", label: "Calendar", icon: CalendarDays }
     ]
   },

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { SideDrawer } from "@/components/ui/side-drawer";
 import { ADMIN_NAV_GROUPS } from "@/lib/admin-nav";
+import { useWhatsNewCount } from "@/lib/use-whats-new";
 import { LayoutDashboard, Briefcase, Users, CalendarDays, Menu } from "lucide-react";
 
 const PRIMARY_ITEMS = [
@@ -18,6 +19,7 @@ const PRIMARY_ITEMS = [
 export function AdminMobileTabBar() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const whatsNew = useWhatsNewCount();
 
   return (
     <>
@@ -44,7 +46,10 @@ export function AdminMobileTabBar() {
           className="menu-fade-item flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium min-h-[56px] justify-center text-muted"
           style={{ "--menu-fade-delay": `${PRIMARY_ITEMS.length * 40}ms` } as React.CSSProperties}
         >
-          <Menu size={20} strokeWidth={1.8} />
+          <span className="relative">
+            <Menu size={20} strokeWidth={1.8} />
+            {whatsNew > 0 && <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-gold" aria-label="New updates" />}
+          </span>
           More
         </button>
       </nav>
@@ -70,6 +75,9 @@ export function AdminMobileTabBar() {
                   <item.icon size={18} className="shrink-0 text-muted" />
                   {item.label}
                   {item.external && <span className="ml-1 text-muted">↗</span>}
+                  {item.href === "/admin/whats-new" && whatsNew > 0 && (
+                    <span className="ml-auto rounded-full bg-gold px-1.5 text-[10px] font-semibold text-[#1A140A]">{whatsNew > 9 ? "9+" : whatsNew}</span>
+                  )}
                 </Link>
               ))}
             </div>

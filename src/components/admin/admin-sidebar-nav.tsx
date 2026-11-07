@@ -7,11 +7,13 @@ import { GlobalSearch } from "@/components/admin/global-search";
 import { QuickCreateMenu } from "@/components/admin/quick-create-menu";
 import { Sidebar, type SidebarNavGroup } from "@/components/ui/sidebar";
 import { ADMIN_NAV_GROUPS } from "@/lib/admin-nav";
+import { useWhatsNewCount } from "@/lib/use-whats-new";
 
 export function AdminSidebarNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
+  const whatsNew = useWhatsNewCount();
 
   useEffect(() => {
     fetch("/api/notifications")
@@ -30,7 +32,11 @@ export function AdminSidebarNav() {
   const groups: SidebarNavGroup[] = ADMIN_NAV_GROUPS.map((group) => ({
     label: group.label,
     items: group.items.map((item) =>
-      item.href === "/admin/notifications" ? { ...item, badge: unreadCount } : item
+      item.href === "/admin/notifications"
+        ? { ...item, badge: unreadCount }
+        : item.href === "/admin/whats-new"
+          ? { ...item, badge: whatsNew }
+          : item
     )
   }));
 
