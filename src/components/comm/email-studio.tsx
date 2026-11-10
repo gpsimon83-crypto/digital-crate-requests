@@ -25,7 +25,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
+  AUDIENCES,
   AUDIENCE_LABELS,
+  placeholdersIn,
   BLOCK_LABELS,
   MERGE_FIELDS,
   SAMPLE_MERGE_VALUES,
@@ -279,13 +281,13 @@ export function EmailStudio({ designId }: { designId: string }) {
             </label>
             <div data-tour="studio-audience">
               <span className={labelCls}>Who it&apos;s for</span>
-              <div className="flex gap-2">
-                {(["client", "dj"] as const).map((a) => (
+              <div className="grid grid-cols-2 gap-2">
+                {AUDIENCES.map((a) => (
                   <button
                     key={a}
                     onClick={() => update((d) => ({ ...d, audience: a }))}
                     className={cn(
-                      "flex-1 rounded-[10px] border px-3 py-2 text-sm",
+                      "rounded-[10px] border px-3 py-2 text-sm",
                       design.audience === a ? "border-gold bg-gold-soft font-medium" : "border-black/10 hover:border-gold"
                     )}
                   >
@@ -671,8 +673,12 @@ interface RecipientOption {
 }
 
 function SendModal({ designId, design, onClose }: { designId: string; design: EmailDesign; onClose: () => void }) {
-  const isDj = design.audience === "dj";
-  const who = isDj ? "DJs" : "clients";
+  const audience = design.audience;
+  const isDj = audience === "dj";
+  const isVenue = audience === "venue";
+  const isPersonal = audience === "personal";
+  const who = isDj ? "DJs" : isVenue ? "venue managers" : isPersonal ? "people" : "clients";
+  const leftover = placeholdersIn(design);
   const [q, setQ] = useState("");
   const [upcomingOnly, setUpcomingOnly] = useState(false);
   const [options, setOptions] = useState<RecipientOption[] | null>(null);
@@ -685,13 +691,16 @@ function SendModal({ designId, design, onClose }: { designId: string; design: Em
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
+    if (isPersonal) return;
     const t = setTimeout(() => {
-      api<{ recipients: RecipientOption[] }>(`/api/admin/communications/recipients?q=${encodeURIComponent(q)}${isDj ? "&type=dj" : upcomingOnly ? "&upcoming=1" : ""}`)
+      api<{ recipients: RecipientOption[] }>(
+        `/api/admin/communications/recipients?q=${encodeURIComponent(q)}${isDj ? "&type=dj" : isVenue ? "&type=venue" : upcomingOnly ? "&upcoming=1" : ""}`
+      )
         .then((d) => setOptions(d.recipients))
         .catch((e) => setErr(e.message));
     }, 250);
     return () => clearTimeout(t);
-  }, [q, upcomingOnly, isDj]);
+  }, [q, upcomingOnly, isDj, isVenue, isPersonal]);
 
   const extraEmails = extra
     .split(/[\s,;]+/)
@@ -711,7 +720,8 @@ function SendModal({ designId, design, onClose }: { designId: string; design: Em
     setBusy(true);
     setErr(null);
     try {
-      const body = JSON.stringify({ designId, design, [isDj ? "djIds" : "clientIds"]: [...picked.keys()], emails: extraEmails, confirm });
+      const idKey = isDj ? "djIds" : isVenue ? "managerIds" : "clientIds";
+      const body = JSON.stringify({ designId, design, ...(isPersonal ? {} : { [idKey]: [...picked.keys()] }), emails: extraEmails, confirm });
       const r = await api<{ check?: typeof check; result?: typeof result }>("/api/admin/communications/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -738,7 +748,12 @@ function SendModal({ designId, design, onClose }: { designId: string; design: Em
     <Modal title={step === "done" ? "Sent" :  `Send to ${who}`} onClose={onClose}>
       {step === "pick" && (
         <>
-          <p className="text-sm text-muted">Each person gets their own copy, personalized from their {isDj ? "DJ profile and next assigned gig" : "client record"}. Nobody sees anyone else&apos;s address.</p>
+          <p className="text-sm text-muted">
+            {isPersonal
+              ? "Personal emails go only to the addresses you type. They aren't linked to any client, DJ or venue record. Each person gets their own copy and nobody sees anyone else's address."
+              : `Each person gets their own copy, personalized from their ${isDj ? "DJ profile and next assigned gig" : isVenue ? "venue (name, portal link, DCDJs contact)" : "client record"}. Nobody sees anyone else's address.`}
+          </p>
+          {!isPersonal && <>
           <div className="mt-3 flex items-center gap-2">
             <input value={q} onChange={(e) => setQ(e.target.value)} className={inputCls} placeholder={`Search ${who} by name or email`} aria-label={`Search ${who}`} />
           </div>
@@ -750,7 +765,13 @@ function SendModal({ designId, design, onClose }: { designId: string; design: Em
             {!options ? (
               <p className="p-3 text-sm text-muted">Loading {who}…</p>
             ) : !options.length ? (
-              <p className="p-3 text-sm text-muted">{isDj ? "No DJs with an email address match. A DJ needs a CRM login or signature email to show here; you can also type addresses below." : "No clients with an email address match."}</p>
+              <p className="p-3 text-sm text-muted">
+                {isDj
+                  ? "No DJs with an email address match. A DJ needs a CRM login or signature email to show here; you can also type addresses below."
+                  : isVenue
+                    ? "No venue managers match. Add managers in Admin → Venues → Manage."
+                    : "No clients with an email address match."}
+              </p>
             ) : (
               <>
                 <button
@@ -784,10 +805,11 @@ function SendModal({ designId, design, onClose }: { designId: string; design: Em
               </>
             )}
           </div>
+          </>}
           <label className="mt-3 block">
-            <span className={labelCls}>Other email addresses (optional, separated by commas)</span>
-            <textarea value={extra} onChange={(e) => setExtra(e.target.value)} rows={2} className={inputCls} placeholder="name@example.com, other@example.com" />
-            <span className="mt-1 block text-[11px] text-muted">These aren&apos;t CRM {who}, so only the company name can be filled in for them.</span>
+            <span className={labelCls}>{isPersonal ? "Email addresses (separated by commas)" : "Other email addresses (optional, separated by commas)"}</span>
+            <textarea value={extra} onChange={(e) => setExtra(e.target.value)} rows={isPersonal ? 4 : 2} className={inputCls} placeholder="name@example.com, other@example.com" />
+            {!isPersonal && <span className="mt-1 block text-[11px] text-muted">These aren&apos;t CRM {who}, so only the company name can be filled in for them.</span>}
           </label>
           {err && <p className="mt-3 text-sm text-status-declined">{err}</p>}
           <div className="mt-4 flex items-center justify-between gap-2">
@@ -804,6 +826,13 @@ function SendModal({ designId, design, onClose }: { designId: string; design: Em
           <p className="text-sm">
             Ready to send <strong>{design.subject || "this email"}</strong> to <strong>{check.recipientCount}</strong> {check.recipientCount === 1 ? "person" : "people"}.
           </p>
+          {leftover.length > 0 && (
+            <div className="mt-3 rounded-[10px] border border-status-declined/40 bg-status-declined/10 p-3 text-sm">
+              <p className="font-medium">This email still has fill-ins to replace:</p>
+              <p className="mt-1 text-xs">{leftover.join(", ")}</p>
+              <p className="mt-1 text-xs text-muted">Go back, edit the text, then send. Everyone would see these exactly as written.</p>
+            </div>
+          )}
           {check.warnings.length > 0 ? (
             <div className="mt-3 rounded-[10px] border border-status-pending/40 bg-status-pending/10 p-3 text-sm">
               <p className="font-medium">Some details are missing and will be blank:</p>

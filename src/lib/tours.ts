@@ -18,6 +18,40 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-09-template-library": [
+    {
+      path: "/admin/communications?tab=templates",
+      target: '[data-tour="comm-filter"]',
+      title: "Four kinds of templates",
+      body: "Filter by Clients, DJ team, Venue partners or Personal. The numbers show how many of each you have."
+    },
+    {
+      path: "/admin/communications?tab=templates",
+      target: '[data-tour="comm-template"]',
+      title: "Start from a template",
+      body: "Every template is fully editable. Duplicate one first if you want to keep the original. Click Next to open this one.",
+      follow: '[data-tour="comm-template"] a'
+    },
+    {
+      path: "/admin/communications/studio/*",
+      target: '[data-tour="studio-audience"]',
+      title: "Who it's for decides who you can pick",
+      body: "Clients pick from client records, DJ team from your DJs, Venue partners from venue managers. Personal only sends to addresses you type, never linked to CRM records.",
+      waitHint: "Open any template to continue."
+    },
+    {
+      path: "/admin/communications/studio/*",
+      target: '[data-tour="studio-blocks"]',
+      title: "Replace the [FILL-INS]",
+      body: "Words in square brackets like [DATE] or [DJ NAME] are yours to fill in. Words in double braces like {{first_name}} fill in automatically for each person."
+    },
+    {
+      path: "/admin/communications/studio/*",
+      target: '[data-tour="studio-send"]',
+      title: "Safety check before sending",
+      body: "Review & send checks for missing details and any [FILL-INS] you forgot, and shows them before anything goes out."
+    }
+  ],
   "2026-11-06-venue-portal-a": [
     {
       path: "/admin/venues",

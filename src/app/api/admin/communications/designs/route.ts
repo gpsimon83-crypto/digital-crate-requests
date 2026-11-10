@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ensureStarterDesigns, requireStaffUser } from "@/lib/comm/server";
-import { defaultBlock, sanitizeDesign } from "@/lib/comm/blocks";
+import { defaultBlock, normalizeAudience, sanitizeDesign } from "@/lib/comm/blocks";
 
 const LIST_COLS = "id, name, audience, subject, theme, is_starter, updated_at, created_at";
 
@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   try {
     const db = createAdminClient();
     let design;
-    let audience = body.audience === "dj" ? "dj" : "client";
+    let audience: string = normalizeAudience(body.audience);
     if (body.fromId) {
       const { data: src, error } = await db.from("comm_email_designs").select("*").eq("id", body.fromId).single();
       if (error) throw error;

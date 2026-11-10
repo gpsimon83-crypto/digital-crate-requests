@@ -21,9 +21,17 @@ export type EmailBlock =
 
 export type EmailBlockType = EmailBlock["type"];
 
-export type EmailAudience = "client" | "dj";
+export type EmailAudience = "client" | "dj" | "venue" | "personal";
 
-export const AUDIENCE_LABELS: Record<EmailAudience, string> = { client: "Clients", dj: "DJ team" };
+export const AUDIENCE_LABELS: Record<EmailAudience, string> = { client: "Clients", dj: "DJ team", venue: "Venue partners", personal: "Personal" };
+export const AUDIENCES: EmailAudience[] = ["client", "dj", "venue", "personal"];
+export const normalizeAudience = (a: unknown): EmailAudience => (AUDIENCES.includes(a as EmailAudience) ? (a as EmailAudience) : "client");
+
+/** Bracketed fill-ins like [DATE] or [INVITE CODE] that must be replaced by hand before sending. */
+export function placeholdersIn(design: Pick<EmailDesign, "subject" | "preheader" | "blocks">): string[] {
+  const text = [design.subject, design.preheader, ...design.blocks.map((b) => JSON.stringify(b))].join(" ");
+  return [...new Set(text.match(/\[[A-Z][A-Z0-9 #'&/-]{1,40}\]/g) ?? [])];
+}
 
 export interface EmailDesign {
   name: string;
@@ -87,7 +95,10 @@ export const MERGE_FIELDS: { token: string; label: string; sample: string }[] = 
   { token: "dj_name", label: "Assigned DJ", sample: "DJ Peace" },
   { token: "portal_link", label: "Client portal link", sample: "https://cratesdjs.com/portal" },
   { token: "review_link", label: "Review link (from Settings)", sample: "https://g.page/r/digital-crate-djs/review" },
-  { token: "members_link", label: "DJ members area link", sample: "https://digitalcratedjs.com/members/" }
+  { token: "members_link", label: "DJ members area link", sample: "https://digitalcratedjs.com/members/" },
+  { token: "balance_due", label: "Balance due", sample: "$1,250.00" },
+  { token: "venue_portal_link", label: "Venue portal link", sample: "https://cratesdjs.com/venue" },
+  { token: "dcdjs_contact", label: "Venue's DCDJs contact", sample: "DJ Peace" }
 ];
 
 export type MergeValues = Partial<Record<string, string>>;
@@ -141,7 +152,7 @@ export function sanitizeDesign(input: unknown): EmailDesign {
   }
   return {
     name: str(d.name, 200) || "Untitled email",
-    audience: d.audience === "dj" ? "dj" : "client",
+    audience: normalizeAudience(d.audience),
     subject: str(d.subject, 300),
     preheader: str(d.preheader, 300),
     theme: d.theme === "light" ? "light" : "dark",

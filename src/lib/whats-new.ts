@@ -19,6 +19,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-09-template-library",
+    date: "2026-11-09",
+    area: "CRM",
+    title: "Template Library complete (Communications Phase 4)",
+    summary: "40 ready-made emails across four audiences: Clients, DJ team, Venue partners and Personal.",
+    bullets: [
+      "Clients (10): added contract signature, invoice payment (shows the balance due) and questionnaire reminders",
+      "DJ team (14): added members-area sign-in reminder, booking confirmed and missing documents",
+      "Venue partners (10): welcome, monthly schedule, DJ confirmation, schedule approval, weekend lineup, schedule change, monthly recap, follow-up, special event planning, feedback",
+      "Venue emails go to venue managers and fill in their venue name, portal link and DCDJs contact",
+      "Personal (6): announcement, invitation, thank you, proposal, holiday greeting, personal note. They go only to addresses you type and never link to client, DJ or venue records",
+      "Fill-ins like [DATE] or [DJ NAME] are flagged before sending so they never go out by mistake"
+    ],
+    link: { href: "/admin/communications?tab=templates", label: "Open Templates" }
+  },
+  {
     id: "2026-11-06-whats-new",
     date: "2026-11-06",
     area: "CRM",

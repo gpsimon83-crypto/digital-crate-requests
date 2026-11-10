@@ -112,6 +112,61 @@ function stableJson(v: unknown): string {
   return JSON.stringify(v ?? null);
 }
 
+/**
+ * Venue partner managers (venue_managers rows). Only active managers at
+ * active venues; each gets their own venue's name and portal link.
+ */
+export async function recipientsForVenueManagers(managerIds: string[]): Promise<Recipient[]> {
+  if (!managerIds.length) return [];
+  const db = createAdminClient();
+  const { data, error } = await db
+    .from("venue_managers")
+    .select("id, email, full_name, is_active, venue_id, venues(id, name, is_active, dcdjs_contact_name)")
+    .in("id", managerIds)
+    .eq("is_active", true);
+  if (error) throw error;
+  const origin = appOrigin();
+  const out: Recipient[] = [];
+  for (const m of data ?? []) {
+    const v = m.venues as unknown as { id: string; name: string; is_active: boolean; dcdjs_contact_name: string | null } | null;
+    if (!v?.is_active) continue;
+    const full = (m.full_name as string | null) || "";
+    const email = String(m.email).trim();
+    if (!isValidEmail(email)) continue;
+    out.push({
+      email,
+      name: full || null,
+      clientId: null,
+      eventId: null,
+      values: {
+        first_name: full.split(/\s+/)[0] || "",
+        full_name: full,
+        venue_name: v.name,
+        venue_portal_link: `${origin}/venue?venue=${v.id}`,
+        dcdjs_contact: v.dcdjs_contact_name || "",
+        company_name: COMPANY_NAME
+      }
+    });
+  }
+  return out;
+}
+
+/** Venue manager picker list for the Studio. */
+export async function venueRecipientOptions(q: string) {
+  const db = createAdminClient();
+  const { data, error } = await db.from("venue_managers").select("id, email, full_name, is_active, venues(name, is_active)").eq("is_active", true);
+  if (error) throw error;
+  const needle = q.trim().toLowerCase();
+  const out: { id: string; name: string; email: string; nextEvent: null }[] = [];
+  for (const m of data ?? []) {
+    const v = m.venues as unknown as { name: string; is_active: boolean } | null;
+    if (!v?.is_active || !isValidEmail(String(m.email))) continue;
+    const o = { id: m.id as string, name: `${(m.full_name as string | null) || m.email} · ${v.name}`, email: m.email as string, nextEvent: null };
+    if (!needle || o.name.toLowerCase().includes(needle) || o.email.toLowerCase().includes(needle)) out.push(o);
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export const MEMBERS_LINK = "https://digitalcratedjs.com/members/";
 
 /**
@@ -217,10 +272,21 @@ export async function recipientsForClients(clientIds: string[], eventId?: string
   if (error) throw error;
   const { data: events, error: evErr } = await db
     .from("events")
-    .select("id, client_id, event_type, starts_at, venues(name), djs(display_name)")
+    .select("id, client_id, event_type, starts_at, quoted_amount, final_amount, venues(name), djs(display_name)")
     .in("client_id", clientIds)
     .order("starts_at", { ascending: true });
   if (evErr) throw evErr;
+  const eventIds = (events ?? []).map((e) => e.id as string);
+  const { data: pays } = eventIds.length
+    ? await db.from("payments").select("event_id, amount_cents, status").in("event_id", eventIds)
+    : { data: [] as { event_id: string; amount_cents: number; status: string }[] };
+  const money = (cents: number) => (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+  const balanceFor = (e: { id: string; quoted_amount: number | null; final_amount: number | null }) => {
+    const due = Math.round((e.final_amount ?? e.quoted_amount ?? 0) * 100);
+    if (!due) return "";
+    const paid = (pays ?? []).filter((p) => p.event_id === e.id && p.status === "succeeded").reduce((s, p) => s + (p.amount_cents as number), 0);
+    return money(Math.max(due - paid, 0));
+  };
 
   const now = Date.now();
   return (clients ?? [])
@@ -246,6 +312,7 @@ export async function recipientsForClients(clientIds: string[], eventId?: string
         venue_name: venue || "",
         dj_name: dj || "",
         portal_link: picked ? `${origin}/portal/events/${picked.id}` : `${origin}/portal`,
+        balance_due: picked ? balanceFor(picked as { id: string; quoted_amount: number | null; final_amount: number | null }) : "",
         review_link: review
       };
       return { email: c.email!.trim(), name: full || null, clientId: c.id, eventId: picked?.id ?? null, values };

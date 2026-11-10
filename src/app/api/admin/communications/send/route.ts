@@ -8,6 +8,7 @@ import {
   recipientsForAddresses,
   recipientsForClients,
   recipientsForDjs,
+  recipientsForVenueManagers,
   requireStaffUser,
   sendDesign,
   isValidEmail
@@ -23,6 +24,7 @@ interface SendBody {
   testEmail?: string;
   clientIds?: string[];
   djIds?: string[];
+  managerIds?: string[];
   emails?: string[];
   eventId?: string | null;
   /** Only send when true; otherwise the route just returns the pre-send check. */
@@ -63,12 +65,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ result, to });
     }
 
-    const clientIds = Array.isArray(body.clientIds) ? body.clientIds.filter((x) => typeof x === "string").slice(0, MAX_RECIPIENTS_PER_SEND) : [];
-    const emails = Array.isArray(body.emails) ? body.emails.filter((x) => typeof x === "string").slice(0, MAX_RECIPIENTS_PER_SEND) : [];
-    const djIds = Array.isArray(body.djIds) ? body.djIds.filter((x) => typeof x === "string").slice(0, MAX_RECIPIENTS_PER_SEND) : [];
+    const ids = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, MAX_RECIPIENTS_PER_SEND) : []);
+    const emails = ids(body.emails);
+    // Each audience only pulls from its own records. Personal emails never
+    // touch CRM records: typed addresses only.
+    const a = design.audience;
     const recipients = [
-      ...(await recipientsForClients(clientIds, body.eventId ?? null)),
-      ...(await recipientsForDjs(djIds)),
+      ...(a === "client" ? await recipientsForClients(ids(body.clientIds), body.eventId ?? null) : []),
+      ...(a === "dj" ? await recipientsForDjs(ids(body.djIds)) : []),
+      ...(a === "venue" ? await recipientsForVenueManagers(ids(body.managerIds)) : []),
       ...recipientsForAddresses(emails)
     ];
     if (!recipients.length) return NextResponse.json({ error: "Choose at least one recipient with a valid email address." }, { status: 400 });

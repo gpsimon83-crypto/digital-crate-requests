@@ -12,6 +12,7 @@ import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SideDrawer } from "@/components/ui/side-drawer";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { AUDIENCES, AUDIENCE_LABELS, normalizeAudience, type EmailAudience } from "@/lib/comm/blocks";
 
 export type CommTab = "overview" | "templates" | "sent" | "settings";
 
@@ -93,7 +94,7 @@ export function CommunicationsCenter({ tab }: { tab: CommTab }) {
   const [busy, setBusy] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [openSend, setOpenSend] = useState<string | null>(null);
-  const [audienceFilter, setAudienceFilter] = useState<"all" | "client" | "dj">("all");
+  const [audienceFilter, setAudienceFilter] = useState<"all" | EmailAudience>("all");
 
   const load = useCallback(async () => {
     try {
@@ -114,7 +115,7 @@ export function CommunicationsCenter({ tab }: { tab: CommTab }) {
     load();
   }, [load]);
 
-  async function createDesign(fromId?: string, audience?: "client" | "dj") {
+  async function createDesign(fromId?: string, audience?: EmailAudience) {
     setBusy(true);
     setError(null);
     try {
@@ -209,12 +210,8 @@ export function CommunicationsCenter({ tab }: { tab: CommTab }) {
         {tab === "templates" && (
           <section className="py-6">
             <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Filter templates" data-tour="comm-filter">
-              {([
-                ["all", "All"],
-                ["client", "Clients"],
-                ["dj", "DJ team"]
-              ] as const).map(([k, label]) => {
-                const n = k === "all" ? (designs ?? []).length : (designs ?? []).filter((d) => (d.audience === "dj" ? "dj" : "client") === k).length;
+              {([["all", "All"] as const, ...AUDIENCES.map((k) => [k, AUDIENCE_LABELS[k]] as const)]).map(([k, label]) => {
+                const n = k === "all" ? (designs ?? []).length : (designs ?? []).filter((d) => normalizeAudience(d.audience) === k).length;
                 return (
                   <button
                     key={k}
@@ -233,11 +230,11 @@ export function CommunicationsCenter({ tab }: { tab: CommTab }) {
               })}
             </div>
             <DesignGrid
-              designs={(designs ?? []).filter((d) => audienceFilter === "all" || (d.audience === "dj" ? "dj" : "client") === audienceFilter)}
+              designs={(designs ?? []).filter((d) => audienceFilter === "all" || normalizeAudience(d.audience) === audienceFilter)}
               loading={!designs}
               onDuplicate={(id) => createDesign(id)}
               onDelete={setDeleteId}
-              onNew={() => createDesign(undefined, audienceFilter === "dj" ? "dj" : "client")}
+              onNew={() => createDesign(undefined, audienceFilter === "all" ? "client" : audienceFilter)}
             />
           </section>
         )}
@@ -303,7 +300,7 @@ function DesignGrid({
               <Button size="sm" variant="icon" title="Delete" aria-label={`Delete ${d.name}`} onClick={() => onDelete(d.id)}>
                 <Trash2 size={14} />
               </Button>
-              <span className="ml-auto text-[11px] text-muted">{d.audience === "dj" ? "DJ team" : "Clients"}</span>
+              <span className="ml-auto text-[11px] text-muted">{AUDIENCE_LABELS[normalizeAudience(d.audience)]}</span>
             </div>
           </div>
         </div>
