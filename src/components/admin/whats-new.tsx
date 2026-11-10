@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, ChevronRight, CircleAlert, PlayCircle } from "lucide-react";
-import { TOURS } from "@/lib/tours";
+import { hasTour } from "@/lib/tours";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { UPDATES, type UpdateArea } from "@/lib/whats-new";
 import { markWhatsNewSeen } from "@/lib/use-whats-new";
@@ -79,7 +79,7 @@ export function WhatsNew() {
                       {u.area}
                     </span>
                     {newIds.has(u.id) && <span className="rounded-full bg-gold px-2 py-0.5 text-[10px] font-semibold text-[#1A140A]">NEW</span>}
-                    {TOURS[u.id] && (
+                    {hasTour(u.id) && (
                       <span className="inline-flex items-center gap-1 rounded-full border border-gold/40 px-2 py-0.5 text-[10px] font-medium text-gold-dim">
                         <PlayCircle size={11} /> Walkthrough
                       </span>

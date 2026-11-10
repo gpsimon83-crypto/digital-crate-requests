@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, ArrowUpRight, CircleAlert, PlayCircle } from "lucide-react";
 import { UPDATES } from "@/lib/whats-new";
-import { TOURS } from "@/lib/tours";
+import { MEMBER_TOURS, TOURS } from "@/lib/tours";
 import { startTour } from "./guided-tour";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +24,20 @@ export function WhatsNewDetail({ id }: { id: string }) {
       </div>
     );
   }
-  const steps = TOURS[u.id] ?? [];
+  const member = MEMBER_TOURS[u.id];
+  const steps: { title: string; body: string; adminOnly?: boolean }[] = TOURS[u.id] ?? member?.steps ?? [];
+  const startBtn = (extra = "") => {
+    const cls = cn("inline-flex items-center gap-2 rounded-[10px] bg-gold px-4 py-2 text-sm font-medium text-[#1A140A] hover:brightness-105", extra);
+    return member ? (
+      <a href={member.url} target="_blank" rel="noreferrer" className={cls}>
+        <PlayCircle size={16} /> Start walkthrough <ArrowUpRight size={14} />
+      </a>
+    ) : (
+      <button onClick={() => startTour(u.id, (href) => router.push(href))} className={cls}>
+        <PlayCircle size={16} /> Start walkthrough
+      </button>
+    );
+  };
   const newer = UPDATES[i - 1];
   const older = UPDATES[i + 1];
 
@@ -42,14 +55,7 @@ export function WhatsNewDetail({ id }: { id: string }) {
         <h1 className="mt-3 font-display text-3xl font-light sm:text-4xl">{u.title}</h1>
         <p className="mt-2 max-w-xl text-sm text-[#e8dfcf]/85">{u.summary}</p>
         <div className="mt-5 flex flex-wrap gap-2">
-          {steps.length > 0 && (
-            <button
-              onClick={() => startTour(u.id, (href) => router.push(href))}
-              className="inline-flex items-center gap-2 rounded-[10px] bg-gold px-4 py-2 text-sm font-medium text-[#1A140A] hover:brightness-105"
-            >
-              <PlayCircle size={16} /> Start walkthrough
-            </button>
-          )}
+          {steps.length > 0 && startBtn()}
           {u.link &&
             (u.link.external ? (
               <a href={u.link.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-[10px] border border-[#c99428]/50 px-4 py-2 text-sm hover:bg-white/5">
@@ -88,25 +94,23 @@ export function WhatsNewDetail({ id }: { id: string }) {
         <section className="rounded-card border border-border bg-card p-5 shadow-card">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold">In this walkthrough</h2>
-            <span className="text-xs text-muted">{steps.length} steps on the real pages</span>
+            <span className="text-xs text-muted">{steps.length} steps on the real pages{member ? " · opens the members area in a new tab" : ""}</span>
           </div>
           <ol className="mt-3 flex flex-col gap-2">
             {steps.map((s, k) => (
               <li key={k} className="flex gap-3">
                 <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-gold-soft text-[11px] font-semibold text-gold-dim">{k + 1}</span>
                 <div>
-                  <p className="text-sm font-medium">{s.title}</p>
+                  <p className="text-sm font-medium">
+                    {s.title}
+                    {s.adminOnly && <span className="ml-2 rounded-full bg-gold-soft px-1.5 py-0.5 text-[10px] font-semibold text-gold-dim">Admins</span>}
+                  </p>
                   <p className="text-xs text-muted">{s.body}</p>
                 </div>
               </li>
             ))}
           </ol>
-          <button
-            onClick={() => startTour(u.id, (href) => router.push(href))}
-            className="mt-4 inline-flex items-center gap-2 rounded-[10px] bg-gold px-4 py-2 text-sm font-medium text-[#1A140A] hover:brightness-105"
-          >
-            <PlayCircle size={16} /> Start walkthrough
-          </button>
+          {startBtn("mt-4")}
         </section>
       )}
 

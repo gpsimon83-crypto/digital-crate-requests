@@ -19,6 +19,40 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-10-crate-challenge",
+    date: "2026-11-10",
+    area: "Members area",
+    title: "The Crate Challenge",
+    summary: "A members game inside Venue Curator: 40 themed crates with their own covers that unlock a few at a time, and DJs fill them with songs from the Music Pool.",
+    bullets: [
+      "Find it at Members → Venue Curator → Crate Challenge",
+      "Starts with 4 crates open, then 2 more every Monday (you can change this)",
+      "Each crate fills to 25 songs, up to 10 per DJ, with a Complete ribbon when full",
+      "Leaderboards for the whole challenge and for each crate",
+      "Admins can open a crate early, hold one back, or edit it from its ⋯ menu",
+      "Launching can post the promo announcement with its banner on the members Dashboard",
+      "Venue Curator now uses the dark gold look from the challenge banner"
+    ],
+    link: { href: "https://digitalcratedjs.com/members/#curator/crates", label: "Open the Crate Challenge", external: true },
+    action: "DJs can't see it until you launch it: Venue Curator → Crate Challenge → Launch the Crate Challenge."
+  },
+  {
+    id: "2026-11-10-venue-curator-library",
+    date: "2026-11-10",
+    area: "Members area",
+    title: "Venue Curator music library redesign",
+    summary: "Venue playlists are now DCDJs Music Collections: a cover grid with categories, search and a full track table for each collection.",
+    bullets: [
+      "Collections by venue and category (Essentials, Friday Nights, Hip-Hop and more) with cover photos you can crop",
+      "Search, venue filter, sort order and archived collections",
+      "Track table with clean/dirty and genre filters; move, copy or remove tracks",
+      "Build from recommendations and download any list as a spreadsheet",
+      "Existing venue playlists moved over automatically and stay in sync",
+      "The Curated Tracks Archive still saves every list each quarter"
+    ],
+    link: { href: "https://digitalcratedjs.com/members/#curator", label: "Open Venue Curator", external: true }
+  },
+  {
     id: "2026-11-09-template-library",
     date: "2026-11-09",
     area: "CRM",

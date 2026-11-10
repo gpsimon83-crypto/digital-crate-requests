@@ -229,6 +229,52 @@ export const TOURS: Record<string, TourStep[]> = {
   ]
 };
 
+/**
+ * Walkthroughs that run in the DJ members area (digitalcratedjs.com), not the
+ * CRM. Start walkthrough opens the members page with ?dctour=<key>; the
+ * members area runs the steps itself (theme file inc/member-tours.php). Keep
+ * these step titles in sync with that file. Admin-only steps are marked.
+ */
+export interface MemberTour {
+  url: string;
+  steps: { title: string; body: string; adminOnly?: boolean }[];
+}
+
+const MEMBERS = "https://digitalcratedjs.com/members/";
+
+export const MEMBER_TOURS: Record<string, MemberTour> = {
+  "2026-11-10-crate-challenge": {
+    url: `${MEMBERS}?dctour=crate-challenge#curator`,
+    steps: [
+      { title: "Find it in Venue Curator", body: "The Crate Challenge is the second section of Venue Curator, next to Venue Collections." },
+      { title: "The challenge", body: "40 themed crates that unlock a few at a time. DJs fill each crate to 25 songs, up to 10 songs per DJ per crate." },
+      { title: "Launch and settings", body: "Launch opens the first crates and can post the promo on the members Dashboard. DJs can't see the challenge until you launch it.", adminOnly: true },
+      { title: "Progress and the next drop", body: "Crates open and complete, songs added by everyone, and the next Monday drop." },
+      { title: "Top crate diggers", body: "The leaderboard ranks DJs by songs added across all crates." },
+      { title: "Filter the crates", body: "All 40, open, needs songs, complete, or locked." },
+      { title: "Open and locked crates", body: "Open crates show progress; locked ones show their unlock date. Next opens a crate." },
+      { title: "Add your songs", body: "Pick from the Music Pool. DJs can remove only their own songs." },
+      { title: "Top diggers in this crate", body: "Who added the most. Fill it to 25 for a Complete ribbon." }
+    ]
+  },
+  "2026-11-10-venue-curator-library": {
+    url: `${MEMBERS}?dctour=venue-curator#curator`,
+    steps: [
+      { title: "DCDJs Music Collections", body: "Every venue playlist is a collection with its own cover, shown as a grid." },
+      { title: "Create a collection", body: "Name, venue, category, genres and a cropped cover photo.", adminOnly: true },
+      { title: "Search and sort", body: "Search by name, filter to one venue, or change the order." },
+      { title: "Browse by category", body: "All Collections, By Venue, or one category at a time." },
+      { title: "Open a collection", body: "Each card shows venue, category, track count and last update. Next opens one." },
+      { title: "Work on the list", body: "Add tracks, build from recommendations, or download the list as a spreadsheet." },
+      { title: "The track list", body: "Search, filter clean or dirty and by genre; the ⋯ button moves, copies or removes a track." },
+      { title: "Top rated", body: "The songs DJs rated highest for this venue." },
+      { title: "Curated Tracks Archive", body: "Each quarter every venue's list is saved automatically; download any of them." }
+    ]
+  }
+};
+
+export const hasTour = (id: string) => !!TOURS[id] || !!MEMBER_TOURS[id];
+
 export function pathMatches(pattern: string, pathname: string, search: URLSearchParams): boolean {
   const [p, q] = pattern.split("?");
   const a = p.split("/").filter(Boolean);
