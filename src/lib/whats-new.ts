@@ -22,14 +22,15 @@ export const UPDATES: UpdateEntry[] = [
     id: "2026-11-10-music-pool-crates",
     date: "2026-11-10",
     area: "Members area",
-    title: "Music Pool cleanup: DJ Exclusive Crates",
-    summary: "The Music Pool now has the dark gold look and shows every DJ's uploads as their own Exclusive Crate with their crate photo.",
+    title: "Music Pool redesign: DJ Exclusive Crates",
+    summary: "A modern player-style Music Pool: the crate cover blurred across the background, a big header for the crate, and a clean track list.",
     bullets: [
-      "Crate photos for Scary Terry, Aran Arms, DJ Que, J Prime, CrateClubP and Grand Master O; other DJs get a gold name crate until they have a photo",
-      "Crates are ranked by downloads with 🥇🥈🥉 badges, replacing the old DJ Rankings strip",
-      "Click a crate to see only that DJ's tracks; Show all DJs goes back",
-      "The big upload box is tucked behind an Upload tracks button at the top",
-      "Cleaner search, venue filters and track list"
+      "Every DJ's uploads are their own Exclusive Crate with their crate photo (Scary Terry, Aran Arms, DJ Que, J Prime, CrateClubP, Grand Master O); others get a gold name crate",
+      "Click a crate: the header, cover and blurred background switch to that DJ and the list shows only their tracks",
+      "Crates ranked by downloads with 🥇🥈🥉 badges, replacing the old DJ Rankings strip",
+      "Clean track list: play button, title with version, artist, DJ, BPM, color-coded Camelot key, downloads",
+      "Download, rate, edit and comments are icon buttons; Play all starts the list",
+      "The big upload box is tucked behind an Upload tracks button"
     ],
     link: { href: "https://digitalcratedjs.com/members/", label: "Open the members area", external: true }
   },
