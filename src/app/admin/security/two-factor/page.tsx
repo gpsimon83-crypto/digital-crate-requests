@@ -139,7 +139,7 @@ function TwoFactor() {
                   <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Device name</span>
                   <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} className="w-full rounded-[2px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none" />
                 </label>
-                <Button variant="primary" className="w-fit" disabled={busy} onClick={startEnroll}>
+                <Button variant="primary" className="w-fit" disabled={busy} onClick={startEnroll} data-tour="sec-2fa-setup">
                   <KeyRound size={14} /> {verified.length ? "Add a backup authenticator" : "Set up two-factor"}
                 </Button>
               </section>

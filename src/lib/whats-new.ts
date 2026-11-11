@@ -19,6 +19,25 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-11-inquiry-security",
+    date: "2026-11-11",
+    area: "CRM",
+    title: "Inquiry Security: confirmed requests, spam protection and two-factor",
+    summary: "Website booking requests now become leads only after the client confirms their email, and a new Inquiry Security page shows anything flagged, blocked or waiting.",
+    bullets: [
+      "Find it at Admin → Inquiry Security (owners and admins)",
+      "Booking and consultation forms have a Cloudflare spam check, a hidden bot trap and limits on repeated submissions",
+      "Clients get a confirmation email; nothing is reserved, texted or emailed to staff until they click it. Links work once and expire after 24 hours",
+      "Unusual requests wait in Needs review with plain-English reasons. Approve, mark spam, restore, resend or temporarily block, and every decision is recorded",
+      "Past event dates can't be submitted on any public form (Chicago time). Today is allowed",
+      "Bookings can't be confirmed twice or double-book a DJ, and Stripe payments only count when Stripe signs them",
+      "Client files open through short-lived private links, only for the client, their DJ and staff",
+      "Two-factor sign-in for staff at Admin → Inquiry Security → Two-factor"
+    ],
+    link: { href: "/admin/security", label: "Open Inquiry Security" },
+    action: "Each owner and admin: set up two-factor (Admin → Inquiry Security → Two-factor). Add the WordPress partner key to wp-config.php so website forms reach the CRM."
+  },
+  {
     id: "2026-11-11-social-presence",
     date: "2026-11-11",
     area: "Members area",

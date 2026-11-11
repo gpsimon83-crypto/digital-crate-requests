@@ -18,6 +18,68 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-11-inquiry-security": [
+    {
+      path: "/admin/security",
+      title: "Inquiry Security",
+      body: "Website booking requests now wait for the client to confirm their email before they become a lead. This page shows what's waiting, what was caught as spam, and every decision your team made."
+    },
+    {
+      path: "/admin/security",
+      target: '[data-tour="sec-stats"]',
+      title: "The numbers at a glance",
+      body: "Needs review is the one to watch: requests that looked unusual and are waiting on a person. Pending verification means the client hasn't clicked their confirmation email yet."
+    },
+    {
+      path: "/admin/security",
+      target: '[data-tour="sec-tabs"]',
+      title: "Sort requests by where they are",
+      body: "Switch between Needs review, Pending verification, Spam, Verified and Archived. The number beside each tab is how many are in it."
+    },
+    {
+      path: "/admin/security",
+      target: '[data-tour="sec-list"]',
+      title: "Each request",
+      body: "Name, email, event type and date, plus plain-English reasons when a request was flagged, such as the same message sent from several addresses."
+    },
+    {
+      path: "/admin/security",
+      target: '[data-tour="sec-actions"]',
+      title: "What you can do",
+      body: "Approve turns it into a lead now (if the client never confirmed, that's recorded with your name). Spam hides it, Restore brings it back, Resend emails a new confirmation link, and Block pauses that email or visitor for 1 hour to 30 days."
+    },
+    {
+      path: "/admin/security",
+      target: '[data-tour="sec-blocks"]',
+      title: "Blocked activity and temporary blocks",
+      body: "See how many attempts were stopped by the spam check or the rate limits, and lift any temporary block early with Unblock."
+    },
+    {
+      path: "/admin/security",
+      target: '[data-tour="sec-staff"]',
+      title: "Who has office access",
+      body: "Every owner, admin and manager, and whether they've set up two-factor. Roles are now set only in Supabase, so nobody can give themselves access."
+    },
+    {
+      path: "/admin/security",
+      target: '[data-tour="sec-history"]',
+      title: "Security history",
+      body: "Every approval, spam mark, block and override, with who did it and when."
+    },
+    {
+      path: "/admin/security",
+      target: '[data-tour="sec-2fa"]',
+      title: "Turn on two-factor",
+      body: "Protect your login with a 6-digit code from an authenticator app. Click Next to open the setup page.",
+      follow: '[data-tour="sec-2fa"]'
+    },
+    {
+      path: "/admin/security/two-factor",
+      target: '[data-tour="sec-2fa-setup"]',
+      title: "Set it up in a minute",
+      body: "Scan the QR code with Google Authenticator, 1Password or Authy and enter the code. Add a second device as a backup so you can't get locked out."
+    }
+  ],
   "2026-11-09-template-library": [
     {
       path: "/admin/communications?tab=templates",

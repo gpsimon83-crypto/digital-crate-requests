@@ -156,7 +156,7 @@ export default function SecurityPage() {
         title="Inquiry Security"
         subtitle="Website inquiries waiting on email confirmation or review, spam caught, and every manual decision."
         action={
-          <Link href="/admin/security/two-factor" className="flex items-center gap-1.5 text-sm text-gold hover:underline">
+          <Link href="/admin/security/two-factor" data-tour="sec-2fa" className="flex items-center gap-1.5 text-sm text-gold hover:underline">
             <KeyRound size={14} /> Two-factor
           </Link>
         }
@@ -178,7 +178,7 @@ export default function SecurityPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-2 border-y border-border sm:grid-cols-4 lg:grid-cols-6">
+            <div data-tour="sec-stats" className="grid grid-cols-2 border-y border-border sm:grid-cols-4 lg:grid-cols-6">
               <StatTile icon={ShieldAlert} label="Needs review" value={data.lists.needs_review.length} tone={data.lists.needs_review.length ? "urgent" : "default"} />
               <StatTile icon={Clock} label="Pending verification" value={data.lists.pending_verification.length} />
               <StatTile icon={CheckCircle2} label="Verified (7 days)" value={data.statusCounts7.verified ?? 0} />
@@ -188,7 +188,7 @@ export default function SecurityPage() {
             </div>
 
             <section>
-              <div className="flex gap-1 overflow-x-auto border-b border-border" role="tablist">
+              <div data-tour="sec-tabs" className="flex gap-1 overflow-x-auto border-b border-border" role="tablist">
                 {TABS.map((t) => (
                   <button
                     key={t.key}
@@ -205,7 +205,7 @@ export default function SecurityPage() {
               {rows.length === 0 ? (
                 <EmptyState icon={MailCheck} title="Nothing here right now" />
               ) : (
-                <div className="flex flex-col divide-y divide-border border-b border-border">
+                <div data-tour="sec-list" className="flex flex-col divide-y divide-border border-b border-border">
                   {rows.map((r) => (
                     <SubmissionCard key={r.id} r={r} busy={busy} act={act} />
                   ))}
@@ -213,7 +213,7 @@ export default function SecurityPage() {
               )}
             </section>
 
-            <section className="grid gap-6 lg:grid-cols-2">
+            <section data-tour="sec-blocks" className="grid gap-6 lg:grid-cols-2">
               <div>
                 <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Blocked and limited activity</h2>
                 <table className="w-full text-sm">
@@ -264,7 +264,7 @@ export default function SecurityPage() {
               </div>
             </section>
 
-            <section>
+            <section data-tour="sec-staff">
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Staff accounts</h2>
               <p className="mb-2 text-xs text-muted">Roles now come only from server-set account data. Two-factor shows verified authenticator apps.</p>
               <ul className="flex flex-col divide-y divide-border border-y border-border text-sm">
@@ -282,7 +282,7 @@ export default function SecurityPage() {
               </ul>
             </section>
 
-            <section>
+            <section data-tour="sec-history">
               <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Security history</h2>
               <ul className="flex max-h-[420px] flex-col divide-y divide-border overflow-y-auto border-y border-border text-sm">
                 {data.history.map((h) => (
@@ -339,7 +339,7 @@ function SubmissionCard({ r, busy, act }: { r: Row; busy: string | null; act: (p
           {r.review_note ? ` · ${r.review_note}` : ""}
         </p>
       </div>
-      <div className="flex shrink-0 flex-wrap items-start gap-2 lg:max-w-[340px] lg:justify-end">
+      <div data-tour="sec-actions" className="flex shrink-0 flex-wrap items-start gap-2 lg:max-w-[340px] lg:justify-end">
         {!r.event_id && r.status !== "spam" && (
           <Button
             size="sm"
