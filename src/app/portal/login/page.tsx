@@ -1,6 +1,8 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import { TurnstileWidget, TURNSTILE_SITE_KEY } from "@/components/site/turnstile-widget";
+import { safeNextPath } from "@/lib/security/safe-redirect";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
@@ -24,6 +26,8 @@ function LoginForm() {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,7 +36,8 @@ function LoginForm() {
 
     setRememberPreference(rememberMe);
     const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken: captcha ?? undefined } });
+    setCaptchaReset((k) => k + 1);
 
     if (signInError) {
       setError(signInError.message);
@@ -40,7 +45,7 @@ function LoginForm() {
       return;
     }
 
-    router.push(searchParams.get("next") ?? "/portal");
+    router.push(safeNextPath(searchParams.get("next"), "/portal", ["/portal"]));
     router.refresh();
   }
 
@@ -112,9 +117,11 @@ function LoginForm() {
               Remember me
             </label>
 
+            <TurnstileWidget action="login" onToken={setCaptcha} resetKey={captchaReset} optional />
+
             {error && <p className="text-xs text-status-declined">{error}</p>}
 
-            <button type="submit" disabled={submitting} className="auth-submit mt-1">
+            <button type="submit" disabled={submitting || (!!TURNSTILE_SITE_KEY && !captcha)} className="auth-submit mt-1">
               {submitting ? "Signing in..." : "Sign In"}
               {!submitting && <ArrowRight size={16} />}
             </button>

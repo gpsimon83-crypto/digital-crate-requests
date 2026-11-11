@@ -13,11 +13,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
   const { id } = await params;
-  const body = await req.json();
+  const body = await req.json().catch(() => ({}));
   const { kind, amountCents } = body as { kind?: string; amountCents?: number };
 
-  if (!kind || !amountCents || amountCents <= 0) {
-    return NextResponse.json({ error: "kind and a positive amountCents are required" }, { status: 400 });
+  if (!kind || !["deposit", "balance", "other"].includes(kind) || typeof amountCents !== "number" || !Number.isInteger(amountCents) || amountCents < 50) {
+    return NextResponse.json({ error: "Choose a payment type and an amount of at least $0.50." }, { status: 400 });
   }
 
   try {

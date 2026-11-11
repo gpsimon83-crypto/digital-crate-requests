@@ -82,6 +82,8 @@ export interface GoogleEventPayload {
   startsAt: string;
   endsAt: string;
   cratesdjEventId: string;
+  /** Not yet a confirmed booking: shown as a tentative hold on Google Calendar. */
+  tentative?: boolean;
 }
 
 const SOURCE_TAG = "cratesdj";
@@ -93,7 +95,8 @@ export async function upsertGoogleEvent(
   payload: GoogleEventPayload
 ): Promise<string> {
   const body = {
-    summary: payload.summary,
+    status: payload.tentative ? "tentative" : "confirmed",
+    summary: payload.tentative ? `Tentative hold: ${payload.summary}` : payload.summary,
     description: payload.description,
     location: payload.location,
     start: { dateTime: payload.startsAt },

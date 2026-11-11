@@ -1,6 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendSystemEmail } from "@/lib/send-system-email";
-import { STAFF_ROLES } from "@/lib/roles";
+import { isStaffRole, accountRole } from "@/lib/roles";
 
 function opsEmailList(): string[] {
   return (process.env.OPS_ALERT_EMAILS ?? "")
@@ -12,7 +12,7 @@ function opsEmailList(): string[] {
 async function notifyStaff(input: { type: string; title: string; body: string; eventId: string }) {
   const db = createAdminClient();
   const { data } = await db.auth.admin.listUsers({ perPage: 200 });
-  const staffIds = (data?.users ?? []).filter((u) => STAFF_ROLES.includes(u.user_metadata?.role)).map((u) => u.id);
+  const staffIds = (data?.users ?? []).filter((u) => isStaffRole(accountRole(u))).map((u) => u.id);
   if (staffIds.length === 0) return;
 
   const { error } = await db.from("notifications").insert(

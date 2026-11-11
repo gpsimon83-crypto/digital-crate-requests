@@ -1,3 +1,4 @@
+import { withProtectedUrls } from "@/lib/security/protected-files";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getLibraryItem } from "@/lib/data/library";
 import { fillMergeFields, type MergeContext } from "@/lib/merge-fields";
@@ -115,7 +116,7 @@ export async function listContractsForEvent(eventId: string) {
   const db = createAdminClient();
   const { data, error } = await db.from("contracts").select("*").eq("event_id", eventId).order("created_at", { ascending: false });
   if (error) throw error;
-  return data as ContractRow[];
+  return withProtectedUrls("contract", data as ContractRow[]);
 }
 
 export interface ClientContract extends ContractRow {
@@ -131,7 +132,7 @@ export async function listContractsForClient(clientId: string) {
     .eq("events.client_id", clientId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data as unknown as ClientContract[];
+  return withProtectedUrls("contract", data as unknown as ClientContract[]);
 }
 
 export async function createDraftFromTemplate(eventId: string, templateId: string, origin: string) {

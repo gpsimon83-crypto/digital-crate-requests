@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import { safeNextPath } from "@/lib/security/safe-redirect";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -24,7 +25,7 @@ function CallbackHandler() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const next = searchParams.get("next") || "/dj-dashboard";
+    const next = safeNextPath(searchParams.get("next"), "/dj-dashboard");
     const hashParams = new URLSearchParams(window.location.hash.slice(1));
     const access_token = hashParams.get("access_token");
     const refresh_token = hashParams.get("refresh_token");

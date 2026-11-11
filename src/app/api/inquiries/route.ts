@@ -1,75 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { errorMessage } from "@/lib/error-message";
-import { createInquiry } from "@/lib/data/inquiries";
-import { sendInquiryAlertSms } from "@/lib/send-sms";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { logActivity } from "@/lib/activity";
-import { runAutomations } from "@/lib/automations-engine";
-import { alertStaffOfSubmission, sendTrackedEmail } from "@/lib/notify-submission";
+import { productionDeps, submitPublicRequest } from "@/lib/security/inquiry-service";
+import { readJson, requestContext } from "@/lib/security/request-context";
 
+/**
+ * Public booking inquiry (cratesdjs.com form, and digitalcratedjs.com
+ * server-to-server with INQUIRY_PARTNER_SECRET).
+ *
+ * Nothing becomes a lead here. The request is validated, checked
+ * (Turnstile, rate limits, honeypot, duplicates, spam signals) and saved as
+ * "pending verification"; the lead is created, and staff/DJ notifications
+ * and follow-ups start, only after the person confirms their email
+ * (/api/inquiries/verify) and any required admin review.
+ */
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { name, email, eventDate, eventType, preferredDjId, venueName, expectedGuests, budgetRange } = body;
-
-  if (!name || !email || !eventDate || !eventType) {
-    return NextResponse.json({ error: "name, email, eventDate, and eventType are required" }, { status: 400 });
-  }
-
+  const ctx = requestContext(req.headers);
+  const body = await readJson(req);
   try {
-    const event = await createInquiry({
-      ...body,
-      expectedGuests: expectedGuests ? Number(expectedGuests) : undefined,
-      venueName: venueName || undefined,
-      budgetRange: budgetRange || undefined
-    });
-
-    await logActivity({ actorLabel: "Website inquiry form", action: "lead.created", entityType: "event", entityId: event.id, eventId: event.id });
-    await runAutomations("lead_created", event.id, req.nextUrl.origin);
-
-    try {
-      let djName: string | null = null;
-      if (preferredDjId) {
-        const db = createAdminClient();
-        const { data: dj } = await db.from("djs").select("display_name").eq("id", preferredDjId).maybeSingle();
-        djName = dj?.display_name ?? null;
-      }
-      await sendInquiryAlertSms({ name, eventDate, eventType, djName });
-    } catch {
-      // Best-effort ops alert — a failed/unconfigured SMS should never take down inquiry creation.
-    }
-
-    await alertStaffOfSubmission({
-      title: `New booking request — ${name}`,
-      body:
-        `Event date: ${new Date(eventDate).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}\n` +
-        `Event type: ${eventType}\n` +
-        `Email: ${email}`,
-      eventId: event.id,
-      origin: req.nextUrl.origin
-    });
-
-    const firstName = name.trim().split(" ")[0] || name;
-    const signupUrl = `${req.nextUrl.origin}/portal/signup`;
-    const text =
-      `Hi ${firstName},\n\n` +
-      `Thanks for reaching out to Digital Crate DJs! We've received your ${eventType.toLowerCase()} inquiry` +
-      `${eventDate ? ` for ${new Date(eventDate).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}` : ""}` +
-      ` and our team will be in touch within 24 hours to confirm details.\n\n` +
-      `In the meantime, you can create a free account to track your event, sign your contract, manage payments, ` +
-      `and build your "must play / do not play" song list — all in one place:\n\n${signupUrl}\n\n` +
-      `Important: sign up with this exact email address (${email}) so it connects automatically to your event.\n\n` +
-      `Talk soon,\nDigital Crate DJs`;
-    await sendTrackedEmail({
-      to: email,
-      subject: "We got your booking request — set up your event portal",
-      text,
-      eventId: event.id,
-      failureTitle: `Confirmation email to ${name} didn't send`,
-      repliesToStaff: true
-    });
-
-    return NextResponse.json({ event });
+    const result = await submitPublicRequest("inquiry", body, ctx, await productionDeps());
+    return NextResponse.json(result.body, { status: result.status, headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
+    console.error("inquiry submit failed", err instanceof Error ? err.message : err);
+    return NextResponse.json(
+      { error: "We couldn't send your request right now. Please try again in a few minutes, or call or email us directly." },
+      { status: 503 }
+    );
   }
 }

@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deriveEventCategory } from "@/lib/event-category";
+import { zonedTimeToUtc } from "@/lib/scheduler-time";
 
 function generateEventCode(title: string) {
   const slug =
@@ -64,7 +65,10 @@ export async function createInquiry(input: {
       title: `${input.eventType} inquiry — ${input.name}`,
       client_id: clientId,
       dj_id: input.preferredDjId || null,
-      starts_at: new Date(input.eventDate).toISOString(),
+      // eventDate is a calendar date (YYYY-MM-DD). Store it as midday in the
+      // business timezone so it reads as the same day everywhere in the US;
+      // `new Date("YYYY-MM-DD")` is midnight UTC, the previous evening in Chicago.
+      starts_at: /^\d{4}-\d{2}-\d{2}$/.test(input.eventDate) ? zonedTimeToUtc(input.eventDate, "12:00").toISOString() : new Date(input.eventDate).toISOString(),
       status: "inquiry",
       event_status: "tentative",
       event_type: input.eventType,

@@ -1,3 +1,4 @@
+import { withProtectedUrls } from "@/lib/security/protected-files";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type EventFileCategory = "contract" | "email_attachment" | "other";
@@ -19,7 +20,7 @@ export async function listEventFiles(eventId: string): Promise<EventFileRow[]> {
   const db = createAdminClient();
   const { data, error } = await db.from("event_files").select("*").eq("event_id", eventId).order("created_at", { ascending: false });
   if (error) throw error;
-  return data;
+  return withProtectedUrls("event-file", data as EventFileRow[]);
 }
 
 export interface ClientEventFile extends EventFileRow {
@@ -35,7 +36,7 @@ export async function listFilesForClient(clientId: string) {
     .eq("events.client_id", clientId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data as unknown as ClientEventFile[];
+  return withProtectedUrls("event-file", data as unknown as ClientEventFile[]);
 }
 
 export interface DjEventFile extends EventFileRow {
@@ -51,7 +52,7 @@ export async function listFilesForDj(djId: string) {
     .eq("events.dj_id", djId)
     .order("created_at", { ascending: false });
   if (error) throw error;
-  return data as unknown as DjEventFile[];
+  return withProtectedUrls("event-file", data as unknown as DjEventFile[]);
 }
 
 export async function createEventFile(

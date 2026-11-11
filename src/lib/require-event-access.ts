@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
+import { staffSessionMeetsMfa } from "@/lib/security/mfa";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isStaffRole } from "@/lib/roles";
+import { isStaffRole, accountRole } from "@/lib/roles";
 
 /**
  * A project's email thread is visible to admin/staff (everyone) and to
@@ -15,7 +16,8 @@ export async function requireEventAccess(eventId: string) {
   } = await supabase.auth.getUser();
   if (!user) return { authorized: false as const, status: 401, error: "Not signed in" };
 
-  const isAdmin = isStaffRole(user.user_metadata?.role);
+  // Staff powers need a session that passed two-factor (when set up / required).
+  const isAdmin = isStaffRole(accountRole(user)) && (await staffSessionMeetsMfa(supabase));
 
   const db = createAdminClient();
   const { data: dj } = await db

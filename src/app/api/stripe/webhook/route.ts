@@ -1,65 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
+import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createTip, boostRequest } from "@/lib/data/requests";
 import { recordSucceededPayment } from "@/lib/data/payments";
 import { logActivity } from "@/lib/activity";
 import { runAutomations } from "@/lib/automations-engine";
-import Stripe from "stripe";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { processStripeEvent } from "@/lib/security/stripe-webhook";
+import { supabaseWebhookLedger } from "@/lib/security/webhook-idempotency";
 
 export async function POST(req: NextRequest) {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error("Stripe webhook received but STRIPE_WEBHOOK_SECRET is not set");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+  }
   const signature = req.headers.get("stripe-signature");
   const body = await req.text();
 
   let event: Stripe.Event;
   try {
-    event = getStripe().webhooks.constructEvent(body, signature ?? "", process.env.STRIPE_WEBHOOK_SECRET ?? "");
-  } catch (err) {
-    return NextResponse.json({ error: `Webhook signature verification failed: ${err}` }, { status: 400 });
+    event = getStripe().webhooks.constructEvent(body, signature ?? "", secret);
+  } catch {
+    return NextResponse.json({ error: "Webhook signature verification failed" }, { status: 400 });
   }
 
-  if (event.type === "payment_intent.succeeded") {
-    const intent = event.data.object as Stripe.PaymentIntent;
-    const { type, eventId, djId, customerId, message, requestId, kind } = intent.metadata;
-
-    if (type === "tip" && eventId) {
-      await createTip({
-        eventId,
-        djId: djId || undefined,
-        customerId: customerId || undefined,
-        amountCents: intent.amount,
-        message: message || undefined,
-        paymentIntentId: intent.id,
-      });
-    }
-
-    if (type === "boost" && requestId) {
-      await boostRequest(requestId, intent.amount, intent.id, customerId || undefined);
-    }
-
-    if (type === "event_payment" && eventId) {
-      try {
-        await recordSucceededPayment(eventId, kind || "other", intent.amount, intent.id);
-        await logActivity({
-          actorLabel: "Stripe",
-          action: "payment.received",
-          entityType: "payment",
-          entityId: intent.id,
-          eventId,
-          metadata: { kind: kind || "other", amountCents: intent.amount }
-        });
-        await runAutomations("payment_received", eventId, req.nextUrl.origin, { payment_kind: kind || "other" });
-      } catch (err) {
-        // Stripe can redeliver the same webhook — a unique-constraint hit
-        // on stripe_payment_intent_id means this payment was already
-        // recorded, which is a safe no-op, not a real failure.
-        const isDuplicate = typeof err === "object" && err !== null && "code" in err && (err as { code: string }).code === "23505";
-        if (!isDuplicate) throw err;
+  const key = process.env.STRIPE_SECRET_KEY ?? "";
+  const origin = req.nextUrl.origin;
+  try {
+    const r = await processStripeEvent(event, {
+      ledger: supabaseWebhookLedger,
+      expectLivemode: key.startsWith("sk_live") || key.startsWith("rk_live") ? true : key.startsWith("sk_test") || key.startsWith("rk_test") ? false : null,
+      eventExists: async (id) => {
+        const { data } = await createAdminClient().from("events").select("id").eq("id", id).maybeSingle();
+        return !!data;
+      },
+      recordPayment: recordSucceededPayment,
+      createTip,
+      boostRequest,
+      afterPayment: async (eventId, kind, amountCents, intentId) => {
+        await logActivity({ actorLabel: "Stripe", action: "payment.received", entityType: "payment", entityId: intentId, eventId, metadata: { kind, amountCents } });
+        await runAutomations("payment_received", eventId, origin, { payment_kind: kind });
       }
-    }
-    // type === "request": the song_request row was already created at
-    // authorization time in /api/requests/create-intent; nothing to do here
-    // until the DJ marks it played (capture) or declines it (cancel).
+    });
+    return NextResponse.json({ received: true, result: r.result }, { status: r.status });
+  } catch (err) {
+    console.error("Stripe webhook processing failed", event.id, err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
-
-  return NextResponse.json({ received: true });
 }

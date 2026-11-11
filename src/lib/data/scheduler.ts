@@ -1,3 +1,4 @@
+import { listActiveHolds } from "@/lib/security/inquiry-repo";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export interface AvailabilityRow {
@@ -59,7 +60,13 @@ export async function getConsultationEventsOnDate(dateStr: string) {
     .gte("starts_at", rangeStart)
     .lte("starts_at", rangeEnd);
   if (error) throw error;
-  return data;
+
+  // Slots held by a request that's waiting on email confirmation are taken too.
+  const holds = await listActiveHolds(rangeStart, rangeEnd);
+  return [
+    ...data,
+    ...holds.map((h) => ({ id: "hold", starts_at: h.slot_start as string, ends_at: h.slot_end as string, status: "hold" }))
+  ];
 }
 
 /**

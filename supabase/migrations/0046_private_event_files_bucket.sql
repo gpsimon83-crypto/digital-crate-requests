@@ -1,0 +1,11 @@
+-- Make the project-files bucket private (contracts, client attachments).
+--
+-- APPLY ONLY AFTER the code from the security update is live: from then on
+-- every project file and contract link in the app goes through
+-- /api/files/…, which checks access and hands out a 2-minute signed URL.
+-- Old public links (for example in emails already sent) stop working once
+-- this runs; files are still reachable from the app.
+--
+-- Library, DJ photo and event-photo buckets are intentionally unchanged
+-- (they hold public marketing images).
+update storage.buckets set public = false where id = 'event-files';

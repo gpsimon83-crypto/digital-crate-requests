@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { enforce, limits, retryMessage, supabaseRateLimitStore } from "@/lib/security/rate-limit";
+import { keyedHash } from "@/lib/security/crypto";
+import { getClientIp } from "@/lib/security/client-ip";
 
 /**
  * Public, invite-code-gated DJ signup. Mirrors the admin "Create Login"
@@ -9,7 +12,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * and requires no admin session.
  */
 export async function POST(req: NextRequest) {
+  const L = limits();
+  const rl = await enforce(supabaseRateLimitStore, [
+    { bucket: `dj-signup:s:${keyedHash("ip", getClientIp(req.headers))}`, limit: L.djSignupPerSource.limit, window: L.djSignupPerSource.window }
+  ]).catch(() => ({ allowed: true, retryAfterSeconds: 0 }));
+  if (!rl.allowed) return NextResponse.json({ error: retryMessage(rl.retryAfterSeconds) }, { status: 429 });
+
   const { code, email, password, displayName } = await req.json().catch(() => ({}));
+  if (typeof code !== "string" || typeof email !== "string" || typeof password !== "string" || typeof displayName !== "string" || email.length > 254 || displayName.length > 80 || password.length > 128) {
+    return NextResponse.json({ error: "Code, name, email, and password are all required." }, { status: 400 });
+  }
 
   if (!code || !email || !password || !displayName) {
     return NextResponse.json({ error: "Code, name, email, and password are all required." }, { status: 400 });
@@ -44,13 +56,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "That invite code has already been used." }, { status: 400 });
     }
 
+    // Claim the code atomically first, so two people can't both use it.
+    const { data: claimed } = await db.from("invite_codes").update({ used: true }).eq("id", invite.id).eq("used", false).select("id");
+    if (!claimed || claimed.length !== 1) {
+      return NextResponse.json({ error: "That invite code has already been used." }, { status: 400 });
+    }
+
     const { data: authUser, error: authError } = await db.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
       user_metadata: { dj_name: displayName },
+      // Role is set server-side (app_metadata), never from anything the browser can change.
+      app_metadata: { role: "dj" },
     });
-    if (authError) throw authError;
+    if (authError) {
+      await db.from("invite_codes").update({ used: false }).eq("id", invite.id);
+      // Same answer whether or not the address already has an account.
+      return NextResponse.json({ error: "We couldn't create an account with those details. If you already have one, sign in or reset your password." }, { status: 400 });
+    }
 
     if (invite.assigned_dj_id) {
       // Code was pre-assigned to a DJ record an admin already set up — link it.
@@ -67,14 +91,9 @@ export async function POST(req: NextRequest) {
       if (createDjError) throw createDjError;
     }
 
-    const { error: markUsedError } = await db
-      .from("invite_codes")
-      .update({ used: true })
-      .eq("id", invite.id);
-    if (markUsedError) throw markUsedError;
-
     return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
+    console.error("dj signup failed", errorMessage(err));
+    return NextResponse.json({ error: "Sign-up isn't available right now. Please try again shortly." }, { status: 503 });
   }
 }

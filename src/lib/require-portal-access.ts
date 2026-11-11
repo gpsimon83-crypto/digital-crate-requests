@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import { staffSessionMeetsMfa } from "@/lib/security/mfa";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getClientForAuthUser, getClientEvent } from "@/lib/data/portal";
-import { isStaffRole } from "@/lib/roles";
+import { isStaffRole, accountRole } from "@/lib/roles";
 
 /**
  * Read-only access to a client-portal event's GET endpoints — the actual
@@ -20,7 +21,7 @@ export async function requirePortalReadAccess(eventId: string) {
   } = await supabase.auth.getUser();
   if (!user) return { authorized: false as const, status: 401, error: "Not signed in" };
 
-  if (isStaffRole(user.user_metadata?.role)) {
+  if (isStaffRole(accountRole(user)) && (await staffSessionMeetsMfa(supabase))) {
     const db = createAdminClient();
     const { data: event } = await db
       .from("events")

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { isStaffRole } from "@/lib/roles";
+import { isStaffRole, accountRole } from "@/lib/roles";
 import { exchangeCodeForTokens, fetchConnectedEmail } from "@/lib/google-calendar";
 import { saveConnection } from "@/lib/data/calendar-connection";
 
@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const {
     data: { user }
   } = await supabase.auth.getUser();
-  if (!user || !isStaffRole(user.user_metadata?.role)) {
+  if (!user || !isStaffRole(accountRole(user))) {
     return NextResponse.redirect(new URL("/admin/settings?calendar=error", req.url));
   }
 

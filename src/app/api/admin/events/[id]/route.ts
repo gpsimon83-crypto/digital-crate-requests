@@ -7,6 +7,7 @@ import { requireEventAccess } from "@/lib/require-event-access";
 import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
 import { diffTrackedFields, recordChangeOrderIfSigned, listChangeOrdersForEvent } from "@/lib/data/contract-change-orders";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { confirmBooking, supabaseConfirmDeps } from "@/lib/security/booking-confirmation";
 
 const VALID_STATUSES = ["inquiry", "pending_confirmation", "confirmed", "live", "ended", "declined"];
 
@@ -43,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (denied) return denied;
 
   const { id } = await params;
-  const body = await req.json();
+  const body = await req.json().catch(() => ({}));
   const { status, pipelineStage, internalNotes, clientId, sendWeddingMusicPlan, startsAt, endsAt, venueId, finalAmount, djId } = body as {
     status?: string;
     pipelineStage?: string;
@@ -66,7 +67,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   try {
     const updates: Record<string, unknown> = {};
-    if (status) {
+    if (status === "confirmed") {
+      // Same server-side confirmation rules as the Confirm button (approval,
+      // optional contract/deposit requirements, no DJ double-booking).
+      const r = await confirmBooking({ eventId: id, isStaff: true, allowOverlap: (body as { allowOverlap?: unknown }).allowOverlap === true }, supabaseConfirmDeps());
+      if (r.status !== 200) return NextResponse.json(r.body, { status: r.status });
+    } else if (status) {
       updates.status = status;
       updates.event_status = deriveEventStatus(status);
     }

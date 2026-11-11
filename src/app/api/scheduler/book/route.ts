@@ -1,159 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
-import { errorMessage } from "@/lib/error-message";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { getAvailability, getSlotMinutes, getConsultationEventsOnDate, getBusyBlocksOnDate } from "@/lib/data/scheduler";
-import { zonedTimeToUtc, utcToZonedDateStr, BUSINESS_TIMEZONE } from "@/lib/scheduler-time";
-import { logActivity } from "@/lib/activity";
-import { runAutomations } from "@/lib/automations-engine";
-import { deriveEventCategory } from "@/lib/event-category";
-import { alertStaffOfSubmission, sendTrackedEmail } from "@/lib/notify-submission";
+import { zonedTimeToUtc, utcToZonedDateStr } from "@/lib/scheduler-time";
+import { productionDeps, submitPublicRequest } from "@/lib/security/inquiry-service";
+import { readJson, requestContext } from "@/lib/security/request-context";
 
-function generateEventCode() {
-  return `CONSULT-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+/** Is a consultation slot still bookable? Business hours, not past, no overlap with calls, holds or busy time. */
+async function slotAvailable(date: string, time: string) {
+  const [availability, slotMinutes, existing, busyBlocks] = await Promise.all([
+    getAvailability(),
+    getSlotMinutes(),
+    getConsultationEventsOnDate(date),
+    getBusyBlocksOnDate(date)
+  ]);
+  const dayOfWeek = new Date(`${date}T00:00:00Z`).getUTCDay();
+  const day = availability.find((a) => a.day_of_week === dayOfWeek);
+  if (!day || !day.enabled) return { ok: false as const, status: 409, error: "That day isn't available for booking." };
+  if (time < day.start_time.slice(0, 5) || time >= day.end_time.slice(0, 5)) {
+    return { ok: false as const, status: 409, error: "That time isn't available — please pick one of the listed times." };
+  }
+
+  const start = zonedTimeToUtc(date, time);
+  const end = new Date(start.getTime() + slotMinutes * 60000);
+  if (start.getTime() < Date.now()) return { ok: false as const, status: 409, error: "That time has already passed." };
+
+  const overlaps = [...existing, ...busyBlocks.map((b) => ({ ...b, status: "busy" }))]
+    .filter((e) => utcToZonedDateStr(new Date(e.starts_at)) === date)
+    .some((e) => start.getTime() < new Date(e.ends_at ?? e.starts_at).getTime() && end.getTime() > new Date(e.starts_at).getTime());
+  if (overlaps) return { ok: false as const, status: 409, error: "That time was just booked — please pick another slot." };
+  return { ok: true as const, start, end };
 }
 
 /**
- * Public, unauthenticated — the whole point is a stranger who's never
- * been in the system before can book a call. A booking is just an
- * `events` row (event_type='consultation', status='inquiry'), the same
- * table and lifecycle stage the homepage's inquiry form already writes
- * to, so it shows up in Lead Capture and the admin Calendar for free.
+ * Public consultation-call request. The slot is held (so nobody else can
+ * take it) while the person confirms their email; the call is only added
+ * to the calendar, and staff alerted, after that confirmation.
  */
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { name, email, phone, date, time, message } = body as {
-    name?: string;
-    email?: string;
-    phone?: string;
-    date?: string;
-    time?: string;
-    message?: string;
-  };
-
-  if (!name || !email || !date || !time) {
-    return NextResponse.json({ error: "name, email, date, and time are required" }, { status: 400 });
-  }
-
+  const ctx = requestContext(req.headers);
+  const body = await readJson(req);
   try {
-    const [availability, slotMinutes, existing, busyBlocks] = await Promise.all([
-      getAvailability(),
-      getSlotMinutes(),
-      getConsultationEventsOnDate(date),
-      getBusyBlocksOnDate(date)
-    ]);
-
-    const dayOfWeek = new Date(`${date}T00:00:00Z`).getUTCDay();
-    const day = availability.find((a) => a.day_of_week === dayOfWeek);
-    if (!day || !day.enabled) {
-      return NextResponse.json({ error: "That day isn't available for booking" }, { status: 409 });
-    }
-
-    const slotStart = zonedTimeToUtc(date, time);
-    const slotEnd = new Date(slotStart.getTime() + slotMinutes * 60000);
-
-    if (slotStart.getTime() < Date.now()) {
-      return NextResponse.json({ error: "That time has already passed" }, { status: 409 });
-    }
-
-    const overlapsBooked = existing
-      .filter((e) => utcToZonedDateStr(new Date(e.starts_at)) === date)
-      .some((e) => {
-        const bStart = new Date(e.starts_at).getTime();
-        const bEnd = new Date(e.ends_at ?? e.starts_at).getTime();
-        return slotStart.getTime() < bEnd && slotEnd.getTime() > bStart;
-      });
-    const overlapsBusy = busyBlocks
-      .filter((b) => utcToZonedDateStr(new Date(b.starts_at)) === date)
-      .some((b) => slotStart.getTime() < new Date(b.ends_at).getTime() && slotEnd.getTime() > new Date(b.starts_at).getTime());
-    if (overlapsBooked || overlapsBusy) {
-      return NextResponse.json({ error: "That time was just booked — pick another slot" }, { status: 409 });
-    }
-
-    const db = createAdminClient();
-
-    const { data: existingClient } = await db
-      .from("clients")
-      .select("id")
-      .eq("email", email)
-      .is("deleted_at", null)
-      .maybeSingle();
-
-    let clientId = existingClient?.id as string | undefined;
-
-    if (!clientId) {
-      const [firstName, ...rest] = name.trim().split(" ");
-      const { data: newClient, error: clientError } = await db
-        .from("clients")
-        .insert({
-          type: "individual",
-          first_name: firstName || name,
-          last_name: rest.join(" ") || null,
-          email,
-          phone: phone || null,
-          referral_source: "scheduler"
-        })
-        .select("id")
-        .single();
-      if (clientError) throw clientError;
-      clientId = newClient.id;
-    }
-
-    const { data: event, error: eventError } = await db
-      .from("events")
-      .insert({
-        event_code: generateEventCode(),
-        title: `Consultation call — ${name}`,
-        client_id: clientId,
-        starts_at: slotStart.toISOString(),
-        ends_at: slotEnd.toISOString(),
-        status: "inquiry",
-        event_status: "tentative",
-        event_type: "consultation",
-        event_category: deriveEventCategory("consultation"),
-        special_requests: message || null
-      })
-      .select()
-      .single();
-    if (eventError) throw eventError;
-
-    await logActivity({ actorLabel: "Scheduler", action: "lead.created", entityType: "event", entityId: event.id, eventId: event.id });
-    await runAutomations("lead_created", event.id, req.nextUrl.origin);
-
-    const whenLabel = slotStart.toLocaleString("en-US", {
-      timeZone: BUSINESS_TIMEZONE,
-      weekday: "long",
-      month: "long",
-      day: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-      timeZoneName: "short"
-    });
-
-    await alertStaffOfSubmission({
-      title: `New consultation booked — ${name}`,
-      body: `When: ${whenLabel}\nEmail: ${email}${phone ? `\nPhone: ${phone}` : ""}${message ? `\nMessage: ${message}` : ""}`,
-      eventId: event.id,
-      origin: req.nextUrl.origin
-    });
-
-    const firstName = name.trim().split(" ")[0] || name;
-    await sendTrackedEmail({
-      to: email,
-      subject: "Your consultation call with Digital Crate DJs is booked",
-      text:
-        `Hi ${firstName},\n\n` +
-        `You're booked! Your consultation call with Digital Crate DJs is scheduled for ${whenLabel}.\n\n` +
-        `We'll reach out at this email address${phone ? " or the phone number you gave us" : ""} around that time. ` +
-        `If you need to change the time, just reply to this email and we'll sort it out.\n\n` +
-        `Talk soon,\nDigital Crate DJs`,
-      eventId: event.id,
-      failureTitle: `Confirmation email to ${name} didn't send`,
-      repliesToStaff: true
-    });
-
-    return NextResponse.json({ event });
+    const result = await submitPublicRequest("consultation", body, { ...ctx, partner: false }, await productionDeps({ slotAvailable }));
+    return NextResponse.json(result.body, { status: result.status, headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
+    console.error("consultation submit failed", err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: "We couldn't book that right now. Please try again in a few minutes, or email us." }, { status: 503 });
   }
 }

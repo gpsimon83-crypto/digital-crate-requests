@@ -25,7 +25,8 @@ import {
   PackageOpen,
   CalendarCheck,
   Mail,
-  Megaphone
+  Megaphone,
+  ShieldCheck
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -62,7 +63,8 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: "/admin/events", label: "Projects", icon: Briefcase },
       { href: "/admin/clients", label: "Contacts", icon: Users },
       { href: "/admin/meetings", label: "Meetings", icon: CalendarCheck },
-      { href: "/admin/leads", label: "Lead Capture", icon: Magnet }
+      { href: "/admin/leads", label: "Lead Capture", icon: Magnet },
+      { href: "/admin/security", label: "Inquiry Security", icon: ShieldCheck }
     ]
   },
   {

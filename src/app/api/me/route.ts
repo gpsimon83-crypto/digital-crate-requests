@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { accountRole } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -12,7 +13,7 @@ export async function GET() {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
-  const role = (user.user_metadata?.role as string | undefined) ?? "dj";
+  const role = accountRole(user) ?? "dj";
 
   // The djs table link is best-effort: if the auth_user_id column hasn't
   // been added yet, still return the role so admin access keeps working.

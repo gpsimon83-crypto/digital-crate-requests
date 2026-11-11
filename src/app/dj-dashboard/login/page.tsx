@@ -1,6 +1,8 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import { TurnstileWidget, TURNSTILE_SITE_KEY } from "@/components/site/turnstile-widget";
+import { safeNextPath } from "@/lib/security/safe-redirect";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
@@ -45,6 +47,8 @@ function LoginForm() {
     searchParams.get("error") === "admin_only" ? "That page requires an admin account." : null
   );
   const [submitting, setSubmitting] = useState(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
   const [oauthLoading, setOauthLoading] = useState<"google" | "apple" | null>(null);
 
   // A successful sign-in can still land back here — middleware redirects to
@@ -66,7 +70,8 @@ function LoginForm() {
 
     setRememberPreference(rememberMe);
     const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password, options: { captchaToken: captcha ?? undefined } });
+    setCaptchaReset((k) => k + 1);
 
     if (signInError) {
       setError(signInError.message);
@@ -74,7 +79,7 @@ function LoginForm() {
       return;
     }
 
-    const next = searchParams.get("next") || "/dj-dashboard";
+    const next = safeNextPath(searchParams.get("next"), "/dj-dashboard");
     router.push(next);
     router.refresh();
   }
@@ -84,7 +89,7 @@ function LoginForm() {
     setOauthLoading(provider);
     setRememberPreference(true);
     const supabase = createClient();
-    const next = searchParams.get("next") || "/dj-dashboard";
+    const next = safeNextPath(searchParams.get("next"), "/dj-dashboard");
     const { error: oauthError } = await supabase.auth.signInWithOAuth({
       provider,
       options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}` },
@@ -165,9 +170,11 @@ function LoginForm() {
               Remember me
             </label>
 
+            <TurnstileWidget action="login" onToken={setCaptcha} resetKey={captchaReset} optional />
+
             {error && <p className="text-xs text-status-declined">{error}</p>}
 
-            <button type="submit" disabled={submitting} className="auth-submit mt-1">
+            <button type="submit" disabled={submitting || (!!TURNSTILE_SITE_KEY && !captcha)} className="auth-submit mt-1">
               {submitting ? "Signing in..." : "Sign In"}
               {!submitting && <ArrowRight size={16} />}
             </button>

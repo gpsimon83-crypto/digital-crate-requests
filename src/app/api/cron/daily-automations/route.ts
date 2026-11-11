@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cronAuthorized } from "@/lib/security/cron-auth";
 import { runDateBasedAutomations } from "@/lib/automations-engine";
 
 /**
@@ -8,7 +9,7 @@ import { runDateBasedAutomations } from "@/lib/automations-engine";
  */
 export async function GET(req: NextRequest) {
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronAuthorized(auth)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

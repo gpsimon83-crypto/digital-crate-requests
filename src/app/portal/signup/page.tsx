@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TurnstileWidget, TURNSTILE_SITE_KEY } from "@/components/site/turnstile-widget";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from "lucide-react";
@@ -14,6 +15,8 @@ export default function PortalSignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -25,8 +28,9 @@ export default function PortalSignupPage() {
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/portal` }
+      options: { emailRedirectTo: `${window.location.origin}/portal`, captchaToken: captcha ?? undefined }
     });
+    setCaptchaReset((k) => k + 1);
 
     if (signUpError) {
       setError(signUpError.message);
@@ -120,9 +124,11 @@ export default function PortalSignupPage() {
               </div>
             </label>
 
+            <TurnstileWidget action="signup" onToken={setCaptcha} resetKey={captchaReset} optional />
+
             {error && <p className="text-xs text-status-declined">{error}</p>}
 
-            <button type="submit" disabled={submitting} className="auth-submit mt-1">
+            <button type="submit" disabled={submitting || (!!TURNSTILE_SITE_KEY && !captcha)} className="auth-submit mt-1">
               {submitting ? "Creating account..." : "Create Account"}
               {!submitting && <ArrowRight size={16} />}
             </button>

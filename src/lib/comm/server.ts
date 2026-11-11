@@ -4,8 +4,9 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { createClient } from "@/lib/supabase/server";
+import { staffSessionMeetsMfa } from "@/lib/security/mfa";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isStaffRole } from "@/lib/roles";
+import { isStaffRole, accountRole } from "@/lib/roles";
 import { COMPANY_NAME } from "@/lib/merge-fields";
 import { missingTokens, sanitizeDesign, type EmailDesign, type MergeValues } from "./blocks";
 import { renderEmailHtml, renderEmailText } from "./render";
@@ -20,8 +21,11 @@ export async function requireStaffUser(): Promise<{ userId: string; email: strin
   const {
     data: { user }
   } = await supabase.auth.getUser();
-  if (!user || !isStaffRole(user.user_metadata?.role)) {
+  if (!user || !isStaffRole(accountRole(user))) {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+  }
+  if (!(await staffSessionMeetsMfa(supabase))) {
+    return NextResponse.json({ error: "Two-factor verification required", mfa: true }, { status: 403 });
   }
   return { userId: user.id, email: user.email ?? null };
 }

@@ -15,7 +15,10 @@ export async function GET() {
 
   try {
     if (!user.email) throw new Error("Account has no email on file");
-    await linkClientToAuthUser(user.id, user.email);
+    // Only an address the person has proven they own can claim a client
+    // record (protects clients even if email confirmation is ever switched
+    // off in Supabase Auth settings).
+    if (user.email_confirmed_at) await linkClientToAuthUser(user.id, user.email);
 
     const client = await getClientForAuthUser(user.id);
     if (!client) {

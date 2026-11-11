@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cronAuthorized } from "@/lib/security/cron-auth";
 import { ImapFlow } from "imapflow";
 import { simpleParser } from "mailparser";
 import { listAllEmailAccountsWithSecret, markAccountChecked } from "@/lib/data/email-accounts";
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
   // Vercel Cron automatically sends this header when CRON_SECRET is set in
   // the project's environment — see https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs
   const auth = req.headers.get("authorization");
-  if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronAuthorized(auth)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

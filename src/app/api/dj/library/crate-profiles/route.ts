@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { accountRole } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "name is required" }, { status: 400 });
   }
 
-  const isStaff = STAFF_ROLES.includes((user.user_metadata?.role as string | undefined) ?? "");
+  const isStaff = STAFF_ROLES.includes(accountRole(user) ?? "");
   const dj = await currentDj(user.id);
 
   let djId = dj?.id;

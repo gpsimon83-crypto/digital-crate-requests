@@ -1,21 +1,33 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { GlassCard } from "@/components/ui/glass-card";
 import { NeonButton } from "@/components/ui/neon-button";
 import { Logo } from "@/components/site/logo";
 import { cn } from "@/lib/utils";
-import { CalendarDays, Check } from "lucide-react";
+import { CalendarDays, MailCheck } from "lucide-react";
+import { businessToday, checkPublicEventDate } from "@/lib/security/business-date";
+import { TurnstileWidget, HoneypotField, newSubmissionId } from "@/components/site/turnstile-widget";
+import { CheckEmailPanel } from "@/components/site/check-email-panel";
 
 interface Slot {
   time: string;
   available: boolean;
 }
 
+// Days are calendar dates in America/Chicago, held as UTC-noon Date objects
+// and always formatted in UTC, so a visitor's own timezone can't shift them.
 function dateKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return d.toISOString().slice(0, 10);
 }
+
+function nextDays(today: string, count = 14) {
+  const base = new Date(`${today}T12:00:00Z`).getTime();
+  return Array.from({ length: count }, (_, i) => new Date(base + i * 86400000));
+}
+
+const UTC = { timeZone: "UTC" } as const;
 
 function to12Hour(hhmm: string) {
   const [h, m] = hhmm.split(":").map(Number);
@@ -24,14 +36,18 @@ function to12Hour(hhmm: string) {
   return `${hour}:${String(m).padStart(2, "0")} ${period}`;
 }
 
-const NEXT_DAYS = Array.from({ length: 14 }, (_, i) => {
-  const d = new Date();
-  d.setDate(d.getDate() + i);
-  return d;
-});
+
 
 export default function SchedulePage() {
-  const [selectedDate, setSelectedDate] = useState<Date>(NEXT_DAYS[0]);
+  const [today, setToday] = useState(() => businessToday());
+  const NEXT_DAYS = useMemo(() => nextDays(today), [today]);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => nextDays(businessToday())[0]);
+  const [website, setWebsite] = useState("");
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
+  const [sentMessage, setSentMessage] = useState<string | null>(null);
+  const shownAt = useRef(0);
+  const submissionId = useRef("");
   const [slots, setSlots] = useState<Slot[] | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
@@ -41,9 +57,22 @@ export default function SchedulePage() {
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [confirmed, setConfirmed] = useState<{ date: string; time: string } | null>(null);
 
-  const dk = useMemo(() => dateKey(selectedDate), [selectedDate]);
+  // If the page sat open past midnight, a day that's now in the past is never used.
+  const activeDate = dateKey(selectedDate) < today ? NEXT_DAYS[0] : selectedDate;
+  const dk = dateKey(activeDate);
+
+  useEffect(() => {
+    shownAt.current = Date.now();
+    submissionId.current = newSubmissionId();
+    const refresh = () => setToday(businessToday());
+    window.addEventListener("focus", refresh);
+    const t = setInterval(refresh, 60_000);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      clearInterval(t);
+    };
+  }, []);
 
   useEffect(() => {
     setSlots(null);
@@ -57,38 +86,54 @@ export default function SchedulePage() {
   async function handleBook(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedTime) return;
-    setSubmitting(true);
     setError(null);
+    const dateError = checkPublicEventDate(dk);
+    if (dateError) {
+      setError(dateError);
+      setToday(businessToday());
+      return;
+    }
+    setSubmitting(true);
     try {
       const res = await fetch("/api/scheduler/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, phone: phone || undefined, date: dk, time: selectedTime, message: message || undefined })
+        body: JSON.stringify({
+          name,
+          email,
+          phone: phone || undefined,
+          date: dk,
+          time: selectedTime,
+          message: message || undefined,
+          website: website || undefined,
+          turnstileToken: captcha || undefined,
+          elapsedMs: shownAt.current ? Date.now() - shownAt.current : undefined,
+          submissionId: submissionId.current || undefined
+        })
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to book");
-      setConfirmed({ date: dk, time: selectedTime });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "We couldn't book that time. Please try again.");
+      setSentMessage(data.message || "Please check your email to confirm your call.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSubmitting(false);
+      setCaptchaReset((k) => k + 1);
     }
   }
 
-  if (confirmed) {
+  if (sentMessage) {
     return (
-      <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-12 text-center">
-        <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-status-approved/15 text-status-approved">
-          <Check size={24} />
+      <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center px-4 py-12">
+        <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-gold/15 text-gold">
+          <MailCheck size={24} />
         </span>
-        <h1 className="font-display text-3xl font-light">You&rsquo;re booked</h1>
-        <p className="mt-2 text-sm text-muted">
-          {new Date(`${confirmed.date}T00:00:00`).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
-          {" at "}
-          {to12Hour(confirmed.time)}
+        <p className="mb-4 text-center text-sm text-muted">
+          Holding {activeDate.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", ...UTC })}
+          {selectedTime ? ` at ${to12Hour(selectedTime)} Central` : ""} while you confirm.
         </p>
-        <p className="mt-4 text-sm text-muted">We&rsquo;ll follow up at the email you gave us to confirm the call.</p>
-        <Link href="/" className="mt-6 text-sm text-gold hover:underline">← Back to cratesdjs.com</Link>
+        <CheckEmailPanel email={email} message={sentMessage} firstName={name.trim().split(" ")[0]} />
+        <Link href="/" className="mt-6 text-center text-sm text-gold hover:underline">← Back to cratesdjs.com</Link>
       </div>
     );
   }
@@ -115,8 +160,8 @@ export default function SchedulePage() {
                 active ? "border-gold bg-gold text-black" : "border-black/10 text-muted hover:border-gold"
               )}
             >
-              <span className="font-semibold uppercase tracking-wide">{d.toLocaleDateString(undefined, { weekday: "short" })}</span>
-              <span>{d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+              <span className="font-semibold uppercase tracking-wide">{d.toLocaleDateString(undefined, { weekday: "short", ...UTC })}</span>
+              <span>{d.toLocaleDateString(undefined, { month: "short", day: "numeric", ...UTC })}</span>
             </button>
           );
         })}
@@ -125,7 +170,8 @@ export default function SchedulePage() {
       <GlassCard className="flex flex-col gap-4">
         <p className="flex items-center gap-1.5 text-sm font-semibold">
           <CalendarDays size={14} />
-          {selectedDate.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+          {activeDate.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", ...UTC })}
+          <span className="font-normal text-muted">· times in Central</span>
         </p>
 
         {slots === null && <p className="text-sm text-muted">Loading times...</p>}
@@ -155,11 +201,15 @@ export default function SchedulePage() {
       {selectedTime && (
         <GlassCard neon className="mt-6 flex flex-col gap-3">
           <p className="text-sm font-semibold">
-            {selectedDate.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} at {to12Hour(selectedTime)}
+            {activeDate.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", ...UTC })} at {to12Hour(selectedTime)} Central
           </p>
-          <form onSubmit={handleBook} className="flex flex-col gap-3">
+          <form onSubmit={handleBook} className="relative flex flex-col gap-3">
+            <HoneypotField value={website} onChange={setWebsite} />
             <input
               required
+              maxLength={100}
+              autoComplete="name"
+              aria-label="Your name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Your name"
@@ -168,12 +218,19 @@ export default function SchedulePage() {
             <input
               required
               type="email"
+              maxLength={254}
+              autoComplete="email"
+              aria-label="Email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
               className="rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
             <input
+              type="tel"
+              maxLength={30}
+              autoComplete="tel"
+              aria-label="Phone (optional)"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="Phone (optional)"
@@ -183,11 +240,19 @@ export default function SchedulePage() {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Anything we should know before the call? (optional)"
+              aria-label="Anything we should know before the call? (optional)"
+              maxLength={2000}
               className="min-h-[80px] rounded-[2px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
-            {error && <p className="text-xs text-status-declined">{error}</p>}
-            <NeonButton color="gold" type="submit" disabled={submitting} className="w-full">
-              {submitting ? "Booking..." : "Confirm booking"}
+            <TurnstileWidget action="consultation" onToken={setCaptcha} resetKey={captchaReset} />
+            {error && (
+              <p className="text-xs text-status-declined" role="alert">
+                {error}
+              </p>
+            )}
+            <p className="text-xs text-muted">We&apos;ll hold this time and email you a link to confirm it.</p>
+            <NeonButton color="gold" type="submit" disabled={submitting || !captcha} className="w-full">
+              {submitting ? "Booking..." : "Request this time"}
             </NeonButton>
           </form>
         </GlassCard>

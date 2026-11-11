@@ -13,7 +13,7 @@ import { getLibraryItem } from "@/lib/data/library";
 import { getEmailAccountWithSecretForDj } from "@/lib/data/email-accounts";
 import { sendEmailFromAccount } from "@/lib/send-email";
 import { fillMergeFields, type MergeContext } from "@/lib/merge-fields";
-import { STAFF_ROLES } from "@/lib/roles";
+import { isStaffRole, accountRole } from "@/lib/roles";
 import { TRIGGERS, parseDateTrigger } from "@/lib/automation-capabilities";
 import type { EventCategory } from "@/lib/event-category";
 
@@ -126,7 +126,7 @@ async function runAction(action: AutomationAction, event: EventContext, origin: 
     case "notify_staff": {
       const db = createAdminClient();
       const { data } = await db.auth.admin.listUsers();
-      const staffIds = (data?.users ?? []).filter((u) => STAFF_ROLES.includes(u.user_metadata?.role)).map((u) => u.id);
+      const staffIds = (data?.users ?? []).filter((u) => isStaffRole(accountRole(u))).map((u) => u.id);
       if (staffIds.length === 0) return "No staff users to notify";
       await db.from("notifications").insert(
         staffIds.map((userId) => ({

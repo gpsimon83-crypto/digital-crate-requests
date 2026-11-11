@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { accountRole } from "@/lib/roles";
 import { resolveUserRole, hasPermission } from "@/lib/data/permissions";
 import type { CatalogItemData } from "@/lib/packages/types";
 
@@ -14,7 +15,7 @@ export async function canViewCost(): Promise<boolean> {
     data: { user }
   } = await supabase.auth.getUser();
   if (!user) return false;
-  const role = await resolveUserRole(user.id, user.user_metadata?.role);
+  const role = await resolveUserRole(user.id, accountRole(user));
   if (!role) return false;
   return hasPermission(role, "packages.view_cost");
 }

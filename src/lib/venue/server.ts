@@ -9,8 +9,9 @@
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { staffSessionMeetsMfa } from "@/lib/security/mfa";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isStaffRole } from "@/lib/roles";
+import { isStaffRole, accountRole } from "@/lib/roles";
 import { normalizeFocus, normalizeNights, type VenueRecord } from "./types";
 
 export const VENUE_COLUMNS =
@@ -59,7 +60,7 @@ export async function requireVenueAccess(requestedId?: string | null): Promise<V
   const wanted = requestedId && /^[0-9a-f-]{36}$/i.test(requestedId) ? requestedId : null;
 
   // Staff: read-only preview of any venue.
-  if (isStaffRole(user.user_metadata?.role) && !isVenueUser(user)) {
+  if (isStaffRole(accountRole(user)) && !isVenueUser(user)) {
     const { data: list, error } = await db.from("venues").select("id, name, slug").order("name");
     if (error) return NextResponse.json({ error: error.message }, { status: 503 });
     const id = wanted ?? list?.[0]?.id;
@@ -95,8 +96,11 @@ export async function requireVenueAccess(requestedId?: string | null): Promise<V
 /** Staff-only gate for venue management routes; returns the acting user. */
 export async function requireVenueAdmin(): Promise<User | NextResponse> {
   const user = await currentUser();
-  if (!user || !isStaffRole(user.user_metadata?.role) || isVenueUser(user)) {
+  if (!user || !isStaffRole(accountRole(user)) || isVenueUser(user)) {
     return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+  }
+  if (!(await staffSessionMeetsMfa(await createClient()))) {
+    return NextResponse.json({ error: "Two-factor verification required", mfa: true }, { status: 403 });
   }
   return user;
 }

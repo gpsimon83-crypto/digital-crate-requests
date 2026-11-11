@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { TurnstileWidget, TURNSTILE_SITE_KEY } from "@/components/site/turnstile-widget";
 import Link from "next/link";
 import { Mail, ArrowRight, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/site/logo";
@@ -9,6 +10,8 @@ import { createClient } from "@/lib/supabase/client";
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const [captchaReset, setCaptchaReset] = useState(0);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,11 +23,14 @@ export default function ForgotPasswordPage() {
     const supabase = createClient();
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/auth/reset-password`,
+      captchaToken: captcha ?? undefined,
     });
+    setCaptchaReset((k) => k + 1);
 
     setSubmitting(false);
     if (resetError) {
-      setError(resetError.message);
+      // Never says whether an account exists; only throttling/captcha issues reach here.
+      setError(resetError.status === 429 ? "Too many requests. Please wait a few minutes and try again." : "We couldn't send the email right now. Please try again shortly.");
       return;
     }
     setSent(true);
@@ -70,9 +76,11 @@ export default function ForgotPasswordPage() {
                 </div>
               </label>
 
+              <TurnstileWidget action="password_reset" onToken={setCaptcha} resetKey={captchaReset} optional />
+
               {error && <p className="text-xs text-status-declined">{error}</p>}
 
-              <button type="submit" disabled={submitting} className="auth-submit mt-1">
+              <button type="submit" disabled={submitting || (!!TURNSTILE_SITE_KEY && !captcha)} className="auth-submit mt-1">
                 {submitting ? "Sending..." : "Send Reset Link"}
                 {!submitting && <ArrowRight size={16} />}
               </button>

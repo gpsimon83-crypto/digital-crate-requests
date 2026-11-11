@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/require-auth";
 import { requireAdmin } from "@/lib/require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isStaffRole } from "@/lib/roles";
+import { isStaffRole, accountRole } from "@/lib/roles";
 
 /**
  * Staff see every event, same as always. A DJ used to get the exact same
@@ -23,7 +23,7 @@ export async function GET() {
 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (user && !isStaffRole(user.user_metadata?.role)) {
+    if (user && !isStaffRole(accountRole(user))) {
       const db = createAdminClient();
       const { data: dj } = await db.from("djs").select("id").eq("auth_user_id", user.id).maybeSingle();
       const scoped = dj ? events.filter((e) => e.dj_id === dj.id) : [];

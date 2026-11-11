@@ -1,6 +1,10 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { safeNextPath } from "@/lib/security/safe-redirect";
 import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { enforce, limits, supabaseRateLimitStore } from "@/lib/security/rate-limit";
+import { keyedHash, sha256Hex } from "@/lib/security/crypto";
+import { getClientIp } from "@/lib/security/client-ip";
 
 const MAX_AGE_SECONDS = 600;
 
@@ -27,7 +31,7 @@ export async function GET(request: NextRequest) {
   const ts = searchParams.get("ts");
   const sig = searchParams.get("sig");
   const djName = searchParams.get("dj_name") ?? undefined;
-  const next = searchParams.get("next") || "/dj-dashboard";
+  const next = safeNextPath(searchParams.get("next"), "/dj-dashboard");
 
   if (!email || !ts || !sig) {
     return NextResponse.redirect(new URL("/dj-dashboard/login?error=sso_missing", origin));
@@ -43,6 +47,19 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
+
+  // Each signed link works once (a copied or logged URL can't be replayed),
+  // and per-visitor attempts are limited.
+  const L = limits();
+  const rl = await enforce(supabaseRateLimitStore, [
+    { bucket: `sso:s:${keyedHash("ip", getClientIp(request.headers))}`, limit: L.ssoPerSource.limit, window: L.ssoPerSource.window }
+  ]).catch(() => ({ allowed: true }));
+  if (!rl.allowed) return NextResponse.redirect(new URL("/dj-dashboard/login?error=sso_failed", origin));
+  const { error: usedError } = await supabase.from("security_used_tokens").insert({ token_hash: sha256Hex(`sso:${sig}`), purpose: "sso" });
+  if (usedError && usedError.code === "23505") {
+    return NextResponse.redirect(new URL("/dj-dashboard/login?error=sso_expired", origin));
+  }
+
   const { data, error } = await supabase.auth.admin.generateLink({
     type: "magiclink",
     email,

@@ -65,7 +65,9 @@ async function pushEventsToGoogle(accessToken: string, calendarId: string): Prom
       location: event.venues?.name,
       startsAt,
       endsAt,
-      cratesdjEventId: event.id
+      cratesdjEventId: event.id,
+      // Inquiries and pending bookings are holds, not confirmed events.
+      tentative: !["confirmed", "live", "ended"].includes(event.status)
     });
 
     if (googleEventId !== event.google_event_id) {
