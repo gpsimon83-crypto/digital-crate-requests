@@ -19,6 +19,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-11-crate-upload",
+    date: "2026-11-11",
+    area: "Members area",
+    title: "Crate Challenge: upload and drag-and-drop",
+    summary: "DJs can now upload songs straight into a Crate Challenge crate, and every crate page looks like the Music Pool.",
+    bullets: [
+      "Open any crate and click ↑ Upload songs, or just drop audio files (or a whole folder) anywhere on the page",
+      "Same drop zone and cards as the Music Pool: each file is analyzed for BPM, key and energy before you upload, and you can fix the title, artist and genre",
+      "Uploaded songs are saved to the Music Pool and added to the crate under the DJ's name, so they count toward the 10-per-crate limit and the leaderboards",
+      "Crate pages now use the Music Pool layout: blurred cover header, Play all, and song rows with play buttons, who added each song, BPM and Camelot key",
+      "Locked crates and the per-DJ limit are enforced on the server; MP3, WAV, FLAC, M4A, OGG and AIF are accepted",
+      "Fixed: crate and collection names with an & (like R&B After Dark) could show as \"&amp;\" after a DJ added a song"
+    ],
+    link: { href: "https://digitalcratedjs.com/members/#curator/crates", label: "Open the Crate Challenge", external: true }
+  },
+  {
     id: "2026-11-11-inquiry-security",
     date: "2026-11-11",
     area: "CRM",

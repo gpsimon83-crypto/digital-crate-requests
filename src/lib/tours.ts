@@ -333,8 +333,19 @@ export const MEMBER_TOURS: Record<string, MemberTour> = {
       { title: "Top crate diggers", body: "The leaderboard ranks DJs by songs added across all crates." },
       { title: "Filter the crates", body: "All 40, open, needs songs, complete, or locked." },
       { title: "Open and locked crates", body: "Open crates show progress; locked ones show their unlock date. Next opens a crate." },
-      { title: "Add your songs", body: "Pick from the Music Pool. DJs can remove only their own songs." },
+      { title: "Add your songs", body: "Upload songs opens a Music Pool-style drop zone (files or a whole folder), or pick from the Music Pool. Play all plays the crate." },
+      { title: "Your songs left here", body: "Up to 10 songs per DJ per crate, by upload or from the Music Pool. DJs can remove only their own songs." },
+      { title: "The songs in this crate", body: "Laid out like the Music Pool: play, title and artist, who added it, BPM and key." },
       { title: "Top diggers in this crate", body: "Who added the most. Fill it to 25 for a Complete ribbon." }
+    ]
+  },
+  "2026-11-11-crate-upload": {
+    url: `${MEMBERS}?dctour=crate-challenge`,
+    steps: [
+      { title: "Open any crate", body: "Members → Venue Curator → Crate Challenge, then click an open crate." },
+      { title: "Add your songs", body: "Upload songs opens a drop zone just like the Music Pool: drag in audio files or a whole folder, or browse. Each file is analyzed for BPM, key and energy, saved to the Music Pool and added to the crate under your name." },
+      { title: "Your songs left here", body: "Up to 10 songs per DJ per crate. Dropping files anywhere on an open crate's page works too." },
+      { title: "The songs in this crate", body: "Play button, title and artist, who added it, BPM and Camelot key, laid out like the Music Pool. Play all plays the whole crate." }
     ]
   },
   "2026-11-10-venue-curator-library": {
