@@ -244,8 +244,9 @@ const MEMBERS = "https://digitalcratedjs.com/members/";
 
 export const MEMBER_TOURS: Record<string, MemberTour> = {
   "2026-11-10-crate-challenge": {
-    url: `${MEMBERS}?dctour=crate-challenge#curator`,
+    url: `${MEMBERS}?dctour=crate-challenge`,
     steps: [
+      { title: "It starts on your Dashboard", body: "The Crate Challenge banner on the members Dashboard shows crates open and the next drop, with Walkthrough and Open buttons." },
       { title: "Find it in Venue Curator", body: "The Crate Challenge is the second section of Venue Curator, next to Venue Collections." },
       { title: "The challenge", body: "40 themed crates that unlock a few at a time. DJs fill each crate to 25 songs, up to 10 songs per DJ per crate." },
       { title: "Launch and settings", body: "Launch opens the first crates and can post the promo on the members Dashboard. DJs can't see the challenge until you launch it.", adminOnly: true },

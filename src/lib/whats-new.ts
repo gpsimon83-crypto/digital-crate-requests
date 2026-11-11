@@ -30,7 +30,8 @@ export const UPDATES: UpdateEntry[] = [
       "Each crate fills to 25 songs, up to 10 per DJ, with a Complete ribbon when full",
       "Leaderboards for the whole challenge and for each crate",
       "Admins can open a crate early, hold one back, or edit it from its ⋯ menu",
-      "Launching can post the promo announcement with its banner on the members Dashboard",
+      "Promo banner on the members Dashboard under the welcome photo, with crates open, the next drop, Walkthrough and Open buttons",
+      "Launching can also post the promo announcement on the members Dashboard",
       "Venue Curator now uses the dark gold look from the challenge banner"
     ],
     link: { href: "https://digitalcratedjs.com/members/#curator/crates", label: "Open the Crate Challenge", external: true },
