@@ -28,7 +28,8 @@ export const UPDATES: UpdateEntry[] = [
       "Dashboard: EDM Anthems · Academy: Late Night Lounge · Venue Curator: Crate Picks",
       "Team Bucket: East Coast Classics · Events: Wedding Party · Announcements: New Year Countdown",
       "Availability: Holiday Party · My Bio: West Coast Cruise",
-      "Cards, forms and the Events activity charts switched to dark so all text stays readable"
+      "Cards, forms and the Events activity charts switched to dark so all text stays readable",
+      "Dashboard stat cards have their own photos: stage lights (Upcoming Events), calendar (Events This Month), road case (Open Assignments), folio (Documents)"
     ],
     link: { href: "https://digitalcratedjs.com/members/", label: "Open the members area", external: true }
   },
