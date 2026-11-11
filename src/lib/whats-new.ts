@@ -19,6 +19,25 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-11-social-presence",
+    date: "2026-11-11",
+    area: "Members area",
+    title: "Social Presence & My Social Coach (DCDJs Academy)",
+    summary: "A new Academy course that gives each DJ a weekly social media plan. A reviewer approves their posts and points follow.",
+    bullets: [
+      "Find it at Members → DCDJs Academy → Social Presence, and on a new Dashboard slide with a Walkthrough button",
+      "Six shared lessons, then three tracks: Stay Connected, Build Your Presence and Stay in the Spotlight, each with four weekly lessons and one-question checks",
+      "My Week lists the exact posts, Story days and engagement sessions, with due times in each DJ's timezone",
+      "Confirmed bookings an admin marks public become invite, day-of and recap tasks that replace planned posts; private gigs never appear",
+      "DJs submit a post link, a screenshot (stored privately) or a short engagement log",
+      "Reviewers approve, send back with exactly what to fix, or excuse. Points are added once per approval, and badges come at 50, 150 and 300 points and after four complete weeks",
+      "My Social Coach gives caption options, a draft check, shot lists and no-gig ideas (template help, not live AI)",
+      "Admin settings in wp-admin → DCDJs Academy → Social Presence"
+    ],
+    link: { href: "https://digitalcratedjs.com/members/?dctour=social-presence", label: "Start the walkthrough", external: true },
+    action: "Grant Orlando reviewer access, mark which bookings are public, approve venue tags and add the DCDJs Instagram tag in wp-admin → DCDJs Academy → Social Presence."
+  },
+  {
     id: "2026-11-10-academy-pictures",
     date: "2026-11-10",
     area: "Members area",

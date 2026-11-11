@@ -243,6 +243,23 @@ export interface MemberTour {
 const MEMBERS = "https://digitalcratedjs.com/members/";
 
 export const MEMBER_TOURS: Record<string, MemberTour> = {
+  "2026-11-11-social-presence": {
+    url: `${MEMBERS}?dctour=social-presence`,
+    steps: [
+      { title: "It starts on your Dashboard", body: "The Social Presence slide shows your track, this week's progress and points, with Walkthrough and Open buttons." },
+      { title: "Find it in the Academy", body: "Social Presence sits next to Training and Assignments in the DCDJs Academy." },
+      { title: "Your course at a glance", body: "Track, points to spend, lifetime points and weekly streak." },
+      { title: "Everything in one place", body: "My Week, Lessons, Tips & Tricks, Draft Helper, Submissions, Progress and Rewards." },
+      { title: "Pick a track, then plan your week", body: "Stay Connected, Build Your Presence or Stay in the Spotlight; the first scored week starts the next Monday." },
+      { title: "Each assignment", body: "Due time, points, status, checklist, caption template, an equal-value swap, and Submit proof." },
+      { title: "Your gigs and your settings", body: "Public bookings become invite, day-of and recap tasks that replace planned posts. Set your days, posting window and reminders." },
+      { title: "Short lessons", body: "Six shared lessons, then four for your track, each with a one-question check." },
+      { title: "My Social Coach", body: "Caption options, draft check, shot list and no-gig ideas. Template coach, not live AI." },
+      { title: "Points and badges", body: "Badges at 50, 150 and 300 lifetime points and after four complete weeks." },
+      { title: "Review queue", body: "Approve, send back with exactly what to fix, or excuse. Points are added once on approval.", adminOnly: true },
+      { title: "Admin setup", body: "wp-admin → DCDJs Academy → Social Presence: public bookings, venue tags, company tag, lessons, targets, rewards, pauses.", adminOnly: true }
+    ]
+  },
   "2026-11-10-crate-challenge": {
     url: `${MEMBERS}?dctour=crate-challenge`,
     steps: [
