@@ -19,6 +19,20 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-10-dashboard-slides",
+    date: "2026-11-10",
+    area: "Members area",
+    title: "Members Dashboard highlights slider",
+    summary: "A rotating banner under the welcome photo on the members Dashboard with three slides: the Crate Challenge, the DCDJs Academy and next month's availability.",
+    bullets: [
+      "Crate Challenge: crates open and the next drop, with Walkthrough and Open buttons (DJs see it after launch)",
+      "DCDJs Academy: each DJ's own progress, from Start the Academy to Certified",
+      "Availability: whether the DJ has sent next month yet and that month's big nights; admins see how many DJs have sent it",
+      "Changes slide every 8 seconds, pauses on hover, swipes on phones, with dots and arrows"
+    ],
+    link: { href: "https://digitalcratedjs.com/members/", label: "Open the members Dashboard", external: true }
+  },
+  {
     id: "2026-11-10-crate-challenge",
     date: "2026-11-10",
     area: "Members area",
