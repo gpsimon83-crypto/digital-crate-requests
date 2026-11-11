@@ -19,6 +19,17 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-10-members-tabs-trim",
+    date: "2026-11-10",
+    area: "Members area",
+    title: "My Library and Crate Builder tabs removed",
+    summary: "Two tabs that repeated other parts of the members area are gone, so the menu is shorter.",
+    bullets: [
+      "My Library: each DJ's uploads are now their own Exclusive Crate in the Music Pool (marked You)",
+      "Crate Builder: the menu link is removed; the tool itself still runs at requests.digitalcratedjs.com/dj-dashboard/library"
+    ]
+  },
+  {
     id: "2026-11-10-music-pool-crates",
     date: "2026-11-10",
     area: "Members area",
