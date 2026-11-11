@@ -19,6 +19,21 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-10-academy-pictures",
+    date: "2026-11-10",
+    area: "Members area",
+    title: "DCDJs Academy pictures",
+    summary: "Every part of the Academy page now has its own picture, matched by name.",
+    bullets: [
+      "Training and Assignments tabs are picture tiles",
+      "Welcome banner and certificate card have their own backgrounds",
+      "Status cards: certification, deadline, best test score, acknowledgments due, booking eligibility",
+      "Each module card gets its picture by title (holiday, communication, venue relationships, point person, professional standards), so reordering modules keeps them matched",
+      "Final Certification Assessment has its own picture"
+    ],
+    link: { href: "https://digitalcratedjs.com/members/#academy", label: "Open the Academy", external: true }
+  },
+  {
     id: "2026-11-10-members-backdrops",
     date: "2026-11-10",
     area: "Members area",
