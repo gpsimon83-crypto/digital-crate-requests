@@ -19,6 +19,20 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-10-members-backdrops",
+    date: "2026-11-10",
+    area: "Members area",
+    title: "Dark blurred-cover look on every members page",
+    summary: "Every members tab now matches the Music Pool: dark, with a Crate Challenge cover blurred behind it.",
+    bullets: [
+      "Dashboard: EDM Anthems · Academy: Late Night Lounge · Venue Curator: Crate Picks",
+      "Team Bucket: East Coast Classics · Events: Wedding Party · Announcements: New Year Countdown",
+      "Availability: Holiday Party · My Bio: West Coast Cruise",
+      "Cards, forms and the Events activity charts switched to dark so all text stays readable"
+    ],
+    link: { href: "https://digitalcratedjs.com/members/", label: "Open the members area", external: true }
+  },
+  {
     id: "2026-11-10-members-tabs-trim",
     date: "2026-11-10",
     area: "Members area",
