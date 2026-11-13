@@ -19,6 +19,20 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-13-venue-lineup-scroll",
+    date: "2026-11-13",
+    area: "CRM",
+    title: "Venue portal: scrolling DJ lineup",
+    summary: "The DJ lineup now drifts right to left, 3–4 DJs at a time, and hovering a DJ enlarges their photo and shows their dates at the venue.",
+    bullets: [
+      "Shows 4 DJs at a time on desktop, 3 on tablets, 2 on phones; loops when there are more DJs than fit",
+      "Pauses while you hover or tab through it; Pause, previous and next buttons included",
+      "Hover (or keyboard focus) enlarges the DJ's card and photo and lists their upcoming dates at that venue",
+      "Stays still for people who turn on reduced motion in their device settings"
+    ],
+    link: { href: "/admin/venues", label: "Open Venue Portals" }
+  },
+  {
     id: "2026-11-12-venue-dashboard-redesign",
     date: "2026-11-12",
     area: "CRM",
