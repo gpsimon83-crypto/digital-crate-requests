@@ -3,6 +3,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
 import { requireVenueAccess } from "@/lib/venue/server";
 import { holidaysInMonth, upcomingHolidays } from "@/lib/venue/holidays";
+import { fetchVenueNights, type CalendarNight } from "@/lib/venue/calendar-feed";
+import { normalizeNights } from "@/lib/venue/types";
 
 const TZ = "America/Chicago";
 
@@ -58,7 +60,29 @@ export async function GET(req: NextRequest) {
     });
     const cols = "id, event_category, event_type, starts_at, ends_at, status, dj_id, djs(display_name, photo_url)";
 
+    // Nights from the shared DCDJ calendar (via the WordPress site) for this venue's calendar names.
+    const recurring = normalizeNights(venue.recurring_nights);
+    const nightLabel = (date: string) => {
+      const day = new Date(`${date}T12:00:00Z`).getUTCDay();
+      return recurring.find((r) => r.day === day && r.label)?.label || "DCDJs night";
+    };
+    const fromCalendar = (n: CalendarNight) => ({
+      id: n.id,
+      date: n.date,
+      starts_at: n.starts_at,
+      ends_at: n.ends_at,
+      label: nightLabel(n.date),
+      status: (n.state === "confirmed" ? "confirmed" : "pending") as "confirmed" | "pending",
+      dj: n.dj,
+      source: "calendar" as const
+    });
+    const names = venue.calendar_names ?? [];
+
     const win = monthWindow(month);
+    const [monthFeed, upcomingFeed] = await Promise.all([
+      fetchVenueNights(names, month, 1),
+      fetchVenueNights(names, today.slice(0, 7), 3)
+    ]);
     const [monthRes, upcomingRes, lineupRes] = await Promise.all([
       db.from("events").select(cols).eq("venue_id", venue.id).gte("starts_at", win.from).lt("starts_at", win.to).order("starts_at"),
       db.from("events").select(cols).eq("venue_id", venue.id).gte("starts_at", new Date().toISOString()).neq("status", "declined").order("starts_at").limit(8),
@@ -68,8 +92,14 @@ export async function GET(req: NextRequest) {
     if (upcomingRes.error) throw upcomingRes.error;
     if (lineupRes.error) throw lineupRes.error;
 
-    const monthEvents = ((monthRes.data ?? []) as unknown as EventRow[]).map(shape).filter((e) => e.date?.startsWith(month));
-    const upcoming = ((upcomingRes.data ?? []) as unknown as EventRow[]).map(shape);
+    const sortKey = (e: { starts_at: string | null; date: string | null }) => (e.starts_at ? new Date(e.starts_at).toISOString() : `${e.date}T06:00:00.000Z`);
+    const byStart = (a: { starts_at: string | null; date: string | null }, b: { starts_at: string | null; date: string | null }) => sortKey(a).localeCompare(sortKey(b));
+    const monthEvents = [
+      ...((monthRes.data ?? []) as unknown as EventRow[]).map(shape).filter((e) => e.date?.startsWith(month)),
+      ...monthFeed.nights.filter((n) => n.date.startsWith(month)).map(fromCalendar)
+    ].sort(byStart);
+    const calUpcoming = upcomingFeed.nights.filter((n) => n.date >= today).map(fromCalendar);
+    const upcoming = [...((upcomingRes.data ?? []) as unknown as EventRow[]).map(shape), ...calUpcoming].sort(byStart).slice(0, 8);
 
     const lineupDjs = (lineupRes.data ?? [])
       .map((r) => r.djs as unknown as { id: string; display_name: string; photo_url: string | null; top_genres: string[] | null; specialties: string[] | null; event_types: string[] | null } | null)
@@ -84,8 +114,23 @@ export async function GET(req: NextRequest) {
           specialties: [...(d.top_genres ?? []), ...(d.specialties ?? [])].filter(Boolean).slice(0, 4),
           upcoming_dates: dates.slice(0, 3)
         };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
+      });
+    // DJs playing this venue on the shared calendar who aren't linked in the CRM yet.
+    const calDjs = new Map<string, { name: string; photo_url: string | null; dates: string[] }>();
+    for (const n of calUpcoming) {
+      if (!n.dj) continue;
+      if (lineup.some((l) => l.name.toLowerCase() === n.dj!.name.toLowerCase())) {
+        const l = lineup.find((x) => x.name.toLowerCase() === n.dj!.name.toLowerCase())!;
+        if (!l.upcoming_dates.includes(n.date) && l.upcoming_dates.length < 3) l.upcoming_dates.push(n.date);
+        continue;
+      }
+      const k = n.dj.name.toLowerCase();
+      const cur = calDjs.get(k) ?? { name: n.dj.name, photo_url: n.dj.photo_url, dates: [] };
+      if (cur.dates.length < 3) cur.dates.push(n.date);
+      calDjs.set(k, cur);
+    }
+    for (const [k, d] of calDjs) lineup.push({ id: `cal_${k.replace(/[^a-z0-9]+/g, "_")}`, name: d.name, photo_url: d.photo_url, specialties: [], upcoming_dates: d.dates });
+    lineup.sort((a, b) => a.name.localeCompare(b.name));
 
     const { calendar_names: _internal, ...publicVenue } = venue;
     void _internal;
@@ -96,6 +141,8 @@ export async function GET(req: NextRequest) {
       month,
       venues,
       venue: publicVenue,
+      // Admin preview only: whether the shared-calendar link is working.
+      ...(preview ? { calendarFeed: { names: names.length, status: names.length ? monthFeed.status : "no-names" } } : {}),
       overview: {
         upcomingNights: upcoming.length,
         assignedDjs: lineup.length,

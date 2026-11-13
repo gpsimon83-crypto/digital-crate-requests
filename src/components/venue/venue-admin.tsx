@@ -531,7 +531,7 @@ function CalendarNamesCard({ names, onChange }: { names: string[]; onChange: (n:
     <Card
       tour="venue-calendar-names"
       title="Names on the DCDJ calendar"
-      hint="How this venue is written in the shared Google Calendar (e.g. “Casey Keys”, “CK Fri”). Used later to show the venue its bar nights from the members-area schedule. Never shown to the venue."
+      hint="How this venue is written in the shared DCDJ Google Calendar (e.g. “Casey Keys”, “CK Fri”). Any calendar night whose title or location contains one of these shows on the venue’s portal with its DJ. Only the date, time and DJ are shown, never the event title or notes."
     >
       <div className="flex flex-wrap gap-2">
         {names.map((n) => (

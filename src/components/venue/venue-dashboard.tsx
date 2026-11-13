@@ -45,6 +45,7 @@ interface Holiday {
 }
 interface Dashboard {
   preview: boolean;
+  calendarFeed?: { names: number; status: "ok" | "off" | "error" | "no-names" };
   today: string;
   month: string;
   venues: { id: string; name: string }[];
@@ -300,6 +301,15 @@ export function VenueDashboard() {
           {data?.preview && (
             <p className="flex items-center gap-2 rounded-[10px] border border-[#4c86ff]/40 bg-[#4c86ff]/10 px-3 py-2 text-xs text-[#a9c4ff]">
               <Eye size={14} /> Admin preview: this is what the venue sees. Read-only.
+            </p>
+          )}
+          {data?.preview && data.calendarFeed && data.calendarFeed.status !== "ok" && (
+            <p className="rounded-[10px] border border-[#d79a32]/40 bg-[#d79a32]/10 px-3 py-2 text-xs text-[#f0bd62]">
+              {data.calendarFeed.status === "no-names"
+                ? "Admin note: add this venue's names under “Names on the DCDJ calendar” (Admin → Venue Portals → Manage) so its nights show up here."
+                : data.calendarFeed.status === "off"
+                  ? "Admin note: the DCDJ calendar link isn't set up yet (the partner key must be set on both the CRM and the WordPress site)."
+                  : "Admin note: the DCDJ calendar couldn't be reached just now, so only CRM bookings are shown."}
             </p>
           )}
           {error && <p className="text-xs text-[#e58b84]">{error}</p>}

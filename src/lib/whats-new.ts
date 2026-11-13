@@ -19,6 +19,23 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-12-venue-calendar-nights",
+    date: "2026-11-12",
+    area: "CRM",
+    title: "Venue portals show their nights from the DCDJ calendar",
+    summary: "Each venue's portal now pulls its nights from the shared DCDJ Google Calendar, with the DJ who's playing.",
+    bullets: [
+      "Matches calendar nights by the venue's “Names on the DCDJ calendar” (title or location), e.g. “Casey Keys”, “CK Fri”",
+      "Shows on the venue's Dashboard, Calendar and DJ Lineup alongside CRM bookings",
+      "Confirmed (green) once the DJ is confirmed in the members-area Availability tab; Pending (amber) while the DJ is only tagged or not set yet",
+      "Uses the venue's regular night name for the day when you've set one, otherwise “DCDJs night”",
+      "Venues only see the date, time and DJ: never the calendar title, notes or client details",
+      "Admin preview shows a note if a venue has no calendar names yet or the calendar can't be reached"
+    ],
+    link: { href: "/admin/venues", label: "Open Venue Portals" },
+    action: "For each venue, open Manage and add how it's written on the DCDJ calendar under “Names on the DCDJ calendar”, then Save."
+  },
+  {
     id: "2026-11-11-crate-upload",
     date: "2026-11-11",
     area: "Members area",
