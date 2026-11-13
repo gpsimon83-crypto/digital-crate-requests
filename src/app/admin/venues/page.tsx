@@ -7,6 +7,7 @@ import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import Link from "next/link";
 import { MapPin } from "lucide-react";
+import { CalendarDjsCard } from "@/components/venue/calendar-djs-card";
 
 interface VenueRow {
   id: string;
@@ -128,6 +129,8 @@ export default function AdminVenuesPage() {
           emptyBody="Add your first venue partner."
         />
         </div>
+
+        <CalendarDjsCard />
       </div>
 
       <ConfirmModal

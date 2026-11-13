@@ -23,7 +23,7 @@ describe("venue nights from the shared DCDJ calendar", () => {
     expect(new URL(calls[0].url).searchParams.get("months")).toBe("3");
     expect(r.status).toBe("ok");
     expect(r.nights).toHaveLength(2);
-    expect(r.nights[0]).toEqual({ id: "gcal_abc", date: "2026-11-14", starts_at: "2026-11-14T21:00:00-06:00", ends_at: "2026-11-15T02:00:00-06:00", all_day: false, matched: "North 48", state: "confirmed", dj: { name: "DJ Que", photo_url: "https://digitalcratedjs.com/q.png" } });
+    expect(r.nights[0]).toEqual({ id: "gcal_abc", date: "2026-11-14", starts_at: "2026-11-14T21:00:00-06:00", ends_at: "2026-11-15T02:00:00-06:00", all_day: false, matched: "North 48", state: "confirmed", dj_text: "", dj: { name: "DJ Que", photo_url: "https://digitalcratedjs.com/q.png" } });
     expect(JSON.stringify(r)).not.toMatch(/Jordan|secret/);
     expect(r.nights[1].state).toBe("open");
     expect(r.nights[1].dj?.photo_url).toBeNull();

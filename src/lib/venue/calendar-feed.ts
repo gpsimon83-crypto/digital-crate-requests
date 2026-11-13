@@ -17,6 +17,8 @@ export type CalendarNight = {
   matched: string;
   state: "confirmed" | "tagged" | "open";
   dj: { name: string; photo_url: string | null } | null;
+  /** The DJ part of the calendar title as written ("J Prime"), used to map calendar nicknames to real names. */
+  dj_text: string;
 };
 
 export type CalendarFeedResult = { nights: CalendarNight[]; status: "ok" | "off" | "error" };
@@ -40,6 +42,7 @@ function clean(n: unknown): CalendarNight | null {
     all_day: !!r.all_day,
     matched: String(r.matched ?? "").slice(0, 80),
     state,
+    dj_text: typeof r.dj_text === "string" ? r.dj_text.trim().slice(0, 60) : "",
     dj: djRaw && typeof djRaw.name === "string" && djRaw.name.trim() ? { name: djRaw.name.trim().slice(0, 80), photo_url: photo } : null
   };
 }

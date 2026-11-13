@@ -6,6 +6,7 @@ import { requireVenueAccess } from "@/lib/venue/server";
 import { holidaysInMonth, upcomingHolidays } from "@/lib/venue/holidays";
 import { fetchVenueNights, type CalendarNight } from "@/lib/venue/calendar-feed";
 import { normalizeNights } from "@/lib/venue/types";
+import { resolveDjName, type CalendarDjName } from "@/lib/venue/calendar-options";
 
 const TZ = "America/Chicago";
 
@@ -67,16 +68,25 @@ export async function GET(req: NextRequest) {
       const day = new Date(`${date}T12:00:00Z`).getUTCDay();
       return recurring.find((r) => r.day === day && r.label)?.label || "DCDJs night";
     };
-    const fromCalendar = (n: CalendarNight) => ({
-      id: n.id,
-      date: n.date,
-      starts_at: n.starts_at,
-      ends_at: n.ends_at,
-      label: nightLabel(n.date),
-      status: (n.state === "confirmed" ? "confirmed" : "pending") as "confirmed" | "pending",
-      dj: n.dj,
-      source: "calendar" as const
-    });
+    const djMap: CalendarDjName[] = [];
+    const djPhotos = new Map<string, string | null>();
+    const fromCalendar = (n: CalendarNight) => {
+      // Your list wins: "J Prime" on the calendar shows as the actual name you gave that DJ.
+      const mapped = resolveDjName(djMap, n.dj_text, n.dj?.name);
+      const dj = mapped
+        ? { name: mapped.display_name, photo_url: djPhotos.get(mapped.display_name.toLowerCase()) ?? n.dj?.photo_url ?? null }
+        : n.dj;
+      return {
+        id: n.id,
+        date: n.date,
+        starts_at: n.starts_at,
+        ends_at: n.ends_at,
+        label: nightLabel(n.date),
+        status: (n.state === "confirmed" ? "confirmed" : "pending") as "confirmed" | "pending",
+        dj,
+        source: "calendar" as const
+      };
+    };
     const names = venue.calendar_names ?? [];
     // Words that identify this venue in cratesdjs.com data: its name plus its calendar names.
     // Characters with meaning in PostgREST filters are dropped, so a name can never change the query.
@@ -88,7 +98,9 @@ export async function GET(req: NextRequest) {
     const nowIso = new Date().toISOString();
     const upTo = new Date(Date.now() + 120 * 86400000).toISOString();
     const none = Promise.resolve({ data: [] as unknown[], error: null });
-    const [monthFeed, upcomingFeed, monthRes, upcomingRes, lineupRes, namedMonthRes, namedUpcomingRes, blocksMonthRes, blocksUpRes] = await Promise.all([
+    const [djMapRes, monthFeed, upcomingFeed, monthRes, upcomingRes, lineupRes, namedMonthRes, namedUpcomingRes, blocksMonthRes, blocksUpRes] = await Promise.all([
+      // DJs as written on the calendar → the actual names you set in Admin → Venue Portals (best effort).
+      db.from("calendar_dj_names").select("id, calendar_name, display_name"),
       fetchVenueNights(names, month, 1),
       fetchVenueNights(names, today.slice(0, 7), 3),
       db.from("events").select(cols).eq("venue_id", venue.id).gte("starts_at", win.from).lt("starts_at", win.to).order("starts_at"),
@@ -112,6 +124,12 @@ export async function GET(req: NextRequest) {
     if (monthRes.error) throw monthRes.error;
     if (upcomingRes.error) throw upcomingRes.error;
     if (lineupRes.error) throw lineupRes.error;
+    if (!djMapRes.error) djMap.push(...((djMapRes.data ?? []) as CalendarDjName[]));
+    if (djMap.length) {
+      // Photos for the actual names, from the CRM's DJ profiles.
+      const { data: photos } = await db.from("djs").select("display_name, photo_url").in("display_name", djMap.map((d) => d.display_name));
+      for (const p of photos ?? []) djPhotos.set(String(p.display_name).toLowerCase(), (p.photo_url as string | null) ?? null);
+    }
     // The extra sources are best-effort: a failure there never hides the venue's own bookings.
     const rows = (r: { data: unknown[] | null; error: unknown }) => (r.error ? [] : ((r.data ?? []) as unknown[]));
 

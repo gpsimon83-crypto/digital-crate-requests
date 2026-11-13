@@ -19,6 +19,21 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-12-venue-calendar-djs",
+    date: "2026-11-12",
+    area: "CRM",
+    title: "Venue Portals: calendar name dropdown and DJ names",
+    summary: "Pick each venue's calendar name from a list, and tell the CRM each DJ's actual name so venue portals show it.",
+    bullets: [
+      "Venue Portals → Manage → Name on the DCDJ calendar: choose Casey Key, North 48 or Brass Boar's Den (or Other…)",
+      "Venue Portals → DJs on the DCDJ calendar: choose Que, GMO, Makara, Bubblz, Omerta or Penny (or Other…) and type the actual name",
+      "A night like “Casey Key / Que” shows on the Casey Key portal with the actual name you gave Que, plus their CRM photo when the names match",
+      "Curly and straight apostrophes are treated the same, so “Brass Boar’s Den” on the calendar matches"
+    ],
+    link: { href: "/admin/venues", label: "Open Venue Portals" },
+    action: "Run migration 0047_calendar_dj_names in Supabase (SQL Editor) once, then add your DJs."
+  },
+  {
     id: "2026-11-12-venue-calendar-nights",
     date: "2026-11-12",
     area: "CRM",

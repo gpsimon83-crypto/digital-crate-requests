@@ -10,6 +10,7 @@ import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { VenueBanner } from "./venue-banner";
 import { DAY_NAMES, type CoverFocus, type RecurringNight, type VenueManager, type VenueRecord } from "@/lib/venue/types";
 import { cn } from "@/lib/utils";
+import { VENUE_CALENDAR_OPTIONS } from "@/lib/venue/calendar-options";
 
 interface LogRow {
   id: string;
@@ -521,17 +522,21 @@ function NightsCard({ nights, onChange }: { nights: RecurringNight[]; onChange: 
 /* ---------------- Calendar names ---------------- */
 
 function CalendarNamesCard({ names, onChange }: { names: string[]; onChange: (n: string[]) => void }) {
-  const [draft, setDraft] = useState("");
-  const add = () => {
-    const t = draft.trim();
-    if (t && !names.some((n) => n.toLowerCase() === t.toLowerCase())) onChange([...names, t]);
-    setDraft("");
+  const [pick, setPick] = useState("");
+  const [other, setOther] = useState("");
+  const has = (t: string) => names.some((n) => n.toLowerCase() === t.toLowerCase());
+  const add = (t: string) => {
+    const v = t.trim();
+    if (v && !has(v)) onChange([...names, v]);
+    setPick("");
+    setOther("");
   };
+  const options = VENUE_CALENDAR_OPTIONS.filter((o) => !has(o));
   return (
     <Card
       tour="venue-calendar-names"
-      title="Names on the DCDJ calendar"
-      hint="How this venue is written in the shared DCDJ Google Calendar (e.g. “Casey Keys”, “CK Fri”). Any calendar night whose title or location contains one of these shows on the venue’s portal with its DJ. Only the date, time and DJ are shown, never the event title or notes."
+      title="Name on the DCDJ calendar"
+      hint="Pick how this venue is written on the shared DCDJ Google Calendar. Every calendar night that mentions it (like “Casey Key / Que”) shows on this venue’s portal with the DJ’s actual name from Venue Portals → DJs on the DCDJ calendar. Venues only see the date, time and DJ."
     >
       <div className="flex flex-wrap gap-2">
         {names.map((n) => (
@@ -542,28 +547,53 @@ function CalendarNamesCard({ names, onChange }: { names: string[]; onChange: (n:
             </button>
           </span>
         ))}
-        {!names.length && <span className="text-xs text-muted">None yet.</span>}
+        {!names.length && <span className="text-xs text-muted">None yet: choose one below, then Save changes.</span>}
       </div>
-      <div className="mt-3 flex max-w-md gap-2">
-        <input
+      <div className="mt-3 flex max-w-lg flex-col gap-2 sm:flex-row">
+        <select
           className={inputCls}
-          value={draft}
-          placeholder="Add a name"
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              add();
-            }
+          value={pick}
+          aria-label="Name on the DCDJ calendar"
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v && v !== OTHER_NAME) add(v);
+            else setPick(v);
           }}
-        />
-        <Button variant="secondary" onClick={add}>
-          Add
-        </Button>
+        >
+          <option value="">Choose the calendar name…</option>
+          {options.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+          <option value={OTHER_NAME}>Other…</option>
+        </select>
+        {pick === OTHER_NAME && (
+          <>
+            <input
+              className={inputCls}
+              value={other}
+              maxLength={80}
+              placeholder="As written on the calendar"
+              onChange={(e) => setOther(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  add(other);
+                }
+              }}
+            />
+            <Button variant="secondary" onClick={() => add(other)}>
+              Add
+            </Button>
+          </>
+        )}
       </div>
     </Card>
   );
 }
+
+const OTHER_NAME = "__other__";
 
 /* ---------------- Managers ---------------- */
 

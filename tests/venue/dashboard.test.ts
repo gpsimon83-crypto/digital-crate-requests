@@ -7,13 +7,15 @@ function builder(table: string) {
   const ops: string[] = [];
   calls.push({ table, ops });
   const q: Record<string, unknown> = {};
-  for (const m of ["select", "eq", "gte", "lt", "order", "limit", "neq", "is", "or", "not"]) q[m] = (...a: unknown[]) => { ops.push(`${m}(${a.map(String).join(",")})`); return q; };
+  for (const m of ["select", "eq", "gte", "lt", "order", "limit", "neq", "is", "or", "not", "in"]) q[m] = (...a: unknown[]) => { ops.push(`${m}(${a.map(String).join(",")})`); return q; };
   q.then = (res: (v: unknown) => void) => res(answer(table, ops));
   return q;
 }
 function answer(table: string, ops: string[]) {
   const named = ops.some((o) => o.startsWith("is(venue_id"));
   if (table === "venue_djs") return { data: [], error: null };
+  if (table === "calendar_dj_names") return { data: [{ id: "m1", calendar_name: "Que", display_name: "DJ Que (actual)" }], error: null };
+  if (table === "djs") return { data: [{ display_name: "DJ Que (actual)", photo_url: "https://cdn.example/que.png" }], error: null };
   if (table === "events" && !named) return { data: [{ id: "p1", event_category: "wedding", event_type: "Wedding", starts_at: "2026-11-21T23:00:00Z", ends_at: null, status: "confirmed", dj_id: null, djs: null }], error: null };
   if (table === "events" && named) return { data: [{ id: "p2", event_category: "private", event_type: "Birthday", starts_at: "2026-11-22T01:00:00Z", ends_at: null, status: "pending_confirmation", dj_id: null, djs: { display_name: "DJ Que", photo_url: null } }], error: null };
   if (table === "external_calendar_busy_blocks") return { data: [
@@ -34,7 +36,7 @@ vi.mock("@/lib/venue/server", () => ({
 const createHash = (await import("crypto")).createHash;
 const feedId = (g: string) => `gcal_${createHash("sha256").update(g).digest("hex").slice(0, 20)}`;
 vi.mock("@/lib/venue/calendar-feed", () => ({
-  fetchVenueNights: async () => ({ status: "ok", nights: [{ id: feedId("ev2"), date: "2026-11-14", starts_at: "2026-11-14T21:00:00-06:00", ends_at: "2026-11-15T02:00:00-06:00", all_day: false, matched: "North 48", state: "confirmed", dj: { name: "DJ Que", photo_url: null } }] })
+  fetchVenueNights: async () => ({ status: "ok", nights: [{ id: feedId("ev2"), date: "2026-11-14", starts_at: "2026-11-14T21:00:00-06:00", ends_at: "2026-11-15T02:00:00-06:00", all_day: false, matched: "North 48", state: "confirmed", dj_text: "Que", dj: { name: "DJ Que", photo_url: null } }] })
 }));
 
 describe("venue dashboard pulls cratesdjs.com calendar data for the venue", () => {
@@ -48,7 +50,7 @@ describe("venue dashboard pulls cratesdjs.com calendar data for the venue", () =
     // Linked project, name-matched project, the calendar night (once, with its DJ), the 6 PM show, the all-day closure.
     expect(m.map((e) => e.id).sort()).toEqual([feedId("ev10"), feedId("ev2"), feedId("ev9"), "p1", "p2"].sort());
     const n14 = m.find((e) => e.id === feedId("ev2"))!;
-    expect(n14).toMatchObject({ date: "2026-11-14", status: "confirmed", label: "Saturday Night Party", dj: { name: "DJ Que" } });
+    expect(n14).toMatchObject({ date: "2026-11-14", status: "confirmed", label: "Saturday Night Party", dj: { name: "DJ Que (actual)", photo_url: "https://cdn.example/que.png" } });
     const six = m.find((e) => e.id === feedId("ev9"))!;
     expect(six.date).toBe("2026-11-27");
     expect(six.starts_at).not.toBeNull();
