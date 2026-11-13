@@ -68,3 +68,33 @@ export async function fetchVenueNights(names: string[], month: string, months = 
     return { nights: [], status: "error" };
   }
 }
+
+/** A venue as it's written on the shared DCDJ calendar. */
+export type CalendarVenueName = { name: string; match: string[]; count: number; next: string | null; last: string | null };
+
+/** Venue names found on the shared DCDJ calendar (last 2 months to 4 ahead), most used first. Never throws. */
+export async function fetchCalendarVenueNames(): Promise<{ venues: CalendarVenueName[]; status: "ok" | "off" | "error" }> {
+  const secret = process.env.INQUIRY_PARTNER_SECRET ?? "";
+  if (secret.length < 32) return { venues: [], status: "off" };
+  try {
+    const res = await fetch(`${SITE}/wp-json/dcdj/v1/venue-names`, {
+      headers: { "x-dcdj-partner-key": secret, accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!res.ok) return { venues: [], status: res.status === 503 ? "off" : "error" };
+    const body = (await res.json()) as { venues?: unknown[] };
+    const day = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
+    const venues = (body.venues ?? [])
+      .map((v) => {
+        const r = (v ?? {}) as Record<string, unknown>;
+        const name = typeof r.name === "string" ? r.name.trim().slice(0, 60) : "";
+        const match = (Array.isArray(r.match) ? r.match : [name]).filter((m): m is string => typeof m === "string" && m.trim().length >= 2).map((m) => m.trim().slice(0, 80)).slice(0, 4);
+        return name && match.length ? { name, match, count: Math.max(0, Number(r.count) || 0), next: day(r.next), last: day(r.last) } : null;
+      })
+      .filter((v): v is CalendarVenueName => !!v);
+    return { venues, status: "ok" };
+  } catch {
+    return { venues: [], status: "error" };
+  }
+}
