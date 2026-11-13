@@ -54,9 +54,11 @@ describe("venue dashboard pulls cratesdjs.com calendar data for the venue", () =
     const six = m.find((e) => e.id === feedId("ev9"))!;
     expect(six.date).toBe("2026-11-27");
     expect(six.starts_at).not.toBeNull();
+    // The booking's event type is shown (the venue asked for it); client details never are.
+    expect(m.find((e) => e.id === "p2")!.label).toBe("Birthday");
     const closed = m.find((e) => e.id === feedId("ev10"))!;
     expect(closed).toMatchObject({ date: "2026-11-26", starts_at: null });
-    expect(JSON.stringify(body)).not.toMatch(/Private client stuff|closed|6pm show|Birthday|N48/);
+    expect(JSON.stringify(body)).not.toMatch(/Private client stuff|closed|6pm show|N48/);
     // Search terms are the venue name plus calendar names, with filter characters removed.
     const ors = calls.flatMap((c) => c.ops.filter((o) => o.startsWith("or(")));
     expect(ors.join(" ")).toContain("venue_name.ilike.*North 48*");

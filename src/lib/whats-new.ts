@@ -19,6 +19,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-12-venue-dashboard-redesign",
+    date: "2026-11-12",
+    area: "CRM",
+    title: "Venue portal dashboard redesign",
+    summary: "Photo metric cards that open what they count, a bigger events list, DJ profile cards and a calendar with day details.",
+    bullets: [
+      "Four photo cards (Upcoming nights, Assigned DJs, Pending confirmation, Holiday requests) with live counts; each whole card opens its section",
+      "Upcoming events: date tile, DJ photo, event type, local time, status and View details (first three, then View all)",
+      "DJ lineup: profile cards with real DJ photos (initials if none) and View profile",
+      "Calendar beside the events: previous/next month, Today, pick a day to see its nights, status legend",
+      "Holiday planning: Request emails your DCDJs contact for that night; holiday status comes from actual bookings",
+      "Works on phones and tablets with large touch targets, keyboard navigation and reduced-motion support"
+    ],
+    link: { href: "/admin/venues", label: "Open Venue Portals" }
+  },
+  {
     id: "2026-11-12-venue-calendar-djs",
     date: "2026-11-12",
     area: "CRM",
