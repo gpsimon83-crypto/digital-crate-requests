@@ -11,6 +11,7 @@ import { VenueBanner } from "./venue-banner";
 import { DAY_NAMES, type CoverFocus, type RecurringNight, type VenueManager, type VenueRecord } from "@/lib/venue/types";
 import { cn } from "@/lib/utils";
 import { isDjName, venueSearchNames, VENUE_CALENDAR_OPTIONS } from "@/lib/venue/calendar-options";
+import { MAX_LOCATIONS, type VenueLocation } from "@/lib/venue/locations";
 
 interface LogRow {
   id: string;
@@ -63,6 +64,8 @@ export function VenueAdmin({ venueId }: { venueId: string }) {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  const [locations, setLocations] = useState<VenueLocation[]>([]);
+  const [locationsReady, setLocationsReady] = useState(true);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/admin/venues/${venueId}/portal`);
@@ -72,6 +75,8 @@ export function VenueAdmin({ venueId }: { venueId: string }) {
       return;
     }
     setVenue(data.venue);
+    setLocations(data.locations ?? []);
+    setLocationsReady(data.locationsReady !== false);
     setManagers(data.managers);
     setLog(data.log);
     setDirty(false);
@@ -95,7 +100,11 @@ export function VenueAdmin({ venueId }: { venueId: string }) {
       body: JSON.stringify(body)
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Couldn't save.");
+    if (data.locations) setLocations(data.locations);
+    if (!res.ok) {
+      if (data.venue) setVenue(data.venue);
+      throw new Error(data.error || "Couldn't save.");
+    }
     return data.venue as VenueRecord;
   }
 
@@ -119,7 +128,8 @@ export function VenueAdmin({ venueId }: { venueId: string }) {
         cover_focus: venue.cover_focus,
         recurring_nights: venue.recurring_nights,
         scheduling_prefs: venue.scheduling_prefs,
-        calendar_names: venue.calendar_names
+        calendar_names: venue.calendar_names,
+        ...(locationsReady ? { locations } : {})
       });
       setVenue(v);
       setDirty(false);
@@ -291,6 +301,16 @@ export function VenueAdmin({ venueId }: { venueId: string }) {
         </div>
 
         <CalendarNamesCard venueId={venue.id} venueName={venue.name} names={venue.calendar_names} onChange={(n) => edit({ calendar_names: n })} />
+
+        <LocationsCard
+          ready={locationsReady}
+          venueName={venue.name}
+          locations={locations}
+          onChange={(l) => {
+            setLocations(l);
+            setDirty(true);
+          }}
+        />
 
         <NightPlansCard venueId={venueId} />
 
@@ -533,6 +553,7 @@ type CalendarCheck = {
   http: number | null;
   count: number;
   sample: { date: string; matched: string; dj: string | null; dj_text: string; state: string }[];
+  byLocation?: { name: string; count: number }[];
 };
 
 const CHECK_HELP: Record<string, string> = {
@@ -583,6 +604,12 @@ function CalendarCheckButton({ venueId }: { venueId: string }) {
               <p>
                 <b>Working.</b> Found {res.count} night{res.count === 1 ? "" : "s"} from {res.month} on for {res.names.join(", ")}:
               </p>
+              {!!res.byLocation?.length && (
+                <p className="mt-1">
+                  By location: {res.byLocation.filter((b) => b.name !== "No location" || b.count > 0).map((b) => `${b.name} ${b.count}`).join(" · ")}
+                  {res.byLocation.some((b) => b.name === "No location" && b.count > 0) && " (add those calendar names to a location, or mark one location as the default)"}
+                </p>
+              )}
               <ul className="mt-2 space-y-1">
                 {res.sample.map((s, i) => (
                   <li key={i}>
@@ -915,6 +942,92 @@ function NightPlansCard({ venueId }: { venueId: string }) {
         </ul>
       ) : (
         <p className="text-sm text-muted">Nothing from the venue yet.</p>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * Several places under one venue (e.g. North 48 Cedarburg and North 48 Oconomowoc).
+ * Each location lists how it's written on the DCDJ calendar; the portal shows the
+ * locations side by side with the DJs booked at each.
+ */
+function LocationsCard({ ready, venueName, locations, onChange }: { ready: boolean; venueName: string; locations: VenueLocation[]; onChange: (l: VenueLocation[]) => void }) {
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const update = (i: number, patch: Partial<VenueLocation>) => onChange(locations.map((l, j) => (j === i ? { ...l, ...patch } : patch.is_default ? { ...l, is_default: false } : l)));
+  const addName = (i: number) => {
+    const key = locations[i].id;
+    const v = (drafts[key] ?? "").trim();
+    if (v.length < 2 || locations[i].calendar_names.some((c) => c.toLowerCase() === v.toLowerCase())) return;
+    update(i, { calendar_names: [...locations[i].calendar_names, v].slice(0, 8) });
+    setDrafts((d) => ({ ...d, [key]: "" }));
+  };
+  const add = () => onChange([...locations, { id: `loc_new${Date.now().toString(36)}`, name: "", city: null, calendar_names: [], is_default: false }].slice(0, MAX_LOCATIONS));
+  return (
+    <Card
+      title="Locations"
+      hint={`Use this when ${venueName} has more than one place (e.g. Cedarburg and Oconomowoc). The portal then shows each location side by side with the DJs booked there. Leave empty for a single location.`}
+    >
+      {!ready ? (
+        <p className="text-sm text-muted">Needs a one-time database update: run supabase/migrations/0049_venue_locations.sql in the Supabase SQL editor, then reload this page.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {locations.map((l, i) => (
+            <div key={l.id} className="rounded-[12px] border border-border p-3">
+              <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+                <Field label="Location name">
+                  <input className={inputCls} value={l.name} maxLength={60} placeholder="Oconomowoc" onChange={(e) => update(i, { name: e.target.value })} />
+                </Field>
+                <Field label="City (shown to the venue)">
+                  <input className={inputCls} value={l.city ?? ""} maxLength={60} placeholder="Oconomowoc, WI" onChange={(e) => update(i, { city: e.target.value || null })} />
+                </Field>
+                <button type="button" onClick={() => onChange(locations.filter((_, j) => j !== i))} className="inline-flex min-h-10 items-center gap-1 rounded-[10px] px-3 text-xs text-status-declined hover:bg-status-declined/10">
+                  <Trash2 size={14} /> Remove
+                </button>
+              </div>
+              <div className="mt-3">
+                <span className={labelCls}>How this location is written on the DCDJ calendar</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {l.calendar_names.map((c) => (
+                    <span key={c} className="inline-flex items-center gap-1 rounded-full border border-gold/40 bg-gold/10 px-2.5 py-1 text-xs">
+                      {c}
+                      <button type="button" aria-label={`Remove ${c}`} onClick={() => update(i, { calendar_names: l.calendar_names.filter((x) => x !== c) })} className="text-muted hover:text-foreground">
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                  <input
+                    className={cn(inputCls, "w-auto min-w-[200px] flex-1")}
+                    value={drafts[l.id] ?? ""}
+                    placeholder={`e.g. ${venueName} ${l.name || "Ocon"}`}
+                    maxLength={80}
+                    onChange={(e) => setDrafts((d) => ({ ...d, [l.id]: e.target.value }))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addName(i);
+                      }
+                    }}
+                  />
+                  <Button variant="secondary" size="sm" onClick={() => addName(i)}>
+                    <Plus size={14} /> Add
+                  </Button>
+                </div>
+                <p className="mt-1 text-[11px] text-muted">Type it the way it appears in calendar titles. Include the venue name (&quot;{venueName} {l.name || "Ocon"}&quot;) so other venues in the same town don&apos;t match.</p>
+              </div>
+              <label className="mt-2 flex items-center gap-2 text-xs">
+                <input type="radio" name="default-location" checked={l.is_default} onChange={() => update(i, { is_default: true })} />
+                Nights that just say &quot;{venueName}&quot; (no location in the title) belong here
+              </label>
+            </div>
+          ))}
+          {locations.length < MAX_LOCATIONS && (
+            <Button variant="secondary" onClick={add} className="w-fit">
+              <Plus size={14} /> Add location
+            </Button>
+          )}
+          {locations.length > 0 && <p className="text-xs text-muted">Click Save changes at the top, then Test calendar link to see how many nights each location gets.</p>}
+        </div>
       )}
     </Card>
   );

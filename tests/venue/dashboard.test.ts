@@ -9,10 +9,12 @@ function builder(table: string) {
   const q: Record<string, unknown> = {};
   for (const m of ["select", "eq", "gte", "lt", "order", "limit", "neq", "is", "or", "not", "in"]) q[m] = (...a: unknown[]) => { ops.push(`${m}(${a.map(String).join(",")})`); return q; };
   q.then = (res: (v: unknown) => void) => res(answer(table, ops));
+  q.maybeSingle = () => Promise.resolve(answer(table, ops));
   return q;
 }
 function answer(table: string, ops: string[]) {
   const named = ops.some((o) => o.startsWith("is(venue_id"));
+  if (table === "venues") return { data: { locations: [{ name: "Cedarburg", calendar_names: ["North 48 Cedarburg"], is_default: true }, { name: "Oconomowoc", calendar_names: ["N48 Ocon"] }] }, error: null };
   if (table === "venue_djs") return { data: [], error: null };
   if (table === "venue_night_plans") return { data: [{ night_date: "2026-11-14", occasion: null, drink_specials: "$5 Old Fashioneds", dj_request_id: null, dj_request_name: null, dj_request_note: null, dj_requested_at: null, updated_at: "2026-11-12T00:00:00Z" }], error: null };
   if (table === "calendar_dj_names") return { data: [{ id: "m1", calendar_name: "Que", display_name: "DJ Que (actual)" }], error: null };
@@ -50,7 +52,7 @@ describe("venue dashboard pulls cratesdjs.com calendar data for the venue", () =
     const m = body.monthEvents as { id: string; date: string; label: string; status: string; starts_at: string | null; dj: { name: string } | null }[];
     // Linked project, name-matched project, the calendar night (once, with its DJ), the 6 PM show, the all-day closure.
     expect(m.map((e) => e.id).sort()).toEqual([feedId("ev10"), feedId("ev2"), feedId("ev9"), "p1", "p2"].sort());
-    const n14 = m.find((e) => e.id === feedId("ev2"))!;
+    const n14 = m.find((e) => e.id === feedId("ev2"))! as typeof m[number] & { location_id: string | null };
     expect(n14).toMatchObject({ date: "2026-11-14", status: "confirmed", label: "Saturday Night Party", dj: { name: "DJ Que (actual)", photo_url: "https://cdn.example/que.png" } });
     const six = m.find((e) => e.id === feedId("ev9"))!;
     expect(six.date).toBe("2026-11-27");
@@ -60,6 +62,10 @@ describe("venue dashboard pulls cratesdjs.com calendar data for the venue", () =
     const closed = m.find((e) => e.id === feedId("ev10"))!;
     expect(closed).toMatchObject({ date: "2026-11-26", starts_at: null });
     expect(JSON.stringify(body)).not.toMatch(/Private client stuff|closed|6pm show|N48/);
+    // Locations: nights that only say "North 48" go to the default location; browsers never get calendar names.
+    expect(n14.location_id).toBe("loc_cedarburg");
+    expect(body.venue.locations).toEqual([{ id: "loc_cedarburg", name: "Cedarburg", city: null, is_default: true }, { id: "loc_oconomowoc", name: "Oconomowoc", city: null, is_default: false }]);
+    expect(JSON.stringify(body)).not.toContain("N48 Ocon");
     // The venue's night plans come along; the venue can edit them (not a preview).
     expect(body.plans).toEqual([expect.objectContaining({ date: "2026-11-14", drink_specials: "$5 Old Fashioneds" })]);
     expect(body.planning).toEqual({ ready: true, canEdit: true });

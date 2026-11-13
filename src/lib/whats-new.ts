@@ -19,6 +19,21 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-13-venue-locations",
+    date: "2026-11-13",
+    area: "CRM",
+    title: "Venue portal: several locations on one page",
+    summary: "A venue with more than one place (North 48 Cedarburg and Oconomowoc) now sees both side by side, each with its next nights and the DJs booked there.",
+    bullets: [
+      "Admin → Venue Portals → Manage → Locations: add each location, how it's written on the DCDJ calendar, and which one gets nights that just say the venue name",
+      "The portal shows a card per location with its upcoming nights and the DJs playing there; tap a DJ for their profile",
+      "Filter the whole page to one location (events, calendar, DJ lineup, specials) or show all",
+      "Every night is tagged with its location; drink specials and DJ requests are saved per location",
+      "Test calendar link shows how many nights each location gets"
+    ],
+    link: { href: "/admin/venues", label: "Open Venue Portals" }
+  },
+  {
     id: "2026-11-13-venue-night-plans",
     date: "2026-11-13",
     area: "CRM",

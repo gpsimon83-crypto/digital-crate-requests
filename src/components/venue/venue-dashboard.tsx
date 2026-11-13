@@ -14,6 +14,7 @@ import {
   Headphones,
   LayoutDashboard,
   LogOut,
+  MapPin,
   Martini,
   Mail,
   MessageSquare,
@@ -48,6 +49,8 @@ interface Ev {
   status: Status;
   dj: EvDj | null;
   source?: "booking" | "calendar";
+  /** Which of the venue's locations (venues with several places). */
+  location_id?: string | null;
 }
 interface Holiday {
   key: string;
@@ -66,9 +69,11 @@ interface LineupDj {
   genres: string[];
   event_types: string[];
   upcoming_dates: string[];
+  dates?: { date: string; location_id: string | null }[];
 }
 interface Plan {
   date: string;
+  location_id?: string;
   occasion: string | null;
   drink_specials: string | null;
   dj_request_id: string | null;
@@ -77,6 +82,23 @@ interface Plan {
   dj_requested_at: string | null;
   updated_at: string | null;
 }
+interface Loc {
+  id: string;
+  name: string;
+  city: string | null;
+  is_default: boolean;
+}
+/** The venue's night plans, looked up by date and location ("" = the venue as a whole). */
+interface PlanBook {
+  list: Plan[];
+  at: (date: string, loc?: string | null) => Plan | undefined;
+  on: (date: string) => Plan[];
+}
+const makeBook = (list: Plan[]): PlanBook => ({
+  list,
+  at: (date, loc) => list.find((p) => p.date === date && (p.location_id ?? "") === (loc ?? "")),
+  on: (date) => list.filter((p) => p.date === date)
+});
 interface Dashboard {
   preview: boolean;
   calendarFeed?: { names: number; status: "ok" | "off" | "error" | "no-names" };
@@ -93,6 +115,7 @@ interface Dashboard {
     cover_url: string | null;
     cover_focus: CoverFocus;
     recurring_nights: RecurringNight[];
+    locations?: Loc[];
   };
   overview: { upcomingNights: number; assignedDjs: number; pendingApprovals: number; holidayRequests: number };
   upcoming: Ev[];
@@ -157,6 +180,17 @@ function StatusPill({ status }: { status: Status | Holiday["status"] }) {
 }
 
 /** Initials that keep a DJ's own spelling ("j.Prime" → "JP", "DJ Que" → "Q"). */
+/** Small "📍 Oconomowoc" chip for venues with several locations. */
+function LocationTag({ name, className }: { name: string | null | undefined; className?: string }) {
+  if (!name) return null;
+  return (
+    <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full border border-[#c99428]/35 bg-[#c99428]/10 px-2 py-px text-[10px] font-medium text-[#ecd9a8]", className)}>
+      <MapPin size={10} className="text-[#e5b647]" aria-hidden />
+      {name}
+    </span>
+  );
+}
+
 function initialsOf(name: string) {
   const parts = name.replace(/^dj\s+/i, "").split(/[\s.]+/).filter(Boolean);
   return (parts.map((p) => p[0]).join("").slice(0, 2) || "DJ").toUpperCase();
@@ -226,11 +260,12 @@ export function VenueDashboard() {
   const [filter, setFilter] = useState<"all" | "pending">("all");
   const [profile, setProfile] = useState<LineupDj | null>(null);
   // Night plan dialog: a date (or "" for a new date), plus an occasion to start with (holidays).
-  const [planFor, setPlanFor] = useState<{ date: string; occasion?: string } | null>(null);
+  const [planFor, setPlanFor] = useState<{ date: string; occasion?: string; location?: string } | null>(null);
 
   const venueParam = params.get("venue") ?? "";
   const monthParam = params.get("month") ?? "";
   const eventParam = params.get("event") ?? "";
+  const locParam = params.get("loc") ?? "";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -275,10 +310,45 @@ export function VenueDashboard() {
     return m;
   }, [data]);
   const detail = eventParam ? allEvents.get(eventParam) ?? null : null;
-  const plans = useMemo(() => new Map((data?.plans ?? []).map((p) => [p.date, p])), [data]);
-  const openPlan = (date: string, occasion?: string) => setPlanFor({ date, occasion });
-  const savePlanLocally = (date: string, plan: Plan | null) =>
-    setData((d) => (d ? { ...d, plans: [...(d.plans ?? []).filter((p) => p.date !== date), ...(plan ? [plan] : [])].sort((a, b) => a.date.localeCompare(b.date)) } : d));
+  // Venues with several locations (e.g. North 48 Cedarburg / Oconomowoc): "All locations" or one of them (?loc=…).
+  const locs = useMemo(() => data?.venue.locations ?? [], [data]);
+  const multi = locs.length >= 2;
+  const locId = multi && locs.some((l) => l.id === locParam) ? locParam : "";
+  const locName = (id: string | null | undefined) => (multi && id ? locs.find((l) => l.id === id)?.name ?? null : null);
+  const setLoc = (id: string) => setQuery({ loc: id, event: "" });
+  // Everything below the location cards follows the location filter.
+  const view = useMemo(() => {
+    if (!data || !locId) return data;
+    const inLoc = (e: Ev) => e.location_id === locId;
+    const lineup = data.lineup
+      .map((d) => {
+        const dates = (d.dates ?? []).filter((x) => x.location_id === locId);
+        return { ...d, dates, upcoming_dates: [...new Set(dates.map((x) => x.date))].slice(0, 6) };
+      })
+      .filter((d) => d.dates.length > 0);
+    const upcoming = data.upcoming.filter(inLoc);
+    return {
+      ...data,
+      upcoming,
+      monthEvents: data.monthEvents.filter(inLoc),
+      lineup,
+      plans: (data.plans ?? []).filter((p) => (p.location_id ?? "") === locId),
+      overview: { ...data.overview, upcomingNights: upcoming.length, pendingApprovals: upcoming.filter((e) => e.status === "pending").length, assignedDjs: lineup.length }
+    };
+  }, [data, locId]);
+  const book = useMemo(() => makeBook(view?.plans ?? []), [view]);
+  // New plans start at the filtered location, else the night's own location, else the default one.
+  const planLocation = (fallback?: string | null) => (multi ? locId || fallback || locs.find((l) => l.is_default)?.id || locs[0].id : "");
+  const openPlan = (date: string, occasion?: string, location?: string | null) => setPlanFor({ date, occasion, location: planLocation(location) });
+  const savePlanLocally = (date: string, location: string, plan: Plan | null) =>
+    setData((d) =>
+      d
+        ? {
+            ...d,
+            plans: [...(d.plans ?? []).filter((p) => !(p.date === date && (p.location_id ?? "") === location)), ...(plan ? [plan] : [])].sort((a, b) => a.date.localeCompare(b.date))
+          }
+        : d
+    );
   const openEvent = (e: Ev) => setQuery({ event: e.id });
   const closeEvent = () => setQuery({ event: "" });
 
@@ -332,7 +402,7 @@ export function VenueDashboard() {
     );
   }
 
-  const listed = (data?.upcoming ?? []).filter((e) => filter === "all" || e.status === "pending");
+  const listed = (view?.upcoming ?? []).filter((e) => filter === "all" || e.status === "pending");
   const visible = showAll ? listed : listed.slice(0, 3);
 
   return (
@@ -466,11 +536,21 @@ export function VenueDashboard() {
 
               {/* Top metrics: each whole card is one button that opens the matching section. */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <MetricCard image="/brand/venue-cards/upcoming-nights.webp" icon={CalendarDays} value={data.overview.upcomingNights} title="Upcoming nights" action="View schedule" onClick={viewSchedule} />
-                <MetricCard image="/brand/venue-cards/assigned-djs.webp" icon={Users} value={data.overview.assignedDjs} title="Assigned DJs" action="Meet your DJs" onClick={meetDjs} />
-                <MetricCard image="/brand/venue-cards/pending-confirmation.webp" icon={Clock} value={data.overview.pendingApprovals} title="Pending confirmation" action="Review requests" onClick={reviewRequests} />
-                <MetricCard image="/brand/venue-cards/holiday-requests.webp" icon={Sparkles} value={data.overview.holidayRequests} title="Holiday requests" action="Plan holiday nights" onClick={planHolidays} />
+                <MetricCard image="/brand/venue-cards/upcoming-nights.webp" icon={CalendarDays} value={view!.overview.upcomingNights} title="Upcoming nights" action="View schedule" onClick={viewSchedule} />
+                <MetricCard image="/brand/venue-cards/assigned-djs.webp" icon={Users} value={view!.overview.assignedDjs} title="Assigned DJs" action="Meet your DJs" onClick={meetDjs} />
+                <MetricCard image="/brand/venue-cards/pending-confirmation.webp" icon={Clock} value={view!.overview.pendingApprovals} title="Pending confirmation" action="Review requests" onClick={reviewRequests} />
+                <MetricCard image="/brand/venue-cards/holiday-requests.webp" icon={Sparkles} value={view!.overview.holidayRequests} title="Holiday requests" action="Plan holiday nights" onClick={planHolidays} />
               </div>
+
+              {multi && <LocationsSection data={data} locs={locs} active={locId} onPick={setLoc} onOpenEvent={openEvent} onProfile={setProfile} />}
+              {multi && locId && (
+                <p className="flex flex-wrap items-center gap-2 rounded-[10px] border border-[#c99428]/30 bg-[#c99428]/10 px-3 py-2 text-xs text-[#ecd9a8]">
+                  <MapPin size={13} className="text-[#e5b647]" aria-hidden /> Showing {locName(locId)} only.
+                  <button type="button" onClick={() => setLoc("")} className={cn(C.link, "px-1")}>
+                    Show all locations
+                  </button>
+                </p>
+              )}
 
               {/* Events + lineup (≈62%) beside the calendar (≈38%); stacked events → calendar → lineup on smaller screens. */}
               <div className="grid grid-cols-1 gap-4 [grid-template-areas:'events'_'calendar'_'lineup'_'planner'] lg:gap-5 xl:grid-cols-[minmax(0,62fr)_minmax(0,38fr)] xl:[grid-template-areas:'events_calendar'_'lineup_calendar'_'planner_calendar']">
@@ -497,7 +577,7 @@ export function VenueDashboard() {
                   {visible.length ? (
                     <ul id="events-list" className="flex flex-col gap-2">
                       {visible.map((e) => (
-                        <EventRow key={e.id} e={e} plan={e.date ? plans.get(e.date) : undefined} onOpen={() => openEvent(e)} />
+                        <EventRow key={e.id} e={e} location={locId ? null : locName(e.location_id)} plan={e.date ? book.at(e.date, e.location_id ?? "") : undefined} onOpen={() => openEvent(e)} />
                       ))}
                     </ul>
                   ) : filter === "pending" ? (
@@ -520,27 +600,28 @@ export function VenueDashboard() {
 
                 <Section id="calendar" title="Calendar" className="self-start [grid-area:calendar] xl:sticky xl:top-20">
                   <CalendarPanel
-                    data={data}
+                    data={view!}
                     selected={selected}
                     onSelect={setPickedDay}
                     onPrev={() => goMonth(shiftMonth(month, -1))}
                     onNext={() => goMonth(shiftMonth(month, 1))}
                     onToday={goToday}
                     onOpen={openEvent}
-                    plans={plans}
+                    book={book}
+                    locName={locId ? () => null : locName}
                     onPlan={openPlan}
                   />
                 </Section>
 
                 <Section id="lineup" title="DJ lineup" className="[grid-area:lineup]">
-                  {data.lineup.length ? (
-                    <LineupCarousel djs={data.lineup} venue={data.venue.name} onOpen={setProfile} />
+                  {view!.lineup.length ? (
+                    <LineupCarousel djs={view!.lineup} venue={locName(locId) ? `${data.venue.name} ${locName(locId)}` : data.venue.name} onOpen={setProfile} />
                   ) : (
                     <Empty icon={Headphones} title="Your DJ lineup is coming" body="The DJs booked at your venue will appear here with their next dates." />
                   )}
                 </Section>
 
-                <NightPlanner data={data} plans={plans} onPlan={openPlan} />
+                <NightPlanner data={view!} book={book} locName={locId ? () => null : locName} onPlan={openPlan} />
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-5 xl:grid-cols-3">
@@ -565,11 +646,11 @@ export function VenueDashboard() {
                           <button
                             type="button"
                             data-holiday-action=""
-                            onClick={() => openPlan(h.date, plans.get(h.date)?.occasion ?? h.name)}
-                            className={cn(C.link, "shrink-0 border", plans.get(h.date)?.dj_requested_at ? "border-[#e5b647]/60 bg-[#c99428]/15" : "border-[#c99428]/35")}
-                            aria-label={`${plans.get(h.date)?.dj_requested_at ? "DJ requested for" : "Request a DJ for"} ${h.name}`}
+                            onClick={() => openPlan(h.date, book.on(h.date)[0]?.occasion ?? h.name, book.on(h.date)[0]?.location_id)}
+                            className={cn(C.link, "shrink-0 border", book.on(h.date).some((p) => p.dj_requested_at) ? "border-[#e5b647]/60 bg-[#c99428]/15" : "border-[#c99428]/35")}
+                            aria-label={`${book.on(h.date).some((p) => p.dj_requested_at) ? "DJ requested for" : "Request a DJ for"} ${h.name}`}
                           >
-                            {plans.get(h.date)?.dj_requested_at ? "DJ requested" : "Request"}
+                            {book.on(h.date).some((p) => p.dj_requested_at) ? "DJ requested" : "Request"}
                           </button>
                         )}
                       </li>
@@ -648,19 +729,20 @@ export function VenueDashboard() {
         ))}
       </nav>
 
-      {detail && <EventDetail e={detail} venue={data?.venue.name ?? ""} plan={detail.date ? plans.get(detail.date) : undefined} canPlan={!!detail.date && !!data && detail.date >= data.today} onPlan={() => { const d = detail.date!; closeEvent(); openPlan(d); }} onClose={closeEvent} onProfile={(dj) => { const l = data?.lineup.find((x) => (dj.id && x.profile_id === dj.id) || x.name === dj.name); if (l) { closeEvent(); setProfile(l); } }} />}
+      {detail && <EventDetail e={detail} venue={data?.venue.name ?? ""} location={locName(detail.location_id)} plan={detail.date ? makeBook(data?.plans ?? []).at(detail.date, detail.location_id ?? "") : undefined} canPlan={!!detail.date && !!data && detail.date >= data.today} onPlan={() => { const d = detail.date!; closeEvent(); openPlan(d, undefined, detail.location_id); }} onClose={closeEvent} onProfile={(dj) => { const l = data?.lineup.find((x) => (dj.id && x.profile_id === dj.id) || x.name === dj.name); if (l) { closeEvent(); setProfile(l); } }} />}
       {planFor && data && (
         <NightPlanDialog
           data={data}
           date={planFor.date}
           startOccasion={planFor.occasion}
-          plan={planFor.date ? plans.get(planFor.date) : undefined}
-          plans={plans}
+          startLocation={planFor.location ?? ""}
+          locs={multi ? locs : []}
+          book={makeBook(data.plans ?? [])}
           onClose={() => setPlanFor(null)}
-          onSaved={(date, plan) => savePlanLocally(date, plan)}
+          onSaved={(date, location, plan) => savePlanLocally(date, location, plan)}
         />
       )}
-      {profile && data && <DjProfile d={profile} onClose={() => setProfile(null)} onOpenEvent={(e) => { setProfile(null); openEvent(e); }} events={data.upcoming.filter((e) => e.dj && ((profile.profile_id && e.dj.id === profile.profile_id) || e.dj.name === profile.name))} />}
+      {profile && data && <DjProfile d={profile} onClose={() => setProfile(null)} onOpenEvent={(e) => { setProfile(null); openEvent(e); }} locName={locName} events={view!.upcoming.filter((e) => e.dj && ((profile.profile_id && e.dj.id === profile.profile_id) || e.dj.name === profile.name))} />}
     </div>
   );
 }
@@ -708,7 +790,7 @@ function DateTile({ iso }: { iso: string }) {
   );
 }
 
-function EventRow({ e, plan, onOpen }: { e: Ev; plan?: Plan; onOpen: () => void }) {
+function EventRow({ e, plan, location, onOpen }: { e: Ev; plan?: Plan; location?: string | null; onOpen: () => void }) {
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-[12px] border border-white/[0.06] bg-black/20 p-3 sm:flex-nowrap sm:gap-4">
       {e.date && <DateTile iso={e.date} />}
@@ -719,7 +801,10 @@ function EventRow({ e, plan, onOpen }: { e: Ev; plan?: Plan; onOpen: () => void 
         <Portrait name={e.dj?.name ?? "DJ"} url={e.dj?.photo_url ?? null} focus={e.dj?.focus} size={56} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-base font-medium text-[#f6efe2]">{e.dj?.name ?? "DJ to be assigned"}</p>
+        <p className="flex min-w-0 items-center gap-2 text-base font-medium text-[#f6efe2]">
+          <span className="truncate">{e.dj?.name ?? "DJ to be assigned"}</span>
+          <LocationTag name={location} />
+        </p>
         <p className={cn("truncate text-xs", C.muted)}>
           {plan?.occasion ? `${plan.occasion} · ` : ""}
           {e.label}
@@ -960,11 +1045,13 @@ function CalendarPanel({
   onNext,
   onToday,
   onOpen,
-  plans,
+  book,
+  locName,
   onPlan
 }: {
-  plans: Map<string, Plan>;
-  onPlan: (date: string, occasion?: string) => void;
+  book: PlanBook;
+  locName: (id: string | null | undefined) => string | null;
+  onPlan: (date: string, occasion?: string, location?: string | null) => void;
   data: Dashboard;
   selected: string | null;
   onSelect: (d: string) => void;
@@ -1041,8 +1128,8 @@ function CalendarPanel({
             isToday ? "today" : "",
             evs.length ? `${evs.length} night${evs.length > 1 ? "s" : ""} booked` : "",
             hol ? hol.name : "",
-            plans.get(iso)?.drink_specials ? "drink specials added" : "",
-            plans.get(iso)?.dj_requested_at ? "DJ requested" : ""
+            book.on(iso).some((p) => p.drink_specials) ? "drink specials added" : "",
+            book.on(iso).some((p) => p.dj_requested_at) ? "DJ requested" : ""
           ]
             .filter(Boolean)
             .join(", ");
@@ -1071,7 +1158,7 @@ function CalendarPanel({
                 ))}
               </span>
               {hol && <Star size={9} className="absolute right-1 top-1 fill-[#e5b647] text-[#e5b647]" aria-hidden />}
-              {plans.has(iso) && <Martini size={10} className="absolute left-1 top-1 text-[#e5b647]" aria-hidden />}
+              {book.on(iso).length > 0 && <Martini size={10} className="absolute left-1 top-1 text-[#e5b647]" aria-hidden />}
             </button>
           );
         })}
@@ -1104,7 +1191,10 @@ function CalendarPanel({
                   >
                     <Portrait name={e.dj?.name ?? "DJ"} url={e.dj?.photo_url ?? null} focus={e.dj?.focus} size={40} ring={false} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm">{e.dj?.name ?? "DJ to be assigned"}</span>
+                      <span className="flex items-center gap-1.5 text-sm">
+                        <span className="truncate">{e.dj?.name ?? "DJ to be assigned"}</span>
+                        <LocationTag name={locName(e.location_id)} />
+                      </span>
                       <span className={cn("block truncate text-[11px]", C.muted)}>
                         {e.label} · {timeRange(e)}
                       </span>
@@ -1117,14 +1207,16 @@ function CalendarPanel({
           ) : (
             <p className={cn("mt-1 text-xs", C.muted)}>Nothing scheduled this day.</p>
           )}
-          {plans.get(selected) && <PlanSummary plan={plans.get(selected)!} className="mt-3" />}
+          {book.on(selected).map((p) => (
+            <PlanSummary key={p.location_id ?? ""} plan={p} location={locName(p.location_id)} className="mt-3" />
+          ))}
           {selected >= data.today && (
             <button
               type="button"
-              onClick={() => onPlan(selected, plans.get(selected)?.occasion ?? dayHolidays[0]?.name)}
+              onClick={() => onPlan(selected, book.on(selected)[0]?.occasion ?? dayHolidays[0]?.name, book.on(selected)[0]?.location_id ?? dayEvents[0]?.location_id)}
               className={cn(C.link, "mt-2 w-full justify-center border border-[#c99428]/35")}
             >
-              <Martini size={13} /> {plans.get(selected) ? "Edit specials & DJ request" : "Add drink specials or request a DJ"}
+              <Martini size={13} /> {book.on(selected).length ? "Edit specials & DJ request" : "Add drink specials or request a DJ"}
             </button>
           )}
         </div>
@@ -1165,14 +1257,17 @@ function Dialog({ label, onClose, children }: { label: string; onClose: () => vo
   );
 }
 
-function EventDetail({ e, venue, plan, canPlan, onPlan, onClose, onProfile }: { e: Ev; venue: string; plan?: Plan; canPlan: boolean; onPlan: () => void; onClose: () => void; onProfile: (dj: EvDj) => void }) {
+function EventDetail({ e, venue, location, plan, canPlan, onPlan, onClose, onProfile }: { e: Ev; venue: string; location?: string | null; plan?: Plan; canPlan: boolean; onPlan: () => void; onClose: () => void; onProfile: (dj: EvDj) => void }) {
   return (
     <Dialog label="Event details" onClose={onClose}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className={C.eyebrow}>Event details</p>
           <p className="mt-1 font-display text-2xl font-light">{e.date ? fmtDay(e.date, { weekday: "long", month: "long", day: "numeric" }) : "Date to be set"}</p>
-          <p className={cn("text-xs", C.muted)}>{venue}</p>
+          <p className={cn("text-xs", C.muted)}>
+            {venue}
+            {location ? ` · ${location}` : ""}
+          </p>
         </div>
         <button data-autofocus onClick={onClose} aria-label="Close" className={cn("grid h-11 w-11 place-items-center rounded-full text-[#b3aa9a] hover:text-[#efe7d8]", FOCUS_RING)}>
           <X size={18} />
@@ -1190,6 +1285,12 @@ function EventDetail({ e, venue, plan, canPlan, onPlan, onClose, onProfile }: { 
         </div>
       )}
       <dl className="mt-4 grid grid-cols-[96px_1fr] gap-y-2.5 text-sm">
+        {location && (
+          <>
+            <dt className={C.muted}>Location</dt>
+            <dd>{location}</dd>
+          </>
+        )}
         <dt className={C.muted}>Event</dt>
         <dd>{e.label}</dd>
         <dt className={C.muted}>Time</dt>
@@ -1204,7 +1305,7 @@ function EventDetail({ e, venue, plan, canPlan, onPlan, onClose, onProfile }: { 
           <StatusPill status={e.status} />
         </dd>
       </dl>
-      {plan && <PlanSummary plan={plan} className="mt-4" />}
+      {plan && <PlanSummary plan={plan} location={location} className="mt-4" />}
       {canPlan && (
         <button type="button" onClick={onPlan} className={cn(C.link, "mt-3 w-full justify-center border border-[#c99428]/35")}>
           <Martini size={13} /> {plan ? "Edit specials & DJ request" : "Add drink specials or request a DJ"}
@@ -1214,7 +1315,7 @@ function EventDetail({ e, venue, plan, canPlan, onPlan, onClose, onProfile }: { 
   );
 }
 
-function DjProfile({ d, events, onClose, onOpenEvent }: { d: LineupDj; events: Ev[]; onClose: () => void; onOpenEvent: (e: Ev) => void }) {
+function DjProfile({ d, events, locName, onClose, onOpenEvent }: { d: LineupDj; events: Ev[]; locName: (id: string | null | undefined) => string | null; onClose: () => void; onOpenEvent: (e: Ev) => void }) {
   return (
     <Dialog label={`${d.name} profile`} onClose={onClose}>
       <div className="flex justify-end">
@@ -1253,7 +1354,10 @@ function DjProfile({ d, events, onClose, onOpenEvent }: { d: LineupDj; events: E
                     {e.date ? fmtDay(e.date, { weekday: "short", month: "short", day: "numeric" }) : "Date to be set"}
                     <span className={cn("block text-[11px]", C.muted)}>{timeRange(e)}</span>
                   </span>
-                  <StatusPill status={e.status} />
+                  <span className="flex items-center gap-2">
+                    <LocationTag name={locName(e.location_id)} />
+                    <StatusPill status={e.status} />
+                  </span>
                 </button>
               </li>
             ))}
@@ -1270,9 +1374,10 @@ const ANY_DJ = "Any available DJ";
 const NOT_GUARANTEED = "A DJ request isn't a guarantee. Digital Crate DJs confirms nights based on DJ availability and will follow up with you.";
 
 /** What the venue added to a date: occasion, drink specials and its DJ request (clearly marked as a request). */
-function PlanSummary({ plan, className }: { plan: Plan; className?: string }) {
+function PlanSummary({ plan, location, className }: { plan: Plan; location?: string | null; className?: string }) {
   return (
     <div className={cn("rounded-[12px] border border-[#c99428]/25 bg-[#c99428]/[0.06] p-3 text-sm", className)}>
+      {location && <LocationTag name={location} className="mb-2" />}
       {plan.occasion && <p className="font-medium text-[#f6efe2]">{plan.occasion}</p>}
       {plan.drink_specials && (
         <div className={plan.occasion ? "mt-2" : ""}>
@@ -1300,14 +1405,32 @@ function PlanSummary({ plan, className }: { plan: Plan; className?: string }) {
  * The venue's planning list: upcoming booked nights plus any date the venue added,
  * each with its drink specials and DJ request. Venues add or edit from here.
  */
-function NightPlanner({ data, plans, onPlan }: { data: Dashboard; plans: Map<string, Plan>; onPlan: (date: string, occasion?: string) => void }) {
+function NightPlanner({
+  data,
+  book,
+  locName,
+  onPlan
+}: {
+  data: Dashboard;
+  book: PlanBook;
+  locName: (id: string | null | undefined) => string | null;
+  onPlan: (date: string, occasion?: string, location?: string | null) => void;
+}) {
   const [all, setAll] = useState(false);
+  // One row per night and location: booked nights plus dates the venue added.
   const rows = useMemo(() => {
-    const byDate = new Map<string, Ev[]>();
-    for (const e of data.upcoming) if (e.date && e.date >= data.today) byDate.set(e.date, [...(byDate.get(e.date) ?? []), e]);
-    const dates = new Set([...byDate.keys(), ...[...plans.keys()].filter((d) => d >= data.today)]);
-    return [...dates].sort().map((date) => ({ date, events: byDate.get(date) ?? [], plan: plans.get(date) }));
-  }, [data.upcoming, data.today, plans]);
+    const byKey = new Map<string, { date: string; location: string; events: Ev[] }>();
+    const slot = (date: string, location: string) => {
+      const k = `${date}|${location}`;
+      if (!byKey.has(k)) byKey.set(k, { date, location, events: [] });
+      return byKey.get(k)!;
+    };
+    for (const e of data.upcoming) if (e.date && e.date >= data.today) slot(e.date, e.location_id ?? "").events.push(e);
+    for (const p of book.list) if (p.date >= data.today) slot(p.date, p.location_id ?? "");
+    return [...byKey.values()]
+      .sort((a, b) => a.date.localeCompare(b.date) || a.location.localeCompare(b.location))
+      .map((r) => ({ ...r, key: `${r.date}|${r.location}`, plan: book.at(r.date, r.location) }));
+  }, [data.upcoming, data.today, book]);
   const shown = all ? rows : rows.slice(0, 5);
   const canEdit = data.planning?.canEdit ?? false;
 
@@ -1327,14 +1450,15 @@ function NightPlanner({ data, plans, onPlan }: { data: Dashboard; plans: Map<str
       </p>
       {rows.length ? (
         <ul className="flex flex-col gap-2">
-          {shown.map(({ date, events, plan }) => {
+          {shown.map(({ key, date, location, events, plan }) => {
             const booked = events.filter((e) => e.dj);
             return (
-              <li key={date} className="flex flex-wrap items-start gap-3 rounded-[12px] border border-white/[0.06] bg-black/20 p-3 sm:flex-nowrap">
+              <li key={key} className="flex flex-wrap items-start gap-3 rounded-[12px] border border-white/[0.06] bg-black/20 p-3 sm:flex-nowrap">
                 <DateTile iso={date} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-[#f6efe2]">
-                    {plan?.occasion || [...new Set(events.map((e) => e.label))].join(" · ") || "A date you added"}
+                  <p className="flex min-w-0 items-center gap-2 text-sm font-medium text-[#f6efe2]">
+                    <span className="truncate">{plan?.occasion || [...new Set(events.map((e) => e.label))].join(" · ") || "A date you added"}</span>
+                    <LocationTag name={locName(location)} />
                   </p>
                   {events.length ? (
                     <p className={cn("truncate text-[11px]", C.muted)}>
@@ -1359,7 +1483,7 @@ function NightPlanner({ data, plans, onPlan }: { data: Dashboard; plans: Map<str
                 </div>
                 <button
                   type="button"
-                  onClick={() => onPlan(date, plan?.occasion ?? undefined)}
+                  onClick={() => onPlan(date, plan?.occasion ?? undefined, location)}
                   aria-label={`${plan ? "Edit" : "Add"} specials or DJ request for ${fmtDay(date, { weekday: "long", month: "long", day: "numeric" })}`}
                   className={cn(C.link, "w-full justify-center border border-[#c99428]/30 sm:w-auto")}
                 >
@@ -1386,59 +1510,61 @@ function NightPlanDialog({
   data,
   date: startDate,
   startOccasion,
-  plan,
-  plans,
+  startLocation,
+  locs,
+  book,
   onClose,
   onSaved
 }: {
   data: Dashboard;
   date: string;
   startOccasion?: string;
-  plan?: Plan;
-  plans: Map<string, Plan>;
+  /** "" for venues with one place. */
+  startLocation: string;
+  /** The venue's locations when it has several (empty otherwise). */
+  locs: Loc[];
+  book: PlanBook;
   onClose: () => void;
-  onSaved: (date: string, plan: Plan | null) => void;
+  onSaved: (date: string, location: string, plan: Plan | null) => void;
 }) {
   const ready = data.planning?.ready ?? false;
   const canEdit = data.planning?.canEdit ?? false;
   const [date, setDate] = useState(startDate);
-  const existing = date ? plans.get(date) ?? (date === startDate ? plan : undefined) : undefined;
+  const [location, setLocation] = useState(startLocation);
+  const existing = date ? book.at(date, location) : undefined;
   const [occasion, setOccasion] = useState(existing?.occasion ?? startOccasion ?? "");
   const [specials, setSpecials] = useState(existing?.drink_specials ?? "");
   const djChoices = data.lineup.map((d) => ({ value: d.profile_id ? `id:${d.profile_id}` : `name:${d.name}`, label: d.name }));
-  const initialDj = existing?.dj_request_id
-    ? `id:${existing.dj_request_id}`
-    : existing?.dj_request_name === ANY_DJ
-      ? "any"
-      : existing?.dj_request_name
-        ? djChoices.find((c) => c.label === existing.dj_request_name)?.value ?? "other"
-        : existing?.dj_request_note
-          ? "any"
-          : "";
+  const djPick = (p?: Plan) =>
+    p?.dj_request_id ? `id:${p.dj_request_id}` : p?.dj_request_name === ANY_DJ ? "any" : p?.dj_request_name ? djChoices.find((c) => c.label === p.dj_request_name)?.value ?? "other" : p?.dj_request_note ? "any" : "";
+  const initialDj = djPick(existing);
   const [dj, setDj] = useState(initialDj);
   const [otherDj, setOtherDj] = useState(initialDj === "other" ? existing?.dj_request_name ?? "" : "");
   const [note, setNote] = useState(existing?.dj_request_note ?? "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
-  const dayEvents = date ? data.upcoming.filter((e) => e.date === date) : [];
+  const dayEvents = date ? data.upcoming.filter((e) => e.date === date && (!locs.length || (e.location_id ?? "") === location)) : [];
+  const locationName = locs.find((l) => l.id === location)?.name ?? null;
   const maxDate = useMemo(() => {
     const d = new Date(`${data.today}T12:00:00Z`);
     d.setUTCDate(d.getUTCDate() + 400);
     return d.toISOString().slice(0, 10);
   }, [data.today]);
 
-  // Picking a different date in "Plan a date" loads what's already saved for it.
-  function pickDate(v: string) {
-    setDate(v);
-    const p = plans.get(v);
-    setOccasion(p?.occasion ?? data.holidays.find((h) => h.date === v)?.name ?? "");
+  // Changing the date or location loads what's already saved there.
+  function load(nextDate: string, nextLocation: string) {
+    setDate(nextDate);
+    setLocation(nextLocation);
+    const p = nextDate ? book.at(nextDate, nextLocation) : undefined;
+    setOccasion(p?.occasion ?? data.holidays.find((h) => h.date === nextDate)?.name ?? "");
     setSpecials(p?.drink_specials ?? "");
-    const pick = p?.dj_request_id ? `id:${p.dj_request_id}` : p?.dj_request_name === ANY_DJ ? "any" : p?.dj_request_name ? djChoices.find((c) => c.label === p.dj_request_name)?.value ?? "other" : p?.dj_request_note ? "any" : "";
+    const pick = djPick(p);
     setDj(pick);
     setOtherDj(pick === "other" ? p?.dj_request_name ?? "" : "");
     setNote(p?.dj_request_note ?? "");
   }
+  const pickDate = (v: string) => load(v, location);
 
   async function save(clear = false) {
     if (!date) {
@@ -1449,10 +1575,11 @@ function NightPlanDialog({
     setErr(null);
     const choice = djChoices.find((c) => c.value === dj);
     const payload = clear
-      ? { venue: data.venue.id, date }
+      ? { venue: data.venue.id, date, location_id: location }
       : {
           venue: data.venue.id,
           date,
+          location_id: location,
           occasion,
           drink_specials: specials,
           dj_request_id: dj.startsWith("id:") ? dj.slice(3) : null,
@@ -1463,7 +1590,7 @@ function NightPlanDialog({
       const res = await fetch("/api/venue/night-plans", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json.error || "Couldn't save that. Try again.");
-      onSaved(date, json.plan ?? null);
+      onSaved(date, location, json.plan ? { ...json.plan, location_id: json.plan.location_id ?? location } : null);
       const p = json.plan as Plan | null;
       const newRequest = !!p?.dj_requested_at && p.dj_requested_at !== existing?.dj_requested_at;
       setDone(clear || !p ? "Removed." : newRequest ? "Saved. Your DJ request was sent to Digital Crate DJs." : "Saved.");
@@ -1486,6 +1613,7 @@ function NightPlanDialog({
           <p className="mt-1 font-display text-2xl font-light">{date ? fmtDay(date, { weekday: "long", month: "long", day: "numeric" }) : "Pick a date"}</p>
           <p className={cn("text-xs", C.muted)}>
             {data.venue.name}
+            {locationName ? ` ${locationName}` : ""}
             {dayEvents.length ? ` · ${dayEvents.map((e) => e.dj?.name ?? "DJ to be assigned").join(", ")}` : date ? " · not booked yet" : ""}
           </p>
         </div>
@@ -1507,6 +1635,19 @@ function NightPlanDialog({
           void save();
         }}
       >
+        {locs.length > 0 && (
+          <div>
+            <label className={label} htmlFor="np-location">Location</label>
+            <select id="np-location" value={location} onChange={(e) => load(date, e.target.value)} disabled={!canEdit} className={cn(field, "min-h-11")}>
+              {locs.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.name}
+                  {l.city ? ` (${l.city})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {!startDate && (
           <div>
             <label className={label} htmlFor="np-date">Date</label>
@@ -1571,5 +1712,148 @@ function NightPlanDialog({
         )}
       </form>
     </Dialog>
+  );
+}
+
+/**
+ * Venues with several places (e.g. North 48 Cedarburg and Oconomowoc): the locations side by side,
+ * each with its next nights and the DJs booked there. Picking one filters the rest of the page.
+ */
+function LocationsSection({
+  data,
+  locs,
+  active,
+  onPick,
+  onOpenEvent,
+  onProfile
+}: {
+  data: Dashboard;
+  locs: Loc[];
+  active: string;
+  onPick: (id: string) => void;
+  onOpenEvent: (e: Ev) => void;
+  onProfile: (d: LineupDj) => void;
+}) {
+  const unplaced = data.upcoming.filter((e) => !e.location_id).length;
+  const tab = (on: boolean) =>
+    cn(
+      "min-h-11 whitespace-nowrap rounded-[10px] border px-3.5 text-xs font-medium transition-colors motion-reduce:transition-none",
+      on ? "border-[#e5b647] bg-[#c99428]/25 text-[#fff6e0]" : "border-[#c99428]/25 text-[#cfc6b6] hover:border-[#e5b647]/60 hover:text-[#f6efe2]",
+      FOCUS_RING
+    );
+  return (
+    <section id="locations" aria-labelledby="locations-h" className={cn(C.card, "scroll-mt-20 p-4 sm:p-5")}>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 id="locations-h" className={C.eyebrow}>
+            Your locations
+          </h2>
+          <p className={cn("mt-1 text-xs", C.muted)}>Both places on one page, with the DJs booked at each.</p>
+        </div>
+        <div className="-mx-1 flex max-w-full gap-1.5 overflow-x-auto px-1 [scrollbar-width:none]" role="group" aria-label="Show location">
+          <button type="button" className={tab(!active)} aria-pressed={!active} onClick={() => onPick("")}>
+            All locations
+          </button>
+          {locs.map((l) => (
+            <button key={l.id} type="button" className={tab(active === l.id)} aria-pressed={active === l.id} onClick={() => onPick(active === l.id ? "" : l.id)}>
+              {l.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className={cn("grid grid-cols-1 gap-3 lg:gap-4", locs.length === 2 ? "md:grid-cols-2" : "md:grid-cols-2 xl:grid-cols-3")}>
+        {locs.map((l) => {
+          const nights = data.upcoming.filter((e) => e.location_id === l.id);
+          const djs = data.lineup
+            .map((d) => ({ d, dates: [...new Set((d.dates ?? []).filter((x) => x.location_id === l.id).map((x) => x.date))].sort() }))
+            .filter((x) => x.dates.length)
+            .sort((a, b) => a.dates[0].localeCompare(b.dates[0]));
+          const on = active === l.id;
+          return (
+            <article
+              key={l.id}
+              aria-label={`${data.venue.name} ${l.name}`}
+              className={cn(
+                "flex flex-col rounded-[14px] border bg-[linear-gradient(160deg,rgba(201,148,40,0.10),rgba(18,18,18,0.6)_45%)] p-4 transition-colors motion-reduce:transition-none",
+                on ? "border-[#e5b647]/80 shadow-[0_0_0_1px_rgba(229,182,71,0.3)]" : "border-[#c99428]/25"
+              )}
+            >
+              <header className="flex items-start gap-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#c99428]/45 bg-black/40 text-[#e5b647]">
+                  <MapPin size={17} aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-display text-2xl font-light leading-tight text-[#f6efe2]">{l.name}</p>
+                  <p className={cn("truncate text-xs", C.muted)}>{l.city ?? data.venue.name}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="font-display text-3xl font-light leading-none text-[#f6efe2]">{nights.length}</p>
+                  <p className={cn("text-[10px] uppercase tracking-wide", C.muted)}>upcoming</p>
+                </div>
+              </header>
+
+              <p className={cn(C.eyebrow, "mt-4")}>Next nights</p>
+              {nights.length ? (
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {nights.slice(0, 3).map((e) => (
+                    <li key={e.id}>
+                      <button
+                        type="button"
+                        onClick={() => onOpenEvent(e)}
+                        className={cn("flex min-h-11 w-full items-center gap-3 rounded-[10px] border border-white/[0.06] bg-black/25 px-3 py-1.5 text-left hover:border-[#e5b647]/50", FOCUS_RING)}
+                      >
+                        <span className="w-[86px] shrink-0 text-xs font-medium text-[#e5b647]">{e.date ? fmtDay(e.date, { weekday: "short", month: "short", day: "numeric" }) : "TBD"}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-[#f6efe2]">{e.dj?.name ?? "DJ to be assigned"}</span>
+                        <span
+                          aria-label={e.status}
+                          className={cn("h-2 w-2 shrink-0 rounded-full", e.status === "confirmed" ? "bg-[#8fdcb0]" : e.status === "pending" ? "bg-[#f4c56e]" : "bg-[#ee9a93]")}
+                        />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className={cn("mt-1.5 text-xs", C.muted)}>No nights scheduled here yet.</p>
+              )}
+
+              <p className={cn(C.eyebrow, "mt-4")}>DJs playing here</p>
+              {djs.length ? (
+                <ul className="mt-2 flex flex-wrap gap-2.5">
+                  {djs.slice(0, 8).map(({ d, dates }) => (
+                    <li key={d.id}>
+                      <button
+                        type="button"
+                        onClick={() => onProfile(d)}
+                        aria-label={`${d.name}: ${dates.length} night${dates.length === 1 ? "" : "s"} at ${l.name}, next ${fmtDay(dates[0], { month: "long", day: "numeric" })}. View profile`}
+                        className={cn("group flex w-[76px] flex-col items-center gap-1 rounded-[10px] p-1 text-center", FOCUS_RING)}
+                      >
+                        <span className="transition-transform duration-200 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100">
+                          <Portrait name={d.name} url={d.photo_url} focus={d.focus} size={64} ring={false} />
+                        </span>
+                        <span className="line-clamp-1 w-full text-[11px] text-[#f6efe2]">{d.name}</span>
+                        <span className="text-[10px] text-[#e5b647]">{fmtDay(dates[0], { month: "short", day: "numeric" })}</span>
+                      </button>
+                    </li>
+                  ))}
+                  {djs.length > 8 && <li className={cn("self-center text-xs", C.muted)}>+{djs.length - 8} more</li>}
+                </ul>
+              ) : (
+                <p className={cn("mt-1.5 text-xs", C.muted)}>No DJs booked here yet.</p>
+              )}
+
+              <button type="button" onClick={() => onPick(on ? "" : l.id)} aria-pressed={on} className={cn(C.link, "mt-auto self-start border pt-0", on ? "mt-4 border-[#e5b647]/70 bg-[#c99428]/15" : "mt-4 border-[#c99428]/35")}>
+                {on ? "Showing only this location" : `Show only ${l.name}`} <ArrowRight size={13} />
+              </button>
+            </article>
+          );
+        })}
+      </div>
+      {data.preview && unplaced > 0 && (
+        <p className="mt-3 rounded-[10px] border border-[#d79a32]/40 bg-[#d79a32]/10 px-3 py-2 text-xs text-[#f4c56e]">
+          Admin note: {unplaced} upcoming night{unplaced === 1 ? "" : "s"} didn&apos;t match a location. Add how they&apos;re written on the calendar to a location, or mark one location as the default (Admin → Venue Portals → Manage → Locations).
+        </p>
+      )}
+    </section>
   );
 }

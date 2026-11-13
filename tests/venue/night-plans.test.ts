@@ -27,7 +27,7 @@ describe("parsePlanInput", () => {
 
 // ---- the save route ----
 type Row = Record<string, unknown>;
-const state: { rows: Row[]; notifications: Row[]; emails: unknown[]; preview: boolean; audits: string[] } = { rows: [], notifications: [], emails: [], preview: false, audits: [] };
+const state: { rows: Row[]; notifications: Row[]; emails: unknown[]; preview: boolean; audits: string[]; locations: unknown[] | null } = { rows: [], notifications: [], emails: [], preview: false, audits: [], locations: null };
 function table(name: string) {
   const f: Record<string, unknown> = {};
   let op = "select";
@@ -35,16 +35,19 @@ function table(name: string) {
   const q: Record<string, unknown> = {};
   const chain = (k: string) => (q[k] = (a?: unknown, b?: unknown) => { if (k === "eq") f[a as string] = b; return q; });
   ["select", "eq", "gte", "order", "limit"].forEach(chain);
+  q.match = (o: Record<string, unknown>) => (Object.assign(f, o), q);
   q.upsert = (p: Row) => ((op = "upsert"), (payload = p), q);
   q.insert = (p: Row[]) => { if (name === "notifications") state.notifications.push(...p); return Promise.resolve({ error: null }); };
   q.delete = () => ((op = "delete"), q);
-  const match = (r: Row) => r.venue_id === f.venue_id && r.night_date === f.night_date;
+  const match = (r: Row) => r.venue_id === f.venue_id && r.night_date === f.night_date && (!("location_id" in f) || (r.location_id ?? "") === f.location_id);
   const run = () => {
+    // venues.locations: null = column missing (migration 0049 not run yet).
+    if (name === "venues") return state.locations ? { data: { locations: state.locations }, error: null } : { data: null, error: { code: "42703", message: "column venues.locations does not exist" } };
     if (name === "djs") return { data: f.id === "11111111-1111-4111-8111-111111111111" ? { id: f.id, display_name: "DJ Que" } : null, error: null };
     if (op === "delete") { state.rows = state.rows.filter((r) => !match(r)); return { error: null }; }
     if (op === "upsert") {
       const p = payload as Row;
-      state.rows = state.rows.filter((r) => !(r.venue_id === p.venue_id && r.night_date === p.night_date));
+      state.rows = state.rows.filter((r) => !(r.venue_id === p.venue_id && r.night_date === p.night_date && (r.location_id ?? "") === (p.location_id ?? "")));
       state.rows.push(p);
       return { data: p, error: null };
     }
@@ -76,7 +79,7 @@ const put = async (body: unknown) => {
 
 describe("venue night plans route", () => {
   beforeEach(() => {
-    Object.assign(state, { rows: [], notifications: [], emails: [], preview: false, audits: [] });
+    Object.assign(state, { rows: [], notifications: [], emails: [], preview: false, audits: [], locations: null });
     vi.useFakeTimers({ now: new Date("2026-11-13T15:00:00Z"), toFake: ["Date"] });
   });
 
@@ -117,5 +120,18 @@ describe("venue night plans route", () => {
     expect(cleared.json.plan).toBeNull();
     expect(state.rows).toHaveLength(0);
     expect(state.audits).toContain("night_plan.cleared");
+  });
+
+  it("keeps one plan per location for venues with several locations", async () => {
+    state.locations = [{ id: "loc_cedarburg", name: "Cedarburg", calendar_names: ["North 48 Cedarburg"], is_default: true }, { id: "loc_ocon", name: "Oconomowoc", calendar_names: ["North 48 Ocon"] }];
+    const a = await put({ venue: "v1", date: "2026-11-21", location_id: "loc_cedarburg", drink_specials: "$5 Spotted Cow" });
+    const b = await put({ venue: "v1", date: "2026-11-21", location_id: "loc_ocon", drink_specials: "$4 Miller Lite", dj_request_name: "Rushie" });
+    expect(a.json.plan).toMatchObject({ location_id: "loc_cedarburg", drink_specials: "$5 Spotted Cow" });
+    expect(b.json.plan).toMatchObject({ location_id: "loc_ocon", drink_specials: "$4 Miller Lite" });
+    expect(state.rows).toHaveLength(2);
+    expect(String(state.notifications[0].title)).toContain("North 48 (Oconomowoc) requested Rushie");
+    expect((await put({ venue: "v1", date: "2026-11-21", location_id: "loc_nope", drink_specials: "x" })).status).toBe(400);
+    await put({ venue: "v1", date: "2026-11-21", location_id: "loc_ocon" });
+    expect(state.rows.map((r) => r.location_id)).toEqual(["loc_cedarburg"]);
   });
 });

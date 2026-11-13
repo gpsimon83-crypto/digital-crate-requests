@@ -6,6 +6,7 @@ import { requireVenueAccess } from "@/lib/venue/server";
 import { holidaysInMonth, upcomingHolidays } from "@/lib/venue/holidays";
 import { fetchVenueNights, type CalendarNight } from "@/lib/venue/calendar-feed";
 import { normalizeNights } from "@/lib/venue/types";
+import { loadLocations, locationForMatched, locationForText, locationSearchNames, toPublicLocations } from "@/lib/venue/locations";
 import { PLAN_COLUMNS, missingPlansTable, toNightPlan, type NightPlan } from "@/lib/venue/night-plans";
 import { resolveDjName, venueSearchNames, type CalendarDjName } from "@/lib/venue/calendar-options";
 
@@ -33,6 +34,7 @@ type EventRow = {
   ends_at: string | null;
   status: string | null;
   dj_id: string | null;
+  venue_name?: string | null;
   djs: { id?: string; display_name?: string; photo_url?: string | null; hero_settings?: unknown } | null;
 };
 
@@ -73,6 +75,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const db = createAdminClient();
+    // Several places under one venue (e.g. North 48 Cedarburg / Oconomowoc): every night is tagged with its location.
+    const { locations } = await loadLocations(db, venue.id);
     const shape = (e: EventRow) => ({
       id: e.id,
       date: e.starts_at ? localDate(e.starts_at) : null,
@@ -81,9 +85,10 @@ export async function GET(req: NextRequest) {
       label: eventTypeLabel(e.event_type, e.event_category),
       status: e.status === "confirmed" || e.status === "live" || e.status === "ended" ? "confirmed" : e.status === "declined" ? "cancelled" : "pending",
       dj: e.djs?.display_name ? { id: e.djs.id ?? e.dj_id ?? null, name: e.djs.display_name, photo_url: e.djs.photo_url ?? null, focus: photoFocus(e.djs.hero_settings) } : null,
-      source: "booking" as const
+      source: "booking" as const,
+      location_id: locationForText(locations, e.venue_name)
     });
-    const cols = "id, event_category, event_type, starts_at, ends_at, status, dj_id, djs(id, display_name, photo_url, hero_settings)";
+    const cols = "id, event_category, event_type, starts_at, ends_at, status, dj_id, venue_name, djs(id, display_name, photo_url, hero_settings)";
 
     // Nights from the shared DCDJ calendar (via the WordPress site) for this venue's calendar names.
     const recurring = normalizeNights(venue.recurring_nights);
@@ -110,14 +115,16 @@ export async function GET(req: NextRequest) {
         label: nightLabel(n.date),
         status: (n.state === "confirmed" ? "confirmed" : "pending") as "confirmed" | "pending",
         dj,
-        source: "calendar" as const
+        source: "calendar" as const,
+        location_id: locationForMatched(locations, n.matched)
       };
     };
     // DJs as written on the calendar → actual names (also used to skip DJ names saved as venue names).
     const { data: djMapRows, error: djMapErr } = await db.from("calendar_dj_names").select("id, calendar_name, display_name");
     const djMapLoaded = (djMapErr ? [] : (djMapRows ?? [])) as CalendarDjName[];
     // The venue's own name ("Casey Keys" → also "Casey Key") plus saved calendar names that aren't DJs.
-    const names = venueSearchNames(venue.name, venue.calendar_names ?? [], djMapLoaded);
+    // Location names go first (longest first) so the calendar credits each night to its location.
+    const names = [...new Set([...locationSearchNames(locations), ...venueSearchNames(venue.name, venue.calendar_names ?? [], djMapLoaded)])].slice(0, 20);
     // Words that identify this venue in cratesdjs.com data: its name plus its calendar names.
     // Characters with meaning in PostgREST filters are dropped, so a name can never change the query.
     const terms = [...new Set(names.map((t) => String(t ?? "").replace(/[,()*%\\"'.:]/g, " ").replace(/\s+/g, " ").trim()).filter((t) => t.length >= 3))].slice(0, 12);
@@ -169,7 +176,7 @@ export async function GET(req: NextRequest) {
       const span = Date.parse(b.ends_at) - Date.parse(b.starts_at);
       const allDay = /^\d{4}-\d{2}-\d{2}$/.test(b.starts_at) || (/T00:00:00(\.0+)?(Z|\+00:?00)$/.test(b.starts_at) && span > 0 && span % 86400000 === 0);
       const date = allDay ? b.starts_at.slice(0, 10) : localDate(b.starts_at);
-      return { id: feedId(b.google_event_id), date, starts_at: allDay ? null : b.starts_at, ends_at: allDay ? null : b.ends_at, label: nightLabel(date), status: "pending" as const, dj: null as null | { id: string | null; name: string; photo_url: string | null; focus: { x: number; y: number } | null }, source: "calendar" as const };
+      return { id: feedId(b.google_event_id), date, starts_at: allDay ? null : b.starts_at, ends_at: allDay ? null : b.ends_at, label: nightLabel(date), status: "pending" as const, dj: null as null | { id: string | null; name: string; photo_url: string | null; focus: { x: number; y: number } | null }, source: "calendar" as const, location_id: locationForText(locations, b.summary) };
     };
     // Calendar nights from WordPress win (they know the DJ); pulled CRM calendar events fill any gaps.
     const mergeCal = <T extends { id: string }>(feed: T[], blocks: T[]) => { const seen = new Set(feed.map((f) => f.id)); return [...feed, ...blocks.filter((b) => !seen.has(b.id))]; };
@@ -191,7 +198,7 @@ export async function GET(req: NextRequest) {
     const upcomingAll = [...upcomingProjects, ...calUpcoming].sort(byStart).slice(0, 40);
 
     // DJ lineup: DJs linked to the venue in the CRM, plus DJs booked here on the calendar or in bookings.
-    type LineupDj = { id: string; profile_id: string | null; name: string; photo_url: string | null; focus: { x: number; y: number } | null; bio: string | null; genres: string[]; event_types: string[]; upcoming_dates: string[] };
+    type LineupDj = { id: string; profile_id: string | null; name: string; photo_url: string | null; focus: { x: number; y: number } | null; bio: string | null; genres: string[]; event_types: string[]; upcoming_dates: string[]; dates: { date: string; location_id: string | null }[] };
     const lineup: LineupDj[] = [];
     const fromProfile = (d: DjRow): LineupDj => ({
       id: d.id,
@@ -202,7 +209,8 @@ export async function GET(req: NextRequest) {
       bio: d.bio ? String(d.bio).slice(0, 600) : null,
       genres: [...(d.top_genres ?? []), ...(d.specialties ?? [])].filter(Boolean).slice(0, 6),
       event_types: (d.event_types ?? []).filter(Boolean).slice(0, 6),
-      upcoming_dates: []
+      upcoming_dates: [],
+      dates: []
     });
     for (const r of lineupRes.data ?? []) {
       const d = r.djs as unknown as DjRow | null;
@@ -214,10 +222,11 @@ export async function GET(req: NextRequest) {
       let l = lineup.find((x) => (e.dj!.id && x.profile_id === e.dj!.id) || x.name.toLowerCase() === k);
       if (!l) {
         const prof = djProfiles.get(k);
-        l = prof ? fromProfile(prof) : { id: `cal_${k.replace(/[^a-z0-9]+/g, "_")}`, profile_id: null, name: e.dj.name, photo_url: e.dj.photo_url, focus: e.dj.focus, bio: null, genres: [], event_types: [], upcoming_dates: [] };
+        l = prof ? fromProfile(prof) : { id: `cal_${k.replace(/[^a-z0-9]+/g, "_")}`, profile_id: null, name: e.dj.name, photo_url: e.dj.photo_url, focus: e.dj.focus, bio: null, genres: [], event_types: [], upcoming_dates: [], dates: [] };
         lineup.push(l);
       }
       if (!l.upcoming_dates.includes(e.date) && l.upcoming_dates.length < 6) l.upcoming_dates.push(e.date);
+      if (l.dates.length < 16 && !l.dates.some((x) => x.date === e.date && x.location_id === e.location_id)) l.dates.push({ date: e.date, location_id: e.location_id });
     }
     // DJs with a next date first, soonest first; then the rest by name.
     lineup.sort((a, b) => (a.upcoming_dates[0] ?? "9999").localeCompare(b.upcoming_dates[0] ?? "9999") || a.name.localeCompare(b.name));
@@ -231,7 +240,10 @@ export async function GET(req: NextRequest) {
 
     // The venue's night plans (occasion, drink specials, DJ requests) from this month or today on.
     const plansFrom = `${month}-01` < today ? `${month}-01` : today;
-    const plansRes = await db.from("venue_night_plans").select(PLAN_COLUMNS).eq("venue_id", venue.id).gte("night_date", plansFrom).order("night_date").limit(200);
+    // location_id arrives with migration 0049; before that, plans are read without it.
+    const readPlans = (columns: string) => db.from("venue_night_plans").select(columns).eq("venue_id", venue.id).gte("night_date", plansFrom).order("night_date").limit(200);
+    let plansRes = (await readPlans(`${PLAN_COLUMNS}, location_id`)) as { data: unknown[] | null; error: { code?: string; message?: string } | null };
+    if (plansRes.error && !missingPlansTable(plansRes.error)) plansRes = (await readPlans(PLAN_COLUMNS)) as typeof plansRes;
     const plansReady = !missingPlansTable(plansRes.error);
     const plans: NightPlan[] = plansRes.error ? [] : (plansRes.data ?? []).map((r) => toNightPlan(r as Record<string, unknown>));
 
@@ -243,7 +255,7 @@ export async function GET(req: NextRequest) {
       today,
       month,
       venues,
-      venue: publicVenue,
+      venue: { ...publicVenue, locations: toPublicLocations(locations) },
       // Admin preview only: whether the shared-calendar link is working.
       ...(preview ? { calendarFeed: { names: names.length, status: names.length ? monthFeed.status : "no-names" } } : {}),
       overview: {

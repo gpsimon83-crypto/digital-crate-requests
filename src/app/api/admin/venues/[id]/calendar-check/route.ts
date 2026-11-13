@@ -4,6 +4,7 @@ import { errorMessage } from "@/lib/error-message";
 import { requireVenueAdmin } from "@/lib/venue/server";
 import { fetchVenueNights } from "@/lib/venue/calendar-feed";
 import { isDjName, venueSearchNames, type CalendarDjName } from "@/lib/venue/calendar-options";
+import { loadLocations, locationForMatched, locationSearchNames } from "@/lib/venue/locations";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -24,7 +25,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const saved = ((venue.calendar_names as string[] | null) ?? []).filter(Boolean);
     const { data: djRows } = await db.from("calendar_dj_names").select("id, calendar_name, display_name");
     const djs = (djRows ?? []) as CalendarDjName[];
-    const names = venueSearchNames(venue.name as string, saved, djs);
+    const { locations } = await loadLocations(db, id);
+    // Location names first (longest first) so a night is credited to its location, then the venue's own names.
+    const names = [...new Set([...locationSearchNames(locations), ...venueSearchNames(venue.name as string, saved, djs)])].slice(0, 20);
     const ignored = saved.filter((n) => isDjName(n, djs));
     const month = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
     const secret = process.env.INQUIRY_PARTNER_SECRET ?? "";
@@ -49,6 +52,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
       status: feed.status,
       reason,
       count: feed.nights.length,
+      // Nights per location (and how many couldn't be placed), when the venue has locations.
+      byLocation: locations.length
+        ? [
+            ...locations.map((l) => ({ name: l.name, count: feed.nights.filter((n) => locationForMatched(locations, n.matched) === l.id).length })),
+            { name: "No location", count: feed.nights.filter((n) => !locationForMatched(locations, n.matched)).length }
+          ]
+        : [],
       sample: feed.nights.slice(0, 6).map((n) => ({ date: n.date, matched: n.matched, dj: n.dj?.name ?? null, dj_text: n.dj_text, state: n.state }))
     });
   } catch (err) {

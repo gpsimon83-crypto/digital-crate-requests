@@ -6,6 +6,8 @@
 
 export type NightPlan = {
   date: string;
+  /** Which of the venue's locations ("" = the venue as a whole). */
+  location_id: string;
   occasion: string | null;
   drink_specials: string | null;
   dj_request_id: string | null;
@@ -50,6 +52,7 @@ function realDate(iso: string) {
 
 export type PlanInput = {
   date: string;
+  location_id: string;
   occasion: string | null;
   drink_specials: string | null;
   dj_request_id: string | null;
@@ -70,6 +73,7 @@ export function parsePlanInput(body: unknown, today: string): { ok: true; plan: 
     ok: true,
     plan: {
       date,
+      location_id: typeof b.location_id === "string" && /^loc_[a-z0-9]{3,40}$/.test(b.location_id) ? b.location_id : "",
       occasion: cleanPlanText(b.occasion, PLAN_LIMITS.occasion),
       drink_specials: cleanPlanText(b.drink_specials, PLAN_LIMITS.drink_specials),
       dj_request_id: djId,
@@ -80,13 +84,14 @@ export function parsePlanInput(body: unknown, today: string): { ok: true; plan: 
   };
 }
 
-export const isEmptyPlan = (p: Omit<PlanInput, "date">) => !p.occasion && !p.drink_specials && !p.dj_request_id && !p.dj_request_name && !p.dj_request_note;
+export const isEmptyPlan = (p: Omit<PlanInput, "date" | "location_id">) => !p.occasion && !p.drink_specials && !p.dj_request_id && !p.dj_request_name && !p.dj_request_note;
 export const hasDjRequest = (p: Pick<PlanInput, "dj_request_id" | "dj_request_name" | "dj_request_note">) => !!(p.dj_request_id || p.dj_request_name || p.dj_request_note);
 
 export function toNightPlan(r: Record<string, unknown>): NightPlan {
   const s = (v: unknown) => (typeof v === "string" && v ? v : null);
   return {
     date: String(r.night_date ?? "").slice(0, 10),
+    location_id: typeof r.location_id === "string" ? r.location_id : "",
     occasion: s(r.occasion),
     drink_specials: s(r.drink_specials),
     dj_request_id: s(r.dj_request_id),

@@ -44,3 +44,27 @@ describe("what a venue portal searches the calendar for", () => {
     expect(venueSearchNames("North 48", ["North 48 Oco", "DJ Penny"], djs)).toEqual(["North 48", "North 48 Oco"]);
   });
 });
+
+import { locationForMatched, locationForText, locationSearchNames, normalizeLocations } from "@/lib/venue/locations";
+describe("venue locations", () => {
+  const locs = normalizeLocations([
+    { name: "Cedarburg", city: "Cedarburg, WI", calendar_names: ["North 48 Cedarburg", "N48 Cedarburg"], is_default: true },
+    { name: "Oconomowoc", calendar_names: ["North 48 Ocon", "North 48 Oconomowoc", "north 48 ocon"], is_default: true },
+    { name: "cedarburg" },
+    { name: "x" }
+  ]);
+  it("cleans the list: unique names, one default, de-duplicated calendar names", () => {
+    expect(locs.map((l) => l.name)).toEqual(["Cedarburg", "Oconomowoc"]);
+    expect(locs.map((l) => l.is_default)).toEqual([true, false]);
+    expect(locs[1].calendar_names).toEqual(["North 48 Ocon", "North 48 Oconomowoc"]);
+    expect(locs[0].id).toBe("loc_cedarburg");
+  });
+  it("searches longest names first and places nights", () => {
+    expect(locationSearchNames(locs)[0]).toBe("North 48 Oconomowoc");
+    expect(locationForMatched(locs, "north 48 ocon")).toBe("loc_oconomowoc");
+    expect(locationForMatched(locs, "North 48")).toBe("loc_cedarburg"); // only the venue name → default location
+    expect(locationForText(locs, "Saturday – North 48 Oconomowoc / DJ Que")).toBe("loc_oconomowoc");
+    expect(locationForText(locs, "North 48")).toBe("loc_cedarburg");
+    expect(locationForText([], "anything")).toBeNull();
+  });
+});

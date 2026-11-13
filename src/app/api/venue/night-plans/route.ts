@@ -4,6 +4,7 @@ import { errorMessage } from "@/lib/error-message";
 import { audit, requireVenueAccess } from "@/lib/venue/server";
 import { isStaffRole, accountRole } from "@/lib/roles";
 import { sendSystemEmail } from "@/lib/send-system-email";
+import { loadLocations } from "@/lib/venue/locations";
 import { PLAN_COLUMNS, hasDjRequest, isEmptyPlan, missingPlansTable, parsePlanInput, toNightPlan } from "@/lib/venue/night-plans";
 
 const TZ = "America/Chicago";
@@ -11,10 +12,10 @@ const todayIso = () => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "n
 const longDate = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long", month: "long", day: "numeric", year: "numeric" });
 
 /** Tells DCDJs staff about a new or changed DJ request: the bell for every staff login, plus an email to the venue's DCDJs contact. Never throws. */
-async function notifyDjRequest(input: { venueId: string; venueName: string; contactEmail: string | null; date: string; dj: string | null; occasion: string | null; note: string | null; by: string | null }) {
+async function notifyDjRequest(input: { venueId: string; venueName: string; locationName: string | null; contactEmail: string | null; date: string; dj: string | null; occasion: string | null; note: string | null; by: string | null }) {
   const db = createAdminClient();
   const who = input.dj && input.dj !== "Any available DJ" ? input.dj : "any available DJ";
-  const title = `${input.venueName} requested ${who} for ${longDate(input.date)}`;
+  const title = `${input.venueName}${input.locationName ? ` (${input.locationName})` : ""} requested ${who} for ${longDate(input.date)}`;
   const body = [input.occasion ? `Occasion: ${input.occasion}` : "", input.note ? `Note: ${input.note}` : "", "This is a request, not a booking. Confirm or follow up with the venue."].filter(Boolean).join("\n");
   try {
     const { data } = await db.auth.admin.listUsers({ perPage: 200 });
@@ -63,6 +64,14 @@ export async function PUT(req: NextRequest) {
 
   try {
     const db = createAdminClient();
+    // Venues with several locations keep one plan per location (needs migration 0049, which also adds venues.locations).
+    const locs = await loadLocations(db, venue.id);
+    const perLocation = locs.ready;
+    const location = p.location_id ? locs.locations.find((l) => l.id === p.location_id) ?? null : null;
+    if (p.location_id && !location) return NextResponse.json({ error: "Pick one of your locations." }, { status: 400 });
+    const locId = location?.id ?? "";
+    // Filters for this plan's row: venue + date (+ location once per-location plans exist).
+    const key: Record<string, string> = perLocation ? { venue_id: venue.id, night_date: p.date, location_id: locId } : { venue_id: venue.id, night_date: p.date };
     // A DJ picked from the list must be a real DJ profile; its current name wins over what the browser sent.
     let djId = p.dj_request_id;
     let djName = p.dj_request_name;
@@ -72,7 +81,7 @@ export async function PUT(req: NextRequest) {
       else djId = null;
     }
 
-    const { data: before, error: readErr } = await db.from("venue_night_plans").select(PLAN_COLUMNS).eq("venue_id", venue.id).eq("night_date", p.date).maybeSingle();
+    const { data: before, error: readErr } = await db.from("venue_night_plans").select(PLAN_COLUMNS).match(key).maybeSingle();
     if (readErr) {
       if (missingPlansTable(readErr)) return NextResponse.json({ error: "Night plans aren't switched on yet. Ask Digital Crate DJs to finish setup." }, { status: 503 });
       throw readErr;
@@ -82,11 +91,11 @@ export async function PUT(req: NextRequest) {
 
     if (isEmptyPlan(next)) {
       if (prev) {
-        const { error } = await db.from("venue_night_plans").delete().eq("venue_id", venue.id).eq("night_date", p.date);
+        const { error } = await db.from("venue_night_plans").delete().match(key);
         if (error) throw error;
-        await audit(venue.id, user, "night_plan.cleared", { date: p.date });
+        await audit(venue.id, user, "night_plan.cleared", { date: p.date, location: location?.name ?? null });
       }
-      return NextResponse.json({ plan: null });
+      return NextResponse.json({ plan: null, location_id: locId });
     }
 
     const requestChanged =
@@ -99,13 +108,14 @@ export async function PUT(req: NextRequest) {
         {
           venue_id: venue.id,
           night_date: p.date,
+          ...(perLocation ? { location_id: locId } : {}),
           ...next,
           dj_requested_at: hasDjRequest(next) ? (requestChanged ? now : prev?.dj_requested_at ?? now) : null,
           updated_by: user.id,
           updated_at: now,
           ...(prev ? {} : { created_by: user.id })
         },
-        { onConflict: "venue_id,night_date" }
+        { onConflict: perLocation ? "venue_id,night_date,location_id" : "venue_id,night_date" }
       )
       .select(PLAN_COLUMNS)
       .single();
@@ -113,6 +123,7 @@ export async function PUT(req: NextRequest) {
 
     await audit(venue.id, user, "night_plan.saved", {
       date: p.date,
+      location: location?.name ?? null,
       specials: !!next.drink_specials,
       occasion: next.occasion,
       dj_request: hasDjRequest(next) ? next.dj_request_name ?? "any DJ" : null
@@ -121,6 +132,7 @@ export async function PUT(req: NextRequest) {
       await notifyDjRequest({
         venueId: venue.id,
         venueName: venue.name,
+        locationName: location?.name ?? null,
         contactEmail: venue.dcdjs_contact_email,
         date: p.date,
         dj: next.dj_request_name,
@@ -129,7 +141,7 @@ export async function PUT(req: NextRequest) {
         by: user.email ?? null
       });
     }
-    return NextResponse.json({ plan: toNightPlan(saved as Record<string, unknown>) });
+    return NextResponse.json({ plan: { ...toNightPlan(saved as Record<string, unknown>), location_id: locId } });
   } catch (err) {
     console.error("venue night plan save failed", errorMessage(err));
     return NextResponse.json({ error: "Couldn't save that. Try again." }, { status: 500 });

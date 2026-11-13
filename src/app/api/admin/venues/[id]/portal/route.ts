@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
 import { audit, cleanText, requireVenueAdmin, slugify, toVenue, VENUE_COLUMNS } from "@/lib/venue/server";
 import { normalizeFocus, normalizeNights } from "@/lib/venue/types";
+import { loadLocations, normalizeLocations } from "@/lib/venue/locations";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -19,7 +20,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
       db.from("venue_managers").select("id, venue_id, user_id, email, full_name, title, phone, is_active, invited_at, last_seen_at").eq("venue_id", id).order("invited_at"),
       db.from("venue_audit_log").select("id, actor_label, action, detail, created_at").eq("venue_id", id).order("created_at", { ascending: false }).limit(30)
     ]);
-    return NextResponse.json({ venue: toVenue(row), managers: managers ?? [], log: log ?? [] });
+    const locs = await loadLocations(db, id);
+    return NextResponse.json({ venue: toVenue(row), locations: locs.locations, locationsReady: locs.ready, managers: managers ?? [], log: log ?? [] });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }
@@ -74,9 +76,17 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       throw error;
     }
     if (!data) return NextResponse.json({ error: "Venue not found" }, { status: 404 });
+    // Locations live in their own column (migration 0049); saved separately so the rest still saves without it.
+    let locations: ReturnType<typeof normalizeLocations> | undefined;
+    if ("locations" in b) {
+      locations = normalizeLocations(b.locations);
+      const { error: locErr } = await db.from("venues").update({ locations }).eq("id", id);
+      if (locErr) return NextResponse.json({ error: "Locations need a one-time database update (migration 0049). Everything else was saved.", venue: toVenue(data) }, { status: 503 });
+      update.locations = locations;
+    }
     const changed = Object.keys(update).filter((k) => k !== "updated_at");
     await audit(id, admin, "venue.updated", { fields: changed });
-    return NextResponse.json({ venue: toVenue(data) });
+    return NextResponse.json({ venue: toVenue(data), ...(locations ? { locations } : {}) });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }
