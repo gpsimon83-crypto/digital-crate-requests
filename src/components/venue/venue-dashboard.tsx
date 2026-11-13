@@ -157,13 +157,13 @@ function Portrait({ name, url, focus, size, ring = true }: { name: string; url: 
       loading="lazy"
       decoding="async"
       onError={() => setBroken(true)}
-      className={cn("shrink-0 rounded-full bg-[#1d1a14] object-cover", border)}
+      className={cn("shrink-0 rounded-xl bg-[#1d1a14] object-cover", border)}
       style={{ width: size, height: size, objectPosition: pos }}
     />
   ) : (
     <span
       aria-hidden
-      className={cn("grid shrink-0 place-items-center rounded-full bg-[radial-gradient(circle_at_30%_25%,#3a2e17,#17140e_70%)] font-display font-light text-[#f0c766]", border)}
+      className={cn("grid shrink-0 place-items-center rounded-xl bg-[radial-gradient(ellipse_at_30%_25%,#3a2e17,#17140e_70%)] font-display font-light text-[#f0c766]", border)}
       style={{ width: size, height: size, fontSize: Math.round(size * 0.34) }}
     >
       {initialsOf(name)}
