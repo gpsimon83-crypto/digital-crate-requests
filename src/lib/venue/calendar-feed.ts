@@ -21,7 +21,8 @@ export type CalendarNight = {
   dj_text: string;
 };
 
-export type CalendarFeedResult = { nights: CalendarNight[]; status: "ok" | "off" | "error" };
+/** `http` is the website's HTTP answer (0 = no answer), for the admin "Test calendar link" check. */
+export type CalendarFeedResult = { nights: CalendarNight[]; status: "ok" | "off" | "error"; http?: number };
 
 const SITE = (process.env.WP_SITE_URL || "https://digitalcratedjs.com").replace(/\/+$/, "");
 
@@ -60,14 +61,14 @@ export async function fetchVenueNights(names: string[], month: string, months = 
   url.searchParams.set("months", String(Math.max(1, Math.min(3, months))));
   try {
     const res = await fetch(url, {
-      headers: { "x-dcdj-partner-key": secret, accept: "application/json" },
+      headers: { "x-dcdj-partner-key": secret, accept: "application/json", "user-agent": "CratesDJs-CRM/1.0 (+https://www.cratesdjs.com)" },
       cache: "no-store",
       signal: AbortSignal.timeout(8000)
     });
-    if (!res.ok) return { nights: [], status: res.status === 503 ? "off" : "error" };
+    if (!res.ok) return { nights: [], status: res.status === 503 ? "off" : "error", http: res.status };
     const body = (await res.json()) as { nights?: unknown[] };
-    return { nights: (body.nights ?? []).map(clean).filter((n): n is CalendarNight => !!n), status: "ok" };
+    return { nights: (body.nights ?? []).map(clean).filter((n): n is CalendarNight => !!n), status: "ok", http: res.status };
   } catch {
-    return { nights: [], status: "error" };
+    return { nights: [], status: "error", http: 0 };
   }
 }

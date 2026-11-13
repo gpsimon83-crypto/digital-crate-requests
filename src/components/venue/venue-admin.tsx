@@ -288,7 +288,7 @@ export function VenueAdmin({ venueId }: { venueId: string }) {
           </Card>
         </div>
 
-        <CalendarNamesCard names={venue.calendar_names} onChange={(n) => edit({ calendar_names: n })} />
+        <CalendarNamesCard venueId={venue.id} names={venue.calendar_names} onChange={(n) => edit({ calendar_names: n })} />
 
         <ManagersCard venueId={venueId} managers={managers} onChanged={refreshLog} onError={setError} />
 
@@ -521,7 +521,80 @@ function NightsCard({ nights, onChange }: { nights: RecurringNight[]; onChange: 
 
 /* ---------------- Calendar names ---------------- */
 
-function CalendarNamesCard({ names, onChange }: { names: string[]; onChange: (n: string[]) => void }) {
+type CalendarCheck = {
+  names: string[];
+  month: string;
+  reason: string;
+  http: number | null;
+  count: number;
+  sample: { date: string; matched: string; dj: string | null; dj_text: string; state: string }[];
+};
+
+const CHECK_HELP: Record<string, string> = {
+  "no-names": "This venue has no saved calendar name yet. Choose one above and click Save changes, then test again.",
+  "no-key": "The CRM's partner key (INQUIRY_PARTNER_SECRET in Vercel) isn't set, so it can't ask the website.",
+  "key-mismatch": "The website refused the CRM's key. INQUIRY_PARTNER_SECRET in Vercel and DC_CRM_PARTNER_KEY in wp-config.php must be exactly the same value.",
+  "site-key-missing": "The website has no DC_CRM_PARTNER_KEY in wp-config.php (or it's shorter than 32 characters).",
+  "site-not-updated": "The website doesn't have the venue feed yet (the theme update hasn't reached the server).",
+  "site-calendar-error": "The website couldn't read the DCDJ Google Calendar just now. Check Settings → Google Calendar Integration on the website.",
+  "site-unreachable": "The CRM couldn't reach the website (no answer). It may have been down or blocking the request.",
+  "no-matches": "The link works, but no nights this month or the next two mention this venue's calendar name. Check the spelling against the calendar."
+};
+
+function CalendarCheckButton({ venueId }: { venueId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [res, setRes] = useState<CalendarCheck | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  async function run() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await fetch(`/api/admin/venues/${venueId}/calendar-check`);
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || "Check failed.");
+      setRes(d);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Check failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  const fmt = (d: string) => new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return (
+    <div className="mt-4 border-t border-border pt-3">
+      <Button variant="secondary" disabled={busy} onClick={run}>
+        {busy ? "Testing…" : "Test calendar link"}
+      </Button>
+      <span className="ml-2 text-xs text-muted">Uses the saved names. Save changes first.</span>
+      {err && <p className="mt-2 text-xs text-status-declined">{err}</p>}
+      {res && (
+        <div className={cn("mt-3 rounded-[10px] border p-3 text-xs", res.reason ? "border-status-pending/40 bg-status-pending/10" : "border-status-confirmed/40 bg-status-confirmed/10")}>
+          {res.reason ? (
+            <p>
+              <b>Not working yet:</b> {CHECK_HELP[res.reason] ?? `The website answered with an error (${res.http ?? "no answer"}).`}
+            </p>
+          ) : (
+            <>
+              <p>
+                <b>Working.</b> Found {res.count} night{res.count === 1 ? "" : "s"} from {res.month} on for {res.names.join(", ")}:
+              </p>
+              <ul className="mt-2 space-y-1">
+                {res.sample.map((s, i) => (
+                  <li key={i}>
+                    {fmt(s.date)} · {s.dj ?? (s.dj_text || "DJ not set")} {s.state === "confirmed" ? "(confirmed)" : ""}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className="mt-2 text-muted">Saved names: {res.names.length ? res.names.join(", ") : "none"} · website answer: {res.http ?? "not asked"}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CalendarNamesCard({ venueId, names, onChange }: { venueId: string; names: string[]; onChange: (n: string[]) => void }) {
   const [pick, setPick] = useState("");
   const [other, setOther] = useState("");
   const has = (t: string) => names.some((n) => n.toLowerCase() === t.toLowerCase());
@@ -589,6 +662,7 @@ function CalendarNamesCard({ names, onChange }: { names: string[]; onChange: (n:
           </>
         )}
       </div>
+      <CalendarCheckButton venueId={venueId} />
     </Card>
   );
 }

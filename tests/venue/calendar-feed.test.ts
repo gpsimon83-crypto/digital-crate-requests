@@ -35,6 +35,6 @@ describe("venue nights from the shared DCDJ calendar", () => {
     vi.stubEnv("INQUIRY_PARTNER_SECRET", "short");
     expect(await fetchVenueNights(["Casey Keys"], "2026-11")).toEqual({ nights: [], status: "off" });
     vi.stubEnv("INQUIRY_PARTNER_SECRET", KEY);
-    expect(await fetchVenueNights(["Casey Keys"], "2026-11")).toEqual({ nights: [], status: "error" });
+    expect(await fetchVenueNights(["Casey Keys"], "2026-11")).toEqual({ nights: [], status: "error", http: 0 });
   });
 });
