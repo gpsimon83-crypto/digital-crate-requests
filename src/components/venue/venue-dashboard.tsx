@@ -16,7 +16,9 @@ import {
   LogOut,
   Mail,
   MessageSquare,
+  Pause,
   Phone,
+  Play,
   Sparkles,
   Star,
   Users,
@@ -495,11 +497,7 @@ export function VenueDashboard() {
 
                 <Section id="lineup" title="DJ lineup" className="[grid-area:lineup]">
                   {data.lineup.length ? (
-                    <ul className="grid grid-cols-2 gap-3 md:grid-cols-3">
-                      {data.lineup.map((d) => (
-                        <DjCard key={d.id} d={d} onOpen={() => setProfile(d)} />
-                      ))}
-                    </ul>
+                    <LineupCarousel djs={data.lineup} venue={data.venue.name} onOpen={setProfile} />
                   ) : (
                     <Empty icon={Headphones} title="Your DJ lineup is coming" body="The DJs booked at your venue will appear here with their next dates." />
                   )}
@@ -689,31 +687,206 @@ function EventRow({ e, onOpen }: { e: Ev; onOpen: () => void }) {
   );
 }
 
-function DjCard({ d, onOpen }: { d: LineupDj; onOpen: () => void }) {
-  const next = d.upcoming_dates[0];
+const AUTO_SPEED = 0.032; // px per ms ≈ 32px/s, slow enough to read names
+
+/**
+ * DJ lineup as a strip that drifts right → left, 2 / 3 / 4 cards in view (phone / tablet / desktop).
+ * It loops seamlessly (the list is rendered twice; the copy is hidden from screen readers and the tab order)
+ * and pauses while hovered, focused, touched, while the tab is hidden, when the Pause button is used, and for
+ * people who ask for reduced motion. Arrows step one card. With too few DJs to fill the strip it stays still.
+ */
+function LineupCarousel({ djs, venue, onOpen }: { djs: LineupDj[]; venue: string; onOpen: (d: LineupDj) => void }) {
+  const ref = useRef<HTMLUListElement>(null);
+  const pos = useRef(0);
+  const holdUntil = useRef(0);
+  const hovered = useRef(false);
+  const focused = useRef(false);
+  const [paused, setPaused] = useState(false);
+  const [reduce, setReduce] = useState(false);
+  const [loop, setLoop] = useState(false);
+
+  useEffect(() => {
+    const m = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const f = () => setReduce(m.matches);
+    f();
+    m.addEventListener("change", f);
+    return () => m.removeEventListener("change", f);
+  }, []);
+
+  // Loop only when the DJs don't all fit in view.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const first = el.querySelector<HTMLElement>("[data-card]");
+      if (!first) return;
+      const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+      const perView = Math.round((el.clientWidth + gap) / (first.offsetWidth + gap));
+      setLoop(djs.length > perView);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [djs.length]);
+
+  // Distance of one full set (start of the copy minus start of the original).
+  const period = () => {
+    const el = ref.current;
+    const a = el?.querySelector<HTMLElement>("[data-card]");
+    const b = el?.querySelector<HTMLElement>("[data-copy]");
+    return a && b ? b.offsetLeft - a.offsetLeft : 0;
+  };
+  const step = () => {
+    const el = ref.current;
+    const a = el?.querySelector<HTMLElement>("[data-card]");
+    const gap = el ? parseFloat(getComputedStyle(el).columnGap) || 0 : 0;
+    return a ? a.offsetWidth + gap : 200;
+  };
+
+  useEffect(() => {
+    if (!loop || paused || reduce) return;
+    let raf = 0;
+    let last = performance.now();
+    const tick = (t: number) => {
+      const el = ref.current;
+      const dt = Math.min(64, t - last);
+      last = t;
+      if (el && !hovered.current && !focused.current && t > holdUntil.current && !document.hidden) {
+        if (Math.abs(el.scrollLeft - pos.current) > 2) pos.current = el.scrollLeft; // the person scrolled
+        const p = period();
+        pos.current += dt * AUTO_SPEED;
+        if (p > 0 && pos.current >= p) pos.current -= p;
+        el.scrollLeft = pos.current;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [loop, paused, reduce]);
+
+  const nudge = (dir: 1 | -1) => {
+    const el = ref.current;
+    if (!el) return;
+    holdUntil.current = performance.now() + 1500;
+    const p = period();
+    const s = step();
+    if (loop && p > 0) {
+      // Jump by one period first (invisible: both sets look the same) so stepping never hits an end.
+      if (dir === 1 && el.scrollLeft + s >= p) el.scrollLeft -= p;
+      if (dir === -1 && el.scrollLeft - s < 0) el.scrollLeft += p;
+    }
+    el.scrollBy({ left: dir * s, behavior: reduce ? "auto" : "smooth" });
+  };
+
+  const moving = loop && !paused && !reduce;
+  const sets = loop ? [false, true] : [false];
+  const btn = cn("grid h-11 w-11 place-items-center rounded-full border border-[#c99428]/35 text-[#e5b647] hover:border-[#e5b647] hover:bg-[#c99428]/10 disabled:opacity-40", FOCUS_RING);
+
   return (
-    <li>
+    <div>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <p className={cn("text-xs", C.muted)}>
+          <span className="hidden md:inline">Hover a DJ to see their dates at {venue}. Tap for the full profile.</span>
+          <span className="md:hidden">Tap a DJ for their dates at {venue}.</span>
+        </p>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {loop && !reduce && (
+            <button type="button" className={btn} onClick={() => setPaused((v) => !v)} aria-pressed={paused} aria-label={paused ? "Play DJ lineup scrolling" : "Pause DJ lineup scrolling"}>
+              {paused ? <Play size={15} /> : <Pause size={15} />}
+            </button>
+          )}
+          <button type="button" className={btn} onClick={() => nudge(-1)} disabled={!loop} aria-label="Previous DJs">
+            <ChevronLeft size={17} />
+          </button>
+          <button type="button" className={btn} onClick={() => nudge(1)} disabled={!loop} aria-label="More DJs">
+            <ChevronRight size={17} />
+          </button>
+        </div>
+      </div>
+      <ul
+        ref={ref}
+        aria-label={`DJ lineup${moving ? ", scrolling" : ""}`}
+        className="-mx-2 flex gap-3 overflow-x-auto px-2 pb-4 pt-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        onMouseEnter={() => (hovered.current = true)}
+        onMouseLeave={() => (hovered.current = false)}
+        onFocus={() => (focused.current = true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) focused.current = false;
+        }}
+        onTouchStart={() => (holdUntil.current = performance.now() + 4000)}
+        onWheel={() => (holdUntil.current = performance.now() + 2500)}
+      >
+        {sets.map((copy) =>
+          djs.map((d, i) => (
+            <DjCard key={`${copy ? "c" : "o"}-${d.id}`} d={d} venue={venue} copy={copy} first={i === 0} onOpen={() => onOpen(d)} />
+          ))
+        )}
+      </ul>
+    </div>
+  );
+}
+
+function DjCard({ d, venue, copy, first, onOpen }: { d: LineupDj; venue: string; copy: boolean; first: boolean; onOpen: () => void }) {
+  const [broken, setBroken] = useState(false);
+  const next = d.upcoming_dates[0];
+  const shown = d.upcoming_dates.slice(0, 4);
+  const more = d.upcoming_dates.length - shown.length;
+  const pos = d.focus ? `${d.focus.x}% ${d.focus.y}%` : "50% 22%";
+  return (
+    <li
+      data-card={!copy && first ? "" : undefined}
+      data-copy={copy && first ? "" : undefined}
+      aria-hidden={copy || undefined}
+      className="shrink-0 basis-[calc((100%-0.75rem)/2)] sm:basis-[calc((100%-1.5rem)/3)] lg:basis-[calc((100%-2.25rem)/4)]"
+    >
       <button
         type="button"
         onClick={onOpen}
-        aria-label={`View profile: ${d.name}`}
+        tabIndex={copy ? -1 : undefined}
+        aria-label={`View profile: ${d.name}. ${d.upcoming_dates.length ? `Booked at ${venue} on ${d.upcoming_dates.map((x) => fmtDay(x, { month: "long", day: "numeric" })).join(", ")}` : "No dates booked yet"}`}
         className={cn(
-          "group flex h-full w-full flex-col items-center gap-2 rounded-[14px] border border-[#c99428]/20 bg-[linear-gradient(180deg,#1a1712,#121212)] px-3 pb-3 pt-4 text-center hover:border-[#e5b647]/60 hover:shadow-[0_12px_28px_rgba(0,0,0,0.5)] active:border-[#f3cf73]",
-          PRESS,
+          "group relative flex h-full w-full origin-center flex-col gap-2 rounded-[14px] border border-[#c99428]/20 bg-[linear-gradient(180deg,#1a1712,#121212)] p-2.5 text-left",
+          "transition-[transform,box-shadow,border-color] duration-300 ease-out hover:z-10 hover:scale-[1.06] hover:border-[#f0c766]/80 hover:shadow-[0_18px_40px_rgba(0,0,0,0.6),0_0_0_1px_rgba(240,199,102,0.35)] focus-visible:z-10 focus-visible:scale-[1.06] active:scale-[1.03]",
+          "motion-reduce:transition-none motion-reduce:hover:scale-100 motion-reduce:focus-visible:scale-100",
           FOCUS_RING
         )}
       >
-        <span className="sm:hidden">
-          <Portrait name={d.name} url={d.photo_url} focus={d.focus} size={100} />
+        <span className="relative block aspect-square w-full overflow-hidden rounded-[10px] border border-[#c99428]/35 bg-[#1d1a14]">
+          {d.photo_url && !broken ? (
+            <img
+              src={d.photo_url}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              onError={() => setBroken(true)}
+              className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-110 group-focus-visible:scale-110 motion-reduce:transition-none motion-reduce:group-hover:scale-100 motion-reduce:group-focus-visible:scale-100"
+              style={{ objectPosition: pos }}
+            />
+          ) : (
+            <span className="grid h-full w-full place-items-center bg-[radial-gradient(ellipse_at_30%_25%,#3a2e17,#17140e_70%)] font-display text-4xl font-light text-[#f0c766]">{initialsOf(d.name)}</span>
+          )}
+          {/* Dates at this venue: chips slide up over the bottom of the photo on hover / keyboard focus. */}
+          <span className="pointer-events-none absolute inset-x-0 bottom-0 translate-y-full bg-[linear-gradient(180deg,rgba(10,9,7,0)_0%,rgba(10,9,7,0.82)_30%,rgba(10,9,7,0.94)_100%)] px-2 pb-2 pt-5 opacity-0 transition-[transform,opacity] duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100 motion-reduce:transition-none">
+            <span className="block text-[9px] font-semibold uppercase tracking-[0.18em] text-[#e5b647]">{shown.length ? "Dates here" : "No dates booked yet"}</span>
+            {shown.length > 0 && (
+              <span className="mt-1 flex flex-wrap gap-1">
+                {shown.map((x, i) => (
+                  <span key={x} className={cn("rounded-[5px] border px-1.5 py-px text-[10px] leading-4", i === 0 ? "border-[#f0c766]/70 bg-[#c99428]/25 text-[#fbeccb]" : "border-[#c99428]/35 bg-black/40 text-[#e9dfcd]")}>
+                    {fmtDay(x, { month: "short", day: "numeric" })}
+                  </span>
+                ))}
+                {more > 0 && <span className="px-0.5 text-[10px] leading-[18px] text-[#e5b647]">+{more}</span>}
+              </span>
+            )}
+          </span>
         </span>
-        <span className="hidden sm:block">
-          <Portrait name={d.name} url={d.photo_url} focus={d.focus} size={116} />
+        <span className="block w-full truncate px-0.5 font-display text-base font-light leading-snug text-[#f6efe2] sm:text-lg">{d.name}</span>
+        <span className={cn("block px-0.5 text-xs", next ? "text-[#e5b647]" : C.muted)}>
+          {next ? `Next: ${fmtDay(next, { month: "short", day: "numeric" })}` : "No date yet"}
+          {d.upcoming_dates.length > 1 && <span className={C.muted}> · {d.upcoming_dates.length} nights</span>}
         </span>
-        <span className="mt-1 line-clamp-2 block w-full break-words font-display text-base font-light leading-snug text-[#f6efe2] sm:text-lg">{d.name}</span>
-        <span className={cn("block text-xs", next ? "text-[#e5b647]" : C.muted)}>
-          {next ? `Next: ${fmtDay(next, { weekday: "short", month: "short", day: "numeric" })}` : "No date scheduled yet"}
-        </span>
-        <span className="mt-auto inline-flex min-h-11 items-center gap-1 text-xs font-medium text-[#e5b647] group-hover:text-[#f3cf73]">
+        <span className="mt-auto inline-flex min-h-11 items-center gap-1 px-0.5 text-xs font-medium text-[#e5b647] group-hover:text-[#f3cf73]">
           View profile <ArrowRight size={13} />
         </span>
       </button>
