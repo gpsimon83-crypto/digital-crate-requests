@@ -19,6 +19,18 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-13-venue-any-date",
+    date: "2026-11-13",
+    area: "CRM",
+    title: "Venues can request a DJ for any date",
+    summary: "Venue portals now have a clear \"Request a DJ for any date\" button under the banner, and venue calendar names match more spellings.",
+    bullets: [
+      "Pick any date up to a year out, add the occasion, drink specials and the DJ you'd like; marked as not guaranteed",
+      "Requests notify Digital Crate DJs staff, the same as before",
+      "Calendar matching ignores apostrophes and endings like \"Bar N Grill\" (Kyote's Bar N Grill finds \"Kyotes\")"
+    ]
+  },
+  {
     id: "2026-11-13-amber-player",
     date: "2026-11-13",
     area: "CRM",

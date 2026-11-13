@@ -534,6 +534,23 @@ export function VenueDashboard() {
                 />
               </div>
 
+              {/* Any date, booked or not: the venue can ask for a DJ (not guaranteed). */}
+              <div className="flex flex-col gap-3 rounded-[14px] border border-[#c99428]/35 bg-gradient-to-r from-[#c99428]/[0.14] to-black/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-sm font-medium text-[#f6efe2]">
+                    <Headphones size={16} className="shrink-0 text-[#e5b647]" aria-hidden /> Need a DJ on another night?
+                  </p>
+                  <p className={cn("mt-0.5 text-xs", C.muted)}>Pick any date, tell us the occasion and which DJ you&apos;d like. Requests aren&apos;t a guarantee; DCDJs confirms based on availability.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openPlan("")}
+                  className={cn("inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#e5b647] px-5 text-sm font-semibold text-[#1a140b] hover:bg-[#f0c45a]", FOCUS_RING)}
+                >
+                  <Plus size={16} aria-hidden /> Request a DJ for any date
+                </button>
+              </div>
+
               {/* Top metrics: each whole card is one button that opens the matching section. */}
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <MetricCard image="/brand/venue-cards/upcoming-nights.webp" icon={CalendarDays} value={view!.overview.upcomingNights} title="Upcoming nights" action="View schedule" onClick={viewSchedule} />
@@ -1441,7 +1458,7 @@ function NightPlanner({
       className="[grid-area:planner]"
       action={
         <button type="button" onClick={() => onPlan("")} className={cn(C.link, "border border-[#c99428]/35")}>
-          <Plus size={14} /> <span className="whitespace-nowrap">Plan a date</span>
+          <Plus size={14} /> <span className="whitespace-nowrap">Request a date</span>
         </button>
       }
     >
@@ -1494,7 +1511,7 @@ function NightPlanner({
           })}
         </ul>
       ) : (
-        <Empty icon={Martini} title="Nothing planned yet" body="Booked nights show here so you can add drink specials. Use Plan a date to ask for a DJ on another night." />
+        <Empty icon={Martini} title="Nothing planned yet" body="Booked nights show here so you can add drink specials. Use Request a date to ask for a DJ on any other night." />
       )}
       {rows.length > 5 && (
         <button type="button" onClick={() => setAll((v) => !v)} className={cn(C.link, "mt-2")}>
