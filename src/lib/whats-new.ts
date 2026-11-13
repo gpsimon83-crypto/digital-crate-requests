@@ -22,11 +22,10 @@ export const UPDATES: UpdateEntry[] = [
     id: "2026-11-13-amber-player",
     date: "2026-11-13",
     area: "CRM",
-    title: "New floating audio player",
-    summary: "Track previews in the DJ library now play in a redesigned player with a live audio visualizer, matching the members-area player.",
+    title: "New audio player bar",
+    summary: "Track previews in the DJ library now play in a redesigned full-width player bar, matching the members-area player.",
     bullets: [
-      "Dark glass player with artwork, title and artist, and a large amber play/pause",
-      "Live visualizer driven by the actual audio (bars, reflection and contour); it settles when paused",
+      "Slim dark glass bar along the bottom with artwork, title and artist, and a large amber play/pause",
       "Seek and volume sliders that work with the keyboard; repeat this song",
       "Previous/next and a Recently played list for songs you've previewed this session",
       "Minimize to a small pill, or close to stop; on phones the extra controls are in the ⋯ menu"
