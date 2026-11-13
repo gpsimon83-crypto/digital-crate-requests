@@ -50,7 +50,7 @@ export function venueNameVariants(name: string): string[] {
   const base = name.replace(/[’‘`ʼ]/g, "'").replace(/\s+/g, " ").trim();
   if (base.length < 3) return [];
   const out = new Set<string>([base]);
-  const noType = base.replace(/\s+(sports bar|bar & grill|bar and grill|pub|bar|tavern|lounge|grill|saloon|club)$/i, "").trim();
+  const noType = base.replace(/\s+(sports bar|bar\s*(?:&|and|n'?|'n'?)\s*grill(?:e)?|pub|bar|tavern|lounge|grill|saloon|club)$/i, "").trim();
   const noThe = noType.replace(/^the\s+/i, "").trim();
   for (const v of [base, noType, noThe]) {
     out.add(v);

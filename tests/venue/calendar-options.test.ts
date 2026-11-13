@@ -33,6 +33,7 @@ describe("what a venue portal searches the calendar for", () => {
     expect(venueNameVariants("Casey Key Pub")).toEqual(expect.arrayContaining(["Casey Key Pub", "Casey Key"]));
     expect(venueNameVariants("Brass Boar's Den")).toEqual(["Brass Boar's Den", "Brass Boars Den"]);
     expect(venueNameVariants("Kyote's")).toEqual(expect.arrayContaining(["Kyotes"]));
+    expect(venueNameVariants("Kyote's Bar N Grill")).toEqual(expect.arrayContaining(["Kyote's", "Kyotes"]));
     expect(venueNameVariants("Coyotes")).toEqual(expect.arrayContaining(["Kyotes"]));
     expect(venueNameVariants("Kyotes Sports Bar")).toEqual(expect.arrayContaining(["Kyotes"]));
     expect(venueNameVariants("The Kyotes Bar & Grill")).toEqual(expect.arrayContaining(["Kyotes"]));
