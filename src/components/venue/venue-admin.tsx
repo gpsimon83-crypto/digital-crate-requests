@@ -10,7 +10,7 @@ import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { VenueBanner } from "./venue-banner";
 import { DAY_NAMES, type CoverFocus, type RecurringNight, type VenueManager, type VenueRecord } from "@/lib/venue/types";
 import { cn } from "@/lib/utils";
-import { VENUE_CALENDAR_OPTIONS } from "@/lib/venue/calendar-options";
+import { isDjName, venueSearchNames, VENUE_CALENDAR_OPTIONS } from "@/lib/venue/calendar-options";
 
 interface LogRow {
   id: string;
@@ -288,7 +288,7 @@ export function VenueAdmin({ venueId }: { venueId: string }) {
           </Card>
         </div>
 
-        <CalendarNamesCard venueId={venue.id} names={venue.calendar_names} onChange={(n) => edit({ calendar_names: n })} />
+        <CalendarNamesCard venueId={venue.id} venueName={venue.name} names={venue.calendar_names} onChange={(n) => edit({ calendar_names: n })} />
 
         <ManagersCard venueId={venueId} managers={managers} onChanged={refreshLog} onError={setError} />
 
@@ -523,6 +523,7 @@ function NightsCard({ nights, onChange }: { nights: RecurringNight[]; onChange: 
 
 type CalendarCheck = {
   names: string[];
+  ignored: string[];
   month: string;
   reason: string;
   http: number | null;
@@ -587,14 +588,19 @@ function CalendarCheckButton({ venueId }: { venueId: string }) {
               </ul>
             </>
           )}
-          <p className="mt-2 text-muted">Saved names: {res.names.length ? res.names.join(", ") : "none"} · website answer: {res.http ?? "not asked"}</p>
+          <p className="mt-2 text-muted">
+            Searched for: {res.names.length ? res.names.join(", ") : "nothing"}
+            {res.ignored?.length ? ` · skipped DJ names: ${res.ignored.join(", ")}` : ""} · website answer: {res.http ?? "not asked"}
+          </p>
         </div>
       )}
     </div>
   );
 }
 
-function CalendarNamesCard({ venueId, names, onChange }: { venueId: string; names: string[]; onChange: (n: string[]) => void }) {
+function CalendarNamesCard({ venueId, venueName, names, onChange }: { venueId: string; venueName: string; names: string[]; onChange: (n: string[]) => void }) {
+  const djChips = names.filter((n) => isDjName(n, []));
+  const searching = venueSearchNames(venueName, names, []);
   const [pick, setPick] = useState("");
   const [other, setOther] = useState("");
   const has = (t: string) => names.some((n) => n.toLowerCase() === t.toLowerCase());
@@ -620,8 +626,22 @@ function CalendarNamesCard({ venueId, names, onChange }: { venueId: string; name
             </button>
           </span>
         ))}
-        {!names.length && <span className="text-xs text-muted">None yet: choose one below, then Save changes.</span>}
+        {!names.length && <span className="text-xs text-muted">Optional: the venue&apos;s own name is always searched. Add another spelling below if the calendar writes it differently.</span>}
       </div>
+      <p className="mt-2 text-xs text-muted">
+        Searching the calendar for: <b className="text-text">{searching.join(", ")}</b>
+      </p>
+      {djChips.length > 0 && (
+        <div className="mt-2 rounded-[10px] border border-status-pending/40 bg-status-pending/10 p-3 text-xs">
+          <p>
+            <b>These are DJ names, so they&apos;re skipped here:</b> {djChips.join(", ")}. DJs belong in Venue Portals → DJs on the DCDJ calendar,
+            which already sets their real names on every venue.
+          </p>
+          <Button variant="secondary" className="mt-2" onClick={() => onChange(names.filter((n) => !isDjName(n, [])))}>
+            Remove DJ names from this box
+          </Button>
+        </div>
+      )}
       <div className="mt-3 flex max-w-lg flex-col gap-2 sm:flex-row">
         <select
           className={inputCls}

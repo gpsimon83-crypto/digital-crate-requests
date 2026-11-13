@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
 import { requireVenueAdmin } from "@/lib/venue/server";
 import { fetchVenueNights } from "@/lib/venue/calendar-feed";
+import { isDjName, venueSearchNames, type CalendarDjName } from "@/lib/venue/calendar-options";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -20,7 +21,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const { data: venue, error } = await db.from("venues").select("id, name, calendar_names").eq("id", id).maybeSingle();
     if (error) throw error;
     if (!venue) return NextResponse.json({ error: "Venue not found" }, { status: 404 });
-    const names = ((venue.calendar_names as string[] | null) ?? []).filter(Boolean);
+    const saved = ((venue.calendar_names as string[] | null) ?? []).filter(Boolean);
+    const { data: djRows } = await db.from("calendar_dj_names").select("id, calendar_name, display_name");
+    const djs = (djRows ?? []) as CalendarDjName[];
+    const names = venueSearchNames(venue.name as string, saved, djs);
+    const ignored = saved.filter((n) => isDjName(n, djs));
     const month = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit" }).format(new Date()).slice(0, 7);
     const secret = process.env.INQUIRY_PARTNER_SECRET ?? "";
     const feed = names.length ? await fetchVenueNights(names, month, 3) : { nights: [], status: "ok" as const, http: undefined };
@@ -37,6 +42,7 @@ export async function GET(_req: NextRequest, { params }: Params) {
 
     return NextResponse.json({
       names,
+      ignored,
       month,
       keySet: secret.length >= 32,
       http: feed.http ?? null,
