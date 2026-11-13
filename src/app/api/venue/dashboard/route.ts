@@ -1,3 +1,4 @@
+import { createHash } from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
@@ -77,29 +78,70 @@ export async function GET(req: NextRequest) {
       source: "calendar" as const
     });
     const names = venue.calendar_names ?? [];
+    // Words that identify this venue in cratesdjs.com data: its name plus its calendar names.
+    // Characters with meaning in PostgREST filters are dropped, so a name can never change the query.
+    const terms = [...new Set([venue.name, ...names].map((t) => String(t ?? "").replace(/[,()*%\\"'.:]/g, " ").replace(/\s+/g, " ").trim()).filter((t) => t.length >= 3))].slice(0, 12);
+    const nameMatch = terms.map((t) => `venue_name.ilike.*${t}*`).join(",");
+    const summaryMatch = terms.map((t) => `summary.ilike.*${t}*`).join(",");
 
     const win = monthWindow(month);
-    const [monthFeed, upcomingFeed] = await Promise.all([
+    const nowIso = new Date().toISOString();
+    const upTo = new Date(Date.now() + 120 * 86400000).toISOString();
+    const none = Promise.resolve({ data: [] as unknown[], error: null });
+    const [monthFeed, upcomingFeed, monthRes, upcomingRes, lineupRes, namedMonthRes, namedUpcomingRes, blocksMonthRes, blocksUpRes] = await Promise.all([
       fetchVenueNights(names, month, 1),
-      fetchVenueNights(names, today.slice(0, 7), 3)
-    ]);
-    const [monthRes, upcomingRes, lineupRes] = await Promise.all([
+      fetchVenueNights(names, today.slice(0, 7), 3),
       db.from("events").select(cols).eq("venue_id", venue.id).gte("starts_at", win.from).lt("starts_at", win.to).order("starts_at"),
-      db.from("events").select(cols).eq("venue_id", venue.id).gte("starts_at", new Date().toISOString()).neq("status", "declined").order("starts_at").limit(8),
-      db.from("venue_djs").select("djs(id, display_name, photo_url, top_genres, specialties, event_types)").eq("venue_id", venue.id)
+      db.from("events").select(cols).eq("venue_id", venue.id).gte("starts_at", nowIso).neq("status", "declined").order("starts_at").limit(8),
+      db.from("venue_djs").select("djs(id, display_name, photo_url, top_genres, specialties, event_types)").eq("venue_id", venue.id),
+      // CRM projects not linked to the venue record but entered with its name (e.g. website inquiries once booked).
+      nameMatch
+        ? db.from("events").select(cols).is("venue_id", null).or(nameMatch).not("status", "in", "(inquiry,declined)").gte("starts_at", win.from).lt("starts_at", win.to).order("starts_at")
+        : none,
+      nameMatch
+        ? db.from("events").select(cols).is("venue_id", null).or(nameMatch).not("status", "in", "(inquiry,declined)").gte("starts_at", nowIso).order("starts_at").limit(8)
+        : none,
+      // Google Calendar events already pulled into the cratesdjs.com Calendar page.
+      summaryMatch
+        ? db.from("external_calendar_busy_blocks").select("google_event_id, summary, starts_at, ends_at").or(summaryMatch).gte("starts_at", win.from).lt("starts_at", win.to).order("starts_at")
+        : none,
+      summaryMatch
+        ? db.from("external_calendar_busy_blocks").select("google_event_id, summary, starts_at, ends_at").or(summaryMatch).gte("ends_at", nowIso).lt("starts_at", upTo).order("starts_at").limit(12)
+        : none
     ]);
     if (monthRes.error) throw monthRes.error;
     if (upcomingRes.error) throw upcomingRes.error;
     if (lineupRes.error) throw lineupRes.error;
+    // The extra sources are best-effort: a failure there never hides the venue's own bookings.
+    const rows = (r: { data: unknown[] | null; error: unknown }) => (r.error ? [] : ((r.data ?? []) as unknown[]));
+
+    type Block = { google_event_id: string; summary: string | null; starts_at: string; ends_at: string };
+    const feedId = (googleId: string) => `gcal_${createHash("sha256").update(googleId).digest("hex").slice(0, 20)}`;
+    const fromBlock = (b: Block) => {
+      // Google all-day events are stored as whole UTC days (midnight to midnight); a 6 PM Chicago night also starts at 00:00Z, so length decides.
+      const span = Date.parse(b.ends_at) - Date.parse(b.starts_at);
+      const allDay = /^\d{4}-\d{2}-\d{2}$/.test(b.starts_at) || (/T00:00:00(\.0+)?(Z|\+00:?00)$/.test(b.starts_at) && span > 0 && span % 86400000 === 0);
+      const date = allDay ? b.starts_at.slice(0, 10) : localDate(b.starts_at);
+      return { id: feedId(b.google_event_id), date, starts_at: allDay ? null : b.starts_at, ends_at: allDay ? null : b.ends_at, label: nightLabel(date), status: "pending" as const, dj: null, source: "calendar" as const };
+    };
+    // Calendar nights from WordPress win (they know the DJ); pulled CRM calendar events fill any gaps.
+    const mergeCal = <T extends { id: string }>(feed: T[], blocks: T[]) => { const seen = new Set(feed.map((f) => f.id)); return [...feed, ...blocks.filter((b) => !seen.has(b.id))]; };
+    const uniqById = <T extends { id: string }>(list: T[]) => { const seen = new Set<string>(); return list.filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true))); };
 
     const sortKey = (e: { starts_at: string | null; date: string | null }) => (e.starts_at ? new Date(e.starts_at).toISOString() : `${e.date}T06:00:00.000Z`);
     const byStart = (a: { starts_at: string | null; date: string | null }, b: { starts_at: string | null; date: string | null }) => sortKey(a).localeCompare(sortKey(b));
-    const monthEvents = [
-      ...((monthRes.data ?? []) as unknown as EventRow[]).map(shape).filter((e) => e.date?.startsWith(month)),
-      ...monthFeed.nights.filter((n) => n.date.startsWith(month)).map(fromCalendar)
-    ].sort(byStart);
-    const calUpcoming = upcomingFeed.nights.filter((n) => n.date >= today).map(fromCalendar);
-    const upcoming = [...((upcomingRes.data ?? []) as unknown as EventRow[]).map(shape), ...calUpcoming].sort(byStart).slice(0, 8);
+    const monthProjects = uniqById([...((monthRes.data ?? []) as unknown as EventRow[]), ...(rows(namedMonthRes) as EventRow[])]).map(shape);
+    const upcomingProjects = uniqById([...((upcomingRes.data ?? []) as unknown as EventRow[]), ...(rows(namedUpcomingRes) as EventRow[])]).map(shape);
+    const monthCal = mergeCal(
+      monthFeed.nights.filter((n) => n.date.startsWith(month)).map(fromCalendar),
+      (rows(blocksMonthRes) as Block[]).map(fromBlock).filter((b) => b.date.startsWith(month))
+    );
+    const calUpcoming = mergeCal(
+      upcomingFeed.nights.filter((n) => n.date >= today).map(fromCalendar),
+      (rows(blocksUpRes) as Block[]).map(fromBlock).filter((b) => b.date >= today)
+    );
+    const monthEvents = [...monthProjects.filter((e) => e.date?.startsWith(month)), ...monthCal].sort(byStart);
+    const upcoming = [...upcomingProjects, ...calUpcoming].sort(byStart).slice(0, 8);
 
     const lineupDjs = (lineupRes.data ?? [])
       .map((r) => r.djs as unknown as { id: string; display_name: string; photo_url: string | null; top_genres: string[] | null; specialties: string[] | null; event_types: string[] | null } | null)
@@ -119,13 +161,14 @@ export async function GET(req: NextRequest) {
     const calDjs = new Map<string, { name: string; photo_url: string | null; dates: string[] }>();
     for (const n of calUpcoming) {
       if (!n.dj) continue;
-      if (lineup.some((l) => l.name.toLowerCase() === n.dj!.name.toLowerCase())) {
-        const l = lineup.find((x) => x.name.toLowerCase() === n.dj!.name.toLowerCase())!;
-        if (!l.upcoming_dates.includes(n.date) && l.upcoming_dates.length < 3) l.upcoming_dates.push(n.date);
+      const dj = n.dj;
+      const linked = lineup.find((x) => x.name.toLowerCase() === dj.name.toLowerCase());
+      if (linked) {
+        if (!linked.upcoming_dates.includes(n.date) && linked.upcoming_dates.length < 3) linked.upcoming_dates.push(n.date);
         continue;
       }
-      const k = n.dj.name.toLowerCase();
-      const cur = calDjs.get(k) ?? { name: n.dj.name, photo_url: n.dj.photo_url, dates: [] };
+      const k = dj.name.toLowerCase();
+      const cur = calDjs.get(k) ?? { name: dj.name, photo_url: dj.photo_url, dates: [] };
       if (cur.dates.length < 3) cur.dates.push(n.date);
       calDjs.set(k, cur);
     }
