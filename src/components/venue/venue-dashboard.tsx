@@ -14,11 +14,13 @@ import {
   Headphones,
   LayoutDashboard,
   LogOut,
+  Martini,
   Mail,
   MessageSquare,
   Pause,
   Phone,
   Play,
+  Plus,
   Sparkles,
   Star,
   Users,
@@ -65,6 +67,16 @@ interface LineupDj {
   event_types: string[];
   upcoming_dates: string[];
 }
+interface Plan {
+  date: string;
+  occasion: string | null;
+  drink_specials: string | null;
+  dj_request_id: string | null;
+  dj_request_name: string | null;
+  dj_request_note: string | null;
+  dj_requested_at: string | null;
+  updated_at: string | null;
+}
 interface Dashboard {
   preview: boolean;
   calendarFeed?: { names: number; status: "ok" | "off" | "error" | "no-names" };
@@ -88,6 +100,8 @@ interface Dashboard {
   monthHolidays: { key: string; name: string; date: string }[];
   holidays: Holiday[];
   lineup: LineupDj[];
+  plans?: Plan[];
+  planning?: { ready: boolean; canEdit: boolean };
   messages: never[];
   contact: { name: string | null; email: string | null; phone: string | null };
 }
@@ -95,7 +109,7 @@ interface Dashboard {
 /** Venue nights are booked and shown in the venue's local time (all partner venues are in Wisconsin/Illinois). */
 const TZ = "America/Chicago";
 const C = {
-  card: "rounded-[14px] border border-[#c99428]/20 bg-[#141414] shadow-[0_6px_24px_rgba(0,0,0,0.35)]",
+  card: "rounded-[14px] border border-[#c99428]/20 bg-[#141414]/90 shadow-[0_6px_24px_rgba(0,0,0,0.35)] backdrop-blur-sm",
   eyebrow: "text-[10px] font-semibold uppercase tracking-[0.22em] text-[#e5b647]",
   muted: "text-[#b3aa9a]",
   link: "inline-flex min-h-11 items-center gap-1.5 rounded-[10px] px-2 text-xs font-medium text-[#e5b647] hover:text-[#f3cf73] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e5b647]"
@@ -108,6 +122,7 @@ const NAV = [
   { id: "overview", label: "Dashboard", icon: LayoutDashboard },
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "lineup", label: "DJ Lineup", icon: Headphones },
+  { id: "planner", label: "Specials", icon: Martini },
   { id: "holidays", label: "Holidays", icon: Sparkles },
   { id: "messages", label: "Messages", icon: MessageSquare }
 ];
@@ -210,6 +225,8 @@ export function VenueDashboard() {
   const [showAll, setShowAll] = useState(false);
   const [filter, setFilter] = useState<"all" | "pending">("all");
   const [profile, setProfile] = useState<LineupDj | null>(null);
+  // Night plan dialog: a date (or "" for a new date), plus an occasion to start with (holidays).
+  const [planFor, setPlanFor] = useState<{ date: string; occasion?: string } | null>(null);
 
   const venueParam = params.get("venue") ?? "";
   const monthParam = params.get("month") ?? "";
@@ -258,6 +275,10 @@ export function VenueDashboard() {
     return m;
   }, [data]);
   const detail = eventParam ? allEvents.get(eventParam) ?? null : null;
+  const plans = useMemo(() => new Map((data?.plans ?? []).map((p) => [p.date, p])), [data]);
+  const openPlan = (date: string, occasion?: string) => setPlanFor({ date, occasion });
+  const savePlanLocally = (date: string, plan: Plan | null) =>
+    setData((d) => (d ? { ...d, plans: [...(d.plans ?? []).filter((p) => p.date !== date), ...(plan ? [plan] : [])].sort((a, b) => a.date.localeCompare(b.date)) } : d));
   const openEvent = (e: Ev) => setQuery({ event: e.id });
   const closeEvent = () => setQuery({ event: "" });
 
@@ -315,9 +336,23 @@ export function VenueDashboard() {
   const visible = showAll ? listed : listed.slice(0, 3);
 
   return (
-    <div className="min-h-dvh overflow-x-clip bg-[#0b0b0b] text-[#efe7d8]">
+    <div className="relative isolate min-h-dvh overflow-x-clip bg-[#0b0b0b] text-[#efe7d8]">
+      {/* A soft, blurred copy of the venue banner behind everything, for depth. */}
+      {data?.venue.cover_url && (
+        <div aria-hidden className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+          <div
+            className="absolute inset-[-8%] scale-110 opacity-70 blur-[48px] saturate-[1.25]"
+            style={{
+              backgroundImage: `url(${JSON.stringify(data.venue.cover_url)})`,
+              backgroundSize: "cover",
+              backgroundPosition: `${data.venue.cover_focus.desktop.x}% ${data.venue.cover_focus.desktop.y}%`
+            }}
+          />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_10%,rgba(11,11,11,0.15)_0%,rgba(11,11,11,0.55)_55%,rgba(11,11,11,0.85)_100%)]" />
+        </div>
+      )}
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col border-r border-[#c99428]/15 bg-[#0e0e0e] px-3 py-5 lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col border-r border-[#c99428]/15 bg-[#0e0e0e]/80 px-3 backdrop-blur-md py-5 lg:flex">
         <div className="flex items-center gap-2 px-2">
           <Logo variant="icon" brand="crates-djs" size={30} />
           <div className="leading-tight">
@@ -344,7 +379,7 @@ export function VenueDashboard() {
 
       <div className="pb-24 lg:pb-8 lg:pl-56">
         {/* Top bar */}
-        <header className="sticky top-0 z-20 border-b border-[#c99428]/15 bg-[#0b0b0b]/90 backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-[#c99428]/15 bg-[#0b0b0b]/75 backdrop-blur-md">
           <div className="mx-auto flex max-w-[1400px] items-center gap-2 px-4 py-2 sm:gap-3 lg:px-6">
             <span className="lg:hidden">
               <Logo variant="icon" brand="crates-djs" size={28} />
@@ -438,7 +473,7 @@ export function VenueDashboard() {
               </div>
 
               {/* Events + lineup (≈62%) beside the calendar (≈38%); stacked events → calendar → lineup on smaller screens. */}
-              <div className="grid grid-cols-1 gap-4 [grid-template-areas:'events'_'calendar'_'lineup'] lg:gap-5 xl:grid-cols-[minmax(0,62fr)_minmax(0,38fr)] xl:[grid-template-areas:'events_calendar'_'lineup_calendar']">
+              <div className="grid grid-cols-1 gap-4 [grid-template-areas:'events'_'calendar'_'lineup'_'planner'] lg:gap-5 xl:grid-cols-[minmax(0,62fr)_minmax(0,38fr)] xl:[grid-template-areas:'events_calendar'_'lineup_calendar'_'planner_calendar']">
                 <Section
                   id="events"
                   title={filter === "pending" ? "Awaiting confirmation" : "Upcoming events"}
@@ -462,7 +497,7 @@ export function VenueDashboard() {
                   {visible.length ? (
                     <ul id="events-list" className="flex flex-col gap-2">
                       {visible.map((e) => (
-                        <EventRow key={e.id} e={e} onOpen={() => openEvent(e)} />
+                        <EventRow key={e.id} e={e} plan={e.date ? plans.get(e.date) : undefined} onOpen={() => openEvent(e)} />
                       ))}
                     </ul>
                   ) : filter === "pending" ? (
@@ -492,6 +527,8 @@ export function VenueDashboard() {
                     onNext={() => goMonth(shiftMonth(month, 1))}
                     onToday={goToday}
                     onOpen={openEvent}
+                    plans={plans}
+                    onPlan={openPlan}
                   />
                 </Section>
 
@@ -502,6 +539,8 @@ export function VenueDashboard() {
                     <Empty icon={Headphones} title="Your DJ lineup is coming" body="The DJs booked at your venue will appear here with their next dates." />
                   )}
                 </Section>
+
+                <NightPlanner data={data} plans={plans} onPlan={openPlan} />
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-5 xl:grid-cols-3">
@@ -520,26 +559,24 @@ export function VenueDashboard() {
                             {h.note ? ` · ${h.note}` : ""}
                           </p>
                         </div>
-                        {h.status === "none" && (data.contact.email || data.contact.phone) ? (
-                          <a
-                            data-holiday-action=""
-                            className={cn(C.link, "shrink-0 border border-[#c99428]/35")}
-                            href={
-                              data.contact.email
-                                ? `mailto:${data.contact.email}?subject=${encodeURIComponent(`${h.name} at ${data.venue.name}`)}&body=${encodeURIComponent(`Hi${data.contact.name ? ` ${data.contact.name}` : ""},\n\nWe'd like a DJ for ${h.name} (${fmtDay(h.date, { weekday: "long", month: "long", day: "numeric" })}) at ${data.venue.name}.\n\nThanks!`)}`
-                                : `tel:${data.contact.phone}`
-                            }
-                          >
-                            Request
-                          </a>
-                        ) : (
+                        {h.status !== "none" ? (
                           <StatusPill status={h.status} />
+                        ) : (
+                          <button
+                            type="button"
+                            data-holiday-action=""
+                            onClick={() => openPlan(h.date, plans.get(h.date)?.occasion ?? h.name)}
+                            className={cn(C.link, "shrink-0 border", plans.get(h.date)?.dj_requested_at ? "border-[#e5b647]/60 bg-[#c99428]/15" : "border-[#c99428]/35")}
+                            aria-label={`${plans.get(h.date)?.dj_requested_at ? "DJ requested for" : "Request a DJ for"} ${h.name}`}
+                          >
+                            {plans.get(h.date)?.dj_requested_at ? "DJ requested" : "Request"}
+                          </button>
                         )}
                       </li>
                     ))}
                   </ul>
                   <p className={cn("mt-2 text-[11px]", C.muted)}>
-                    Holidays book up first. {data.contact.email || data.contact.phone ? "Tap Request to ask your DCDJs contact for that night." : "Talk to your DCDJs contact to plan these nights early."}
+                    Holidays book up first. Tap Request to ask for a DJ and add your drink specials. Requests aren&apos;t a guarantee; DCDJs confirms based on DJ availability.
                   </p>
                 </Section>
 
@@ -602,7 +639,7 @@ export function VenueDashboard() {
       </div>
 
       {/* Mobile bottom navigation */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-[#c99428]/20 bg-[#0e0e0e]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Venue portal">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-[#c99428]/20 bg-[#0e0e0e]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Venue portal">
         {NAV.map((n) => (
           <a key={n.id} href={`#${n.id}`} className="flex min-h-14 flex-col items-center justify-center gap-1 text-[10px] text-[#cfc6b6] active:text-[#e5b647]">
             <n.icon size={18} className="text-[#c99428]" />
@@ -611,7 +648,18 @@ export function VenueDashboard() {
         ))}
       </nav>
 
-      {detail && <EventDetail e={detail} venue={data?.venue.name ?? ""} onClose={closeEvent} onProfile={(dj) => { const l = data?.lineup.find((x) => (dj.id && x.profile_id === dj.id) || x.name === dj.name); if (l) { closeEvent(); setProfile(l); } }} />}
+      {detail && <EventDetail e={detail} venue={data?.venue.name ?? ""} plan={detail.date ? plans.get(detail.date) : undefined} canPlan={!!detail.date && !!data && detail.date >= data.today} onPlan={() => { const d = detail.date!; closeEvent(); openPlan(d); }} onClose={closeEvent} onProfile={(dj) => { const l = data?.lineup.find((x) => (dj.id && x.profile_id === dj.id) || x.name === dj.name); if (l) { closeEvent(); setProfile(l); } }} />}
+      {planFor && data && (
+        <NightPlanDialog
+          data={data}
+          date={planFor.date}
+          startOccasion={planFor.occasion}
+          plan={planFor.date ? plans.get(planFor.date) : undefined}
+          plans={plans}
+          onClose={() => setPlanFor(null)}
+          onSaved={(date, plan) => savePlanLocally(date, plan)}
+        />
+      )}
       {profile && data && <DjProfile d={profile} onClose={() => setProfile(null)} onOpenEvent={(e) => { setProfile(null); openEvent(e); }} events={data.upcoming.filter((e) => e.dj && ((profile.profile_id && e.dj.id === profile.profile_id) || e.dj.name === profile.name))} />}
     </div>
   );
@@ -660,7 +708,7 @@ function DateTile({ iso }: { iso: string }) {
   );
 }
 
-function EventRow({ e, onOpen }: { e: Ev; onOpen: () => void }) {
+function EventRow({ e, plan, onOpen }: { e: Ev; plan?: Plan; onOpen: () => void }) {
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-[12px] border border-white/[0.06] bg-black/20 p-3 sm:flex-nowrap sm:gap-4">
       {e.date && <DateTile iso={e.date} />}
@@ -672,10 +720,20 @@ function EventRow({ e, onOpen }: { e: Ev; onOpen: () => void }) {
       </span>
       <div className="min-w-0 flex-1">
         <p className="truncate text-base font-medium text-[#f6efe2]">{e.dj?.name ?? "DJ to be assigned"}</p>
-        <p className={cn("truncate text-xs", C.muted)}>{e.label}</p>
+        <p className={cn("truncate text-xs", C.muted)}>
+          {plan?.occasion ? `${plan.occasion} · ` : ""}
+          {e.label}
+        </p>
         <p className="mt-0.5 text-xs text-[#e9dfcd]">
           {e.date ? fmtDay(e.date, { weekday: "short", month: "short", day: "numeric" }) : "Date to be set"} · {timeRange(e)}
         </p>
+        {plan?.drink_specials && (
+          <p className="mt-1 flex items-center gap-1.5 truncate text-[11px] text-[#ecd9a8]">
+            <Martini size={12} className="shrink-0 text-[#c99428]" aria-hidden />
+            <span className="sr-only">Drink specials: </span>
+            <span className="truncate">{plan.drink_specials.split("\n")[0]}</span>
+          </p>
+        )}
       </div>
       <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:flex-col sm:items-end">
         <StatusPill status={e.status} />
@@ -901,8 +959,12 @@ function CalendarPanel({
   onPrev,
   onNext,
   onToday,
-  onOpen
+  onOpen,
+  plans,
+  onPlan
 }: {
+  plans: Map<string, Plan>;
+  onPlan: (date: string, occasion?: string) => void;
   data: Dashboard;
   selected: string | null;
   onSelect: (d: string) => void;
@@ -978,7 +1040,9 @@ function CalendarPanel({
             fmtDay(iso, { weekday: "long", month: "long", day: "numeric" }),
             isToday ? "today" : "",
             evs.length ? `${evs.length} night${evs.length > 1 ? "s" : ""} booked` : "",
-            hol ? hol.name : ""
+            hol ? hol.name : "",
+            plans.get(iso)?.drink_specials ? "drink specials added" : "",
+            plans.get(iso)?.dj_requested_at ? "DJ requested" : ""
           ]
             .filter(Boolean)
             .join(", ");
@@ -1007,6 +1071,7 @@ function CalendarPanel({
                 ))}
               </span>
               {hol && <Star size={9} className="absolute right-1 top-1 fill-[#e5b647] text-[#e5b647]" aria-hidden />}
+              {plans.has(iso) && <Martini size={10} className="absolute left-1 top-1 text-[#e5b647]" aria-hidden />}
             </button>
           );
         })}
@@ -1016,6 +1081,7 @@ function CalendarPanel({
         <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#f4c56e]" /> Pending</span>
         <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-[#ee9a93]" /> Cancelled</span>
         <span className="flex items-center gap-1.5"><Star size={10} className="fill-[#e5b647] text-[#e5b647]" /> Holiday</span>
+        <span className="flex items-center gap-1.5"><Martini size={11} className="text-[#e5b647]" /> Specials / DJ request</span>
         {nightDays.size > 0 && <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm bg-white/15" /> Regular night</span>}
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm ring-1 ring-[#e5b647]/60" /> Today</span>
       </div>
@@ -1050,6 +1116,16 @@ function CalendarPanel({
             </ul>
           ) : (
             <p className={cn("mt-1 text-xs", C.muted)}>Nothing scheduled this day.</p>
+          )}
+          {plans.get(selected) && <PlanSummary plan={plans.get(selected)!} className="mt-3" />}
+          {selected >= data.today && (
+            <button
+              type="button"
+              onClick={() => onPlan(selected, plans.get(selected)?.occasion ?? dayHolidays[0]?.name)}
+              className={cn(C.link, "mt-2 w-full justify-center border border-[#c99428]/35")}
+            >
+              <Martini size={13} /> {plans.get(selected) ? "Edit specials & DJ request" : "Add drink specials or request a DJ"}
+            </button>
           )}
         </div>
       )}
@@ -1089,7 +1165,7 @@ function Dialog({ label, onClose, children }: { label: string; onClose: () => vo
   );
 }
 
-function EventDetail({ e, venue, onClose, onProfile }: { e: Ev; venue: string; onClose: () => void; onProfile: (dj: EvDj) => void }) {
+function EventDetail({ e, venue, plan, canPlan, onPlan, onClose, onProfile }: { e: Ev; venue: string; plan?: Plan; canPlan: boolean; onPlan: () => void; onClose: () => void; onProfile: (dj: EvDj) => void }) {
   return (
     <Dialog label="Event details" onClose={onClose}>
       <div className="flex items-start justify-between gap-3">
@@ -1128,6 +1204,12 @@ function EventDetail({ e, venue, onClose, onProfile }: { e: Ev; venue: string; o
           <StatusPill status={e.status} />
         </dd>
       </dl>
+      {plan && <PlanSummary plan={plan} className="mt-4" />}
+      {canPlan && (
+        <button type="button" onClick={onPlan} className={cn(C.link, "mt-3 w-full justify-center border border-[#c99428]/35")}>
+          <Martini size={13} /> {plan ? "Edit specials & DJ request" : "Add drink specials or request a DJ"}
+        </button>
+      )}
     </Dialog>
   );
 }
@@ -1180,6 +1262,314 @@ function DjProfile({ d, events, onClose, onOpenEvent }: { d: LineupDj; events: E
           <p className={cn("mt-1 text-xs", C.muted)}>No upcoming dates here yet.</p>
         )}
       </div>
+    </Dialog>
+  );
+}
+
+const ANY_DJ = "Any available DJ";
+const NOT_GUARANTEED = "A DJ request isn't a guarantee. Digital Crate DJs confirms nights based on DJ availability and will follow up with you.";
+
+/** What the venue added to a date: occasion, drink specials and its DJ request (clearly marked as a request). */
+function PlanSummary({ plan, className }: { plan: Plan; className?: string }) {
+  return (
+    <div className={cn("rounded-[12px] border border-[#c99428]/25 bg-[#c99428]/[0.06] p-3 text-sm", className)}>
+      {plan.occasion && <p className="font-medium text-[#f6efe2]">{plan.occasion}</p>}
+      {plan.drink_specials && (
+        <div className={plan.occasion ? "mt-2" : ""}>
+          <p className={cn(C.eyebrow, "flex items-center gap-1.5")}>
+            <Martini size={12} aria-hidden /> Drink specials
+          </p>
+          <p className="mt-1 whitespace-pre-line text-[13px] leading-relaxed text-[#e9dfcd]">{plan.drink_specials}</p>
+        </div>
+      )}
+      {(plan.dj_request_name || plan.dj_request_note) && (
+        <div className={plan.occasion || plan.drink_specials ? "mt-2.5 border-t border-white/5 pt-2.5" : ""}>
+          <p className={cn(C.eyebrow, "flex items-center gap-1.5")}>
+            <Headphones size={12} aria-hidden /> Your DJ request
+          </p>
+          <p className="mt-1 text-[13px] text-[#f6efe2]">{plan.dj_request_name ?? ANY_DJ}</p>
+          {plan.dj_request_note && <p className={cn("mt-0.5 whitespace-pre-line text-xs", C.muted)}>{plan.dj_request_note}</p>}
+          <p className="mt-1.5 text-[11px] text-[#f4c56e]">Requested, not guaranteed. DCDJs will confirm.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The venue's planning list: upcoming booked nights plus any date the venue added,
+ * each with its drink specials and DJ request. Venues add or edit from here.
+ */
+function NightPlanner({ data, plans, onPlan }: { data: Dashboard; plans: Map<string, Plan>; onPlan: (date: string, occasion?: string) => void }) {
+  const [all, setAll] = useState(false);
+  const rows = useMemo(() => {
+    const byDate = new Map<string, Ev[]>();
+    for (const e of data.upcoming) if (e.date && e.date >= data.today) byDate.set(e.date, [...(byDate.get(e.date) ?? []), e]);
+    const dates = new Set([...byDate.keys(), ...[...plans.keys()].filter((d) => d >= data.today)]);
+    return [...dates].sort().map((date) => ({ date, events: byDate.get(date) ?? [], plan: plans.get(date) }));
+  }, [data.upcoming, data.today, plans]);
+  const shown = all ? rows : rows.slice(0, 5);
+  const canEdit = data.planning?.canEdit ?? false;
+
+  return (
+    <Section
+      id="planner"
+      title="Drink specials & DJ requests"
+      className="[grid-area:planner]"
+      action={
+        <button type="button" onClick={() => onPlan("")} className={cn(C.link, "border border-[#c99428]/35")}>
+          <Plus size={14} /> <span className="whitespace-nowrap">Plan a date</span>
+        </button>
+      }
+    >
+      <p className={cn("-mt-1 mb-3 text-xs", C.muted)}>
+        List your drink specials for each night and tell us which DJ you&apos;d like for a night or event.
+      </p>
+      {rows.length ? (
+        <ul className="flex flex-col gap-2">
+          {shown.map(({ date, events, plan }) => {
+            const booked = events.filter((e) => e.dj);
+            return (
+              <li key={date} className="flex flex-wrap items-start gap-3 rounded-[12px] border border-white/[0.06] bg-black/20 p-3 sm:flex-nowrap">
+                <DateTile iso={date} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[#f6efe2]">
+                    {plan?.occasion || [...new Set(events.map((e) => e.label))].join(" · ") || "A date you added"}
+                  </p>
+                  {events.length ? (
+                    <p className={cn("truncate text-[11px]", C.muted)}>
+                      {booked.length ? booked.map((e) => e.dj!.name).join(", ") : "DJ to be assigned"}
+                      {" · "}
+                      {events[0].status === "confirmed" ? "Confirmed" : events[0].status === "pending" ? "Pending" : "Cancelled"}
+                    </p>
+                  ) : (
+                    <p className={cn("text-[11px]", C.muted)}>Not booked yet</p>
+                  )}
+                  <p className={cn("mt-1.5 flex items-start gap-1.5 text-xs", plan?.drink_specials ? "text-[#ecd9a8]" : C.muted)}>
+                    <Martini size={13} className="mt-px shrink-0 text-[#c99428]" aria-hidden />
+                    <span className="line-clamp-2 whitespace-pre-line">{plan?.drink_specials ?? "No drink specials listed"}</span>
+                  </p>
+                  {(plan?.dj_request_name || plan?.dj_request_note) && (
+                    <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[#e9dfcd]">
+                      <Headphones size={13} className="shrink-0 text-[#c99428]" aria-hidden />
+                      Requested: {plan.dj_request_name ?? ANY_DJ}
+                      <span className="rounded-full border border-[#d79a32]/45 bg-[#d79a32]/10 px-2 py-px text-[10px] text-[#f4c56e]">Not guaranteed</span>
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onPlan(date, plan?.occasion ?? undefined)}
+                  aria-label={`${plan ? "Edit" : "Add"} specials or DJ request for ${fmtDay(date, { weekday: "long", month: "long", day: "numeric" })}`}
+                  className={cn(C.link, "w-full justify-center border border-[#c99428]/30 sm:w-auto")}
+                >
+                  {plan ? "Edit" : canEdit ? "Add specials" : "View"}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <Empty icon={Martini} title="Nothing planned yet" body="Booked nights show here so you can add drink specials. Use Plan a date to ask for a DJ on another night." />
+      )}
+      {rows.length > 5 && (
+        <button type="button" onClick={() => setAll((v) => !v)} className={cn(C.link, "mt-2")}>
+          {all ? "Show fewer" : `Show all (${rows.length})`}
+        </button>
+      )}
+      <p className="mt-3 rounded-[10px] border border-[#d79a32]/30 bg-[#d79a32]/[0.07] px-3 py-2 text-[11px] leading-relaxed text-[#f1d9a4]">{NOT_GUARANTEED}</p>
+    </Section>
+  );
+}
+
+function NightPlanDialog({
+  data,
+  date: startDate,
+  startOccasion,
+  plan,
+  plans,
+  onClose,
+  onSaved
+}: {
+  data: Dashboard;
+  date: string;
+  startOccasion?: string;
+  plan?: Plan;
+  plans: Map<string, Plan>;
+  onClose: () => void;
+  onSaved: (date: string, plan: Plan | null) => void;
+}) {
+  const ready = data.planning?.ready ?? false;
+  const canEdit = data.planning?.canEdit ?? false;
+  const [date, setDate] = useState(startDate);
+  const existing = date ? plans.get(date) ?? (date === startDate ? plan : undefined) : undefined;
+  const [occasion, setOccasion] = useState(existing?.occasion ?? startOccasion ?? "");
+  const [specials, setSpecials] = useState(existing?.drink_specials ?? "");
+  const djChoices = data.lineup.map((d) => ({ value: d.profile_id ? `id:${d.profile_id}` : `name:${d.name}`, label: d.name }));
+  const initialDj = existing?.dj_request_id
+    ? `id:${existing.dj_request_id}`
+    : existing?.dj_request_name === ANY_DJ
+      ? "any"
+      : existing?.dj_request_name
+        ? djChoices.find((c) => c.label === existing.dj_request_name)?.value ?? "other"
+        : existing?.dj_request_note
+          ? "any"
+          : "";
+  const [dj, setDj] = useState(initialDj);
+  const [otherDj, setOtherDj] = useState(initialDj === "other" ? existing?.dj_request_name ?? "" : "");
+  const [note, setNote] = useState(existing?.dj_request_note ?? "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const dayEvents = date ? data.upcoming.filter((e) => e.date === date) : [];
+  const maxDate = useMemo(() => {
+    const d = new Date(`${data.today}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() + 400);
+    return d.toISOString().slice(0, 10);
+  }, [data.today]);
+
+  // Picking a different date in "Plan a date" loads what's already saved for it.
+  function pickDate(v: string) {
+    setDate(v);
+    const p = plans.get(v);
+    setOccasion(p?.occasion ?? data.holidays.find((h) => h.date === v)?.name ?? "");
+    setSpecials(p?.drink_specials ?? "");
+    const pick = p?.dj_request_id ? `id:${p.dj_request_id}` : p?.dj_request_name === ANY_DJ ? "any" : p?.dj_request_name ? djChoices.find((c) => c.label === p.dj_request_name)?.value ?? "other" : p?.dj_request_note ? "any" : "";
+    setDj(pick);
+    setOtherDj(pick === "other" ? p?.dj_request_name ?? "" : "");
+    setNote(p?.dj_request_note ?? "");
+  }
+
+  async function save(clear = false) {
+    if (!date) {
+      setErr("Pick a date.");
+      return;
+    }
+    setBusy(true);
+    setErr(null);
+    const choice = djChoices.find((c) => c.value === dj);
+    const payload = clear
+      ? { venue: data.venue.id, date }
+      : {
+          venue: data.venue.id,
+          date,
+          occasion,
+          drink_specials: specials,
+          dj_request_id: dj.startsWith("id:") ? dj.slice(3) : null,
+          dj_request_name: dj === "any" ? ANY_DJ : dj === "other" ? otherDj : dj.startsWith("name:") ? dj.slice(5) : choice?.label ?? null,
+          dj_request_note: dj ? note : ""
+        };
+    try {
+      const res = await fetch("/api/venue/night-plans", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || "Couldn't save that. Try again.");
+      onSaved(date, json.plan ?? null);
+      const p = json.plan as Plan | null;
+      const newRequest = !!p?.dj_requested_at && p.dj_requested_at !== existing?.dj_requested_at;
+      setDone(clear || !p ? "Removed." : newRequest ? "Saved. Your DJ request was sent to Digital Crate DJs." : "Saved.");
+      window.setTimeout(onClose, newRequest ? 1600 : 800);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't save that. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const field = "w-full rounded-[10px] border border-[#c99428]/30 bg-black/30 px-3 py-2.5 text-sm text-[#f6efe2] placeholder:text-[#8a8274] focus:border-[#e5b647] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#e5b647]/60 disabled:opacity-60";
+  const label = "mb-1 block text-xs font-medium text-[#d9cfbd]";
+
+  return (
+    <Dialog label="Drink specials and DJ request" onClose={onClose}>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className={C.eyebrow}>Plan a night</p>
+          <p className="mt-1 font-display text-2xl font-light">{date ? fmtDay(date, { weekday: "long", month: "long", day: "numeric" }) : "Pick a date"}</p>
+          <p className={cn("text-xs", C.muted)}>
+            {data.venue.name}
+            {dayEvents.length ? ` · ${dayEvents.map((e) => e.dj?.name ?? "DJ to be assigned").join(", ")}` : date ? " · not booked yet" : ""}
+          </p>
+        </div>
+        <button data-autofocus onClick={onClose} aria-label="Close" className={cn("grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#b3aa9a] hover:text-[#efe7d8]", FOCUS_RING)}>
+          <X size={18} />
+        </button>
+      </div>
+
+      {!canEdit && (
+        <p className="mt-3 rounded-[10px] border border-[#4c86ff]/40 bg-[#4c86ff]/10 px-3 py-2 text-xs text-[#b9d0ff]">
+          {data.preview ? "Admin preview: read-only. The venue adds specials and requests from their own login." : ready ? "You can't edit this right now." : "Drink specials and DJ requests aren't switched on yet. Contact Digital Crate DJs."}
+        </p>
+      )}
+
+      <form
+        className="mt-4 flex flex-col gap-4"
+        onSubmit={(ev) => {
+          ev.preventDefault();
+          void save();
+        }}
+      >
+        {!startDate && (
+          <div>
+            <label className={label} htmlFor="np-date">Date</label>
+            <input id="np-date" type="date" required min={data.today} max={maxDate} value={date} onChange={(e) => pickDate(e.target.value)} disabled={!canEdit} className={cn(field, "min-h-11 [color-scheme:dark]")} />
+          </div>
+        )}
+        <div>
+          <label className={label} htmlFor="np-occasion">Occasion or event <span className={C.muted}>(optional)</span></label>
+          <input id="np-occasion" value={occasion} maxLength={80} onChange={(e) => setOccasion(e.target.value)} disabled={!canEdit} placeholder="e.g. Halloween party, Packers watch party" className={cn(field, "min-h-11")} />
+        </div>
+        <div>
+          <label className={label} htmlFor="np-specials">
+            <Martini size={12} className="mr-1 inline text-[#c99428]" aria-hidden />
+            Drink specials
+          </label>
+          <textarea id="np-specials" value={specials} maxLength={600} rows={3} onChange={(e) => setSpecials(e.target.value)} disabled={!canEdit} placeholder={"e.g. $5 Old Fashioneds\n$3 domestic taps 9–11 PM"} className={field} />
+          <p className={cn("mt-0.5 text-right text-[10px]", C.muted)}>{specials.length}/600</p>
+        </div>
+
+        <fieldset className="rounded-[12px] border border-[#c99428]/25 p-3">
+          <legend className="px-1 text-xs font-medium text-[#d9cfbd]">
+            <Headphones size={12} className="mr-1 inline text-[#c99428]" aria-hidden />
+            Request a DJ <span className={C.muted}>(optional)</span>
+          </legend>
+          <label className="sr-only" htmlFor="np-dj">DJ you&apos;d like</label>
+          <select id="np-dj" value={dj} onChange={(e) => setDj(e.target.value)} disabled={!canEdit} className={cn(field, "min-h-11")}>
+            <option value="">No request</option>
+            <option value="any">{ANY_DJ}</option>
+            {djChoices.map((c) => (
+              <option key={c.value} value={c.value}>
+                {c.label}
+              </option>
+            ))}
+            <option value="other">Another DJ (type a name)</option>
+          </select>
+          {dj === "other" && (
+            <input aria-label="DJ name" value={otherDj} maxLength={80} onChange={(e) => setOtherDj(e.target.value)} disabled={!canEdit} placeholder="DJ name" className={cn(field, "mt-2 min-h-11")} required />
+          )}
+          {dj && (
+            <>
+              <label className={cn(label, "mt-3")} htmlFor="np-note">Note for DCDJs <span className={C.muted}>(optional)</span></label>
+              <textarea id="np-note" value={note} maxLength={400} rows={2} onChange={(e) => setNote(e.target.value)} disabled={!canEdit} placeholder="e.g. Big crowd expected, country and throwbacks" className={field} />
+            </>
+          )}
+          <p className="mt-2 text-[11px] leading-relaxed text-[#f4c56e]">{NOT_GUARANTEED}</p>
+        </fieldset>
+
+        {err && <p role="alert" className="text-xs text-[#ee9a93]">{err}</p>}
+        {done && <p role="status" className="text-xs text-[#8fdcb0]">{done}</p>}
+
+        {canEdit && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="submit" disabled={busy || !!done} className={cn("min-h-11 flex-1 rounded-[10px] bg-[#e5b647] px-4 text-sm font-semibold text-[#17130b] hover:bg-[#f0c766] disabled:opacity-60", FOCUS_RING)}>
+              {busy ? "Saving…" : "Save"}
+            </button>
+            {existing && (
+              <button type="button" disabled={busy || !!done} onClick={() => void save(true)} className={cn("min-h-11 rounded-[10px] border border-[#c85b52]/45 px-4 text-sm text-[#ee9a93] hover:bg-[#c85b52]/10 disabled:opacity-60", FOCUS_RING)}>
+                Remove
+              </button>
+            )}
+          </div>
+        )}
+      </form>
     </Dialog>
   );
 }

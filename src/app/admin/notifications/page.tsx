@@ -13,6 +13,8 @@ interface NotificationRow {
   title: string;
   body: string | null;
   event_id: string | null;
+  entity_type?: string | null;
+  entity_id?: string | null;
   read_at: string | null;
   created_at: string;
 }
@@ -82,8 +84,10 @@ export default function AdminNotificationsPage() {
               </div>
             </div>
           );
-          return n.event_id ? (
-            <Link key={n.id} href={`/admin/events/${n.event_id}`} onClick={() => !n.read_at && markRead(n.id)}>
+          // Venue portal requests link to that venue's admin page.
+          const href = n.event_id ? `/admin/events/${n.event_id}` : n.entity_type === "venue" && n.entity_id ? `/admin/venues/${n.entity_id}` : null;
+          return href ? (
+            <Link key={n.id} href={href} onClick={() => !n.read_at && markRead(n.id)}>
               {content}
             </Link>
           ) : (

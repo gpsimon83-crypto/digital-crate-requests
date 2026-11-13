@@ -24,6 +24,8 @@ const inputCls = "w-full rounded-[10px] border border-black/10 bg-panel px-3 py-
 const labelCls = "mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted";
 
 const ACTION_LABELS: Record<string, string> = {
+  "night_plan.saved": "Venue saved drink specials / DJ request",
+  "night_plan.cleared": "Venue removed a night plan",
   "venue.updated": "Updated venue settings",
   "venue.cover_uploaded": "Uploaded a cover photo",
   "venue.logo_uploaded": "Uploaded a logo",
@@ -289,6 +291,8 @@ export function VenueAdmin({ venueId }: { venueId: string }) {
         </div>
 
         <CalendarNamesCard venueId={venue.id} venueName={venue.name} names={venue.calendar_names} onChange={(n) => edit({ calendar_names: n })} />
+
+        <NightPlansCard venueId={venueId} />
 
         <ManagersCard venueId={venueId} managers={managers} onChanged={refreshLog} onError={setError} />
 
@@ -848,6 +852,70 @@ function ManagersCard({
         }}
         onCancel={() => setRemoveId(null)}
       />
+    </Card>
+  );
+}
+
+type NightPlanRow = {
+  date: string;
+  occasion: string | null;
+  drink_specials: string | null;
+  dj_request_name: string | null;
+  dj_request_note: string | null;
+  dj_requested_at: string | null;
+};
+
+/** What the venue added in its portal: drink specials per night and DJ requests (requests, not bookings). */
+function NightPlansCard({ venueId }: { venueId: string }) {
+  const [plans, setPlans] = useState<NightPlanRow[] | null>(null);
+  const [ready, setReady] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/admin/venues/${venueId}/night-plans`)
+      .then(async (r) => {
+        const d = await r.json();
+        if (!live) return;
+        if (!r.ok) setErr(d.error || "Couldn't load.");
+        setPlans(d.plans ?? []);
+        setReady(d.ready !== false);
+      })
+      .catch(() => live && setErr("Couldn't load."));
+    return () => {
+      live = false;
+    };
+  }, [venueId]);
+  const day = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return (
+    <Card title="From the venue: drink specials & DJ requests" hint="Added by the venue in its portal. DJ requests are preferences, not bookings: confirm or follow up with the venue.">
+      {!ready ? (
+        <p className="text-sm text-muted">Not switched on yet: run supabase/migrations/0048_venue_night_plans.sql in the Supabase SQL editor.</p>
+      ) : err ? (
+        <p className="text-sm text-red-400">{err}</p>
+      ) : !plans ? (
+        <p className="text-sm text-muted">Loading…</p>
+      ) : plans.length ? (
+        <ul className="divide-y divide-border text-sm">
+          {plans.map((p) => (
+            <li key={p.date} className="grid gap-1 py-2.5 sm:grid-cols-[110px_1fr]">
+              <span className="font-medium">{day(p.date)}</span>
+              <div className="min-w-0">
+                {p.occasion && <p className="font-medium">{p.occasion}</p>}
+                {(p.dj_request_name || p.dj_request_note) && (
+                  <p>
+                    <span className="mr-1.5 rounded-full border border-gold/40 bg-gold/10 px-2 py-px text-[11px] text-gold">DJ request</span>
+                    {p.dj_request_name ?? "Any available DJ"}
+                    {p.dj_request_note ? <span className="text-muted"> · {p.dj_request_note}</span> : null}
+                  </p>
+                )}
+                {p.drink_specials && <p className="whitespace-pre-line text-muted">Specials: {p.drink_specials}</p>}
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">Nothing from the venue yet.</p>
+      )}
     </Card>
   );
 }

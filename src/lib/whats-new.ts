@@ -19,6 +19,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-13-venue-night-plans",
+    date: "2026-11-13",
+    area: "CRM",
+    title: "Venue portal: drink specials & DJ requests",
+    summary: "Venues can list drink specials for their nights and request a DJ for a night or event. Requests are clearly marked as not guaranteed, and staff are notified.",
+    bullets: [
+      "New “Drink specials & DJ requests” section lists upcoming nights; venues add specials, an occasion and a DJ request for each",
+      "“Plan a date” lets a venue ask for a DJ on a night that isn't booked yet; holiday Request buttons open the same form",
+      "Every request says it isn't a guarantee: DCDJs confirms based on DJ availability",
+      "New requests ping every staff login in the bell (links to the venue) and email the venue's DCDJs contact",
+      "Admin → Venue Portals → a venue shows everything the venue added under “From the venue”",
+      "Specials show on event rows, in event details and on the calendar; the page background is now a soft blur of the venue's banner"
+    ],
+    link: { href: "/admin/venues", label: "Open Venue Portals" }
+  },
+  {
     id: "2026-11-13-venue-lineup-scroll",
     date: "2026-11-13",
     area: "CRM",

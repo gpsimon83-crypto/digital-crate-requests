@@ -6,6 +6,7 @@ import { requireVenueAccess } from "@/lib/venue/server";
 import { holidaysInMonth, upcomingHolidays } from "@/lib/venue/holidays";
 import { fetchVenueNights, type CalendarNight } from "@/lib/venue/calendar-feed";
 import { normalizeNights } from "@/lib/venue/types";
+import { PLAN_COLUMNS, missingPlansTable, toNightPlan, type NightPlan } from "@/lib/venue/night-plans";
 import { resolveDjName, venueSearchNames, type CalendarDjName } from "@/lib/venue/calendar-options";
 
 const TZ = "America/Chicago";
@@ -228,6 +229,12 @@ export async function GET(req: NextRequest) {
       return { ...h, status };
     });
 
+    // The venue's night plans (occasion, drink specials, DJ requests) from this month or today on.
+    const plansFrom = `${month}-01` < today ? `${month}-01` : today;
+    const plansRes = await db.from("venue_night_plans").select(PLAN_COLUMNS).eq("venue_id", venue.id).gte("night_date", plansFrom).order("night_date").limit(200);
+    const plansReady = !missingPlansTable(plansRes.error);
+    const plans: NightPlan[] = plansRes.error ? [] : (plansRes.data ?? []).map((r) => toNightPlan(r as Record<string, unknown>));
+
     const { calendar_names: _internal, ...publicVenue } = venue;
     void _internal;
 
@@ -251,6 +258,9 @@ export async function GET(req: NextRequest) {
       monthHolidays: holidaysInMonth(month),
       holidays,
       lineup,
+      plans,
+      // Venue managers can add plans; the staff preview is read-only.
+      planning: { ready: plansReady, canEdit: !preview && plansReady },
       messages: [] as never[],
       contact: {
         name: venue.dcdjs_contact_name,

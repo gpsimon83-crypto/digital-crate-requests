@@ -14,6 +14,7 @@ function builder(table: string) {
 function answer(table: string, ops: string[]) {
   const named = ops.some((o) => o.startsWith("is(venue_id"));
   if (table === "venue_djs") return { data: [], error: null };
+  if (table === "venue_night_plans") return { data: [{ night_date: "2026-11-14", occasion: null, drink_specials: "$5 Old Fashioneds", dj_request_id: null, dj_request_name: null, dj_request_note: null, dj_requested_at: null, updated_at: "2026-11-12T00:00:00Z" }], error: null };
   if (table === "calendar_dj_names") return { data: [{ id: "m1", calendar_name: "Que", display_name: "DJ Que (actual)" }], error: null };
   if (table === "djs") return { data: [{ display_name: "DJ Que (actual)", photo_url: "https://cdn.example/que.png" }], error: null };
   if (table === "events" && !named) return { data: [{ id: "p1", event_category: "wedding", event_type: "Wedding", starts_at: "2026-11-21T23:00:00Z", ends_at: null, status: "confirmed", dj_id: null, djs: null }], error: null };
@@ -59,6 +60,10 @@ describe("venue dashboard pulls cratesdjs.com calendar data for the venue", () =
     const closed = m.find((e) => e.id === feedId("ev10"))!;
     expect(closed).toMatchObject({ date: "2026-11-26", starts_at: null });
     expect(JSON.stringify(body)).not.toMatch(/Private client stuff|closed|6pm show|N48/);
+    // The venue's night plans come along; the venue can edit them (not a preview).
+    expect(body.plans).toEqual([expect.objectContaining({ date: "2026-11-14", drink_specials: "$5 Old Fashioneds" })]);
+    expect(body.planning).toEqual({ ready: true, canEdit: true });
+    expect(calls.find((c) => c.table === "venue_night_plans")!.ops).toContain("eq(venue_id,v1)");
     // Search terms are the venue name plus calendar names, with filter characters removed.
     const ors = calls.flatMap((c) => c.ops.filter((o) => o.startsWith("or(")));
     expect(ors.join(" ")).toContain("venue_name.ilike.*North 48*");
