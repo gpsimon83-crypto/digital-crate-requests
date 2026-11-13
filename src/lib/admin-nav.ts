@@ -62,6 +62,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { href: "/admin/events", label: "Projects", icon: Briefcase },
       { href: "/admin/clients", label: "Contacts", icon: Users },
+      { href: "/admin/venues", label: "Venue Portals", icon: MapPin },
       { href: "/admin/meetings", label: "Meetings", icon: CalendarCheck },
       { href: "/admin/leads", label: "Lead Capture", icon: Magnet },
       { href: "/admin/security", label: "Inquiry Security", icon: ShieldCheck }
@@ -94,7 +95,6 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
       { href: "/admin/crate-requests", label: "Crate Requests", icon: Music2 },
       { href: "/admin/crate-templates", label: "Crate Templates", icon: LayoutTemplate },
       { href: "/admin/monetization", label: "Monetization", icon: DollarSign },
-      { href: "/admin/venues", label: "Venues", icon: MapPin },
       { href: "/admin/services", label: "Services", icon: Sparkles },
       { href: "/admin/packages", label: "Packages", icon: PackageOpen },
       { href: "/admin/tools/scheduler", label: "Scheduler", icon: CalendarClock },
