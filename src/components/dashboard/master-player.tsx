@@ -1,9 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { analyserFor } from "@/lib/audio/graph";
-import { fmtTime } from "@/lib/audio/spectrum";
-import { SpectrumVisualizer } from "@/lib/audio/visualizer";
+import { fmtTime } from "@/lib/audio/time";
 import { cn } from "@/lib/utils";
 import {
   IconClose,
@@ -58,9 +56,9 @@ function readVolume() {
  * through this (`play(key, label, file)`), so starting one preview stops
  * whatever else was playing. Clicking the playing track again stops it.
  *
- * The floating player: artwork + title, previous / play-pause / next through
- * the songs previewed this session, repeat (loop this song), a live
- * spectrum visualizer from the actual audio, seek, volume, the recently
+ * The player is a full-width bar along the bottom: artwork + title, previous / play-pause / next through
+ * the songs previewed this session, repeat (loop this song), seek,
+ * volume, the recently
  * played list, minimize and close. Close stops playback, nothing keeps
  * playing hidden.
  */
@@ -80,16 +78,12 @@ export function MasterPlayerProvider({ children }: { children: React.ReactNode }
   const [minimized, setMinimized] = useState(false);
   const [panel, setPanel] = useState<null | "queue" | "more">(null);
   const [scrub, setScrub] = useState<number | null>(null);
-  const [fallback, setFallback] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
   const tokenRef = useRef(0);
   const recentRef = useRef<Track[]>([]);
   const indexRef = useRef(-1);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const vizRef = useRef<SpectrumVisualizer | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
 
   const track = index >= 0 ? recent[index] ?? null : null;
 
@@ -104,7 +98,6 @@ export function MasterPlayerProvider({ children }: { children: React.ReactNode }
     on("play", () => {
       setPaused(false);
       setEnded(false);
-      vizRef.current?.wake();
     });
     on("pause", () => setPaused(true));
     on("playing", () => setLoading(false));
@@ -146,23 +139,6 @@ export function MasterPlayerProvider({ children }: { children: React.ReactNode }
     if (audioRef.current) audioRef.current.loop = repeat;
   }, [repeat]);
 
-  // The visualizer lives while the full player is on screen.
-  useEffect(() => {
-    if (!visible || minimized || !canvasRef.current) return;
-    const viz = new SpectrumVisualizer(canvasRef.current, {
-      analyser: () => analyserRef.current,
-      playing: () => !!audioRef.current && !audioRef.current.paused
-    });
-    vizRef.current = viz;
-    viz.wake();
-    const t = window.setInterval(() => setFallback(viz.isFallback), 1000);
-    return () => {
-      window.clearInterval(t);
-      viz.destroy();
-      vizRef.current = null;
-    };
-  }, [visible, minimized]);
-
   const loadAndPlay = useCallback(async (list: Track[], i: number) => {
     const a = audioRef.current;
     const t = list[i];
@@ -181,8 +157,6 @@ export function MasterPlayerProvider({ children }: { children: React.ReactNode }
     setDuration(NaN);
     setLoading(true);
     a.src = url;
-    // Analysis (once per element); playback is unaffected if Web Audio isn't available.
-    analyserRef.current = analyserFor(a);
     try {
       await a.play();
     } catch (e) {
@@ -191,7 +165,6 @@ export function MasterPlayerProvider({ children }: { children: React.ReactNode }
       if ((e as DOMException)?.name !== "AbortError") setError("Press play to start.");
       return;
     }
-    vizRef.current?.wake();
   }, []);
 
   const stop = useCallback(() => {
@@ -237,7 +210,6 @@ export function MasterPlayerProvider({ children }: { children: React.ReactNode }
     const a = audioRef.current;
     if (!a || !track) return;
     if (a.paused) {
-      analyserRef.current = analyserFor(a);
       setError(null);
       void a.play().catch(() => setError("Press play to start."));
     } else a.pause();
@@ -394,9 +366,9 @@ export function MasterPlayerProvider({ children }: { children: React.ReactNode }
   return (
     <MasterPlayerContext.Provider value={value}>
       {children}
-      {visible && <div aria-hidden className={minimized ? "h-24" : "h-[184px] lg:h-[136px]"} />}
+      {visible && <div aria-hidden className={minimized ? "h-24" : "h-[150px] lg:h-24"} />}
       {visible && track && (
-        <div className="pointer-events-none fixed inset-x-0 z-50 flex justify-center px-3 sm:px-4" style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" }}>
+        <div className={cn("pointer-events-none fixed inset-x-0 z-50 flex justify-center", minimized ? "px-3" : "bottom-0")} style={minimized ? { bottom: "calc(env(safe-area-inset-bottom, 0px) + 12px)" } : undefined}>
           {minimized ? (
             <div role="region" aria-label="Audio player (minimized)" className="pointer-events-auto flex max-w-[min(440px,100%)] items-center gap-2 rounded-full border border-[#c98a35]/50 bg-[#15110c]/90 py-1.5 pl-1.5 pr-2 shadow-[0_14px_36px_rgba(0,0,0,0.55),0_0_24px_rgba(255,170,50,0.12)] backdrop-blur-xl">
               {art("size-10 rounded-full")}
@@ -414,16 +386,17 @@ export function MasterPlayerProvider({ children }: { children: React.ReactNode }
               role="region"
               aria-label="Audio player"
               onKeyDown={(e) => e.key === "Escape" && setPanel(null)}
-              className="dcp pointer-events-auto relative w-full max-w-[1320px] rounded-[22px] border border-[#c98a35]/45 bg-[linear-gradient(180deg,rgba(34,26,17,0.9),rgba(11,9,8,0.95))] px-3 py-2.5 text-[#f6efe2] shadow-[0_22px_60px_rgba(0,0,0,0.62),0_0_40px_rgba(255,160,40,0.10),inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-xl sm:px-4 lg:py-3"
+              className="pointer-events-auto relative w-full border-t border-[#c98a35]/45 bg-[linear-gradient(180deg,rgba(30,23,15,0.94),rgba(10,9,8,0.97))] px-3 pt-2 text-[#f6efe2] shadow-[0_-12px_36px_rgba(0,0,0,0.5),0_-1px_24px_rgba(255,160,40,0.08),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-xl sm:px-6 lg:pt-2.5"
+              style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 10px)" }}
             >
-              <span aria-hidden className="pointer-events-none absolute inset-x-10 -bottom-px h-px bg-[linear-gradient(90deg,transparent,rgba(255,180,70,0.85),transparent)]" />
-              <span aria-hidden className="pointer-events-none absolute inset-0 rounded-[22px] bg-[radial-gradient(60%_120%_at_50%_120%,rgba(255,160,40,0.10),transparent_60%)]" />
+              <span aria-hidden className="pointer-events-none absolute inset-x-[10%] -top-px h-px bg-[linear-gradient(90deg,transparent,rgba(255,180,70,0.85),transparent)]" />
+              <span aria-hidden className="pointer-events-none absolute inset-0 bg-[radial-gradient(50%_140%_at_50%_140%,rgba(255,160,40,0.08),transparent_60%)]" />
               {queuePanel}
               {morePanel}
               <div className="relative flex flex-wrap items-center gap-x-3 gap-y-1 lg:flex-nowrap lg:gap-x-4">
                 {/* Track */}
                 <div className="flex min-w-0 flex-1 items-center gap-3 lg:w-[250px] lg:flex-none">
-                  {art("size-12 lg:size-[60px]")}
+                  {art("size-12 lg:size-[52px]")}
                   <div className="min-w-0">
                     <p className="truncate text-[15px] font-semibold leading-tight text-[#fff6e6] lg:text-base">{track.title}</p>
                     <p className={cn("truncate text-xs lg:text-[13px]", error ? "text-[#f1a59d]" : "text-[#b8ab95]")} role={error ? "status" : undefined}>
@@ -449,14 +422,8 @@ export function MasterPlayerProvider({ children }: { children: React.ReactNode }
                 <button type="button" className={cn(btn, "lg:hidden")} onClick={() => setPanel((p) => (p === "more" ? null : "more"))} aria-expanded={panel === "more"} aria-label="More player controls">
                   <IconMore className="size-[22px]" />
                 </button>
-                {/* Visualizer + timeline */}
-                <div className="order-last w-full min-w-0 lg:order-none lg:w-auto lg:flex-1">
-                  <div className="relative">
-                    <canvas ref={canvasRef} aria-hidden className="block h-8 w-full lg:h-[60px]" />
-                    {fallback && !paused && <span className="sr-only">Visualizer unavailable for this audio.</span>}
-                  </div>
-                  <div className="-mt-2 lg:-mt-3">{seek}</div>
-                </div>
+                {/* Timeline */}
+                <div className="order-last w-full min-w-0 lg:order-none lg:w-auto lg:flex-1">{seek}</div>
                 <span aria-hidden className="hidden h-10 w-px bg-white/10 lg:block" />
                 <div className="hidden lg:block">{volumeControl}</div>
                 <span aria-hidden className="hidden h-10 w-px bg-white/10 lg:block" />
