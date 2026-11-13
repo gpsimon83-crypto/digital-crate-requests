@@ -3,7 +3,24 @@
  * These fill the dropdowns in Admin → Venue Portals; add to the lists when a
  * new venue or DJ starts appearing on the calendar.
  */
-export const VENUE_CALENDAR_OPTIONS = ["Casey Key", "North 48", "Brass Boar's Den"] as const;
+export const VENUE_CALENDAR_OPTIONS = [
+  "Casey Key",
+  "North 48",
+  "Brass Boar's Den",
+  "Kyotes",
+  "Gillys",
+  "Salty Toad",
+  "The Destination",
+  "Rewind",
+  "Boscos",
+  "Cj's",
+  "Deck",
+  "Tally's",
+  "Moon Bar",
+  "Schooner Pub",
+  "BB's",
+  "Cork n barrel"
+] as const;
 export const DJ_CALENDAR_OPTIONS = ["Que", "GMO", "Makara", "Bubblz", "Omerta", "Penny", "Peace", "Hydef", "J Prime", "Rushie", "Scary Terry"] as const;
 
 export type CalendarDjName = { id: string; calendar_name: string; display_name: string };
@@ -33,11 +50,16 @@ export function venueNameVariants(name: string): string[] {
   const base = name.replace(/[’‘`ʼ]/g, "'").replace(/\s+/g, " ").trim();
   if (base.length < 3) return [];
   const out = new Set<string>([base]);
-  const noType = base.replace(/\s+(pub|bar|tavern|lounge|grill|saloon|club|bar & grill|bar and grill)$/i, "").trim();
-  for (const v of [base, noType]) {
+  const noType = base.replace(/\s+(sports bar|bar & grill|bar and grill|pub|bar|tavern|lounge|grill|saloon|club)$/i, "").trim();
+  const noThe = noType.replace(/^the\s+/i, "").trim();
+  for (const v of [base, noType, noThe]) {
     out.add(v);
+    // The calendar often drops the apostrophe ("Kyote's" is written "Kyotes").
+    if (v.includes("'")) out.add(v.replace(/'/g, ""));
     if (/[a-z]s$/i.test(v) && !/'s$/i.test(v)) out.add(v.slice(0, -1));
   }
+  // Known calendar shorthand: "Coyotes" is written "Kyotes" on the DCDJ calendar.
+  for (const v of [...out]) if (/coyote/i.test(v)) out.add(v.replace(/coyote/gi, "Kyote"));
   return [...out].filter((v) => v.length >= 3);
 }
 

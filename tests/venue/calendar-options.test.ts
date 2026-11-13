@@ -10,7 +10,7 @@ const map = [
 
 describe("calendar DJ names", () => {
   it("has the venues and DJs you listed", () => {
-    expect([...VENUE_CALENDAR_OPTIONS]).toEqual(["Casey Key", "North 48", "Brass Boar's Den"]);
+    expect([...VENUE_CALENDAR_OPTIONS].slice(0, 4)).toEqual(["Casey Key", "North 48", "Brass Boar's Den", "Kyotes"]);
     expect([...DJ_CALENDAR_OPTIONS].slice(0, 6)).toEqual(["Que", "GMO", "Makara", "Bubblz", "Omerta", "Penny"]);
   });
   it("maps the DJ part of a title to the actual name, ignoring case and accents", () => {
@@ -31,7 +31,11 @@ describe("what a venue portal searches the calendar for", () => {
   it("always includes the venue's own name, singular too", () => {
     expect(venueNameVariants("Casey Keys")).toEqual(["Casey Keys", "Casey Key"]);
     expect(venueNameVariants("Casey Key Pub")).toEqual(expect.arrayContaining(["Casey Key Pub", "Casey Key"]));
-    expect(venueNameVariants("Brass Boar's Den")).toEqual(["Brass Boar's Den"]);
+    expect(venueNameVariants("Brass Boar's Den")).toEqual(["Brass Boar's Den", "Brass Boars Den"]);
+    expect(venueNameVariants("Kyote's")).toEqual(expect.arrayContaining(["Kyotes"]));
+    expect(venueNameVariants("Coyotes")).toEqual(expect.arrayContaining(["Kyotes"]));
+    expect(venueNameVariants("Kyotes Sports Bar")).toEqual(expect.arrayContaining(["Kyotes"]));
+    expect(venueNameVariants("The Kyotes Bar & Grill")).toEqual(expect.arrayContaining(["Kyotes"]));
   });
   it("skips DJ names saved in the venue box", () => {
     const djs = [{ calendar_name: "Hydef", display_name: "Dj Hydef" }];
