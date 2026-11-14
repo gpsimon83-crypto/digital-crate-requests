@@ -52,7 +52,7 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
   const soft = useMemo(
     () => (img && lay && needsProcessing(feather, recolor) ? processedImage(img, node, lay, node.flipX, node.flipY, feather, recolor) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [img, lay?.x, lay?.y, lay?.width, lay?.height, node.width, node.height, node.flipX, node.flipY, feather.amount, feather.shape, recolor.mode, recolor.color, recolor.knockoutWhite]
+    [img, lay?.x, lay?.y, lay?.width, lay?.height, node.width, node.height, node.flipX, node.flipY, feather.amount, feather.shape, feather.curve, feather.sides?.top, feather.sides?.right, feather.sides?.bottom, feather.sides?.left, recolor.mode, recolor.color, recolor.knockoutWhite]
   );
   const movable = !!act && act.interactive && !node.locked && act.canMove(node);
   const label = node.source.type === "dj_photo" ? "DJ photo" : node.source.type === "venue_logo" ? "Venue logo" : "Image";

@@ -86,7 +86,14 @@ export type ImageNode = Base & {
   flipY: boolean;
   frame: Stroke & { radius: number };
   /** Soft edges: the picture fades to transparent over `amount` px, as a soft rectangle or an oval. */
-  feather: { amount: number; shape: "edges" | "oval" };
+  feather: {
+    amount: number;
+    shape: "edges" | "oval";
+    /** Soft rectangle only: fade width per side in px (missing = every side uses `amount`). */
+    sides?: { top: number; right: number; bottom: number; left: number } | null;
+    /** smooth = eased S-curve fade; linear = even fade. */
+    curve?: "smooth" | "linear";
+  };
   /**
    * Recolor: "solid" paints the whole picture one color (keeps its shape and
    * transparency, e.g. a black logo in gold); "tint" colors it but keeps

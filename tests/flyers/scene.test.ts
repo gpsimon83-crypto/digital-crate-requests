@@ -235,7 +235,22 @@ describe("feather", () => {
     const { newImage, parseScene, emptyScene } = await import("@/lib/flyers/scene");
     expect(newImage("portrait", { type: "none" }, emptyScene("square")).feather).toEqual({ amount: 0, shape: "edges" });
     const p = parseScene({ format: "square", nodes: [{ kind: "image", feather: { amount: 9999, shape: "blob" } }, { kind: "image", feather: { amount: 80, shape: "oval" } }] });
-    expect(p.ok && p.value.nodes.map((n) => n.kind === "image" && n.feather)).toEqual([{ amount: 600, shape: "edges" }, { amount: 80, shape: "oval" }]);
+    expect(p.ok && p.value.nodes.map((n) => n.kind === "image" && n.feather)).toEqual([
+      { amount: 600, shape: "edges", sides: null, curve: "smooth" },
+      { amount: 80, shape: "oval", sides: null, curve: "smooth" }
+    ]);
+  });
+  it("fades only the sides asked for, and never more than the picture holds", async () => {
+    const { featherSides, featherOn } = await import("@/lib/flyers/feather");
+    const bottomOnly = { amount: 0, shape: "edges" as const, sides: { top: 0, right: 0, bottom: 120, left: 0 } };
+    expect(featherOn(bottomOnly)).toBe(true);
+    expect(featherSides(bottomOnly, 400, 300)).toEqual({ top: 0, right: 0, bottom: 120, left: 0 });
+    expect(featherSides({ amount: 0, shape: "edges", sides: { top: 300, right: 0, bottom: 300, left: 0 } }, 400, 300)).toEqual({ top: 150, right: 0, bottom: 150, left: 0 });
+    expect(featherSides({ amount: 40, shape: "edges" }, 400, 300)).toEqual({ top: 40, right: 40, bottom: 40, left: 40 });
+    expect(featherOn({ amount: 0, shape: "edges", sides: { top: 0, right: 0, bottom: 0, left: 0 } })).toBe(false);
+    const { parseScene } = await import("@/lib/flyers/scene");
+    const p = parseScene({ format: "square", nodes: [{ kind: "image", feather: { shape: "edges", sides: { top: 90, bottom: -5, left: "x" }, curve: "linear" } }] });
+    expect(p.ok && p.value.nodes[0].kind === "image" && p.value.nodes[0].feather).toEqual({ amount: 0, shape: "edges", sides: { top: 90, right: 0, bottom: 0, left: 0 }, curve: "linear" });
   });
 });
 

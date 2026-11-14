@@ -29,6 +29,7 @@ export const UPDATES: UpdateEntry[] = [
       "Select several images to move them into a folder, change their type, or delete them",
       "Before deleting an image that flyers or templates use, you're told where it's used and asked to confirm",
       "Inside the editor: search, images grouped by folder, and a delete button on each image",
+      "Feather per side: fade just the top, just the bottom, top & bottom, left & right or any mix, each side with its own width, with a smooth or even fade",
       "Recolor pictures: Solid color repaints a one-color logo (e.g. all-black) in any color, Tint colors a photo but keeps its shading, and “Remove white background” clears a logo's white box"
     ]
   },

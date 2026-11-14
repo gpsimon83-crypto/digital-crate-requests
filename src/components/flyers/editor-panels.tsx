@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FLYER_FONTS, fontByKey, nearestWeight } from "@/lib/flyers/fonts";
+import { featherOn } from "@/lib/flyers/feather";
 import { PLACEHOLDERS, ROLES, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type TextNode } from "@/lib/flyers/types";
 
 export type Asset = { id: string; kind: string; name: string | null; folder?: string | null; width: number; height: number; has_alpha: boolean };
@@ -416,32 +417,7 @@ function ImageProps({ n, set, canEdit, canStyle, api }: { n: ImageNode; set: (p:
         <Check label="Remove white background" checked={!!n.recolor?.knockoutWhite} disabled={!canStyle} onChange={(v) => set({ recolor: { mode: n.recolor?.mode ?? "none", color: n.recolor?.color ?? "#ffffff", knockoutWhite: v } }, "recolor")} />
         <p className="text-[11px] text-muted">Solid color repaints a one-color logo (like an all-black logo) in any color, keeping its shape. Tint colors a photo but keeps its light and shade. For logos saved on a white box, also tick “Remove white background”.</p>
       </Section>
-      <Section title="Soft edges (feather)" defaultOpen={(n.feather?.amount ?? 0) > 0}>
-        <Slider
-          label="Feather"
-          value={n.feather?.amount ?? 0}
-          min={0}
-          max={Math.round(Math.min(n.width, n.height) / 2)}
-          step={1}
-          display={`${Math.round(n.feather?.amount ?? 0)} px`}
-          disabled={!canStyle}
-          onChange={(v) => set({ feather: { shape: n.feather?.shape ?? "edges", amount: v } }, "feather")}
-        />
-        <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Feather shape">
-          {(["edges", "oval"] as const).map((shape) => (
-            <button
-              key={shape}
-              className={cn(iconBtn, (n.feather?.shape ?? "edges") === shape && "border-gold bg-gold-soft")}
-              aria-pressed={(n.feather?.shape ?? "edges") === shape}
-              disabled={!canStyle}
-              onClick={() => set({ feather: { amount: n.feather?.amount || Math.round(Math.min(n.width, n.height) / 6), shape } }, "feather")}
-            >
-              {shape === "edges" ? "Soft rectangle" : "Oval fade"}
-            </button>
-          ))}
-        </div>
-        <p className="text-[11px] text-muted">Fades the picture into the background. Works best without a frame border.</p>
-      </Section>
+      <FeatherSection n={n} canStyle={canStyle} set={set} />
       <Section title="Frame" defaultOpen={n.frame.enabled}>
         <Check label="Frame border" checked={n.frame.enabled} disabled={!canStyle} onChange={(v) => set({ frame: { ...n.frame, enabled: v } }, "frame")} />
         {n.frame.enabled && (
@@ -920,5 +896,78 @@ function SvgImportBox({ mode, onImport }: { mode: "design" | "template"; onImpor
         </p>
       )}
     </div>
+  );
+}
+
+/** Soft edges: pick which sides fade and by how much, or an oval vignette. */
+function FeatherSection({ n, canStyle, set }: { n: ImageNode; canStyle: boolean; set: (p: Partial<ImageNode>, k?: string) => void }) {
+  const f = n.feather ?? { amount: 0, shape: "edges" as const };
+  const max = Math.round(Math.max(n.width, n.height));
+  const sides = f.sides ?? { top: f.amount, right: f.amount, bottom: f.amount, left: f.amount };
+  const on = featherOn(f);
+  const dflt = Math.round(Math.min(n.width, n.height) / 4);
+  const put = (patch: Partial<typeof f>) => set({ feather: { ...f, ...patch } }, "feather");
+  const setSides = (s: Partial<typeof sides>) => put({ shape: "edges", sides: { ...sides, ...s } });
+  const preset = (s: [number, number, number, number]) => {
+    const a = Math.max(...Object.values(sides), f.amount, 0) || dflt;
+    setSides({ top: s[0] * a, right: s[1] * a, bottom: s[2] * a, left: s[3] * a });
+  };
+  const presets: [string, [number, number, number, number]][] = [
+    ["All sides", [1, 1, 1, 1]],
+    ["Top only", [1, 0, 0, 0]],
+    ["Bottom only", [0, 0, 1, 0]],
+    ["Top & bottom", [1, 0, 1, 0]],
+    ["Left & right", [0, 1, 0, 1]],
+    ["Left only", [0, 0, 0, 1]],
+    ["Right only", [0, 1, 0, 0]]
+  ];
+  const isPreset = (p: [number, number, number, number]) => f.shape === "edges" && on && [sides.top, sides.right, sides.bottom, sides.left].every((v, i) => (p[i] ? v > 0 : v === 0));
+  return (
+    <Section title="Soft edges (feather)" defaultOpen={on}>
+      <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Feather style">
+        <button className={cn(iconBtn, !on && "border-gold bg-gold-soft")} aria-pressed={!on} disabled={!canStyle} onClick={() => put({ amount: 0, sides: { top: 0, right: 0, bottom: 0, left: 0 } })}>
+          Off
+        </button>
+        <button className={cn(iconBtn, on && f.shape === "edges" && "border-gold bg-gold-soft")} aria-pressed={on && f.shape === "edges"} disabled={!canStyle} onClick={() => (on && f.shape === "edges" ? undefined : preset([1, 1, 1, 1]))}>
+          Edges
+        </button>
+        <button className={cn(iconBtn, on && f.shape === "oval" && "border-gold bg-gold-soft")} aria-pressed={on && f.shape === "oval"} disabled={!canStyle} onClick={() => put({ shape: "oval", amount: f.amount || dflt })}>
+          Oval
+        </button>
+      </div>
+
+      {f.shape === "edges" && (
+        <>
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Which sides fade">
+            {presets.map(([label, p]) => (
+              <button key={label} className={cn(iconBtn, "h-8 px-2", isPreset(p) && "border-gold bg-gold-soft")} aria-pressed={isPreset(p)} disabled={!canStyle} onClick={() => preset(p)}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+            {(["top", "bottom", "left", "right"] as const).map((k) => (
+              <Slider key={k} label={k[0].toUpperCase() + k.slice(1)} value={Math.round(sides[k])} min={0} max={max} step={1} display={`${Math.round(sides[k])} px`} disabled={!canStyle} onChange={(v) => setSides({ [k]: v })} />
+            ))}
+          </div>
+        </>
+      )}
+      {f.shape === "oval" && on && <Slider label="Fade width" value={f.amount} min={1} max={Math.round(Math.min(n.width, n.height) / 2)} step={1} display={`${Math.round(f.amount)} px`} disabled={!canStyle} onChange={(v) => put({ amount: v })} />}
+      {on && (
+        <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Fade curve">
+          {(
+            [
+              ["smooth", "Smooth fade"],
+              ["linear", "Even fade"]
+            ] as const
+          ).map(([c, l]) => (
+            <button key={c} className={cn(iconBtn, (f.curve ?? "smooth") === c && "border-gold bg-gold-soft")} aria-pressed={(f.curve ?? "smooth") === c} disabled={!canStyle} onClick={() => put({ curve: c })}>
+              {l}
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="text-[11px] text-muted">Fade just the top or bottom of a photo into the background, or any mix of sides. Works best without a frame border.</p>
+    </Section>
   );
 }

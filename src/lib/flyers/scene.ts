@@ -161,7 +161,15 @@ const imageSchema = z.object({
   frame: z.preprocess((v) => (v && typeof v === "object" ? v : {}), z.object({ enabled: bool(false), color: color("#e5b647"), width: num(0, 80, 6), radius: num(0, 2000, 0) })),
   feather: z.preprocess(
     (v) => (v && typeof v === "object" ? v : {}),
-    z.object({ amount: num(0, 600, 0), shape: z.preprocess((v) => (v === "oval" ? "oval" : "edges"), z.enum(["edges", "oval"])) })
+    z.object({
+      amount: num(0, 600, 0),
+      shape: z.preprocess((v) => (v === "oval" ? "oval" : "edges"), z.enum(["edges", "oval"])),
+      sides: z.preprocess(
+        (v) => (v && typeof v === "object" ? v : null),
+        z.object({ top: num(0, 2000, 0), right: num(0, 2000, 0), bottom: num(0, 2000, 0), left: num(0, 2000, 0) }).nullable()
+      ),
+      curve: z.preprocess((v) => (v === "linear" ? "linear" : "smooth"), z.enum(["smooth", "linear"]))
+    })
   ),
   recolor: z.preprocess(
     (v) => (v && typeof v === "object" ? v : {}),
