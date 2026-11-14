@@ -94,6 +94,7 @@ export function newImage(role: Role, source: ImageSource, scene: Pick<Scene, "wi
     flipX: false,
     flipY: false,
     frame: { enabled: false, color: "#e5b647", width: 6, radius: 0 },
+    feather: { amount: 0, shape: "edges" },
     shadow: { ...NO_SHADOW },
     ...patch
   };
@@ -157,6 +158,10 @@ const imageSchema = z.object({
   flipX: bool(false),
   flipY: bool(false),
   frame: z.preprocess((v) => (v && typeof v === "object" ? v : {}), z.object({ enabled: bool(false), color: color("#e5b647"), width: num(0, 80, 6), radius: num(0, 2000, 0) })),
+  feather: z.preprocess(
+    (v) => (v && typeof v === "object" ? v : {}),
+    z.object({ amount: num(0, 600, 0), shape: z.preprocess((v) => (v === "oval" ? "oval" : "edges"), z.enum(["edges", "oval"])) })
+  ),
   shadow: shadowSchema
 });
 
@@ -369,7 +374,7 @@ export function withGroup(nodes: FlyerNode[], id: string): string[] {
 
 const MOVE_KEYS = ["x", "y", "width", "height", "rotation"] as const;
 const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity"] as const;
-const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "shadow", "opacity"] as const;
+const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "shadow", "opacity"] as const;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 /**

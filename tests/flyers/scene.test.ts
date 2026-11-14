@@ -229,3 +229,12 @@ describe("upload checks", () => {
     expect(checkUpload(big, "template").ok).toBe(true);
   });
 });
+
+describe("feather", () => {
+  it("defaults to off, keeps valid settings and clamps bad ones", async () => {
+    const { newImage, parseScene, emptyScene } = await import("@/lib/flyers/scene");
+    expect(newImage("portrait", { type: "none" }, emptyScene("square")).feather).toEqual({ amount: 0, shape: "edges" });
+    const p = parseScene({ format: "square", nodes: [{ kind: "image", feather: { amount: 9999, shape: "blob" } }, { kind: "image", feather: { amount: 80, shape: "oval" } }] });
+    expect(p.ok && p.value.nodes.map((n) => n.kind === "image" && n.feather)).toEqual([{ amount: 600, shape: "edges" }, { amount: 80, shape: "oval" }]);
+  });
+});

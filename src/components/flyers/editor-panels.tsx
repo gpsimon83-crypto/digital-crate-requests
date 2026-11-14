@@ -386,6 +386,32 @@ function ImageProps({ n, set, canEdit, canStyle, api }: { n: ImageNode; set: (p:
         </div>
         <p className="text-[11px] text-muted">The original image is kept as uploaded; cropping only changes this layer.</p>
       </Section>
+      <Section title="Soft edges (feather)" defaultOpen={(n.feather?.amount ?? 0) > 0}>
+        <Slider
+          label="Feather"
+          value={n.feather?.amount ?? 0}
+          min={0}
+          max={Math.round(Math.min(n.width, n.height) / 2)}
+          step={1}
+          display={`${Math.round(n.feather?.amount ?? 0)} px`}
+          disabled={!canStyle}
+          onChange={(v) => set({ feather: { shape: n.feather?.shape ?? "edges", amount: v } }, "feather")}
+        />
+        <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Feather shape">
+          {(["edges", "oval"] as const).map((shape) => (
+            <button
+              key={shape}
+              className={cn(iconBtn, (n.feather?.shape ?? "edges") === shape && "border-gold bg-gold-soft")}
+              aria-pressed={(n.feather?.shape ?? "edges") === shape}
+              disabled={!canStyle}
+              onClick={() => set({ feather: { amount: n.feather?.amount || Math.round(Math.min(n.width, n.height) / 6), shape } }, "feather")}
+            >
+              {shape === "edges" ? "Soft rectangle" : "Oval fade"}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted">Fades the picture into the background. Works best without a frame border.</p>
+      </Section>
       <Section title="Frame" defaultOpen={n.frame.enabled}>
         <Check label="Frame border" checked={n.frame.enabled} disabled={!canStyle} onChange={(v) => set({ frame: { ...n.frame, enabled: v } }, "frame")} />
         {n.frame.enabled && (

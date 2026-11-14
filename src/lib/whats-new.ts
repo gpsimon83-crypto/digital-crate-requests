@@ -29,6 +29,7 @@ export const UPDATES: UpdateEntry[] = [
       "Text keeps its position, size, colour and spacing; Arial is matched with Arimo (same letter widths) and Arial Black with Archivo Black",
       "DJ name, month, day, time, title, venue and address can become placeholders filled from each booking, keeping the file's words as the fallback",
       "New “Shrink to fit on one line” text option so longer booking details don't wrap",
+      "New “Soft edges (feather)” for pictures: fade the edges as a soft rectangle or an oval, in the editor and in exports",
       "New placeholders: {{event_month}}, {{event_day}}, {{event_weekday}}"
     ]
   },

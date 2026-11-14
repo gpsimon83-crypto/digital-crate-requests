@@ -85,6 +85,8 @@ export type ImageNode = Base & {
   flipX: boolean;
   flipY: boolean;
   frame: Stroke & { radius: number };
+  /** Soft edges: the picture fades to transparent over `amount` px, as a soft rectangle or an oval. */
+  feather: { amount: number; shape: "edges" | "oval" };
   shadow: Shadow;
 };
 
