@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
     return [
       { source: "/:path*", headers: SECURITY_HEADERS },
       // Private areas and their APIs are never cached by shared caches or indexed.
-      ...["/admin/:path*", "/portal/:path*", "/dj-dashboard/:path*", "/venue/:path*", "/analytics/:path*", "/auth/:path*", "/inquiry/:path*", "/api/portal/:path*", "/api/admin/:path*", "/api/files/:path*", "/api/inquiries/:path*"].map((source) => ({ source, headers: PRIVATE }))
+      ...["/admin/:path*", "/portal/:path*", "/dj-dashboard/:path*", "/venue/:path*", "/analytics/:path*", "/auth/:path*", "/inquiry/:path*", "/api/portal/:path*", "/api/admin/:path*", "/api/files/:path*", "/api/inquiries/:path*", "/api/flyers", "/api/flyers/designs/:path*"].map((source) => ({ source, headers: PRIVATE }))
     ];
   },
   images: {

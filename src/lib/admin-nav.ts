@@ -26,7 +26,8 @@ import {
   CalendarCheck,
   Mail,
   Megaphone,
-  ShieldCheck
+  ShieldCheck,
+  Image
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -94,6 +95,7 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
     items: [
       { href: "/admin/crate-requests", label: "Crate Requests", icon: Music2 },
       { href: "/admin/crate-templates", label: "Crate Templates", icon: LayoutTemplate },
+      { href: "/admin/flyers", label: "Flyer Templates", icon: Image },
       { href: "/admin/monetization", label: "Monetization", icon: DollarSign },
       { href: "/admin/services", label: "Services", icon: Sparkles },
       { href: "/admin/packages", label: "Packages", icon: PackageOpen },

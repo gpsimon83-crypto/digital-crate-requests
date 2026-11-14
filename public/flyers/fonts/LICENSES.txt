@@ -1,0 +1,9 @@
+Flyer Creator fonts (latin subsets, from the Fontsource packages).
+
+SIL Open Font License 1.1 (https://openfontlicense.org):
+  Anton, Bebas Neue, Oswald, Archivo Black, Bungee, Righteous, Montserrat,
+  Poppins, Inter, Playfair Display, Great Vibes
+Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0):
+  Permanent Marker
+
+The fonts may be embedded in flyers and exported images.

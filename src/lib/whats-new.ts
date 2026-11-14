@@ -19,6 +19,20 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-13-flyer-creator",
+    date: "2026-11-13",
+    area: "CRM",
+    title: "Flyer Creator for DJs",
+    summary: "DJs can make event flyers in the DJ portal from templates staff publish. Their saved photo and DJ name fill in, and every piece stays its own editable layer.",
+    bullets: [
+      "Pick a template and a size (square 1080×1080, portrait 1080×1350, story 1080×1920); start from a booking to fill in the date, time and venue (the booking itself never changes)",
+      "Move, resize and rotate every text box and image; fonts, outline, shadow, crop, flip, frames, snapping guides, layers with lock/hide/group, undo/redo",
+      "Autosaves; reopen any time with all layers intact; export crisp PNG or JPEG at full size",
+      "Staff build templates in Admin → Flyer Templates: upload backgrounds and overlays, add live text with placeholders like {{dj_name}}, choose what DJs may change, then publish",
+      "Each DJ only sees their own flyers and uploads"
+    ]
+  },
+  {
     id: "2026-11-13-venue-any-date",
     date: "2026-11-13",
     area: "CRM",

@@ -445,6 +445,12 @@ function EventInfo({
           >
             Message Client →
           </Link>
+          <Link
+            href={`/dj-dashboard/flyers?event=${e.id}`}
+            className="text-muted underline underline-offset-2 hover:text-foreground"
+          >
+            Make a Flyer →
+          </Link>
         </p>
       </div>
     </div>

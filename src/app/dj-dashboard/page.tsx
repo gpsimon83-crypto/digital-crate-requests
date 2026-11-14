@@ -17,7 +17,8 @@ import {
   Check,
   X,
   PartyPopper,
-  DollarSign
+  DollarSign,
+  Megaphone
 } from "lucide-react";
 import { isStaffRole } from "@/lib/roles";
 import { cn } from "@/lib/utils";
@@ -115,6 +116,8 @@ export default function DjPortalHomePage() {
   const adminTiles: Tile[] = [
     { href: "/dj-dashboard/bookings", label: "All Bookings", desc: "See and manage every event.", icon: CalendarClock },
     { href: "/dj-dashboard/profile", label: "My Profile", desc: "Every admin control, in one place.", icon: UserCircle },
+    { href: "/dj-dashboard/flyers", label: "Flyer Creator", desc: "Make or open a DJ's flyers.", icon: Megaphone },
+    { href: "/admin/flyers", label: "Flyer Templates", desc: "Build and publish flyer templates for DJs.", icon: Megaphone },
     { href: "/admin", label: "Admin Panel", desc: "Manage DJs, venues, events, and invite codes.", icon: ShieldCheck }
   ];
 
@@ -278,6 +281,7 @@ export default function DjPortalHomePage() {
             <QuickLink href="/dj-dashboard/bookings" label="My Bookings" icon={CalendarClock} />
             <QuickLink href="/dj-dashboard/payouts" label="My Payouts" icon={DollarSign} />
             <QuickLink href="/dj-dashboard/profile" label="My Profile" icon={UserCircle} />
+            <QuickLink href="/dj-dashboard/flyers" label="Flyer Creator" icon={Megaphone} />
           </section>
         </main>
       )}
