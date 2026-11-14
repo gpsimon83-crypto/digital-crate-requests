@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { DEFAULT_FONT, FLYER_FONTS } from "./fonts";
 import {
+  BLEND_MODES,
+  type BlendMode,
   FORMATS,
   PLACEHOLDERS,
   ROLES,
@@ -48,6 +50,7 @@ export function newText(role: Role, scene: Pick<Scene, "width" | "height">, patc
     height: 120,
     rotation: 0,
     opacity: 1,
+    blend: "normal",
     visible: true,
     locked: false,
     groupId: null,
@@ -84,6 +87,7 @@ export function newImage(role: Role, source: ImageSource, scene: Pick<Scene, "wi
     height,
     rotation: 0,
     opacity: 1,
+    blend: "normal",
     visible: true,
     locked: false,
     groupId: null,
@@ -132,6 +136,7 @@ const base = {
   height: num(4, 8000, 200),
   rotation: num(-360, 360, 0),
   opacity: num(0, 1, 1),
+  blend: z.preprocess((v) => (typeof v === "string" && v in BLEND_MODES ? v : "normal"), z.enum(Object.keys(BLEND_MODES) as [BlendMode, ...BlendMode[]])),
   visible: bool(true),
   locked: bool(false),
   groupId: groupSchema,
@@ -386,8 +391,8 @@ export function withGroup(nodes: FlyerNode[], id: string): string[] {
 /* ---------------- DJ permission check (server side) ---------------- */
 
 const MOVE_KEYS = ["x", "y", "width", "height", "rotation"] as const;
-const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity"] as const;
-const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "shadow", "opacity"] as const;
+const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend"] as const;
+const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "shadow", "opacity", "blend"] as const;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 /**

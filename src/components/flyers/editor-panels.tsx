@@ -30,7 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { FLYER_FONTS, fontByKey, nearestWeight } from "@/lib/flyers/fonts";
 import { featherOn } from "@/lib/flyers/feather";
-import { PLACEHOLDERS, ROLES, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type TextNode } from "@/lib/flyers/types";
+import { BLEND_MODES, PLACEHOLDERS, ROLES, type BlendMode, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type TextNode } from "@/lib/flyers/types";
 
 export type Asset = { id: string; kind: string; name: string | null; folder?: string | null; width: number; height: number; has_alpha: boolean };
 export type VenueOpt = { id: string; name: string; has_logo: boolean };
@@ -207,6 +207,17 @@ export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRe
           </div>
         </div>
         <Slider label="Opacity" value={Math.round(n.opacity * 100)} min={0} max={100} step={1} display={`${Math.round(n.opacity * 100)}%`} disabled={!canStyle} onChange={(v) => set({ opacity: v / 100 }, "opacity")} />
+        <label className="block">
+          <span className={labelCls}>Blend mode</span>
+          <select className={inputCls} value={n.blend ?? "normal"} disabled={!canStyle} onChange={(e) => set({ blend: e.target.value as BlendMode }, "blend")}>
+            {Object.entries(BLEND_MODES).map(([k, l]) => (
+              <option key={k} value={k}>
+                {l}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-[11px] text-muted">Screen drops black out (great for light leaks and sparks on black), Multiply drops white out, Overlay and Soft light add texture.</span>
+        </label>
       </Section>
 
       <Section title="Arrange">

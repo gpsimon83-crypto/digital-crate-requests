@@ -265,3 +265,14 @@ describe("recolor", () => {
     ]);
   });
 });
+
+describe("blend modes", () => {
+  it("defaults to normal and only accepts known modes", async () => {
+    const { newImage, newText, parseScene, emptyScene } = await import("@/lib/flyers/scene");
+    const s = emptyScene("square");
+    expect(newImage("overlay", { type: "none" }, s).blend).toBe("normal");
+    expect(newText("text", s).blend).toBe("normal");
+    const p = parseScene({ format: "square", nodes: [{ kind: "image", blend: "screen" }, { kind: "text", blend: "copy" }, { kind: "text", blend: "soft-light" }] });
+    expect(p.ok && p.value.nodes.map((n) => n.blend)).toEqual(["screen", "normal", "soft-light"]);
+  });
+});

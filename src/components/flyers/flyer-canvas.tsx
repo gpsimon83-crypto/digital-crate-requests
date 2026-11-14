@@ -19,6 +19,9 @@ type Interact = {
   onEditText?: (id: string) => void;
 };
 
+/** Canvas name for a blend mode ("normal" is the canvas default, source-over). */
+const blendOp = (b: string | undefined): GlobalCompositeOperation => (!b || b === "normal" ? "source-over" : (b as GlobalCompositeOperation));
+
 function roundedClip(w: number, h: number, r: number) {
   return (ctx: Konva.Context) => {
     const rr = Math.max(0, Math.min(r, w / 2, h / 2));
@@ -64,6 +67,7 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
       y={node.y}
       rotation={node.rotation}
       opacity={node.opacity}
+      globalCompositeOperation={blendOp(node.blend)}
       draggable={movable}
       listening={!!act?.interactive && !node.locked}
       onMouseDown={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey)}
@@ -149,6 +153,7 @@ function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | nu
       rotation={node.rotation}
       opacity={node.opacity}
       text={shown}
+      globalCompositeOperation={blendOp(node.blend)}
       fontFamily={`${f.family}, sans-serif`}
       fontStyle={f.style}
       fontSize={size}

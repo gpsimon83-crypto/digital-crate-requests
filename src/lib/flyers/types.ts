@@ -45,6 +45,27 @@ export const PLACEHOLDERS = {
 export type PlaceholderKey = keyof typeof PLACEHOLDERS;
 export type PlaceholderValues = Partial<Record<PlaceholderKey, string | null>>;
 
+/** Blend modes, as canvas names them ("normal" = source-over). */
+export const BLEND_MODES = {
+  normal: "Normal",
+  multiply: "Multiply",
+  screen: "Screen",
+  overlay: "Overlay",
+  "soft-light": "Soft light",
+  "hard-light": "Hard light",
+  darken: "Darken",
+  lighten: "Lighten",
+  "color-dodge": "Color dodge",
+  "color-burn": "Color burn",
+  difference: "Difference",
+  exclusion: "Exclusion",
+  hue: "Hue",
+  saturation: "Saturation",
+  color: "Color",
+  luminosity: "Luminosity"
+} as const;
+export type BlendMode = keyof typeof BLEND_MODES;
+
 export type Shadow = { enabled: boolean; color: string; blur: number; offsetX: number; offsetY: number; opacity: number };
 export type Stroke = { enabled: boolean; color: string; width: number };
 
@@ -68,6 +89,8 @@ type Base = {
   height: number;
   rotation: number;
   opacity: number;
+  /** How the layer mixes with what's under it (Photoshop-style blend modes). */
+  blend: BlendMode;
   visible: boolean;
   /** Locked in the editor: can't be moved or resized by accident. */
   locked: boolean;
