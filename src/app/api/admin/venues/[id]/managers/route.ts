@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
 import { audit, cleanText, isVenueUser, requireVenueAdmin } from "@/lib/venue/server";
 import { appOrigin } from "@/lib/comm/server";
+import { accountRole, isStaffRole } from "@/lib/roles";
 
 type Params = { params: Promise<{ id: string }> };
 const EMAIL_RE = /^[^\s@<>()",;]+@[^\s@<>()",;]+\.[^\s@<>()",;]{2,}$/;
@@ -31,7 +32,7 @@ async function setupLink(email: string): Promise<string | null> {
   const { data, error } = await db.auth.admin.generateLink({
     type: "recovery",
     email,
-    options: { redirectTo: `${appOrigin()}/auth/reset-password` }
+    options: { redirectTo: `${appOrigin()}/auth/reset-password?next=/venue` }
   });
   if (error) return null;
   return data.properties?.action_link ?? null;
@@ -65,13 +66,16 @@ export async function POST(req: NextRequest, { params }: Params) {
     if (!venue) return NextResponse.json({ error: "Venue not found" }, { status: 404 });
 
     let user = await findUserByEmail(email);
-    if (user && !isVenueUser(user)) {
-      // Keep roles separate: a DJ, client or staff login can't also be a venue login.
+    if (user && !isVenueUser(user) && isStaffRole(accountRole(user))) {
+      // Staff already preview every venue from Admin; a staff login can't be a venue manager.
       return NextResponse.json(
-        { error: "That email already has a Digital Crate DJs login (DJ, client or staff). Use a different email for the venue manager." },
+        { error: "That email is a Digital Crate DJs staff login. Staff can already preview every venue; use the manager's own email instead." },
         { status: 409 }
       );
     }
+    // An existing DJ or client login is linked as-is: their role and current access stay the same,
+    // and they sign in to the venue portal with the password they already have.
+    const existingLogin = !!user && !isVenueUser(user);
     if (!user) {
       const { data, error } = await db.auth.admin.createUser({
         email,
@@ -92,8 +96,8 @@ export async function POST(req: NextRequest, { params }: Params) {
       .select("id, venue_id, user_id, email, full_name, title, phone, is_active, invited_at, last_seen_at")
       .single();
     if (error) throw error;
-    await audit(venueId, admin, "manager.invited", { email });
-    return NextResponse.json({ manager, link: await setupLink(email) });
+    await audit(venueId, admin, "manager.invited", { email, existingLogin });
+    return NextResponse.json({ manager, existingLogin, link: existingLogin ? null : await setupLink(email) });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }

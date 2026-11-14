@@ -736,6 +736,7 @@ function ManagersCard({
   const [form, setForm] = useState({ full_name: "", email: "", title: "", phone: "" });
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<{ email: string; url: string } | null>(null);
+  const [existing, setExisting] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [removeId, setRemoveId] = useState<string | null>(null);
 
@@ -755,7 +756,8 @@ function ManagersCard({
     try {
       const data = await call("POST", form);
       setForm({ full_name: "", email: "", title: "", phone: "" });
-      if (data.link) setLink({ email: data.manager.email, url: data.link });
+      setExisting(data.existingLogin ? data.manager.email : null);
+      setLink(data.link ? { email: data.manager.email, url: data.link } : null);
       await onChanged();
     } catch (err) {
       onError(err instanceof Error ? err.message : "Couldn't invite.");
@@ -768,6 +770,7 @@ function ManagersCard({
     try {
       const data = await call("POST", { action: "link", managerId: m.id });
       setLink({ email: m.email, url: data.link });
+      setExisting(null);
       setCopied(false);
       await onChanged();
     } catch (err) {
@@ -816,6 +819,16 @@ function ManagersCard({
         </ul>
       ) : (
         <p className="text-sm text-muted">No managers yet.</p>
+      )}
+
+      {existing && (
+        <div className="mt-4 rounded-[12px] border border-gold/40 bg-gold-soft/50 p-4">
+          <p className="text-sm font-medium">{existing} already has a Digital Crate DJs login</p>
+          <p className="mt-1 text-xs text-muted">
+            They&apos;re now connected to this venue and keep their current access. Tell them to sign in at <b>cratesdjs.com/venue/login</b> with the password
+            they already use. If they don&apos;t remember it, click &quot;Get setup link&quot; next to their name and send them that link to set a new one.
+          </p>
+        </div>
       )}
 
       {link && (

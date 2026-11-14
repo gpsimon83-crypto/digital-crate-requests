@@ -76,7 +76,9 @@ function ResetForm() {
     setDone(true);
     const { data } = await supabase.auth.getUser();
     setTimeout(() => {
-      router.push(data.user?.app_metadata?.role === "venue" ? "/venue" : "/dj-dashboard/bookings");
+      // Venue setup links carry ?next=/venue (also for venue managers who already had a DJ or client login).
+      const next = new URLSearchParams(window.location.search).get("next") ?? "";
+      router.push(data.user?.app_metadata?.role === "venue" || next === "/venue" ? "/venue" : "/dj-dashboard/bookings");
       router.refresh();
     }, 1500);
   }
