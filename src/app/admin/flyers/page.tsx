@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Archive, ExternalLink, Pencil, Plus, RotateCcw, Trash2, Upload } from "lucide-react";
+import { Archive, ExternalLink, FolderOpen, Pencil, Plus, RotateCcw, Trash2, Upload } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { ScenePreviewClient } from "@/components/flyers/client";
@@ -111,9 +111,14 @@ export default function AdminFlyersPage() {
         title="Flyer Templates"
         subtitle="Build layered flyer templates. DJs pick one, their photo and name fill in, and they edit every piece."
         action={
-          <Link href="/dj-dashboard/flyers" className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:text-foreground">
-            All DJ flyers <ExternalLink size={13} />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/admin/flyers/assets" className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:text-foreground">
+              <FolderOpen size={13} /> Art library
+            </Link>
+            <Link href="/dj-dashboard/flyers" className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:text-foreground">
+              All DJ flyers <ExternalLink size={13} />
+            </Link>
+          </div>
         }
       />
       <div className="mx-auto grid max-w-6xl gap-8 px-6 py-8 sm:px-8 lg:grid-cols-[1fr_320px]">

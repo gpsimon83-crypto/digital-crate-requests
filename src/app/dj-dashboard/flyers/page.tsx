@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CalendarClock, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, CalendarClock, FolderOpen, Plus, Trash2, X } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { ScenePreviewClient } from "@/components/flyers/client";
@@ -70,6 +70,11 @@ function Flyers() {
             <Link href="/dj-dashboard" className="hidden items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:text-foreground sm:flex">
               <ArrowLeft size={14} /> Dashboard
             </Link>
+            {data?.me.dj && (
+              <Link href="/dj-dashboard/flyers/library" className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:text-foreground">
+                <FolderOpen size={14} /> My uploads
+              </Link>
+            )}
             <Button variant="primary" onClick={() => setStartOpen(true)} disabled={!data}>
               <Plus size={15} /> New flyer
             </Button>

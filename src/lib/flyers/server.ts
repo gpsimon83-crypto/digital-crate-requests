@@ -126,3 +126,49 @@ export function imageResponse(body: BodyInit, type: string, maxAge = 300) {
     }
   });
 }
+
+/**
+ * An image as the browser sees it. Selected with "*" so the folder column is
+ * picked up when migration 0051 has run and simply absent before.
+ */
+export type PublicAsset = { id: string; kind: string; name: string | null; folder: string | null; width: number; height: number; has_alpha: boolean; bytes: number | null; created_at: string };
+export function publicAsset(r: Record<string, unknown>): PublicAsset {
+  return {
+    id: r.id as string,
+    kind: r.kind as string,
+    name: (r.name as string) ?? null,
+    folder: (r.folder as string) ?? null,
+    width: r.width as number,
+    height: r.height as number,
+    has_alpha: !!r.has_alpha,
+    bytes: (r.bytes as number) ?? null,
+    created_at: r.created_at as string
+  };
+}
+export const publicAssets = (rows: unknown) => ((rows ?? []) as Record<string, unknown>[]).map(publicAsset);
+
+/**
+ * Where an image is used: DJ flyers, template drafts and published template
+ * versions (published ones are what DJs start from).
+ */
+export async function assetUsage(db: Db, assetId: string) {
+  const ref = { nodes: [{ source: { assetId } }] };
+  const { count: designs } = await db.from("flyer_designs").select("id", { count: "exact", head: true }).contains("scene", ref);
+  const names = new Set<string>();
+  let published = 0;
+  for (const f of ["square", "portrait", "story"]) {
+    const { data: t } = await db.from("flyer_templates").select("id, name").contains("draft", { formats: { [f]: ref } });
+    for (const r of (t ?? []) as { name: string }[]) names.add(r.name);
+    const { count } = await db.from("flyer_template_versions").select("id", { count: "exact", head: true }).contains("content", { formats: { [f]: ref } });
+    published += count ?? 0;
+  }
+  return { designs: designs ?? 0, templates: [...names], publishedVersions: published };
+}
+
+/** Folder names: trimmed, up to 60 characters, no slashes (folders don't nest). */
+export function cleanFolder(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const f = v.replace(/[\/\\<>]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+  return f || null;
+}
+

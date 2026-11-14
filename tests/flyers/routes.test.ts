@@ -12,6 +12,12 @@ const storage = new Map<string, Uint8Array>();
 const log: { table: string; op: string }[] = [];
 let user: { id: string; app_metadata: { role?: string } } | null = null;
 
+function jsonContains(a: unknown, b: unknown): boolean {
+  if (Array.isArray(b)) return Array.isArray(a) && b.every((x) => a.some((y) => jsonContains(y, x)));
+  if (b && typeof b === "object") return !!a && typeof a === "object" && Object.entries(b).every(([k, v]) => jsonContains((a as Record<string, unknown>)[k], v));
+  return a === b;
+}
+
 function query(table: string) {
   const filters: ((r: Row) => boolean)[] = [];
   let op: "select" | "insert" | "update" | "delete" = "select";
@@ -39,6 +45,7 @@ function query(table: string) {
     eq: (k: string, v: unknown) => (filters.push((r) => r[k] === v), q),
     in: (k: string, v: unknown[]) => (filters.push((r) => v.includes(r[k])), q),
     gte: (k: string, v: string) => (filters.push((r) => String(r[k] ?? "") >= v), q),
+    contains: (k: string, v: unknown) => (filters.push((r) => jsonContains(r[k], v)), q),
     order: () => q,
     limit: () => q,
     insert: (p: Row | Row[]) => ((op = "insert"), (payload = p), q),
@@ -282,5 +289,55 @@ describe("templates", () => {
     expect(db.flyer_templates[0].current_version_id).not.toBe(v1);
     expect(d.template_version_id).toBe(v1);
     expect(db.flyer_template_versions).toHaveLength(2);
+  });
+});
+
+describe("asset library", () => {
+  const assets = () => import("@/app/api/flyers/assets/route");
+  const one = () => import("@/app/api/flyers/assets/[id]/route");
+  it("lists only your own uploads; template art is staff-only", async () => {
+    const { GET } = await assets();
+    asA();
+    expect((await json(await GET(req("/api/flyers/assets?scope=dj")))).body.assets).toHaveLength(0);
+    expect((await GET(req(`/api/flyers/assets?scope=dj&dj=${DJ_B}`))).status).toBe(403);
+    expect((await GET(req("/api/flyers/assets?scope=template"))).status).toBe(403);
+    asB();
+    expect((await json(await GET(req("/api/flyers/assets?scope=dj")))).body.assets.map((a: Row) => a.id)).toEqual([uploadB]);
+    asStaff();
+    expect((await json(await GET(req("/api/flyers/assets?scope=template")))).body.assets.map((a: Row) => a.id)).toEqual([sharedAsset]);
+  });
+  it("rename / folder / type: owner or staff only, with valid types", async () => {
+    const { PATCH } = await one();
+    asA();
+    expect((await PATCH(req(`/api/flyers/assets/${uploadB}`, { method: "PATCH", body: { name: "x" } }), p({ id: uploadB }))).status).toBe(404);
+    expect((await PATCH(req(`/api/flyers/assets/${sharedAsset}`, { method: "PATCH", body: { folder: "x" } }), p({ id: sharedAsset }))).status).toBe(403);
+    asB();
+    const r = await json(await PATCH(req(`/api/flyers/assets/${uploadB}`, { method: "PATCH", body: { name: "Me <b>live</b>", folder: "  Press / shots  ", kind: "photo" } }), p({ id: uploadB })));
+    expect(r.status).toBe(200);
+    expect(r.body.asset).toMatchObject({ name: "Me bliveb", folder: "Press shots", kind: "photo" });
+    expect((await PATCH(req(`/api/flyers/assets/${uploadB}`, { method: "PATCH", body: { kind: "background" } }), p({ id: uploadB }))).status).toBe(400);
+  });
+  it("won't silently delete an image a flyer or template uses", async () => {
+    const { DELETE } = await one();
+    const s = db.flyer_designs[0].scene as Scene;
+    const portrait = s.nodes.find((n) => n.role === "portrait")!;
+    if (portrait.kind === "image") portrait.source = { type: "asset", assetId: sharedAsset };
+    db.flyer_templates = [{ id: randomUUID(), name: "Halloween", draft: { formats: { square: { nodes: [{ source: { assetId: sharedAsset } }] } } } }];
+    asStaff();
+    const r = await json(await DELETE(req(`/api/flyers/assets/${sharedAsset}`, { method: "DELETE" }), p({ id: sharedAsset })));
+    expect(r.status).toBe(409);
+    expect(r.body.usage).toMatchObject({ designs: 1, templates: ["Halloween"] });
+    expect(db.flyer_assets.some((a) => a.id === sharedAsset)).toBe(true);
+    expect((await DELETE(req(`/api/flyers/assets/${sharedAsset}?force=1`, { method: "DELETE" }), p({ id: sharedAsset }))).status).toBe(200);
+    expect(db.flyer_assets.some((a) => a.id === sharedAsset)).toBe(false);
+    expect(storage.has("template/bg.png")).toBe(false);
+  });
+  it("a DJ can't delete template art or another DJ's upload", async () => {
+    const { DELETE } = await one();
+    asA();
+    expect((await DELETE(req(`/api/flyers/assets/${sharedAsset}`, { method: "DELETE" }), p({ id: sharedAsset }))).status).toBe(403);
+    expect((await DELETE(req(`/api/flyers/assets/${uploadB}`, { method: "DELETE" }), p({ id: uploadB }))).status).toBe(404);
+    asB();
+    expect((await DELETE(req(`/api/flyers/assets/${uploadB}`, { method: "DELETE" }), p({ id: uploadB }))).status).toBe(200);
   });
 });

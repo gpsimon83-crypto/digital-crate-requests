@@ -96,10 +96,7 @@ export default function FlyerEditPage() {
         if (!r.ok) throw new Error(j.error ?? "Upload failed.");
         return j.asset as Asset;
       }}
-      deleteUpload={async (assetId) => {
-        const r = await fetch(`/api/flyers/assets/${assetId}`, { method: "DELETE" });
-        if (!r.ok) throw new Error("Couldn't delete.");
-      }}
+      libraryHref={data.viewer.isOwner ? "/dj-dashboard/flyers/library" : undefined}
     />
   );
 }

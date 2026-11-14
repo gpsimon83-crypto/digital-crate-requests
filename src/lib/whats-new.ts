@@ -19,6 +19,19 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-14-flyer-asset-library",
+    date: "2026-11-14",
+    area: "CRM",
+    title: "Flyer images: folders, rename and delete",
+    summary: "Staff can organise flyer template art and DJs can organise their own uploads: folders, names, types, search, and delete.",
+    bullets: [
+      "Staff: Admin → Flyer Templates → Art library. DJs: Flyer Creator → My uploads",
+      "Select several images to move them into a folder, change their type, or delete them",
+      "Before deleting an image that flyers or templates use, you're told where it's used and asked to confirm",
+      "Inside the editor: search, images grouped by folder, and a delete button on each image"
+    ]
+  },
+  {
     id: "2026-11-13-flyer-svg-import",
     date: "2026-11-13",
     area: "CRM",

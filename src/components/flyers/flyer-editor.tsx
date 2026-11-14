@@ -82,7 +82,8 @@ export type FlyerEditorProps = {
   backLabel: string;
   save: (scenes: Scenes, title: string) => Promise<SaveResult>;
   upload: (file: File, kind: string) => Promise<Asset>;
-  deleteUpload?: (id: string) => Promise<void>;
+  /** Full library page (folders, rename, bulk delete). */
+  libraryHref?: string;
   /** Template mode: a real DJ whose photo previews the photo slot (never saved into the template). */
   previewDjs?: { id: string; display_name: string; has_photo: boolean }[];
   sampleValues?: PlaceholderValues;
@@ -770,18 +771,23 @@ export function FlyerEditor(props: FlyerEditorProps) {
           else setUploads((u) => [a, ...u]);
           setNotice("Uploaded. Tap it to put it on the flyer.");
         },
-        deleteUpload: props.deleteUpload
-          ? async (id) => {
-              if (
-                !window.confirm(
-                  "Delete this upload? Flyers using it will show an empty frame.",
-                )
-              )
-                return;
-              await props.deleteUpload!(id);
-              setUploads((u) => u.filter((x) => x.id !== id));
-            }
-          : undefined,
+        deleteAsset: async (a) => {
+          if (!window.confirm(`Delete “${a.name ?? "this image"}” from the library?`)) return;
+          let r = await fetch(`/api/flyers/assets/${a.id}`, { method: "DELETE" });
+          let j = await r.json().catch(() => ({}));
+          if (r.status === 409 && j.inUse) {
+            const u = j.usage as { designs: number; templates: string[]; publishedVersions: number };
+            const where = [u.designs ? `${u.designs} flyer${u.designs === 1 ? "" : "s"}` : null, u.templates.length ? `template ${u.templates.map((t) => `“${t}”`).join(", ")}` : null, u.publishedVersions && !u.templates.length ? "a published template" : null].filter(Boolean).join(" and ");
+            if (!window.confirm(`It's used in ${where}. Delete anyway? Those spots will show an empty frame. This can't be undone.`)) return;
+            r = await fetch(`/api/flyers/assets/${a.id}?force=1`, { method: "DELETE" });
+            j = await r.json().catch(() => ({}));
+          }
+          if (!r.ok) return setNotice(j.error ?? "Couldn't delete.");
+          setUploads((u) => u.filter((x) => x.id !== a.id));
+          setShared((s) => s.filter((x) => x.id !== a.id));
+          setNotice("Deleted.");
+        },
+        libraryHref: props.libraryHref,
         replacing,
         cancelReplace: () => setReplacing(null),
         // DJs get imported designs through templates; staff can also import straight into a flyer.

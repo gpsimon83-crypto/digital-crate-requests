@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkSceneSources, flyerActor, flyerError, uuidOk, type FlyerActor } from "@/lib/flyers/server";
+import { publicAssets } from "@/lib/flyers/server";
 import { checkDjChanges, parseScene } from "@/lib/flyers/scene";
 import type { FormatKey, Scene } from "@/lib/flyers/types";
 
@@ -29,8 +30,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
     if (row instanceof NextResponse) return row;
     const db = createAdminClient();
     const { data: dj } = await db.from("djs").select("id, display_name, photo_url").eq("id", row.dj_id).maybeSingle();
-    const { data: uploads } = await db.from("flyer_assets").select("id, kind, name, width, height, has_alpha, created_at").eq("scope", "dj").eq("owner_dj_id", row.dj_id).order("created_at", { ascending: false }).limit(100);
-    const { data: shared } = await db.from("flyer_assets").select("id, kind, name, width, height, has_alpha, created_at").eq("scope", "template").order("created_at", { ascending: false }).limit(200);
+    const { data: uploads } = await db.from("flyer_assets").select("*").eq("scope", "dj").eq("owner_dj_id", row.dj_id).order("created_at", { ascending: false }).limit(100);
+    const { data: shared } = await db.from("flyer_assets").select("*").eq("scope", "template").order("created_at", { ascending: false }).limit(200);
     const { data: venues } = await db.from("venues").select("id, name, logo_url").order("name");
     let template: { name: string; version: number | null } | null = null;
     if (row.template_id) {
@@ -45,8 +46,8 @@ export async function GET(_req: NextRequest, { params }: Params) {
       owner: d ? { id: d.id, display_name: d.display_name, has_photo: !!d.photo_url } : null,
       // Staff working on another DJ's flyer: their own layers stay theirs, template permissions still apply to the DJ.
       viewer: { staff: actor.staff, isOwner: row.dj_id === actor.dj?.id },
-      uploads: uploads ?? [],
-      shared: shared ?? [],
+      uploads: publicAssets(uploads),
+      shared: publicAssets(shared),
       venues: ((venues ?? []) as { id: string; name: string; logo_url: string | null }[]).map((v) => ({ id: v.id, name: v.name, has_logo: !!v.logo_url }))
     });
   } catch (err) {

@@ -110,6 +110,7 @@ export default function TemplateEditPage() {
         sampleValues={SAMPLE}
         backHref="/admin/flyers"
         backLabel="Templates"
+        libraryHref="/admin/flyers/assets"
         subtitle={latest ? `Live: version ${latest.version} · edits here go live when you publish` : "Not published yet"}
         onSaveReady={onSaveReady}
         save={save}

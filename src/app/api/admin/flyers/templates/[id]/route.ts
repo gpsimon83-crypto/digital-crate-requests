@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { flyerAdmin, flyerError, uuidOk } from "@/lib/flyers/server";
+import { publicAssets } from "@/lib/flyers/server";
 import { parseTemplateContent } from "@/lib/flyers/scene";
 
 type Params = { params: Promise<{ id: string }> };
@@ -16,13 +17,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
     if (error) throw error;
     if (!data) return NextResponse.json({ error: "Template not found" }, { status: 404 });
     const { data: versions } = await db.from("flyer_template_versions").select("id, version, published_at").eq("template_id", id).order("version", { ascending: false });
-    const { data: shared } = await db.from("flyer_assets").select("id, kind, name, width, height, has_alpha, created_at").eq("scope", "template").order("created_at", { ascending: false }).limit(300);
+    const { data: shared } = await db.from("flyer_assets").select("*").eq("scope", "template").order("created_at", { ascending: false }).limit(300);
     const { data: venues } = await db.from("venues").select("id, name, logo_url").order("name");
     const { data: djs } = await db.from("djs").select("id, display_name, photo_url").order("display_name");
     return NextResponse.json({
       template: data,
       versions: versions ?? [],
-      shared: shared ?? [],
+      shared: publicAssets(shared),
       venues: ((venues ?? []) as { id: string; name: string; logo_url: string | null }[]).map((v) => ({ id: v.id, name: v.name, has_logo: !!v.logo_url })),
       djs: ((djs ?? []) as { id: string; display_name: string; photo_url: string | null }[]).map((d) => ({ id: d.id, display_name: d.display_name, has_photo: !!d.photo_url }))
     });

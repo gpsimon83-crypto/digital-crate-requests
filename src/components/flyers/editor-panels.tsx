@@ -14,9 +14,12 @@ import {
   EyeOff,
   FlipHorizontal2,
   FlipVertical2,
+  Folder,
+  FolderOpen,
   Group as GroupIcon,
   ImagePlus,
   Lock,
+  Search,
   Trash2,
   Type,
   Ungroup,
@@ -28,7 +31,7 @@ import { cn } from "@/lib/utils";
 import { FLYER_FONTS, fontByKey, nearestWeight } from "@/lib/flyers/fonts";
 import { PLACEHOLDERS, ROLES, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type TextNode } from "@/lib/flyers/types";
 
-export type Asset = { id: string; kind: string; name: string | null; width: number; height: number; has_alpha: boolean };
+export type Asset = { id: string; kind: string; name: string | null; folder?: string | null; width: number; height: number; has_alpha: boolean };
 export type VenueOpt = { id: string; name: string; has_logo: boolean };
 
 export const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-1";
@@ -568,7 +571,10 @@ export type LibraryApi = {
   addText: (role: Role) => void;
   placeImage: (source: ImageSource, role: Role, asset?: Asset) => void;
   upload: (file: File, kind: string) => Promise<void>;
-  deleteUpload?: (id: string) => void;
+  /** Delete one of the images listed (asks first, and again if it's in use). */
+  deleteAsset?: (a: Asset) => void;
+  /** Where the full library (folders, rename, bulk delete) lives. */
+  libraryHref?: string;
   replacing: string | null;
   /** Import a layered SVG (Illustrator, Figma, Canva…) as editable layers. */
   importSvg?: (file: File, placeholders: boolean) => Promise<void>;
@@ -603,6 +609,23 @@ export function LibraryPanel({
   const [kind, setKind] = useState(api.mode === "template" ? "background" : "photo");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [find, setFind] = useState("");
+  const match = (a: Asset) => {
+    const n = find.trim().toLowerCase();
+    return !n || (a.name ?? "").toLowerCase().includes(n) || (a.folder ?? "").toLowerCase().includes(n);
+  };
+  const searchBox = (
+    <label className="relative block">
+      <span className="sr-only">Search images</span>
+      <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+      <input className={cn(inputCls, "pl-8")} placeholder="Search images or folders" value={find} onChange={(e) => setFind(e.target.value)} />
+    </label>
+  );
+  const manageLink = api.libraryHref ? (
+    <a href={api.libraryHref} target="_blank" rel="noreferrer" className={cn("inline-flex items-center gap-1 self-start text-xs font-medium text-gold-dim underline underline-offset-2", FOCUS)}>
+      <FolderOpen size={13} /> Organise or delete images
+    </a>
+  ) : null;
   const tabs = [...(templatesSlot ? [["templates", "Templates"]] : []), ["text", "Text"], ["photos", "Photos"], ["logos", "Logos"], ["assets", api.mode === "template" ? "Assets" : "Art"]] as [string, string][];
 
   async function onFile(f: File | undefined) {
@@ -670,27 +693,13 @@ export function LibraryPanel({
             ) : null}
             {api.mode === "design" && (
               <>
-                <div>
-                  <p className={labelCls}>Your uploads</p>
-                  {uploads.length ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      {uploads.map((a) => (
-                        <div key={a.id} className="relative">
-                          <button className={tile} onClick={() => api.placeImage({ type: "asset", assetId: a.id }, a.kind === "photo" ? "portrait" : "image", a)} aria-label={`Use ${a.name ?? "upload"}`}>
-                            {thumb(`/api/flyers/assets/${a.id}`, a.name ?? "Upload")}
-                          </button>
-                          {api.deleteUpload && (
-                            <button className="absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full border border-black/10 bg-white text-muted shadow hover:text-status-declined" aria-label={`Delete ${a.name ?? "upload"}`} onClick={() => api.deleteUpload!(a.id)}>
-                              <Trash2 size={11} />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted">Nothing uploaded yet.</p>
-                  )}
-                </div>
+                {uploads.length > 4 && searchBox}
+                {uploads.length ? (
+                  <AssetGrid items={uploads.filter(match)} title="Your uploads" tile={tile} onPick={(a) => api.placeImage({ type: "asset", assetId: a.id }, a.kind === "photo" ? "portrait" : "image", a)} onDelete={api.deleteAsset} />
+                ) : (
+                  <p className="text-xs text-muted">Nothing uploaded yet.</p>
+                )}
+                {uploads.length > 0 && manageLink}
                 <UploadBox fileRef={fileRef} busy={busy} onFile={onFile} kind={kind} setKind={setKind} kinds={[["photo", "Photo of me"], ["image", "Other image"]]} />
                 <p className="rounded-[8px] bg-black/5 p-2.5 text-[11px] leading-relaxed text-muted">
                   <b className="text-foreground">Cut-out portraits:</b>{" "}automatic background removal isn&apos;t available here. To place yourself without a background, upload a PNG that already has a transparent background (remove it first in an app like Photoshop, Canva or remove.bg). Transparent PNGs keep their transparency on the flyer.
@@ -717,14 +726,16 @@ export function LibraryPanel({
                 ))}
             </div>
             {!venues.some((v) => v.has_logo) && <p className="text-xs text-muted">No venue logos yet. They come from Admin → Venue Portals → Branding.</p>}
-            <AssetGrid items={shared.filter((a) => a.kind === "logo")} title="Logos" tile={tile} onPick={(a) => api.placeImage({ type: "asset", assetId: a.id }, "logo", a)} />
+            <AssetGrid items={shared.filter((a) => a.kind === "logo" && match(a))} title="Logos" tile={tile} onPick={(a) => api.placeImage({ type: "asset", assetId: a.id }, "logo", a)} onDelete={api.mode === "template" ? api.deleteAsset : undefined} />
           </div>
         )}
         {tab === "assets" && (
           <div className="flex flex-col gap-3">
             {api.importSvg && <SvgImportBox mode={api.mode} onImport={api.importSvg} />}
-            <AssetGrid items={shared.filter((a) => a.kind === "background")} title="Backgrounds" tile={tile} onPick={(a) => api.placeImage({ type: "asset", assetId: a.id }, "background", a)} />
-            <AssetGrid items={shared.filter((a) => a.kind === "overlay" || a.kind === "image")} title="Overlays & art" tile={tile} onPick={(a) => api.placeImage({ type: "asset", assetId: a.id }, a.kind === "overlay" ? "overlay" : "image", a)} />
+            {shared.length > 4 && searchBox}
+            <AssetGrid items={shared.filter((a) => a.kind === "background" && match(a))} title="Backgrounds" tile={tile} onPick={(a) => api.placeImage({ type: "asset", assetId: a.id }, "background", a)} onDelete={api.mode === "template" ? api.deleteAsset : undefined} />
+            <AssetGrid items={shared.filter((a) => (a.kind === "overlay" || a.kind === "image") && match(a))} title="Overlays & art" tile={tile} onPick={(a) => api.placeImage({ type: "asset", assetId: a.id }, a.kind === "overlay" ? "overlay" : "image", a)} onDelete={api.mode === "template" ? api.deleteAsset : undefined} />
+            {api.mode === "template" && manageLink}
             <div>
               <p className={labelCls}>Built-in</p>
               <div className="grid grid-cols-3 gap-2">
@@ -768,18 +779,45 @@ export function LibraryPanel({
   );
 }
 
-function AssetGrid({ items, title, tile, onPick }: { items: Asset[]; title: string; tile: string; onPick: (a: Asset) => void }) {
+/** Images grouped by folder (images not in a folder first). */
+function AssetGrid({ items, title, tile, onPick, onDelete }: { items: Asset[]; title: string; tile: string; onPick: (a: Asset) => void; onDelete?: (a: Asset) => void }) {
   if (!items.length) return null;
+  const groups = new Map<string, Asset[]>();
+  for (const a of items) groups.set(a.folder ?? "", [...(groups.get(a.folder ?? "") ?? []), a]);
+  const keys = [...groups.keys()].sort((a, b) => (a === "" ? -1 : b === "" ? 1 : a.localeCompare(b)));
+  const grid = (list: Asset[]) => (
+    <div className="grid grid-cols-3 gap-2">
+      {list.map((a) => (
+        <div key={a.id} className="group/t relative">
+          <button className={tile} onClick={() => onPick(a)} aria-label={`Use ${a.name ?? title}`} title={a.name ?? undefined}>
+            {thumb(`/api/flyers/assets/${a.id}`, a.name ?? title)}
+          </button>
+          {onDelete && (
+            <button
+              className={cn("absolute -right-1 -top-1 grid h-6 w-6 place-items-center rounded-full border border-black/10 bg-white text-muted shadow hover:text-status-declined focus-visible:opacity-100 sm:opacity-0 sm:group-hover/t:opacity-100", FOCUS)}
+              aria-label={`Delete ${a.name ?? "image"}`}
+              onClick={() => onDelete(a)}
+            >
+              <Trash2 size={11} />
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
   return (
     <div>
       <p className={labelCls}>{title}</p>
-      <div className="grid grid-cols-3 gap-2">
-        {items.map((a) => (
-          <button key={a.id} className={tile} onClick={() => onPick(a)} aria-label={`Use ${a.name ?? title}`} title={a.name ?? undefined}>
-            {thumb(`/api/flyers/assets/${a.id}`, a.name ?? title)}
-          </button>
-        ))}
-      </div>
+      {keys.length === 1 && keys[0] === ""
+        ? grid(items)
+        : keys.map((k) => (
+            <details key={k || "none"} open className="mb-2">
+              <summary className={cn("mb-1.5 flex cursor-pointer items-center gap-1.5 rounded text-xs font-medium", FOCUS)}>
+                <Folder size={13} className="text-gold-dim" /> {k || "Not in a folder"} <span className="text-muted">({groups.get(k)!.length})</span>
+              </summary>
+              {grid(groups.get(k)!)}
+            </details>
+          ))}
     </div>
   );
 }

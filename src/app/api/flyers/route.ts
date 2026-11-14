@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ensureSampleTemplate, flyerActor, flyerError } from "@/lib/flyers/server";
+import { publicAssets } from "@/lib/flyers/server";
 import { EVENT_SELECT, eventValues, type EventRow, type VenueRow } from "@/lib/flyers/data";
 import type { TemplateContent } from "@/lib/flyers/types";
 
@@ -44,10 +45,10 @@ export async function GET() {
     const { data: designs, error: dErr } = await (djId ? designsQ.eq("dj_id", djId) : designsQ);
     if (dErr) throw dErr;
 
-    const { data: shared, error: aErr } = await db.from("flyer_assets").select("id, kind, name, width, height, has_alpha, created_at").eq("scope", "template").order("created_at", { ascending: false }).limit(200);
+    const { data: shared, error: aErr } = await db.from("flyer_assets").select("*").eq("scope", "template").order("created_at", { ascending: false }).limit(200);
     if (aErr) throw aErr;
     const { data: uploads, error: uErr } = djId
-      ? await db.from("flyer_assets").select("id, kind, name, width, height, has_alpha, created_at").eq("scope", "dj").eq("owner_dj_id", djId).order("created_at", { ascending: false }).limit(100)
+      ? await db.from("flyer_assets").select("*").eq("scope", "dj").eq("owner_dj_id", djId).order("created_at", { ascending: false }).limit(100)
       : { data: [], error: null };
     if (uErr) throw uErr;
 
@@ -68,8 +69,8 @@ export async function GET() {
       me: { staff: actor.staff, dj: actor.dj ? { id: actor.dj.id, display_name: actor.dj.display_name, has_photo: !!actor.dj.photo_url } : null },
       templates,
       designs: designs ?? [],
-      shared: shared ?? [],
-      uploads: uploads ?? [],
+      shared: publicAssets(shared),
+      uploads: publicAssets(uploads),
       events,
       venues: venueList.map((v) => ({ id: v.id, name: v.name, has_logo: !!v.logo_url })),
       djs: (djs as { id: string; display_name: string; photo_url: string | null }[]).map((d) => ({ id: d.id, display_name: d.display_name, has_photo: !!d.photo_url }))
