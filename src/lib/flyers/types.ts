@@ -34,6 +34,9 @@ export const PLACEHOLDERS = {
   dj_name: "DJ name",
   event_title: "Event title",
   event_date: "Event date",
+  event_weekday: "Day of the week",
+  event_month: "Month (short)",
+  event_day: "Day of the month",
   start_time: "Start time",
   end_time: "End time",
   venue_name: "Venue name",
@@ -96,6 +99,8 @@ export type TextNode = Base & {
   letterSpacing: number;
   align: "left" | "center" | "right";
   uppercase: boolean;
+  /** Keep each line on one line: shrink the letters when the words get longer than the box. */
+  shrink: boolean;
   fill: string;
   stroke: Stroke;
   shadow: Shadow;

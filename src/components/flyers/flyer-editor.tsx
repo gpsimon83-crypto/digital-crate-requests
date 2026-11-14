@@ -61,6 +61,7 @@ import {
   type VenueOpt,
 } from "./editor-panels";
 import { loadSceneFonts, type SrcContext } from "./loaders";
+import { importSvg } from "./svg-import";
 
 export type Scenes = Partial<Record<FormatKey, Scene>>;
 export type SaveResult =
@@ -783,6 +784,22 @@ export function FlyerEditor(props: FlyerEditorProps) {
           : undefined,
         replacing,
         cancelReplace: () => setReplacing(null),
+        // DJs get imported designs through templates; staff can also import straight into a flyer.
+        importSvg: mode === "template" || staff ? async (file, placeholders) => {
+          // Check the size first so nothing is uploaded for a file that can't go here.
+          const head = await file.slice(0, 4000).text();
+          const vb = head.match(/viewBox\s*=\s*["']\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/);
+          const fmtGuess = vb ? FORMAT_KEYS.reduce((b, k) => (Math.abs(FORMATS[k].height / FORMATS[k].width - +vb[2] / +vb[1]) < Math.abs(FORMATS[b].height / FORMATS[b].width - +vb[2] / +vb[1]) ? k : b), FORMAT_KEYS[0]) : active;
+          if (mode === "design" && fmtGuess !== active) throw new Error(`That SVG is a ${FORMATS[fmtGuess].label.toLowerCase()}; this flyer is a ${FORMATS[active].label.toLowerCase()}. Start a flyer in that size to import it.`);
+          const target = scenes[fmtGuess];
+          if (target?.nodes.length && !window.confirm(`Replace the ${target.nodes.length} layers in the ${FORMATS[fmtGuess].label} layout with this SVG? (Undo brings them back.)`)) return;
+          const r = await importSvg(file, { upload: props.upload, placeholders, onProgress: setNotice });
+          setHist((h) => commit(h, { ...h.present, [r.scene.format]: { ...r.scene, safeMargin: h.present[r.scene.format]?.safeMargin ?? r.scene.safeMargin } }, null));
+          setActive(r.scene.format);
+          setSelected([]);
+          setNotice(`Imported ${r.texts} text layer${r.texts === 1 ? "" : "s"} and ${r.images} image${r.images === 1 ? "" : "s"}.${r.warnings.length ? ` ${r.warnings[0]}` : ""}`);
+          if (r.warnings.length > 1) window.setTimeout(() => setNotice(r.warnings.slice(1).join(" ")), 4000);
+        } : undefined,
       }}
     />
   );

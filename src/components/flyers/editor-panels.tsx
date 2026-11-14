@@ -318,6 +318,7 @@ function TextProps({ n, set, canEdit, canStyle, mode, textRef }: { n: TextNode; 
             </button>
           ) : null}
         </div>
+        <Check label="Shrink to fit on one line" checked={n.shrink} disabled={!canStyle} onChange={(v) => set({ shrink: v }, "shrink")} />
         <ColorField label="Color" value={n.fill} disabled={!canStyle} onChange={(v) => set({ fill: v }, "fill")} />
       </Section>
       <Section title="Outline" defaultOpen={n.stroke.enabled}>
@@ -543,6 +544,8 @@ export type LibraryApi = {
   upload: (file: File, kind: string) => Promise<void>;
   deleteUpload?: (id: string) => void;
   replacing: string | null;
+  /** Import a layered SVG (Illustrator, Figma, Canva…) as editable layers. */
+  importSvg?: (file: File, placeholders: boolean) => Promise<void>;
   cancelReplace: () => void;
 };
 
@@ -693,6 +696,7 @@ export function LibraryPanel({
         )}
         {tab === "assets" && (
           <div className="flex flex-col gap-3">
+            {api.importSvg && <SvgImportBox mode={api.mode} onImport={api.importSvg} />}
             <AssetGrid items={shared.filter((a) => a.kind === "background")} title="Backgrounds" tile={tile} onPick={(a) => api.placeImage({ type: "asset", assetId: a.id }, "background", a)} />
             <AssetGrid items={shared.filter((a) => a.kind === "overlay" || a.kind === "image")} title="Overlays & art" tile={tile} onPick={(a) => api.placeImage({ type: "asset", assetId: a.id }, a.kind === "overlay" ? "overlay" : "image", a)} />
             <div>
@@ -773,6 +777,57 @@ function UploadBox({ fileRef, busy, onFile, kind, setKind, kinds }: { fileRef: R
         <Upload size={15} /> {busy ? "Uploading…" : "Choose image"}
       </label>
       <p className="mt-1.5 text-[11px] text-muted">PNG, JPEG or WebP. Up to 10 MB (15 MB for template art).</p>
+    </div>
+  );
+}
+
+function SvgImportBox({ mode, onImport }: { mode: "design" | "template"; onImport: (file: File, placeholders: boolean) => Promise<void> }) {
+  const id = useId();
+  const ref = useRef<HTMLInputElement>(null);
+  const [placeholders, setPlaceholders] = useState(mode === "template");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <div className="rounded-[10px] border border-gold/40 bg-gold-soft/40 p-3">
+      <p className="text-sm font-semibold">Import a layered SVG</p>
+      <p className="mt-1 text-[11px] leading-relaxed text-muted">
+        From Illustrator, Figma, Canva or Inkscape. Each text becomes its own editable layer; embedded pictures become image layers. It replaces the layers in this size.
+      </p>
+      {mode === "template" && (
+        <label className="mt-2 flex items-start gap-2 text-xs">
+          <input type="checkbox" className={cn("mt-0.5 h-4 w-4 accent-[#c99428]", FOCUS)} checked={placeholders} onChange={(e) => setPlaceholders(e.target.checked)} />
+          <span>Turn DJ name, date, time, venue and address into placeholders (filled from each booking)</span>
+        </label>
+      )}
+      <input
+        ref={ref}
+        id={id}
+        type="file"
+        accept=".svg,image/svg+xml"
+        className="sr-only"
+        onChange={async (e) => {
+          const f = e.target.files?.[0];
+          if (!f) return;
+          setErr(null);
+          setBusy(true);
+          try {
+            await onImport(f, placeholders);
+          } catch (x) {
+            setErr(x instanceof Error ? x.message : "Import failed.");
+          } finally {
+            setBusy(false);
+            if (ref.current) ref.current.value = "";
+          }
+        }}
+      />
+      <label htmlFor={id} className={cn(iconBtn, "mt-2 h-10 w-full cursor-pointer justify-center", busy && "pointer-events-none opacity-50")}>
+        <Upload size={15} /> {busy ? "Importing…" : "Choose SVG file"}
+      </label>
+      {err && (
+        <p role="alert" className="mt-2 text-xs text-status-declined">
+          {err}
+        </p>
+      )}
     </div>
   );
 }

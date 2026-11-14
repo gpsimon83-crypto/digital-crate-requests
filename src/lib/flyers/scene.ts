@@ -61,6 +61,7 @@ export function newText(role: Role, scene: Pick<Scene, "width" | "height">, patc
     letterSpacing: 0,
     align: "center",
     uppercase: false,
+    shrink: false,
     fill: "#ffffff",
     stroke: { enabled: false, color: "#000000", width: 4 },
     shadow: { ...NO_SHADOW },
@@ -172,6 +173,7 @@ const textSchema = z.object({
   letterSpacing: num(-20, 80, 0),
   align: z.preprocess((v) => (v === "left" || v === "right" ? v : "center"), z.enum(["left", "center", "right"])),
   uppercase: bool(false),
+  shrink: bool(false),
   fill: color("#ffffff"),
   stroke: strokeSchema,
   shadow: shadowSchema
@@ -292,10 +294,15 @@ export function bookingValues(
   const date = e?.starts_at && !Number.isNaN(new Date(e.starts_at).getTime())
     ? new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "long", month: "long", day: "numeric" }).format(new Date(e.starts_at))
     : null;
+  const start = e?.starts_at && !Number.isNaN(new Date(e.starts_at).getTime()) ? new Date(e.starts_at) : null;
+  const part = (o: Intl.DateTimeFormatOptions) => (start ? new Intl.DateTimeFormat("en-US", { timeZone: tz, ...o }).format(start) : null);
   return {
     dj_name: djName,
     event_title: e?.title?.trim() || null,
     event_date: date,
+    event_weekday: part({ weekday: "long" }),
+    event_month: part({ month: "short" }),
+    event_day: part({ day: "numeric" }),
     start_time: time(e?.starts_at),
     end_time: time(e?.ends_at),
     venue_name: e?.venue_name?.trim() || null,
@@ -361,7 +368,7 @@ export function withGroup(nodes: FlyerNode[], id: string): string[] {
 /* ---------------- DJ permission check (server side) ---------------- */
 
 const MOVE_KEYS = ["x", "y", "width", "height", "rotation"] as const;
-const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "fill", "stroke", "shadow", "opacity"] as const;
+const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity"] as const;
 const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "shadow", "opacity"] as const;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 

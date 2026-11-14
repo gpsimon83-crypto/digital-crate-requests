@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ensureSampleTemplate, flyerAdmin, flyerError, uuidOk } from "@/lib/flyers/server";
-import { emptyScene } from "@/lib/flyers/scene";
+import { emptyScene, parseTemplateContent } from "@/lib/flyers/scene";
 import { FORMATS, type FormatKey, type TemplateContent } from "@/lib/flyers/types";
 
 /** Staff: every template (drafts, published, archived) with version counts and how many flyers use each. */
@@ -41,13 +41,19 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const admin = await flyerAdmin();
   if (admin instanceof NextResponse) return admin;
-  const b = (await req.json().catch(() => ({}))) as { name?: string; formats?: string[]; copyFrom?: string; venueId?: string | null };
+  const b = (await req.json().catch(() => ({}))) as { name?: string; formats?: string[]; copyFrom?: string; venueId?: string | null; draft?: unknown };
   const name = (b.name ?? "").trim().slice(0, 80);
   if (!name) return NextResponse.json({ error: "Give the template a name." }, { status: 400 });
   try {
     const db = createAdminClient();
     let draft: TemplateContent = { formats: {} };
-    if (b.copyFrom && uuidOk(b.copyFrom)) {
+    if (b.draft !== undefined) {
+      // e.g. a layered SVG imported in the browser
+      const p = parseTemplateContent(b.draft);
+      if (!p.ok) return NextResponse.json({ error: p.error }, { status: 400 });
+      if (!Object.keys(p.value.formats).length) return NextResponse.json({ error: "Nothing to import." }, { status: 400 });
+      draft = p.value;
+    } else if (b.copyFrom && uuidOk(b.copyFrom)) {
       const { data } = await db.from("flyer_templates").select("draft").eq("id", b.copyFrom).maybeSingle();
       if (data) draft = data.draft as TemplateContent;
     } else {

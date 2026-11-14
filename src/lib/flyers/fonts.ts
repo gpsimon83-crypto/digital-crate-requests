@@ -15,6 +15,7 @@ export const FLYER_FONTS: FlyerFont[] = [
   { key: "montserrat", label: "Montserrat", weights: [400, 600, 800, 900], italic: [800], file: "montserrat", category: "sans" },
   { key: "poppins", label: "Poppins", weights: [400, 600, 800], file: "poppins", category: "sans" },
   { key: "inter", label: "Inter", weights: [400, 600, 800], file: "inter", category: "sans" },
+  { key: "arimo", label: "Arimo (Arial)", weights: [400, 700], italic: [700], file: "arimo", category: "sans" },
   { key: "playfair", label: "Playfair Display", weights: [400, 700, 900], italic: [700], file: "playfair-display", category: "serif" },
   { key: "permanent-marker", label: "Permanent Marker", weights: [400], file: "permanent-marker", category: "script" },
   { key: "great-vibes", label: "Great Vibes", weights: [400], file: "great-vibes", category: "script" }
@@ -47,4 +48,26 @@ export function fontFaces(): { family: string; url: string; weight: number; styl
     ...f.weights.map((w) => ({ family: canvasFamily(f.key), url: `/flyers/fonts/${f.file}-latin-${w}-normal.woff2`, weight: w, style: "normal" as const, key: f.key })),
     ...(f.italic ?? []).map((w) => ({ family: canvasFamily(f.key), url: `/flyers/fonts/${f.file}-latin-${w}-italic.woff2`, weight: w, style: "italic" as const, key: f.key }))
   ]);
+}
+
+/**
+ * The closest included font for a family named in an imported file
+ * (Illustrator writes names like "Arial-BoldMT, Arial" or "Arial-Black, 'Arial Black'").
+ * Arial isn't free to bundle: Arimo has the same letter widths; Archivo Black stands in for Arial Black.
+ */
+export function matchFont(family: string, weight: number): { key: string; weight: number } {
+  const f = family.toLowerCase().replace(/['"]/g, "");
+  const heavy = /black|heavy/.test(f);
+  const bold = heavy || /bold|semibold|demi/.test(f) || weight >= 600;
+  const pick = (key: string) => ({ key, weight: nearestWeight(key, heavy ? 900 : bold ? Math.max(weight, 700) : weight) });
+  if (/arial[\s-]*black/.test(f)) return { key: "archivo-black", weight: 400 };
+  for (const font of FLYER_FONTS) {
+    const label = font.label.toLowerCase().replace(/ \(.*\)$/, "");
+    if (f.includes(label) || f.includes(label.replace(/\s+/g, ""))) return pick(font.key);
+  }
+  if (/bebas/.test(f)) return pick("bebas");
+  if (/impact|league gothic|compressed|condensed/.test(f)) return pick("anton");
+  if (/times|georgia|garamond|serif(?!.*sans)/.test(f) && !/sans/.test(f)) return pick("playfair");
+  if (/script|brush|vibes|hand/.test(f)) return pick("great-vibes");
+  return pick("arimo"); // Arial, Helvetica and anything unknown
 }

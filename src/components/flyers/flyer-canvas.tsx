@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import KonvaLib from "konva";
 import type Konva from "konva";
 import { Group, Image as KImage, Layer, Line, Rect, Stage, Text as KText, Transformer } from "react-konva";
 import { imageLayout } from "@/lib/flyers/scene";
@@ -101,9 +102,32 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
   );
 }
 
+/** Font size that keeps every line inside the box (only shrinks, never grows), measured exactly as Konva will draw it. */
+function fittedSize(node: TextNode, text: string, family: string, style: string): number {
+  if (!node.shrink || typeof document === "undefined") return node.fontSize;
+  const probe = new KonvaLib.Text({ text, fontFamily: `${family}, sans-serif`, fontStyle: style, fontSize: node.fontSize, letterSpacing: node.letterSpacing, wrap: "none" });
+  const widest = probe.getTextWidth();
+  probe.destroy();
+  if (!(widest > node.width)) return node.fontSize;
+  // Shrinking isn't perfectly linear (kerning, rounding): step down until it fits.
+  let size = Math.floor(((node.fontSize * node.width) / widest) * 100) / 100;
+  for (let i = 0; i < 6; i++) {
+    const p = new KonvaLib.Text({ text, fontFamily: `${family}, sans-serif`, fontStyle: style, fontSize: size, letterSpacing: node.letterSpacing, wrap: "none" });
+    const w = p.getTextWidth();
+    p.destroy();
+    if (w <= node.width - 0.5) break;
+    size = Math.max(6, size * 0.985);
+  }
+  return size;
+}
+
 function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | null; fontsKey: number }) {
   const f = fontString(node);
   const movable = !!act && act.interactive && !node.locked && act.canMove(node);
+  const shown = node.uppercase ? node.text.toUpperCase() : node.text;
+  // fontsKey changes once the font file has loaded, so the measurement is redone with the real letters.
+  const size = useMemo(() => fittedSize(node, shown, f.family, f.style), [node, shown, f.family, f.style, fontsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lines = shown.split("\n").length;
   return (
     <KText
       key={fontsKey}
@@ -114,10 +138,12 @@ function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | nu
       width={node.width}
       rotation={node.rotation}
       opacity={node.opacity}
-      text={node.uppercase ? node.text.toUpperCase() : node.text}
+      text={shown}
       fontFamily={`${f.family}, sans-serif`}
       fontStyle={f.style}
-      fontSize={node.fontSize}
+      fontSize={size}
+      // Shrunk text stays on one line, centred on where the full-size line was.
+      {...(node.shrink ? { wrap: "none", height: node.fontSize * node.lineHeight * lines, verticalAlign: "middle" } : {})}
       lineHeight={node.lineHeight}
       letterSpacing={node.letterSpacing}
       align={node.align}

@@ -19,6 +19,20 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-13-flyer-svg-import",
+    date: "2026-11-13",
+    area: "CRM",
+    title: "Flyer Creator: import layered SVG designs",
+    summary: "Templates can now start from a layered SVG made in Illustrator, Figma, Canva or Inkscape. Every text stays a separate, editable layer.",
+    bullets: [
+      "Admin → Flyer Templates → “Or import a layered SVG”, or Assets → Import a layered SVG inside the template editor",
+      "Text keeps its position, size, colour and spacing; Arial is matched with Arimo (same letter widths) and Arial Black with Archivo Black",
+      "DJ name, month, day, time, title, venue and address can become placeholders filled from each booking, keeping the file's words as the fallback",
+      "New “Shrink to fit on one line” text option so longer booking details don't wrap",
+      "New placeholders: {{event_month}}, {{event_day}}, {{event_weekday}}"
+    ]
+  },
+  {
     id: "2026-11-13-flyer-creator",
     date: "2026-11-13",
     area: "CRM",

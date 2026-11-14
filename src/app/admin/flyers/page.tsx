@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Archive, ExternalLink, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, ExternalLink, Pencil, Plus, RotateCcw, Trash2, Upload } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { ScenePreviewClient } from "@/components/flyers/client";
+import type { Asset } from "@/components/flyers/editor-panels";
 import { cn } from "@/lib/utils";
 import { fillText } from "@/lib/flyers/scene";
 import { FORMATS, FORMAT_KEYS, type FormatKey, type Scene, type TemplateContent } from "@/lib/flyers/types";
@@ -26,6 +27,45 @@ export default function AdminFlyersPage() {
   const [venueId, setVenueId] = useState("");
   const [copyFrom, setCopyFrom] = useState("");
   const [busy, setBusy] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [placeholders, setPlaceholders] = useState(true);
+
+  /** New template straight from a layered SVG: every text stays editable, pictures become image layers. */
+  async function importSvgFile(file: File) {
+    setError(null);
+    setBusy(true);
+    try {
+      const { importSvg } = await import("@/components/flyers/svg-import");
+      const r = await importSvg(file, {
+        placeholders,
+        onProgress: setImportMsg,
+        upload: async (f, kind) => {
+          const fd = new FormData();
+          fd.append("file", f);
+          fd.append("kind", kind);
+          fd.append("scope", "template");
+          const res = await fetch("/api/flyers/assets", { method: "POST", body: fd });
+          const j = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(j.error ?? "Upload failed.");
+          return j.asset as Asset;
+        }
+      });
+      setImportMsg("Creating the template…");
+      const res = await fetch("/api/admin/flyers/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: name.trim() || file.name.replace(/\.svg$/i, "").replace(/[_-]+/g, " ").slice(0, 80), venueId: venueId || null, draft: { formats: { [r.scene.format]: r.scene } } })
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error ?? "Couldn't create the template.");
+      if (r.warnings.length) window.alert(`Imported ${r.texts} text layers and ${r.images} images.\n\n${r.warnings.join("\n\n")}`);
+      router.push(`/admin/flyers/templates/${j.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed.");
+      setBusy(false);
+      setImportMsg(null);
+    }
+  }
 
   async function load() {
     const r = await fetch("/api/admin/flyers/templates");
@@ -165,6 +205,18 @@ export default function AdminFlyersPage() {
             <Button variant="primary" className="w-full" disabled={busy || !name.trim() || (!copyFrom && !sizes.length)} onClick={() => void create()}>
               <Plus size={15} /> Create and open editor
             </Button>
+            <div className="mt-4 border-t border-black/10 pt-4">
+              <p className="text-sm font-semibold">Or import a layered SVG</p>
+              <p className="mt-1 text-xs text-muted">From Illustrator, Figma, Canva or Inkscape. Each text becomes its own editable layer; embedded pictures become image layers. The size is picked from the file.</p>
+              <label className="mt-2 flex items-start gap-2 text-xs">
+                <input type="checkbox" className="mt-0.5 accent-[#c99428]" checked={placeholders} onChange={(e) => setPlaceholders(e.target.checked)} />
+                <span>Turn DJ name, date, time, venue and address into placeholders</span>
+              </label>
+              <label className={cn("mt-2 flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-black/15 text-sm hover:border-gold focus-within:ring-2 focus-within:ring-gold/50", busy && "pointer-events-none opacity-50")}>
+                <input type="file" accept=".svg,image/svg+xml" className="sr-only" disabled={busy} onChange={(e) => e.target.files?.[0] && void importSvgFile(e.target.files[0])} />
+                <Upload size={15} /> {busy && importMsg ? importMsg : "Choose SVG file"}
+              </label>
+            </div>
           </div>
           <div className="rounded-[14px] border border-black/10 bg-card p-4 text-sm">
             <p className="mb-2 font-semibold">Using art made in ChatGPT</p>
