@@ -6,7 +6,7 @@ import type Konva from "konva";
 import { Group, Image as KImage, Layer, Line, Rect, Stage, Text as KText, Transformer } from "react-konva";
 import { imageLayout } from "@/lib/flyers/scene";
 import { boundsOf, snapBox, type Guide } from "@/lib/flyers/snap";
-import { featheredImage } from "@/lib/flyers/feather";
+import { needsProcessing, processedImage } from "@/lib/flyers/feather";
 import type { FlyerNode, ImageNode, Scene, TextNode } from "@/lib/flyers/types";
 import { fontString, loadSceneFonts, loadSceneImages, srcFor, useImage, type SrcContext } from "./loaders";
 
@@ -48,10 +48,11 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
   const lay = img ? imageLayout(node, { width: img.naturalWidth, height: img.naturalHeight }, node.fit, node.crop) : null;
   const r = Math.min(node.frame.radius, node.width / 2, node.height / 2);
   const feather = node.feather ?? { amount: 0, shape: "edges" as const };
+  const recolor = node.recolor ?? { mode: "none" as const, color: "#ffffff", knockoutWhite: false };
   const soft = useMemo(
-    () => (img && lay && feather.amount > 0 ? featheredImage(img, node, lay, node.flipX, node.flipY, feather) : null),
+    () => (img && lay && needsProcessing(feather, recolor) ? processedImage(img, node, lay, node.flipX, node.flipY, feather, recolor) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [img, lay?.x, lay?.y, lay?.width, lay?.height, node.width, node.height, node.flipX, node.flipY, feather.amount, feather.shape]
+    [img, lay?.x, lay?.y, lay?.width, lay?.height, node.width, node.height, node.flipX, node.flipY, feather.amount, feather.shape, recolor.mode, recolor.color, recolor.knockoutWhite]
   );
   const movable = !!act && act.interactive && !node.locked && act.canMove(node);
   const label = node.source.type === "dj_photo" ? "DJ photo" : node.source.type === "venue_logo" ? "Venue logo" : "Image";

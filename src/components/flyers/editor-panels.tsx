@@ -389,6 +389,33 @@ function ImageProps({ n, set, canEdit, canStyle, api }: { n: ImageNode; set: (p:
         </div>
         <p className="text-[11px] text-muted">The original image is kept as uploaded; cropping only changes this layer.</p>
       </Section>
+      <Section title="Color" defaultOpen={(n.recolor?.mode ?? "none") !== "none" || !!n.recolor?.knockoutWhite}>
+        <div className="grid grid-cols-3 gap-1.5" role="group" aria-label="Recolor">
+          {(
+            [
+              ["none", "Original"],
+              ["solid", "Solid color"],
+              ["tint", "Tint"]
+            ] as const
+          ).map(([m, l]) => (
+            <button key={m} className={cn(iconBtn, (n.recolor?.mode ?? "none") === m && "border-gold bg-gold-soft")} aria-pressed={(n.recolor?.mode ?? "none") === m} disabled={!canStyle} onClick={() => set({ recolor: { color: n.recolor?.color ?? "#ffffff", knockoutWhite: n.recolor?.knockoutWhite ?? false, mode: m } }, "recolor")}>
+              {l}
+            </button>
+          ))}
+        </div>
+        {(n.recolor?.mode ?? "none") !== "none" && (
+          <>
+            <ColorField label={n.recolor?.mode === "tint" ? "Tint color" : "New color"} value={n.recolor?.color ?? "#ffffff"} disabled={!canStyle} onChange={(v) => set({ recolor: { ...n.recolor!, color: v } }, "recolor")} />
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="Quick colors">
+              {["#ffffff", "#000000", "#e5b647", "#c99428", "#cb171a", "#7c4dff", "#ff4fa3", "#2aa6a0"].map((c) => (
+                <button key={c} className={cn("h-7 w-7 rounded-full border border-black/15", FOCUS, n.recolor?.color === c && "ring-2 ring-gold ring-offset-1")} style={{ background: c }} aria-label={`Use ${c}`} disabled={!canStyle} onClick={() => set({ recolor: { ...n.recolor!, color: c } }, "recolor")} />
+              ))}
+            </div>
+          </>
+        )}
+        <Check label="Remove white background" checked={!!n.recolor?.knockoutWhite} disabled={!canStyle} onChange={(v) => set({ recolor: { mode: n.recolor?.mode ?? "none", color: n.recolor?.color ?? "#ffffff", knockoutWhite: v } }, "recolor")} />
+        <p className="text-[11px] text-muted">Solid color repaints a one-color logo (like an all-black logo) in any color, keeping its shape. Tint colors a photo but keeps its light and shade. For logos saved on a white box, also tick “Remove white background”.</p>
+      </Section>
       <Section title="Soft edges (feather)" defaultOpen={(n.feather?.amount ?? 0) > 0}>
         <Slider
           label="Feather"

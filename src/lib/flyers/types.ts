@@ -87,6 +87,12 @@ export type ImageNode = Base & {
   frame: Stroke & { radius: number };
   /** Soft edges: the picture fades to transparent over `amount` px, as a soft rectangle or an oval. */
   feather: { amount: number; shape: "edges" | "oval" };
+  /**
+   * Recolor: "solid" paints the whole picture one color (keeps its shape and
+   * transparency, e.g. a black logo in gold); "tint" colors it but keeps
+   * light and shade. knockoutWhite makes a white background see-through.
+   */
+  recolor: { mode: "none" | "solid" | "tint"; color: string; knockoutWhite: boolean };
   shadow: Shadow;
 };
 

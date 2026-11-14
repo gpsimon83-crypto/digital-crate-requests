@@ -238,3 +238,15 @@ describe("feather", () => {
     expect(p.ok && p.value.nodes.map((n) => n.kind === "image" && n.feather)).toEqual([{ amount: 600, shape: "edges" }, { amount: 80, shape: "oval" }]);
   });
 });
+
+describe("recolor", () => {
+  it("defaults to original colors and cleans bad values", async () => {
+    const { newImage, parseScene, emptyScene } = await import("@/lib/flyers/scene");
+    expect(newImage("logo", { type: "none" }, emptyScene("square")).recolor).toEqual({ mode: "none", color: "#ffffff", knockoutWhite: false });
+    const p = parseScene({ format: "square", nodes: [{ kind: "image", recolor: { mode: "solid", color: "#e5b647", knockoutWhite: true } }, { kind: "image", recolor: { mode: "rainbow", color: "red;evil" } }] });
+    expect(p.ok && p.value.nodes.map((n) => n.kind === "image" && n.recolor)).toEqual([
+      { mode: "solid", color: "#e5b647", knockoutWhite: true },
+      { mode: "none", color: "#ffffff", knockoutWhite: false }
+    ]);
+  });
+});
