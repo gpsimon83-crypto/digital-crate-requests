@@ -79,7 +79,7 @@ export function EventFlyerPanel({ eventId }: { eventId: string }) {
       ) : (
         <>
           <label className="block">
-            <span className="mb-1 block text-xs font-semibold text-muted">This night{sp.date ? ` (${sp.date})` : ""}</span>
+            <span className="mb-1 block text-xs font-semibold text-muted">This night{sp.date ? ` (${new Date(`${sp.date}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })})` : ""}</span>
             <textarea className={cn(field, "min-h-[80px]")} maxLength={600} value={night} onChange={(e) => setNight(e.target.value)} placeholder={venueDefault ? `Empty uses the ${sp.venueName ?? "venue"} default` : "e.g. $5 Margaritas\n$3 Domestic bottles"} />
           </label>
           <button className={cn(btn, "self-start")} disabled={busy} onClick={() => void saveSpecials("night", night)}>
