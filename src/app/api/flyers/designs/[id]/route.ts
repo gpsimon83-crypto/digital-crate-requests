@@ -1,19 +1,43 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { checkSceneSources, flyerActor, flyerError, uuidOk, type FlyerActor } from "@/lib/flyers/server";
+import { checkSceneSources, flyerActor, flyerError, setupMissing, uuidOk, type FlyerActor } from "@/lib/flyers/server";
 import { publicAssets } from "@/lib/flyers/server";
-import { checkDjChanges, parseScene } from "@/lib/flyers/scene";
-import type { FormatKey, Scene } from "@/lib/flyers/types";
+import { checkDjChanges, parseScene, parseTemplateContent } from "@/lib/flyers/scene";
+import { djOnEvent, flyerEvents, loadEvent, loadFlyerContext, type FlyerContext } from "@/lib/flyers/data";
+import { resolveTemplate } from "@/lib/flyers/activation";
+import { applyTemplateKeepingOverrides } from "@/lib/flyers/links";
+import type { FormatKey, Scene, TemplateContent } from "@/lib/flyers/types";
 
 type Params = { params: Promise<{ id: string }> };
-type DesignRow = { id: string; dj_id: string; title: string; format: FormatKey; width: number; height: number; scene: Scene; event_id: string | null; template_id: string | null; template_version_id: string | null; updated_at: string };
+type DesignRow = {
+  id: string;
+  dj_id: string;
+  title: string;
+  format: FormatKey;
+  width: number;
+  height: number;
+  scene: Scene;
+  event_id: string | null;
+  template_id: string | null;
+  template_version_id: string | null;
+  updated_at: string;
+  /** Present after migration 0052. */
+  venue_id?: string | null;
+  dj_slots?: (string | null)[] | null;
+  exported_at?: string | null;
+};
+
+const slotsOf = (row: DesignRow) => (Array.isArray(row.dj_slots) ? row.dj_slots : null);
+const contextFor = (db: ReturnType<typeof createAdminClient>, row: DesignRow) => loadFlyerContext(db, { eventId: row.event_id, venueId: row.venue_id ?? null, djSlots: slotsOf(row), fallbackDjId: row.dj_id });
+/** What the browser needs to fill linked layers (the same rules run there). */
+const contextJson = (c: FlyerContext) => ({ event: c.event, venue: c.venue, eventDjs: c.eventDjs, slots: c.slots, djs: c.djs, values: c.values, drinkSpecials: c.drinkSpecials, hasEvent: c.hasEvent });
 
 /** A DJ reaches only their own flyers; staff reach every flyer. Anyone else gets "not found". */
 async function load(actor: FlyerActor, id: string): Promise<DesignRow | NextResponse> {
   if (!uuidOk(id)) return NextResponse.json({ error: "Flyer not found" }, { status: 404 });
   const { data, error } = await createAdminClient()
     .from("flyer_designs")
-    .select("id, dj_id, title, format, width, height, scene, event_id, template_id, template_version_id, updated_at")
+    .select("*")
     .eq("id", id)
     .maybeSingle();
   if (error) throw error;
@@ -40,6 +64,19 @@ export async function GET(_req: NextRequest, { params }: Params) {
       template = t ? { name: t.name as string, version: (v?.version as number) ?? null } : null;
     }
     const d = dj as { id: string; display_name: string; photo_url: string | null } | null;
+    const ctx = await contextFor(db, row);
+    // Templates to switch to (published), and which one is active for this event/venue.
+    const { data: tpls } = await db.from("flyer_templates").select("id, name, venue_id, current_version_id").eq("status", "published").order("name");
+    const vIds = ((tpls ?? []) as { current_version_id: string | null }[]).map((t) => t.current_version_id).filter((x): x is string => !!x);
+    const { data: vers } = vIds.length ? await db.from("flyer_template_versions").select("id, content").in("id", vIds) : { data: [] };
+    const templates = ((tpls ?? []) as { id: string; name: string; venue_id: string | null; current_version_id: string | null }[])
+      .map((t) => {
+        const c = ((vers ?? []) as { id: string; content: TemplateContent }[]).find((v) => v.id === t.current_version_id)?.content;
+        return c?.formats?.[row.format] ? { id: t.id, name: t.name, venue_id: t.venue_id } : null;
+      })
+      .filter(Boolean);
+    const active = await resolveTemplate(db, { eventId: row.event_id, venueId: ctx.venue?.id ?? null });
+    const djs = actor.staff ? (((await db.from("djs").select("id, display_name").order("display_name")).data ?? []) as { id: string; display_name: string }[]) : [];
     return NextResponse.json({
       design: row,
       template,
@@ -48,7 +85,13 @@ export async function GET(_req: NextRequest, { params }: Params) {
       viewer: { staff: actor.staff, isOwner: row.dj_id === actor.dj?.id },
       uploads: publicAssets(uploads),
       shared: publicAssets(shared),
-      venues: ((venues ?? []) as { id: string; name: string; logo_url: string | null }[]).map((v) => ({ id: v.id, name: v.name, has_logo: !!v.logo_url }))
+      venues: ((venues ?? []) as { id: string; name: string; logo_url: string | null }[]).map((v) => ({ id: v.id, name: v.name, has_logo: !!v.logo_url })),
+      context: contextJson(ctx),
+      events: await flyerEvents(db, { djId: actor.staff ? null : (actor.dj?.id ?? null), staff: actor.staff, include: row.event_id }),
+      templates,
+      activeTemplate: active,
+      allDjs: djs,
+      linksReady: "dj_slots" in row
     });
   } catch (err) {
     return flyerError(err);
@@ -62,11 +105,59 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     const row = await load(actor, (await params).id);
     if (row instanceof NextResponse) return row;
-    const b = (await req.json().catch(() => ({}))) as { scene?: unknown; title?: unknown; baseUpdatedAt?: unknown };
+    const b = (await req.json().catch(() => ({}))) as { scene?: unknown; title?: unknown; baseUpdatedAt?: unknown; eventId?: unknown; venueId?: unknown; djSlots?: unknown; exported?: unknown; applyTemplate?: unknown };
     const update: Record<string, unknown> = { updated_by: actor.user.id, updated_at: new Date().toISOString() };
+    const db = createAdminClient();
+    const linkChange = b.eventId !== undefined || b.venueId !== undefined || b.djSlots !== undefined;
 
     if (typeof b.title === "string") update.title = b.title.trim().slice(0, 80) || "Untitled flyer";
-    if (b.scene !== undefined) {
+
+    // Link the flyer to an event (the event's venue and DJs then fill it). Read only: the event isn't changed.
+    if (b.eventId !== undefined) {
+      if (b.eventId === null) update.event_id = null;
+      else {
+        if (!uuidOk(b.eventId)) return NextResponse.json({ error: "Unknown event." }, { status: 400 });
+        const ev = await loadEvent(db, b.eventId);
+        if (!ev) return NextResponse.json({ error: "Event not found." }, { status: 404 });
+        if (!actor.staff && !(await djOnEvent(db, ev.id, row.dj_id))) return NextResponse.json({ error: "That event isn't one of this DJ's bookings." }, { status: 403 });
+        update.event_id = ev.id;
+      }
+      // New event: its own DJs fill the slots again unless slots are sent too.
+      if (b.djSlots === undefined) update.dj_slots = null;
+    }
+    if (b.venueId !== undefined) {
+      if (b.venueId !== null && !uuidOk(b.venueId)) return NextResponse.json({ error: "Unknown venue." }, { status: 400 });
+      update.venue_id = b.venueId;
+    }
+    if (b.djSlots !== undefined) {
+      if (b.djSlots !== null && (!Array.isArray(b.djSlots) || b.djSlots.length > 8 || b.djSlots.some((x) => x !== null && !uuidOk(x)))) return NextResponse.json({ error: "Unknown DJ." }, { status: 400 });
+      const slots = (b.djSlots as (string | null)[] | null) ?? null;
+      // DJs may only put DJs who are on the event into slots; staff can assign anyone.
+      const eventId = (update.event_id as string | null | undefined) ?? row.event_id;
+      if (slots && !actor.staff) {
+        for (const id of slots) if (id && id !== row.dj_id && !(eventId && (await djOnEvent(db, eventId, id)))) return NextResponse.json({ error: "Only DJs on this event can be added." }, { status: 403 });
+      }
+      update.dj_slots = slots;
+    }
+    if (b.exported === true) update.exported_at = new Date().toISOString();
+
+    if (b.applyTemplate !== undefined) {
+      // Switch this flyer to another template's layout, keeping this flyer's overrides.
+      if (!uuidOk(b.applyTemplate)) return NextResponse.json({ error: "Unknown template." }, { status: 400 });
+      const { data: t } = await db.from("flyer_templates").select("id, status, current_version_id").eq("id", b.applyTemplate).maybeSingle();
+      if (!t || t.status !== "published" || !t.current_version_id) return NextResponse.json({ error: "That template isn't available." }, { status: 404 });
+      const { data: v } = await db.from("flyer_template_versions").select("id, content").eq("id", t.current_version_id).single();
+      const content = parseTemplateContent(v?.content);
+      const layout = content.ok ? content.value.formats[row.format] : null;
+      if (!layout) return NextResponse.json({ error: "That template has no layout in this size." }, { status: 400 });
+      const prev = parseScene(row.scene, row.format);
+      const ctx = await contextFor(db, { ...row, ...(update as Partial<DesignRow>) });
+      update.scene = applyTemplateKeepingOverrides(prev.ok ? prev.value : layout, layout, { values: ctx.values, slots: ctx.slots, venueId: ctx.venue?.id ?? null, hasEvent: ctx.hasEvent });
+      update.template_id = t.id;
+      update.template_version_id = v!.id;
+    }
+
+    if (b.scene !== undefined && b.applyTemplate === undefined) {
       const parsed = parseScene(b.scene, row.format);
       if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
       const prev = parseScene(row.scene, row.format);
@@ -74,19 +165,24 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         const problem = checkDjChanges(prev.value, parsed.value);
         if (problem) return NextResponse.json({ error: problem }, { status: 403 });
       }
-      const db = createAdminClient();
-      const bad = await checkSceneSources(db, parsed.value, row.dj_id);
+      const ctx = await contextFor(db, { ...row, ...(update as Partial<DesignRow>) });
+      const bad = await checkSceneSources(db, parsed.value, row.dj_id, actor.staff ? ctx.djs.map((d) => d.id).concat(ctx.slots.filter((x): x is string => !!x)) : [...ctx.eventDjs.map((d) => d.id), ...ctx.slots.filter((x): x is string => !!x)]);
       if (bad) return NextResponse.json({ error: bad }, { status: 400 });
       update.scene = parsed.value;
     }
     // Two tabs editing the same flyer: refuse to overwrite a newer save.
-    const db = createAdminClient();
     let q = db.from("flyer_designs").update(update).eq("id", row.id);
     if (typeof b.baseUpdatedAt === "string") q = q.eq("updated_at", b.baseUpdatedAt);
-    const { data, error } = await q.select("id, updated_at, title").maybeSingle();
-    if (error) throw error;
+    const { data, error } = await q.select("*").maybeSingle();
+    if (error) {
+      if (setupMissing(error)) return NextResponse.json({ error: "Linking flyers to events needs migration 0052_flyer_event_links.sql in Supabase.", setup: true }, { status: 503 });
+      throw error;
+    }
     if (!data) return NextResponse.json({ error: "This flyer was changed in another window. Reload to get the latest version.", conflict: true }, { status: 409 });
-    return NextResponse.json({ ok: true, updated_at: data.updated_at, title: data.title });
+    const saved = data as DesignRow;
+    // After a link change, send the fresh event data so the editor can refill linked layers.
+    const ctx = linkChange || b.applyTemplate !== undefined ? contextJson(await contextFor(db, saved)) : undefined;
+    return NextResponse.json({ ok: true, updated_at: saved.updated_at, title: saved.title, design: linkChange || b.applyTemplate !== undefined ? saved : undefined, context: ctx });
   } catch (err) {
     return flyerError(err);
   }

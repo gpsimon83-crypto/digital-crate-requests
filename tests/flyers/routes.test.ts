@@ -44,6 +44,8 @@ function query(table: string) {
     select: (_c?: string, o?: { count?: string }) => ((count = !!o?.count), q),
     eq: (k: string, v: unknown) => (filters.push((r) => r[k] === v), q),
     in: (k: string, v: unknown[]) => (filters.push((r) => v.includes(r[k])), q),
+    neq: (k: string, v: unknown) => (filters.push((r) => r[k] !== v), q),
+    is: (k: string, v: unknown) => (filters.push((r) => (r[k] ?? null) === v), q),
     gte: (k: string, v: string) => (filters.push((r) => String(r[k] ?? "") >= v), q),
     contains: (k: string, v: unknown) => (filters.push((r) => jsonContains(r[k], v)), q),
     order: () => q,
@@ -220,10 +222,12 @@ describe("images", () => {
     asB();
     expect((await GET(req(`/api/flyers/assets/${uploadB}`), p({ id: uploadB }))).status).toBe(200);
   });
-  it("profile photos are only served to that DJ and staff", async () => {
+  it("DJ photos load for any signed-in DJ or staff (flyers can feature several DJs), never for venue logins", async () => {
     const { GET } = await import("@/app/api/flyers/photo/[djId]/route");
+    user = { id: "venue-mgr", app_metadata: { role: "venue" } };
+    expect((await GET(req(`/api/flyers/photo/${DJ_B}`), p({ djId: DJ_B }))).status).toBe(403);
     asA();
-    expect((await GET(req(`/api/flyers/photo/${DJ_B}`), p({ djId: DJ_B }))).status).toBe(404);
+    expect((await GET(req(`/api/flyers/photo/${DJ_B}`), p({ djId: DJ_B }))).status).toBe(404); // DJ B has no photo yet
   });
   it("uploads are checked by content and go only to your own library", async () => {
     const { POST } = await import("@/app/api/flyers/assets/route");
@@ -339,5 +343,139 @@ describe("asset library", () => {
     expect((await DELETE(req(`/api/flyers/assets/${uploadB}`, { method: "DELETE" }), p({ id: uploadB }))).status).toBe(404);
     asB();
     expect((await DELETE(req(`/api/flyers/assets/${uploadB}`, { method: "DELETE" }), p({ id: uploadB }))).status).toBe(200);
+  });
+});
+
+/* ---------- linked to events (migration 0052 columns present) ---------- */
+describe("flyers linked to events: two venues, two DJs", () => {
+  const VENUE_2 = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+  let eventC: string;
+  let tplA: string;
+  let tplB: string;
+  beforeEach(() => {
+    db.venues.push({ id: VENUE_2, name: "Peace Lounge", logo_url: "x", address_line1: "9 Oak Ave", city: "Milwaukee", state: "WI", postal_code: "53202", location: null, default_drink_specials: "$4 Rail drinks" });
+    eventC = randomUUID();
+    // DJ Peace leads at venue 2; DJ Que is on the crew.
+    db.events.push({ id: eventC, dj_id: DJ_B, title: "Peace Saturdays", starts_at: "2026-11-29T03:00:00Z", ends_at: "2026-11-29T07:00:00Z", timezone: "America/Chicago", venue_id: VENUE_2, venue_name: null, status: "confirmed", venues: db.venues[1] });
+    db.event_staff_assignments = [{ id: randomUUID(), event_id: eventC, dj_id: DJ_A, status: "confirmed" }];
+    db.venue_night_plans = [{ id: randomUUID(), venue_id: db.venues[0].id, night_date: "2026-11-25", location_id: "", drink_specials: "$5 Margaritas" }];
+    for (const d of db.flyer_designs) Object.assign(d, { venue_id: null, dj_slots: null, exported_at: null });
+    tplA = randomUUID();
+    tplB = randomUUID();
+    const vA = randomUUID();
+    const vB = randomUUID();
+    const content = sampleTemplateContent();
+    db.flyer_templates = [
+      { id: tplA, name: "House", status: "published", venue_id: null, current_version_id: vA, updated_at: "2026-11-01" },
+      { id: tplB, name: "Peace", status: "published", venue_id: VENUE_2, current_version_id: vB, updated_at: "2026-11-02" }
+    ];
+    db.flyer_template_versions = [
+      { id: vA, template_id: tplA, version: 1, content },
+      { id: vB, template_id: tplB, version: 1, content }
+    ];
+    db.flyer_template_activations = [];
+  });
+
+  it("switching events fills that event's venue, DJs and specials; the event and DJ records never change", async () => {
+    const { GET, PATCH } = await designRoute();
+    const eventsBefore = JSON.stringify(db.events);
+    const djsBefore = JSON.stringify(db.djs);
+    asA();
+    let r = await json(await PATCH(req(`/api/flyers/designs/${designA}`, { method: "PATCH", body: { eventId: eventA } }), p({ id: designA })));
+    expect(r.status).toBe(200);
+    expect(r.body.context.venue.name).toBe("Kyote's Bar N Grill");
+    expect(r.body.context.values.dj_name).toBe("DJ Que");
+    expect(r.body.context.drinkSpecials).toEqual({ text: "$5 Margaritas", from: "night" });
+    r = await json(await PATCH(req(`/api/flyers/designs/${designA}`, { method: "PATCH", body: { eventId: eventC } }), p({ id: designA })));
+    expect(r.status).toBe(200);
+    expect(r.body.context.venue.name).toBe("Peace Lounge");
+    expect(r.body.context.values.venue_address).toContain("9 Oak Ave");
+    // The event's lead fills slot 1, the crew DJ slot 2; no night plan → the venue default.
+    expect(r.body.context.slots.slice(0, 2)).toEqual([DJ_B, DJ_A]);
+    expect(r.body.context.values.dj2_name).toBe("DJ Que");
+    expect(r.body.context.drinkSpecials).toEqual({ text: "$4 Rail drinks", from: "venue" });
+    expect(JSON.stringify(db.events)).toBe(eventsBefore);
+    expect(JSON.stringify(db.djs)).toBe(djsBefore);
+    // GET returns the same data for the editor.
+    const g = await json(await GET(req(`/api/flyers/designs/${designA}`), p({ id: designA })));
+    expect(g.body.linksReady).toBe(true);
+    expect(g.body.context.event.id).toBe(eventC);
+  });
+
+  it("a DJ can only link their own events and only put that event's DJs in slots; staff can assign anyone", async () => {
+    const { PATCH } = await designRoute();
+    asA();
+    expect((await PATCH(req(`/api/flyers/designs/${designA}`, { method: "PATCH", body: { eventId: eventB } }), p({ id: designA }))).status).toBe(403);
+    await PATCH(req(`/api/flyers/designs/${designA}`, { method: "PATCH", body: { eventId: eventA } }), p({ id: designA }));
+    expect((await PATCH(req(`/api/flyers/designs/${designA}`, { method: "PATCH", body: { djSlots: [DJ_A, DJ_B] } }), p({ id: designA }))).status).toBe(403);
+    await PATCH(req(`/api/flyers/designs/${designA}`, { method: "PATCH", body: { eventId: eventC } }), p({ id: designA }));
+    expect((await PATCH(req(`/api/flyers/designs/${designA}`, { method: "PATCH", body: { djSlots: [DJ_A, DJ_B] } }), p({ id: designA }))).status).toBe(200);
+    asStaff();
+    await PATCH(req(`/api/flyers/designs/${designA}`, { method: "PATCH", body: { eventId: eventA } }), p({ id: designA }));
+    const r = await json(await PATCH(req(`/api/flyers/designs/${designA}`, { method: "PATCH", body: { djSlots: [DJ_B] } }), p({ id: designA })));
+    expect(r.status).toBe(200);
+    expect(r.body.context.values.dj_name).toBe("DJ Peace");
+  });
+
+  it("the active template resolves event → venue → company", async () => {
+    const acts = await import("@/app/api/admin/flyers/activations/route");
+    const { GET } = await import("@/app/api/flyers/designs/route");
+    asStaff();
+    expect((await acts.POST(req("/api/admin/flyers/activations", { method: "POST", body: { scope: "company", templateId: tplA } }))).status).toBe(200);
+    expect((await acts.POST(req("/api/admin/flyers/activations", { method: "POST", body: { scope: "venue", venueId: VENUE_2, templateId: tplB } }))).status).toBe(200);
+    let r = await json(await GET(req(`/api/flyers/designs?event=${eventA}`)));
+    expect(r.body).toEqual({ templateId: tplA, via: "company" });
+    r = await json(await GET(req(`/api/flyers/designs?event=${eventC}`)));
+    expect(r.body).toEqual({ templateId: tplB, via: "venue" });
+    await acts.POST(req("/api/admin/flyers/activations", { method: "POST", body: { scope: "event", eventId: eventC, templateId: tplA } }));
+    r = await json(await GET(req(`/api/flyers/designs?event=${eventC}`)));
+    expect(r.body).toEqual({ templateId: tplA, via: "event" });
+    asA();
+    expect((await acts.POST(req("/api/admin/flyers/activations", { method: "POST", body: { scope: "company", templateId: tplB } }))).status).toBe(403);
+  });
+
+  it("applying a newly active template to drafts skips exported flyers and keeps overrides", async () => {
+    const acts = await import("@/app/api/admin/flyers/activations/route");
+    const apply = await import("@/app/api/admin/flyers/activations/apply/route");
+    const { PATCH } = await designRoute();
+    asA();
+    await PATCH(req(`/api/flyers/designs/${designA}`, { method: "PATCH", body: { eventId: eventC } }), p({ id: designA }));
+    // DJ overrides one linked text on their draft.
+    const d = db.flyer_designs[0] as { scene: Scene };
+    const t = d.scene.nodes.find((n) => n.kind === "text" && n.source) as TextNode;
+    Object.assign(t, { text: "MY OWN WORDS", override: true });
+    // A second, exported flyer at the same venue.
+    const exported = randomUUID();
+    db.flyer_designs.push({ ...structuredClone(db.flyer_designs[0]), id: exported, exported_at: "2026-11-14T00:00:00Z", template_id: null });
+    asStaff();
+    await acts.POST(req("/api/admin/flyers/activations", { method: "POST", body: { scope: "venue", venueId: VENUE_2, templateId: tplB } }));
+    const count = await json(await apply.GET(req(`/api/admin/flyers/activations/apply?template=${tplB}`)));
+    expect(count.body.drafts).toBe(1);
+    const r = await json(await apply.POST(req("/api/admin/flyers/activations/apply", { method: "POST", body: { templateId: tplB } })));
+    expect(r.body).toMatchObject({ applied: 1 });
+    const draft = db.flyer_designs.find((x) => x.id === designA) as { template_id: string; scene: Scene };
+    const ex = db.flyer_designs.find((x) => x.id === exported) as { template_id: string | null };
+    expect(draft.template_id).toBe(tplB);
+    expect(draft.scene.nodes.some((n) => n.kind === "text" && n.text === "MY OWN WORDS" && n.override)).toBe(true);
+    expect(ex.template_id).toBeNull();
+  });
+
+  it("cutouts and name logos: a DJ's upload waits for approval; staff approve and pick the preferred one", async () => {
+    const assets = await import("@/app/api/flyers/assets/[id]/route");
+    const c1 = randomUUID();
+    const c2 = randomUUID();
+    db.flyer_assets.push(
+      { id: c1, scope: "dj", owner_dj_id: DJ_A, kind: "cutout", approved: true, is_primary: true, storage_path: "c1", mime: "image/png" },
+      { id: c2, scope: "dj", owner_dj_id: DJ_A, kind: "image", approved: true, is_primary: false, storage_path: "c2", mime: "image/png" }
+    );
+    asA();
+    let r = await json(await assets.PATCH(req(`/api/flyers/assets/${c2}`, { method: "PATCH", body: { kind: "cutout" } }), p({ id: c2 })));
+    expect(r.body.asset.approved).toBe(false);
+    expect((await assets.PATCH(req(`/api/flyers/assets/${c2}`, { method: "PATCH", body: { approved: true } }), p({ id: c2 }))).status).toBe(403);
+    asStaff();
+    r = await json(await assets.PATCH(req(`/api/flyers/assets/${c2}`, { method: "PATCH", body: { isPrimary: true } }), p({ id: c2 })));
+    expect(r.status).toBe(200);
+    expect(db.flyer_assets.find((a) => a.id === c2)).toMatchObject({ approved: true, is_primary: true });
+    expect(db.flyer_assets.find((a) => a.id === c1)).toMatchObject({ is_primary: false });
   });
 });

@@ -59,12 +59,16 @@ export const uuidOk = (s: unknown): s is string => typeof s === "string" && /^[0
  * Every image a scene points at must be one this DJ may use: a template
  * asset, the DJ's own upload, the DJ's own profile photo, or a venue logo.
  */
-export async function checkSceneSources(db: Db, scene: Scene, djId: string): Promise<string | null> {
+export async function checkSceneSources(db: Db, scene: Scene, djId: string, allowedDjIds: string[] = []): Promise<string | null> {
   const assetIds = new Set<string>();
+  const allowed = new Set([djId, ...allowedDjIds]);
   for (const n of scene.nodes) {
     if (n.kind !== "image") continue;
-    if (n.source.type === "asset") assetIds.add(n.source.assetId);
-    if (n.source.type === "dj_photo" && n.source.djId && n.source.djId !== djId) return "A flyer can only use this DJ's own photo.";
+    for (const src of [n.source, n.linked]) {
+      if (!src) continue;
+      if (src.type === "asset") assetIds.add(src.assetId);
+      if ((src.type === "dj_photo" || src.type === "dj_logo") && src.djId && !allowed.has(src.djId)) return "A flyer can only show the DJs assigned to it.";
+    }
   }
   if (!assetIds.size) return null;
   const { data, error } = await db.from("flyer_assets").select("id, scope, owner_dj_id").in("id", [...assetIds]);
@@ -73,7 +77,7 @@ export async function checkSceneSources(db: Db, scene: Scene, djId: string): Pro
   for (const id of assetIds) {
     const r = rows.find((x) => x.id === id);
     if (!r) return "One of the images no longer exists. Replace it and try again.";
-    if (r.scope === "dj" && r.owner_dj_id !== djId) return "That image belongs to someone else.";
+    if (r.scope === "dj" && r.owner_dj_id && !allowed.has(r.owner_dj_id)) return "That image belongs to someone else.";
   }
   return null;
 }
@@ -131,7 +135,7 @@ export function imageResponse(body: BodyInit, type: string, maxAge = 300) {
  * An image as the browser sees it. Selected with "*" so the folder column is
  * picked up when migration 0051 has run and simply absent before.
  */
-export type PublicAsset = { id: string; kind: string; name: string | null; folder: string | null; width: number; height: number; has_alpha: boolean; bytes: number | null; created_at: string };
+export type PublicAsset = { id: string; kind: string; name: string | null; folder: string | null; width: number; height: number; has_alpha: boolean; bytes: number | null; created_at: string; approved: boolean; is_primary: boolean };
 export function publicAsset(r: Record<string, unknown>): PublicAsset {
   return {
     id: r.id as string,
@@ -142,7 +146,9 @@ export function publicAsset(r: Record<string, unknown>): PublicAsset {
     height: r.height as number,
     has_alpha: !!r.has_alpha,
     bytes: (r.bytes as number) ?? null,
-    created_at: r.created_at as string
+    created_at: r.created_at as string,
+    approved: r.approved === undefined ? true : !!r.approved,
+    is_primary: !!r.is_primary
   };
 }
 export const publicAssets = (rows: unknown) => ((rows ?? []) as Record<string, unknown>[]).map(publicAsset);

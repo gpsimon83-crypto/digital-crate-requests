@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { DEFAULT_FONT, FLYER_FONTS } from "./fonts";
+import { linkScene, resolveScene } from "./links";
 import {
   BLEND_MODES,
+  FIELD_TOKENS,
   type BlendMode,
   FORMATS,
   PLACEHOLDERS,
@@ -55,7 +57,7 @@ export function newText(role: Role, scene: Pick<Scene, "width" | "height">, patc
     locked: false,
     groupId: null,
     perms: { ...FULL_PERMS },
-    text: role === "text" ? "Your text" : `{{${role === "title" ? "event_title" : role === "dj_name" ? "dj_name" : role === "date" ? "event_date" : role === "time" ? "start_time" : role === "venue" ? "venue_name" : role === "address" ? "venue_address" : "event_title"}}}`,
+    text: role === "text" ? "Your text" : `{{${role === "title" ? "event_title" : role === "dj_name" ? "dj_name" : role === "date" ? "event_date" : role === "time" ? "start_time" : role === "venue" ? "venue_name" : role === "address" ? "venue_address" : role === "details" ? "event.details" : role === "specials" ? "event.drinkSpecials" : "event_title"}}}`,
     font: DEFAULT_FONT,
     weight: 800,
     italic: false,
@@ -75,7 +77,7 @@ export function newText(role: Role, scene: Pick<Scene, "width" | "height">, patc
 export function newImage(role: Role, source: ImageSource, scene: Pick<Scene, "width" | "height">, patch: Partial<ImageNode> = {}): ImageNode {
   const full = role === "background";
   const width = full ? scene.width : Math.round(scene.width * 0.5);
-  const height = full ? scene.height : role === "logo" ? Math.round(scene.width * 0.25) : Math.round(scene.width * 0.6);
+  const height = full ? scene.height : role === "logo" || role === "dj_logo" ? Math.round(scene.width * 0.25) : Math.round(scene.width * 0.6);
   return {
     id: uid(),
     kind: "image",
@@ -93,7 +95,7 @@ export function newImage(role: Role, source: ImageSource, scene: Pick<Scene, "wi
     groupId: null,
     perms: { ...FULL_PERMS },
     source,
-    fit: role === "logo" || role === "overlay" ? "contain" : "cover",
+    fit: role === "logo" || role === "dj_logo" || role === "overlay" ? "contain" : "cover",
     crop: { zoom: 1, x: 0, y: 0 },
     flipX: false,
     flipY: false,
@@ -140,7 +142,16 @@ const base = {
   visible: bool(true),
   locked: bool(false),
   groupId: groupSchema,
-  perms: permsSchema
+  perms: permsSchema,
+  link: z.preprocess(
+    (v) => (v && typeof v === "object" ? v : undefined),
+    z
+      .object({
+        required: bool(false),
+        showWhen: z.preprocess((v) => (typeof v === "string" && /^[a-zA-Z0-9_.]{1,40}$/.test(v) ? v : null), z.string().nullable())
+      })
+      .optional()
+  )
 };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -150,11 +161,15 @@ function cleanSource(v: unknown): ImageSource {
   const s = (v ?? {}) as Record<string, unknown>;
   if (s.type === "asset" && typeof s.assetId === "string" && UUID.test(s.assetId)) return { type: "asset", assetId: s.assetId };
   if (s.type === "static" && typeof s.src === "string" && STATIC_SRC.test(s.src) && !s.src.includes("..")) return { type: "static", src: s.src };
-  if (s.type === "dj_photo") return { type: "dj_photo", djId: typeof s.djId === "string" && UUID.test(s.djId) ? s.djId : null };
+  if (s.type === "dj_photo" || s.type === "dj_logo") {
+    const slot = typeof s.slot === "number" && Number.isFinite(s.slot) ? Math.min(8, Math.max(1, Math.round(s.slot))) : 1;
+    return { type: s.type, djId: typeof s.djId === "string" && UUID.test(s.djId) ? s.djId : null, slot };
+  }
   if (s.type === "venue_logo") return { type: "venue_logo", venueId: typeof s.venueId === "string" && UUID.test(s.venueId) ? s.venueId : null };
   return { type: "none" };
 }
 
+const fontKeys = FLYER_FONTS.map((f) => f.key);
 const imageSchema = z.object({
   ...base,
   kind: z.literal("image"),
@@ -180,10 +195,15 @@ const imageSchema = z.object({
     (v) => (v && typeof v === "object" ? v : {}),
     z.object({ mode: z.preprocess((v) => (v === "solid" || v === "tint" ? v : "none"), z.enum(["none", "solid", "tint"])), color: color("#ffffff"), knockoutWhite: bool(false) })
   ),
-  shadow: shadowSchema
+  shadow: shadowSchema,
+  override: z.preprocess((v) => (typeof v === "boolean" ? v : undefined), z.boolean().optional()),
+  linked: z.preprocess((v) => (v && typeof v === "object" ? cleanSource(v) : null), z.custom<ImageSource>().nullable()),
+  fallback: z.preprocess(
+    (v) => (v && typeof v === "object" ? v : null),
+    z.object({ font: z.preprocess((v) => (typeof v === "string" && fontKeys.includes(v) ? v : "bebas"), z.string()), weight: num(100, 900, 400), fill: color("#ffffff"), uppercase: bool(true) }).nullable()
+  )
 });
 
-const fontKeys = FLYER_FONTS.map((f) => f.key);
 const textSchema = z.object({
   ...base,
   kind: z.literal("text"),
@@ -199,7 +219,16 @@ const textSchema = z.object({
   shrink: bool(false),
   fill: color("#ffffff"),
   stroke: strokeSchema,
-  shadow: shadowSchema
+  shadow: shadowSchema,
+  fitBox: z.preprocess((v) => (typeof v === "boolean" ? v : undefined), z.boolean().optional()),
+  minFontSize: z.preprocess((v) => (typeof v === "number" && Number.isFinite(v) ? Math.min(400, Math.max(6, v)) : undefined), z.number().optional()),
+  source: z.preprocess((v) => (typeof v === "string" ? v.slice(0, MAX_TEXT) : null), z.string().nullable()),
+  override: z.preprocess((v) => (typeof v === "boolean" ? v : undefined), z.boolean().optional()),
+  hideIfEmpty: z.preprocess((v) => (typeof v === "boolean" ? v : undefined), z.boolean().optional()),
+  panel: z.preprocess(
+    (v) => (v && typeof v === "object" ? v : null),
+    z.object({ enabled: bool(false), color: color("#000000"), opacity: num(0, 1, 0.6), padding: num(0, 200, 24), radius: num(0, 400, 12) }).nullable()
+  )
 });
 
 const nodeSchema = z.preprocess(
@@ -258,15 +287,36 @@ export function parseTemplateContent(raw: unknown): ParseResult<TemplateContent>
 
 /* ---------------- placeholders ---------------- */
 
-const TOKEN = /\{\{\s*([a-z_]+)\s*(?:\|([^}]{0,80}))?\}\}/g;
+const TOKEN = /\{\{\s*([a-zA-Z][a-zA-Z0-9_.]*)\s*(?:\|([^}]{0,80}))?\}\}/g;
+export const TOKEN_RE = TOKEN;
 
-/** Replaces {{dj_name}}-style placeholders. `{{event_title|Saturday Night}}` falls back to the text after the bar. */
+/**
+ * The value key for a placeholder: {{event.startTime}} → start_time,
+ * {{dj2.displayName}} → dj2_name; older {{start_time}} tokens map to themselves.
+ */
+export function canonicalKey(token: string): string {
+  const t = token.trim();
+  const dj = t.match(/^dj(\d*)\.(displayName|name)$/);
+  if (dj) return dj[1] && dj[1] !== "1" ? `dj${dj[1]}_name` : "dj_name";
+  const f = (FIELD_TOKENS as Record<string, { key: string }>)[t];
+  return f ? f.key : t;
+}
+
+/** A readable label for a placeholder, used when a flyer has no event to fill it from. */
+export function tokenLabel(token: string): string {
+  const key = canonicalKey(token);
+  const dj = key.match(/^dj(\d+)_name$/);
+  if (dj) return `DJ ${dj[1]} name`;
+  return (PLACEHOLDERS as Record<string, string>)[key] ?? Object.values(FIELD_TOKENS).find((f) => f.key === key)?.label ?? "";
+}
+
+/** Replaces placeholders. `{{event.title|Saturday Night}}` falls back to the text after the bar. */
 export function fillText(text: string, values: PlaceholderValues, keepUnknown = true): string {
-  return text.replace(TOKEN, (m, key: string, fallback?: string) => {
-    const v = (values as Record<string, string | null | undefined>)[key];
+  return text.replace(TOKEN, (m, token: string, fallback?: string) => {
+    const v = (values as Record<string, string | null | undefined>)[canonicalKey(token)];
     if (v) return v;
     if (fallback !== undefined) return fallback.trim();
-    if (key in PLACEHOLDERS) return keepUnknown ? m : "";
+    if (tokenLabel(token)) return keepUnknown ? m : "";
     return m;
   });
 }
@@ -276,26 +326,11 @@ export function placeholdersIn(text: string): string[] {
 }
 
 /**
- * A DJ's starting copy of a template layout: placeholders filled from the DJ
- * and booking, the portrait pointed at this DJ's own photo, the venue logo at
- * the booking's (or template's) venue. Text with nothing to fill keeps a
- * readable label instead of raw braces.
+ * A DJ's starting copy of a template layout (kept for older callers): the
+ * layout linked to its placeholders and filled from the values given.
  */
 export function instantiate(scene: Scene, ctx: { values: PlaceholderValues; djId: string; venueId: string | null }): Scene {
-  const labels = Object.fromEntries(Object.entries(PLACEHOLDERS).map(([k, label]) => [k, label]));
-  const nodes = scene.nodes.map((n): FlyerNode => {
-    if (n.kind === "text") {
-      const filled = fillText(n.text, ctx.values);
-      return { ...n, text: filled.replace(TOKEN, (_m, key: string) => labels[key] ?? "") };
-    }
-    if (n.source.type === "dj_photo") return { ...n, source: { type: "dj_photo", djId: ctx.djId } };
-    if (n.source.type === "venue_logo") {
-      const venueId = ctx.venueId ?? n.source.venueId ?? null;
-      return { ...n, source: { type: "venue_logo", venueId }, visible: n.visible && !!venueId };
-    }
-    return n;
-  });
-  return { ...scene, nodes };
+  return resolveScene(linkScene(scene), { values: ctx.values, slots: [ctx.djId], venueId: ctx.venueId, hasEvent: false });
 }
 
 /** Booking fields as flyer text (Central time unless the booking says otherwise). */
@@ -391,7 +426,7 @@ export function withGroup(nodes: FlyerNode[], id: string): string[] {
 /* ---------------- DJ permission check (server side) ---------------- */
 
 const MOVE_KEYS = ["x", "y", "width", "height", "rotation"] as const;
-const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend"] as const;
+const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend", "fitBox", "minFontSize", "panel"] as const;
 const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "shadow", "opacity", "blend"] as const;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
@@ -412,8 +447,17 @@ export function checkDjChanges(prev: Scene, next: Scene): string | null {
     if (n.kind !== p.kind) return `“${p.name}” can't change type.`;
     if (!p.perms.move && MOVE_KEYS.some((k) => Math.abs((n[k] as number) - (p[k] as number)) > 0.5)) return `“${p.name}” is fixed in place by the template.`;
     if (!p.perms.edit) {
-      if (p.kind === "text" && n.kind === "text" && n.text !== p.text) return `The wording of “${p.name}” is set by the template.`;
-      if (p.kind === "image" && n.kind === "image" && !same(n.source, p.source)) return `The image in “${p.name}” is set by the template.`;
+      // Linked layers refresh from the event by themselves; what's fixed is the link (and not overriding it).
+      if (p.kind === "text" && n.kind === "text") {
+        if (p.source != null) {
+          if (n.source !== p.source || !!n.override !== !!p.override) return `The wording of “${p.name}” is set by the template.`;
+        } else if (n.text !== p.text) return `The wording of “${p.name}” is set by the template.`;
+      }
+      if (p.kind === "image" && n.kind === "image") {
+        if (p.linked) {
+          if (!same(n.linked, p.linked) || !!n.override !== !!p.override || (!n.override && n.source.type !== p.source.type)) return `The image in “${p.name}” is set by the template.`;
+        } else if (!same(n.source, p.source)) return `The image in “${p.name}” is set by the template.`;
+      }
       if (n.visible !== p.visible) return `“${p.name}” can't be hidden.`;
     }
     if (!p.perms.style) {

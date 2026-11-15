@@ -48,7 +48,13 @@ export function fontString(n: { font: string; weight: number; italic: boolean })
 
 /* ---------------- images ---------------- */
 
-export type SrcContext = { previewDjId?: string | null };
+export type SrcContext = {
+  previewDjId?: string | null;
+  /** Placeholder values, for "only show when…" layers. */
+  values?: import("@/lib/flyers/types").PlaceholderValues;
+  /** DJ names by id: a DJ name-logo slot with no logo draws the name instead. */
+  djNames?: Record<string, string>;
+};
 
 /** Same-origin URL for an image source (so the canvas can be exported), or null when there's nothing to show. */
 export function srcFor(source: ImageSource, ctx: SrcContext = {}): string | null {
@@ -60,6 +66,10 @@ export function srcFor(source: ImageSource, ctx: SrcContext = {}): string | null
     case "dj_photo": {
       const id = source.djId ?? ctx.previewDjId;
       return id ? `/api/flyers/photo/${id}` : null;
+    }
+    case "dj_logo": {
+      const id = source.djId ?? ctx.previewDjId;
+      return id ? `/api/flyers/dj-logo/${id}` : null;
     }
     case "venue_logo":
       return source.venueId ? `/api/flyers/venue-logo/${source.venueId}` : null;

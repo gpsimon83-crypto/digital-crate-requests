@@ -17,6 +17,9 @@ import {
   Folder,
   FolderOpen,
   Group as GroupIcon,
+  Link2,
+  PenLine,
+  RotateCcw,
   ImagePlus,
   Lock,
   Search,
@@ -30,7 +33,8 @@ import {
 import { cn } from "@/lib/utils";
 import { FLYER_FONTS, fontByKey, nearestWeight } from "@/lib/flyers/fonts";
 import { featherOn } from "@/lib/flyers/feather";
-import { BLEND_MODES, PLACEHOLDERS, ROLES, type BlendMode, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type TextNode } from "@/lib/flyers/types";
+import { isLinked, isOverridden } from "@/lib/flyers/links";
+import { BLEND_MODES, FIELD_TOKENS, ROLES, type BlendMode, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type TextNode } from "@/lib/flyers/types";
 
 export type Asset = { id: string; kind: string; name: string | null; folder?: string | null; width: number; height: number; has_alpha: boolean };
 export type VenueOpt = { id: string; name: string; has_logo: boolean };
@@ -150,6 +154,8 @@ export type PropsApi = {
   duplicate: () => void;
   reorder: (dir: "up" | "down" | "top" | "bottom") => void;
   openReplace: (id: string) => void;
+  /** Flyers linked to an event: put a layer back to the event's data. */
+  resetToEvent?: (id: string) => void;
 };
 
 export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRef }: { scene: Scene; node: FlyerNode | null; multi: number; api: PropsApi; sceneControls: React.ReactNode; textRef: React.RefObject<HTMLTextAreaElement | null> }) {
@@ -186,6 +192,17 @@ export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRe
         <span className="truncate text-sm font-semibold">{n.name}</span>
         <span className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted">{ROLES[n.role]}</span>
       </div>
+      {api.mode === "design" && api.resetToEvent && isLinked(n) && (
+        <div className={cn("mt-3 flex flex-wrap items-center gap-2 rounded-[8px] px-3 py-2 text-xs", isOverridden(n) ? "bg-status-pending/10 text-status-pending" : "bg-gold-soft/70 text-foreground")}>
+          {isOverridden(n) ? <PenLine size={14} aria-hidden /> : <Link2 size={14} aria-hidden />}
+          <span className="flex-1">{isOverridden(n) ? "Overridden for this flyer: event changes no longer update it." : "Linked to the event: it updates when the event, venue or DJs change. Editing it overrides it for this flyer only."}</span>
+          {isOverridden(n) && (
+            <button className={cn(iconBtn, "h-8")} onClick={() => api.resetToEvent!(n.id)}>
+              <RotateCcw size={13} /> Reset to event data
+            </button>
+          )}
+        </div>
+      )}
       {api.mode === "design" && (!api.can(n, "move") || !api.can(n, "edit") || !api.can(n, "style")) && (
         <p className="mt-3 rounded-[8px] bg-black/5 px-3 py-2 text-xs text-muted">Parts of this layer are fixed by the template.</p>
       )}
@@ -206,6 +223,9 @@ export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRe
             </button>
           </div>
         </div>
+        <p className="text-[11px] text-muted">
+          {pct(n.x, scene.width)} from left · {pct(n.y, scene.height)} from top · {pct(n.width, scene.width)} wide{n.kind === "image" || (n.kind === "text" && n.fitBox) ? ` · ${pct(n.height, scene.height)} tall` : ""} (of the flyer)
+        </p>
         <Slider label="Opacity" value={Math.round(n.opacity * 100)} min={0} max={100} step={1} display={`${Math.round(n.opacity * 100)}%`} disabled={!canStyle} onChange={(v) => set({ opacity: v / 100 }, "opacity")} />
         <label className="block">
           <span className={labelCls}>Blend mode</span>
@@ -251,6 +271,7 @@ export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRe
         </div>
       </Section>
 
+      {api.mode === "template" && <LinkSettings n={n} set={set} />}
       {api.mode === "template" && <TemplatePermsSection n={n} set={set} />}
     </div>
   );
@@ -279,13 +300,13 @@ function TextProps({ n, set, canEdit, canStyle, mode, textRef }: { n: TextNode; 
               }}
             >
               <option value="">Choose…</option>
-              {Object.entries(PLACEHOLDERS).map(([k, l]) => (
+              {[...Object.entries(FIELD_TOKENS).map(([k, v]) => [k, v.label] as const), ["dj2.displayName", "DJ 2 name"] as const, ["dj3.displayName", "DJ 3 name"] as const].map(([k, l]) => (
                 <option key={k} value={k}>
                   {l} — {`{{${k}}}`}
                 </option>
               ))}
             </select>
-            <span className="mt-1 block text-[11px] text-muted">Add a fallback after a bar: {"{{end_time|Close}}"}.</span>
+            <span className="mt-1 block text-[11px] text-muted">Add a fallback after a bar: {"{{event.endTime|Close}}"}. Older {"{{dj_name}}"}-style placeholders still work.</span>
           </label>
         )}
       </Section>
@@ -333,7 +354,20 @@ function TextProps({ n, set, canEdit, canStyle, mode, textRef }: { n: TextNode; 
             </button>
           ) : null}
         </div>
-        <Check label="Shrink to fit on one line" checked={n.shrink} disabled={!canStyle} onChange={(v) => set({ shrink: v }, "shrink")} />
+        <label className="block">
+          <span className={labelCls}>When the text is long</span>
+          <select className={inputCls} value={n.fitBox ? "box" : n.shrink ? "line" : "wrap"} disabled={!canStyle} onChange={(e) => set({ shrink: e.target.value === "line", fitBox: e.target.value === "box", minFontSize: n.minFontSize ?? Math.max(10, Math.round(n.fontSize / 3)) }, "fit")}>
+            <option value="wrap">Wrap onto more lines</option>
+            <option value="line">Stay on one line, shrink to fit</option>
+            <option value="box">Wrap, then shrink to fit the box</option>
+          </select>
+        </label>
+        {(n.fitBox || n.shrink) && (
+          <div className="grid grid-cols-2 gap-2">
+            {n.fitBox && <Num label="Box height" value={n.height} min={8} max={8000} onChange={(v) => set({ height: v }, "height")} disabled={!canStyle} suffix="px" />}
+            <Num label="Smallest size" value={n.minFontSize ?? Math.max(10, Math.round(n.fontSize / 3))} min={6} max={n.fontSize} onChange={(v) => set({ minFontSize: v }, "minFontSize")} disabled={!canStyle} suffix="px" />
+          </div>
+        )}
         <ColorField label="Color" value={n.fill} disabled={!canStyle} onChange={(v) => set({ fill: v }, "fill")} />
       </Section>
       <Section title="Outline" defaultOpen={n.stroke.enabled}>
@@ -345,8 +379,86 @@ function TextProps({ n, set, canEdit, canStyle, mode, textRef }: { n: TextNode; 
           </div>
         )}
       </Section>
+      <Section title="Background panel" defaultOpen={!!n.panel?.enabled}>
+        <Check label="Panel behind the text" checked={!!n.panel?.enabled} disabled={!canStyle} onChange={(v) => set({ panel: { color: "#000000", opacity: 0.55, padding: 24, radius: 16, ...n.panel, enabled: v } }, "panel")} />
+        {n.panel?.enabled && (
+          <>
+            <ColorField label="Panel color" value={n.panel.color} disabled={!canStyle} onChange={(v) => set({ panel: { ...n.panel!, color: v } }, "panel")} />
+            <Slider label="Panel opacity" value={Math.round(n.panel.opacity * 100)} display={`${Math.round(n.panel.opacity * 100)}%`} min={0} max={100} step={1} disabled={!canStyle} onChange={(v) => set({ panel: { ...n.panel!, opacity: v / 100 } }, "panel")} />
+            <div className="grid grid-cols-2 gap-2">
+              <Num label="Padding" value={n.panel.padding} min={0} max={200} onChange={(v) => set({ panel: { ...n.panel!, padding: v } }, "panel")} disabled={!canStyle} suffix="px" />
+              <Num label="Corners" value={n.panel.radius} min={0} max={200} onChange={(v) => set({ panel: { ...n.panel!, radius: v } }, "panel")} disabled={!canStyle} suffix="px" />
+            </div>
+          </>
+        )}
+      </Section>
       <ShadowSection value={n.shadow} disabled={!canStyle} onChange={(s) => set({ shadow: s }, "shadow")} />
     </>
+  );
+}
+
+const IMAGE_ROLES = ["background", "portrait", "logo", "dj_logo", "overlay", "image"];
+const pct = (v: number, of: number) => `${Math.round((v / of) * 1000) / 10}%`;
+
+const SHOW_WHEN: [string, string][] = [
+  ["", "Always"],
+  ["drink_specials", "There are drink specials"],
+  ["event_details", "The event has details"],
+  ["end_time", "There's an end time"],
+  ["venue_address", "The venue has an address"],
+  ["dj2_name", "There's a 2nd DJ"],
+  ["dj3_name", "There's a 3rd DJ"]
+];
+
+/** Template: how a layer follows the event (required, conditional, DJ slot, logo fallback). */
+function LinkSettings({ n, set }: { n: FlyerNode; set: (p: Partial<FlyerNode>, k?: string) => void }) {
+  const link = n.link ?? {};
+  const slotSrc = n.kind === "image" && (n.source.type === "dj_photo" || n.source.type === "dj_logo") ? n.source : null;
+  return (
+    <Section title="Event link" defaultOpen={!!(link.required || link.showWhen || slotSrc)}>
+      {slotSrc && (
+        <label className="block">
+          <span className={labelCls}>DJ slot</span>
+          <select className={inputCls} value={slotSrc.slot ?? 1} onChange={(e) => set({ source: { type: slotSrc.type, slot: +e.target.value } } as Partial<ImageNode>, "source")}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <option key={i} value={i}>
+                DJ {i}
+                {i === 1 ? " (lead)" : ""}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-[11px] text-muted">On a flyer, the admin or DJ chooses which of the event&apos;s DJs fills each slot.</span>
+        </label>
+      )}
+      {n.kind === "image" && slotSrc?.type === "dj_logo" && (
+        <div className="grid grid-cols-2 gap-2">
+          <ColorField label="Name color (no logo)" value={n.fallback?.fill ?? "#ffffff"} onChange={(v) => set({ fallback: { font: n.fallback?.font ?? "anton", weight: n.fallback?.weight ?? 400, uppercase: n.fallback?.uppercase ?? true, fill: v } } as Partial<ImageNode>, "fallback")} />
+          <label className="block">
+            <span className={labelCls}>Name font (no logo)</span>
+            <select className={inputCls} value={n.fallback?.font ?? "anton"} onChange={(e) => set({ fallback: { fill: n.fallback?.fill ?? "#ffffff", uppercase: n.fallback?.uppercase ?? true, font: e.target.value, weight: nearestWeight(e.target.value, n.fallback?.weight ?? 800) } } as Partial<ImageNode>, "fallback")}>
+              {FLYER_FONTS.map((f) => (
+                <option key={f.key} value={f.key}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="col-span-2 text-[11px] text-muted">A DJ without an approved name logo gets their name in this style instead.</p>
+        </div>
+      )}
+      <Check label="Required before export" checked={!!link.required} onChange={(v) => set({ link: { ...link, required: v } }, "link")} />
+      <label className="block">
+        <span className={labelCls}>Show this layer when</span>
+        <select className={inputCls} value={link.showWhen ?? ""} onChange={(e) => set({ link: { ...link, showWhen: e.target.value || null } }, "link")}>
+          {SHOW_WHEN.map(([k, l]) => (
+            <option key={k} value={k}>
+              {l}
+            </option>
+          ))}
+        </select>
+      </label>
+      {n.kind === "text" && <Check label="Hide when the text comes out empty" checked={!!n.hideIfEmpty} onChange={(v) => set({ hideIfEmpty: v } as Partial<TextNode>, "hideIfEmpty")} />}
+    </Section>
   );
 }
 
@@ -454,7 +566,7 @@ function TemplatePermsSection({ n, set }: { n: FlyerNode; set: (p: Partial<Flyer
         <span className={labelCls}>Layer type</span>
         <select className={inputCls} value={n.role} onChange={(e) => set({ role: e.target.value as Role }, "role")}>
           {Object.entries(ROLES)
-            .filter(([k]) => (n.kind === "text" ? !["background", "portrait", "logo", "overlay", "image"].includes(k) : ["background", "portrait", "logo", "overlay", "image"].includes(k)))
+            .filter(([k]) => (n.kind === "text" ? !IMAGE_ROLES.includes(k) : IMAGE_ROLES.includes(k)))
             .map(([k, l]) => (
               <option key={k} value={k}>
                 {l}
@@ -555,7 +667,16 @@ export function LayersPanel({
                     }}
                   />
                 ) : (
-                  <span className="truncate">{n.name}</span>
+                  <>
+                    <span className="truncate">{n.name}</span>
+                    {isOverridden(n) ? (
+                      <span className="shrink-0 rounded-full bg-status-pending/15 px-1.5 text-[9px] font-semibold uppercase text-status-pending" title="Overridden for this flyer">
+                        Edited
+                      </span>
+                    ) : isLinked(n) ? (
+                      <Link2 size={12} className="shrink-0 text-gold-dim" aria-label="Linked to the event" />
+                    ) : null}
+                  </>
                 )}
               </button>
               <button className={cn(iconBtn, "h-8 min-w-8 border-transparent bg-transparent")} aria-label={n.visible ? `Hide ${n.name}` : `Show ${n.name}`} disabled={!can(n, "edit")} onClick={() => update(n.id, { visible: !n.visible }, `${n.id}:visible`)}>
@@ -593,6 +714,8 @@ export type LibraryApi = {
   /** Import a layered SVG (Illustrator, Figma, Canva…) as editable layers. */
   importSvg?: (file: File, placeholders: boolean) => Promise<void>;
   cancelReplace: () => void;
+  /** Ready-made linked blocks: drink specials (heading + list), event details, 2nd DJ's name. */
+  addPreset?: (k: "specials" | "details" | "dj2") => void;
 };
 
 const thumb = (src: string, alt: string) => (
@@ -608,7 +731,8 @@ export function LibraryPanel({
   uploads,
   shared,
   venues,
-  templatesSlot
+  templatesSlot,
+  eventSlot
 }: {
   tab: string;
   setTab: (t: string) => void;
@@ -618,6 +742,8 @@ export function LibraryPanel({
   shared: Asset[];
   venues: VenueOpt[];
   templatesSlot?: React.ReactNode;
+  /** Flyers: the Event tab (event, DJs, specials, template). */
+  eventSlot?: React.ReactNode;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState(api.mode === "template" ? "background" : "photo");
@@ -640,7 +766,7 @@ export function LibraryPanel({
       <FolderOpen size={13} /> Organise or delete images
     </a>
   ) : null;
-  const tabs = [...(templatesSlot ? [["templates", "Templates"]] : []), ["text", "Text"], ["photos", "Photos"], ["logos", "Logos"], ["assets", api.mode === "template" ? "Assets" : "Art"]] as [string, string][];
+  const tabs = [...(eventSlot ? [["event", "Event"]] : []), ...(templatesSlot ? [["templates", "Templates"]] : []), ["text", "Text"], ["photos", "Photos"], ["logos", "Logos"], ["assets", api.mode === "template" ? "Assets" : "Art"]] as [string, string][];
 
   async function onFile(f: File | undefined) {
     if (!f) return;
@@ -676,6 +802,7 @@ export function LibraryPanel({
         </div>
       )}
       <div className="flex-1 overflow-y-auto p-3">
+        {tab === "event" && eventSlot}
         {tab === "templates" && templatesSlot}
         {tab === "text" && (
           <div className="flex flex-col gap-2">
@@ -684,15 +811,34 @@ export function LibraryPanel({
                 <Type size={15} className="text-muted" /> Add {ROLES[r].toLowerCase()}
               </button>
             ))}
+            {api.addPreset && (
+              <>
+                <p className={cn(labelCls, "mt-2")}>Linked blocks</p>
+                <button className={cn(iconBtn, "h-11 justify-start px-3 text-sm")} onClick={() => api.addPreset!("specials")}>
+                  <Type size={15} className="text-muted" /> Add drink specials
+                </button>
+                <button className={cn(iconBtn, "h-11 justify-start px-3 text-sm")} onClick={() => api.addPreset!("details")}>
+                  <Type size={15} className="text-muted" /> Add event details
+                </button>
+                <button className={cn(iconBtn, "h-11 justify-start px-3 text-sm")} onClick={() => api.addPreset!("dj2")}>
+                  <Type size={15} className="text-muted" /> Add 2nd DJ&apos;s name
+                </button>
+              </>
+            )}
             <p className="text-[11px] text-muted">{api.mode === "template" ? "New text starts with a placeholder like {{event_title}}. DJs see it filled from their booking." : "Every text box is its own layer: move it anywhere."}</p>
           </div>
         )}
         {tab === "photos" && (
           <div className="flex flex-col gap-3">
             {api.mode === "template" ? (
-              <button className={cn(iconBtn, "h-11 justify-start px-3 text-sm")} onClick={() => api.placeImage({ type: "dj_photo" }, "portrait")}>
-                <UserSquare2 size={15} /> Add DJ photo slot
-              </button>
+              <>
+                {[1, 2, 3].map((i) => (
+                  <button key={i} className={cn(iconBtn, "h-11 justify-start px-3 text-sm")} onClick={() => api.placeImage({ type: "dj_photo", slot: i }, "portrait")}>
+                    <UserSquare2 size={15} /> Add DJ {i} photo slot{i === 1 ? " (lead)" : ""}
+                  </button>
+                ))}
+                <p className="text-[11px] text-muted">Each slot shows that DJ&apos;s approved cutout (or profile photo). Change the slot number under Event link.</p>
+              </>
             ) : owner ? (
               <div>
                 <p className={labelCls}>Saved profile photo</p>
@@ -725,9 +871,16 @@ export function LibraryPanel({
         {tab === "logos" && (
           <div className="flex flex-col gap-3">
             {api.mode === "template" && (
-              <button className={cn(iconBtn, "h-11 justify-start px-3 text-sm")} onClick={() => api.placeImage({ type: "venue_logo" }, "logo")}>
-                <ImagePlus size={15} /> Add venue logo slot (filled from the booking)
-              </button>
+              <>
+                <button className={cn(iconBtn, "h-11 justify-start px-3 text-sm")} onClick={() => api.placeImage({ type: "venue_logo" }, "logo")}>
+                  <ImagePlus size={15} /> Add venue logo slot (filled from the booking)
+                </button>
+                {[1, 2].map((i) => (
+                  <button key={i} className={cn(iconBtn, "h-11 justify-start px-3 text-sm")} onClick={() => api.placeImage({ type: "dj_logo", slot: i }, "dj_logo")}>
+                    <ImagePlus size={15} /> Add DJ {i} name logo slot
+                  </button>
+                ))}
+              </>
             )}
             <p className={labelCls}>Venue logos</p>
             <div className="grid grid-cols-3 gap-2">

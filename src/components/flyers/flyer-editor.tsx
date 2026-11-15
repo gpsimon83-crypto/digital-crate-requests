@@ -31,7 +31,6 @@ import {
 import {
   duplicateNodes,
   emptyScene,
-  fillText,
   newImage,
   newText,
   reorder,
@@ -49,7 +48,9 @@ import {
   type Role,
   type Scene,
 } from "@/lib/flyers/types";
-import { ExportStage, FlyerStage, type NodePatch } from "./flyer-canvas";
+import { ExportStage, FlyerStage, textLayout, type NodePatch } from "./flyer-canvas";
+import { linkedText, linkScene, preflight, resetNode, resolveScene, type Issue, type LinkContext } from "@/lib/flyers/links";
+import { EventPanel, IssuesDialog } from "./editor-link-panel";
 import {
   FOCUS,
   LayersPanel,
@@ -66,6 +67,37 @@ import { importSvg } from "./svg-import";
 export type Scenes = Partial<Record<FormatKey, Scene>>;
 export type SaveResult =
   { ok: true } | { ok: false; error: string; conflict?: boolean };
+
+/** Event data a flyer's linked layers fill from (from GET /api/flyers/designs/[id]). */
+export type LinkData = {
+  event: { id: string; title: string | null; starts_at: string | null; venue_id: string | null; venue_name: string | null } | null;
+  venue: { id: string; name: string; has_logo: boolean } | null;
+  eventDjs: FlyerDjInfo[];
+  slots: (string | null)[];
+  djs: FlyerDjInfo[];
+  values: PlaceholderValues;
+  drinkSpecials: { text: string | null; from: "night" | "venue" | null };
+  hasEvent: boolean;
+};
+export type FlyerDjInfo = { id: string; display_name: string; has_photo: boolean; has_cutout: boolean; has_logo: boolean; role: string };
+export type EventOpt = { id: string; title: string | null; starts_at: string | null; venue_id: string | null; venue_name: string | null; dj_id: string | null };
+export type LinkProps = {
+  context: LinkData;
+  events: EventOpt[];
+  templates: { id: string; name: string; venue_id: string | null }[];
+  currentTemplateId: string | null;
+  activeTemplate: { templateId: string | null; via: string | null };
+  allDjs: { id: string; display_name: string }[];
+  /** Before migration 0052 the flyer can't store its links yet. */
+  ready: boolean;
+  /** Change what the flyer is linked to; resolves with fresh event data. */
+  change: (body: { eventId?: string | null; venueId?: string | null; djSlots?: (string | null)[] | null }) => Promise<{ context?: LinkData; error?: string }>;
+  /** Re-read the event data (e.g. after drink specials were edited). */
+  refresh: () => Promise<LinkData | null>;
+  /** Switch this flyer to another template's layout (the page reloads the flyer). */
+  applyTemplate: (templateId: string) => Promise<string | null>;
+  onExported?: () => void;
+};
 
 export type FlyerEditorProps = {
   mode: "design" | "template";
@@ -92,7 +124,13 @@ export type FlyerEditorProps = {
   subtitle?: string;
   /** Lets the page save right now (e.g. before publishing). Resolves true when everything is saved. */
   onSaveReady?: (saveNow: () => Promise<boolean>) => void;
+  /** Flyers (design mode): the event / venue / DJs its linked layers follow. */
+  link?: LinkProps;
 };
+
+const linkCtxOf = (c: LinkData): LinkContext => ({ values: c.values, slots: c.slots, venueId: c.venue?.id ?? null, hasEvent: c.hasEvent });
+const resolveAll = (scenes: Scenes, c: LinkData | undefined): Scenes =>
+  c ? (Object.fromEntries(Object.entries(scenes).map(([k, sc]) => [k, sc ? resolveScene(sc, linkCtxOf(c)) : sc])) as Scenes) : scenes;
 
 function useCoarsePointer() {
   const [coarse, setCoarse] = useState(false);
@@ -131,8 +169,10 @@ const isTyping = (t: EventTarget | null) => {
 
 export function FlyerEditor(props: FlyerEditorProps) {
   const { mode, staff } = props;
+  // Linked layers are refilled from the event as the flyer opens (then autosaved).
+  const [linkData, setLinkData] = useState<LinkData | undefined>(props.link?.context);
   const [hist, setHist] = useState<History<Scenes>>(() =>
-    initHistory(props.scenes),
+    initHistory(resolveAll(props.scenes, props.link?.context)),
   );
   const [active, setActive] = useState<FormatKey>(props.format);
   const [selected, setSelected] = useState<string[]>([]);
@@ -153,7 +193,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
     null | "add" | "layers" | "props" | "more"
   >(null);
   const [leftTab, setLeftTab] = useState(
-    props.templatesSlot
+    props.link ? "event" : props.templatesSlot
       ? "templates"
       : mode === "template"
         ? "assets"
@@ -181,10 +221,16 @@ export function FlyerEditor(props: FlyerEditorProps) {
   const scenes = hist.present;
   const scene = scenes[active] ?? emptyScene(active);
   const zoom = zoomMode === "fit" ? fitZoom : zoomMode;
-  const ctx: SrcContext = useMemo(
-    () => ({ previewDjId: mode === "template" ? previewDjId : null }),
-    [mode, previewDjId],
-  );
+  const ctx: SrcContext = useMemo(() => {
+    const names: Record<string, string> = {};
+    for (const d of props.previewDjs ?? []) names[d.id] = d.display_name;
+    for (const d of linkData?.djs ?? []) names[d.id] = d.display_name;
+    return {
+      previewDjId: mode === "template" ? previewDjId : null,
+      values: mode === "template" ? (sampleText ? props.sampleValues : undefined) : linkData?.values,
+      djNames: names
+    };
+  }, [mode, previewDjId, linkData, sampleText, props.sampleValues, props.previewDjs]);
 
   /* ---- permissions ---- */
   const can = useCallback(
@@ -274,12 +320,19 @@ export function FlyerEditor(props: FlyerEditorProps) {
           ...s,
           nodes: s.nodes.map((n) => {
             const p = patches.find((x) => x.id === n.id);
-            return p ? ({ ...n, ...p.patch } as FlyerNode) : n;
+            if (!p) return n;
+            const patch = { ...p.patch } as Partial<FlyerNode> & { override?: boolean };
+            // On a flyer, editing linked wording or replacing a linked picture overrides it for this flyer only.
+            if (mode === "design" && !("override" in patch)) {
+              if (n.kind === "text" && n.source != null && "text" in patch && (patch as { text?: string }).text !== n.text) patch.override = true;
+              if (n.kind === "image" && n.linked && "source" in patch) patch.override = true;
+            }
+            return { ...n, ...patch } as FlyerNode;
           }),
         }),
         key,
       ),
-    [setScene],
+    [setScene, mode],
   );
   const update = useCallback(
     (id: string, patch: Partial<FlyerNode>, key: string) =>
@@ -317,6 +370,33 @@ export function FlyerEditor(props: FlyerEditorProps) {
     if (!desktop) setDrawer("props");
   }
 
+  /** On a flyer linked to an event, new placeholder layers are linked and filled straight away. */
+  function linkNew(nodes: FlyerNode[]): FlyerNode[] {
+    if (mode !== "design" || !linkData) return nodes;
+    return resolveScene(linkScene({ ...scene, nodes }), linkCtxOf(linkData)).nodes;
+  }
+
+  function addPreset(k: "specials" | "details" | "dj2") {
+    const mid = Math.round(scene.height / 2 - 60);
+    if (k === "specials") {
+      const g = uid();
+      const w = Math.round(scene.width * 0.7);
+      const x = Math.round((scene.width - w) / 2);
+      const head = newText("specials", scene, { name: "Specials heading", text: "DRINK SPECIALS", x, y: mid - 90, width: w, fontSize: 54, font: "anton", weight: 400, uppercase: true, fill: "#e5b647", groupId: g, link: { showWhen: "drink_specials" } });
+      const body = newText("specials", scene, { name: "Drink specials", text: "{{event.drinkSpecials}}", x, y: mid, width: w, height: Math.round(scene.height * 0.18), fontSize: 40, weight: 700, lineHeight: 1.25, fitBox: true, minFontSize: 18, hideIfEmpty: true, groupId: g, panel: { enabled: true, color: "#000000", opacity: 0.55, padding: 24, radius: 16 } });
+      const nodes = linkNew([head, body]);
+      setScene((s) => ({ ...s, nodes: [...s.nodes, ...nodes] }), null);
+      setSelected(nodes.map((n) => n.id));
+      if (!desktop) setDrawer("props");
+      if (mode === "design" && linkData && !linkData.drinkSpecials.text) setNotice("Added. It stays hidden until this night has drink specials.");
+      return;
+    }
+    const n = newText(k === "dj2" ? "dj_name" : "details", scene, k === "dj2" ? { name: "DJ 2 name", text: "{{dj2.displayName}}", link: { showWhen: "dj2_name" } } : { name: "Event details", text: "{{event.details}}", fontSize: 44, weight: 600, hideIfEmpty: true });
+    n.y = mid;
+    if (mode === "design" && !linkData) n.text = k === "dj2" ? "DJ name" : "Details";
+    addNode(linkNew([n])[0]);
+  }
+
   function addText(role: Role) {
     const n = newText(role, scene);
     if (mode === "design") {
@@ -333,10 +413,10 @@ export function FlyerEditor(props: FlyerEditorProps) {
         address: v.venue_address ?? "Address",
         details: "Details",
       };
-      n.text = fill[role] ?? "Your text";
+      if (!linkData || role === "text") n.text = fill[role] ?? "Your text";
     }
     n.y = Math.round(scene.height / 2 - 60);
-    addNode(n);
+    addNode(linkNew([n])[0]);
     setTimeout(() => textRef.current?.focus(), 60);
   }
 
@@ -549,6 +629,72 @@ export function FlyerEditor(props: FlyerEditorProps) {
     return () => clearTimeout(t);
   }, [notice]);
 
+  /* ---- linked content (flyers): event, venue, DJ slots ---- */
+  const [linkBusy, setLinkBusy] = useState(false);
+  const [issues, setIssues] = useState<Issue[] | null>(null);
+  const [pendingMime, setPendingMime] = useState<"image/png" | "image/jpeg" | null>(null);
+
+  /** New event data in: refill linked layers (layout and overrides untouched). */
+  function applyLinkData(c: LinkData, note?: string) {
+    setLinkData(c);
+    setHist((h) => {
+      const next = resolveAll(h.present, c);
+      return JSON.stringify(next) === JSON.stringify(h.present) ? h : commit(h, next, null);
+    });
+    if (note) setNotice(note);
+  }
+  async function changeLink(body: { eventId?: string | null; venueId?: string | null; djSlots?: (string | null)[] | null }) {
+    if (!props.link) return;
+    setLinkBusy(true);
+    const r = await props.link.change(body);
+    setLinkBusy(false);
+    if (r.error) return setNotice(r.error);
+    if (r.context) applyLinkData(r.context, "Filled from the event. The layout and your overrides didn't change.");
+  }
+  async function refreshLink() {
+    if (!props.link) return;
+    setLinkBusy(true);
+    const c = await props.link.refresh();
+    setLinkBusy(false);
+    if (c) applyLinkData(c, "Refreshed from the event.");
+  }
+  function resetToEvent(id: string) {
+    if (!linkData) return;
+    const c = linkCtxOf(linkData);
+    setScene((s) => ({ ...s, nodes: s.nodes.map((n) => (n.id === id ? resetNode(n, c) : n)) }), null);
+    setNotice("Back to the event's data.");
+  }
+  /** Highest DJ slot the layout uses (pictures and {{dj2.displayName}}-style text). */
+  const slotsUsed = useMemo(() => {
+    let max = 1;
+    for (const n of scene.nodes) {
+      if (n.kind === "image") for (const src of [n.source, n.linked]) if (src && (src.type === "dj_photo" || src.type === "dj_logo")) max = Math.max(max, src.slot ?? 1);
+      if (n.kind === "text") for (const m of (n.source ?? n.text).matchAll(/\{\{\s*dj(\d+)\./g)) max = Math.max(max, +m[1]);
+    }
+    return Math.min(8, max);
+  }, [scene.nodes]);
+
+  /** What to fix before exporting: missing photos / DJs / required content, and text that doesn't fit. */
+  function exportIssues(): Issue[] {
+    const list: Issue[] = linkData ? preflight(scene, { ...linkCtxOf(linkData), djs: linkData.djs }) : [];
+    for (const n of scene.nodes) {
+      if (n.kind !== "text" || !n.visible || (n.hideIfEmpty && !n.text.trim())) continue;
+      const lay = textLayout(n, fontsKey > 0);
+      if (lay.overflow) list.push({ nodeId: n.id, level: "error", message: `“${n.name}”: the text doesn't fit its box even at the smallest size.` });
+      else if (n.text.trim() && n.y + (n.fitBox ? Math.min(lay.height, n.height) : lay.height) > scene.height + 2 && !n.rotation) list.push({ nodeId: n.id, level: "warning", message: `“${n.name}” runs off the bottom of the flyer.` });
+    }
+    return list;
+  }
+  function requestExport(mime: "image/png" | "image/jpeg") {
+    const found = mode === "design" ? exportIssues() : [];
+    if (found.length) {
+      setIssues(found);
+      setPendingMime(mime);
+      return;
+    }
+    setExportJob({ mime, purpose: "download" });
+  }
+
   /* ---- export ---- */
   function finishExport(blob: Blob | null, error?: string) {
     const job = exportJob;
@@ -575,6 +721,8 @@ export function FlyerEditor(props: FlyerEditorProps) {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 4000);
+    // Exported flyers are left alone when a newly activated template is applied to drafts.
+    props.link?.onExported?.();
     setNotice(
       `Exported ${scene.width} × ${scene.height} ${job.mime === "image/png" ? "PNG" : "JPEG"}.`,
     );
@@ -587,7 +735,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
       ...scene,
       nodes: scene.nodes.map((n) =>
         n.kind === "text"
-          ? { ...n, text: fillText(n.text, props.sampleValues!) }
+          ? { ...n, text: linkedText(n.text, { values: props.sampleValues!, slots: [], venueId: null, hasEvent: false }) }
           : n,
       ),
     };
@@ -729,6 +877,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
           setLeftTab(mode === "template" ? "assets" : "photos");
           if (!desktop) setDrawer("add");
         },
+        resetToEvent: props.link ? resetToEvent : undefined,
       }}
       textRef={textRef}
     />
@@ -758,9 +907,15 @@ export function FlyerEditor(props: FlyerEditorProps) {
       shared={shared}
       venues={props.venues}
       templatesSlot={props.templatesSlot}
+      eventSlot={
+        props.link && linkData ? (
+          <EventPanel link={props.link} data={linkData} busy={linkBusy} staff={staff} slotsUsed={slotsUsed} onChange={(b) => void changeLink(b)} onRefresh={() => void refreshLink()} />
+        ) : undefined
+      }
       api={{
         mode,
         addText,
+        addPreset,
         placeImage: (src, role, asset) => {
           placeImageSource(src, role, asset);
           if (!desktop) setDrawer(null);
@@ -854,16 +1009,14 @@ export function FlyerEditor(props: FlyerEditorProps) {
           iconBtn,
           "border-gold bg-gold font-semibold text-[#1a140b]",
         )}
-        onClick={() => setExportJob({ mime: "image/png", purpose: "download" })}
+        onClick={() => requestExport("image/png")}
         disabled={!!exportJob}
       >
         <Download size={15} /> PNG
       </button>
       <button
         className={iconBtn}
-        onClick={() =>
-          setExportJob({ mime: "image/jpeg", purpose: "download" })
-        }
+        onClick={() => requestExport("image/jpeg")}
         disabled={!!exportJob}
       >
         <Download size={15} /> JPEG
@@ -1252,6 +1405,21 @@ export function FlyerEditor(props: FlyerEditorProps) {
             </button>
           </div>
         </div>
+      )}
+      {issues && (
+        <IssuesDialog
+          issues={issues}
+          onPick={(id) => {
+            setIssues(null);
+            setSelected([id]);
+            if (!desktop) setDrawer("props");
+          }}
+          onCancel={() => setIssues(null)}
+          onExport={() => {
+            setIssues(null);
+            if (pendingMime) setExportJob({ mime: pendingMime, purpose: "download" });
+          }}
+        />
       )}
       {exportJob && (
         <>

@@ -4,7 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { cleanFolder, FLYER_BUCKET, flyerActor, flyerError, publicAsset, publicAssets, uuidOk } from "@/lib/flyers/server";
 import { checkUpload, MAX_DJ_UPLOADS } from "@/lib/flyers/image-check";
 
-const KINDS = ["background", "overlay", "logo", "photo", "image"] as const;
+const KINDS = ["background", "overlay", "logo", "photo", "image", "cutout", "name_logo"] as const;
+const DJ_KINDS = ["photo", "image", "cutout", "name_logo"];
 
 /** The library: staff list template art; a DJ lists their own uploads (staff may pass ?dj=). */
 export async function GET(req: NextRequest) {
@@ -76,7 +77,22 @@ export async function POST(req: NextRequest) {
     if (upErr) throw upErr;
     const { data, error } = await db
       .from("flyer_assets")
-      .insert({ scope, kind: scope === "dj" && kind !== "photo" ? "image" : kind, owner_dj_id: ownerDjId, name, storage_path: path, mime: info.mime, bytes: buf.length, width: info.width, height: info.height, has_alpha: info.hasAlpha, created_by: actor.user.id, ...(folder ? { folder } : {}) })
+      .insert({
+        scope,
+        kind: scope === "dj" ? (DJ_KINDS.includes(kind) ? kind : "image") : DJ_KINDS.slice(2).includes(kind) ? "image" : kind,
+        owner_dj_id: ownerDjId,
+        name,
+        storage_path: path,
+        mime: info.mime,
+        bytes: buf.length,
+        width: info.width,
+        height: info.height,
+        has_alpha: info.hasAlpha,
+        created_by: actor.user.id,
+        ...(folder ? { folder } : {}),
+        // A DJ's own cutout / name logo waits for staff approval before flyers use it.
+        ...(scope === "dj" && (kind === "cutout" || kind === "name_logo") ? { approved: actor.staff } : {})
+      })
       .select("*")
       .single();
     if (error) {

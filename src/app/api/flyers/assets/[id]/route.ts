@@ -3,11 +3,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { assetUsage, cleanFolder, FLYER_BUCKET, flyerActor, flyerError, imageResponse, publicAsset, setupMissing, uuidOk, type FlyerActor } from "@/lib/flyers/server";
 
 type Params = { params: Promise<{ id: string }> };
-type AssetRow = { id: string; scope: "template" | "dj"; owner_dj_id: string | null; storage_path: string; mime: string };
+type AssetRow = { id: string; scope: "template" | "dj"; owner_dj_id: string | null; storage_path: string; mime: string; kind?: string };
 
 async function load(actor: FlyerActor, id: string): Promise<AssetRow | NextResponse> {
   if (!uuidOk(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  const { data, error } = await createAdminClient().from("flyer_assets").select("id, scope, owner_dj_id, storage_path, mime").eq("id", id).maybeSingle();
+  const { data, error } = await createAdminClient().from("flyer_assets").select("id, scope, owner_dj_id, storage_path, mime, kind").eq("id", id).maybeSingle();
   if (error) throw error;
   const row = data as AssetRow | null;
   // Template assets: any DJ or staff. A DJ's upload: that DJ and staff only.
@@ -38,14 +38,28 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     const row = await load(actor, (await params).id);
     if (row instanceof NextResponse) return row;
     if (row.scope === "template" && !actor.staff) return NextResponse.json({ error: "Only staff can change template art." }, { status: 403 });
-    const b = (await req.json().catch(() => ({}))) as { name?: unknown; folder?: unknown; kind?: unknown };
+    const b = (await req.json().catch(() => ({}))) as { name?: unknown; folder?: unknown; kind?: unknown; approved?: unknown; isPrimary?: unknown };
     const update: Record<string, unknown> = {};
     if (typeof b.name === "string") update.name = b.name.replace(/[^\w .()&'-]+/g, "").trim().slice(0, 120) || null;
     if (b.folder === null || typeof b.folder === "string") update.folder = cleanFolder(b.folder);
     if (typeof b.kind === "string") {
-      const allowed = row.scope === "dj" ? ["photo", "image"] : ["background", "overlay", "logo", "image"];
+      const allowed = row.scope === "dj" ? ["photo", "image", "cutout", "name_logo"] : ["background", "overlay", "logo", "image"];
       if (!allowed.includes(b.kind)) return NextResponse.json({ error: "Unknown image type." }, { status: 400 });
       update.kind = b.kind;
+      // A DJ turning their own image into a cutout / name logo needs staff approval again.
+      if (!actor.staff && (b.kind === "cutout" || b.kind === "name_logo") && b.kind !== row.kind) update.approved = false;
+    }
+    // Approving and choosing the preferred cutout / name logo: staff only.
+    if (b.approved !== undefined || b.isPrimary !== undefined) {
+      if (!actor.staff) return NextResponse.json({ error: "Only staff approve DJ cutouts and name logos." }, { status: 403 });
+      if (typeof b.approved === "boolean") update.approved = b.approved;
+      if (b.isPrimary === true) {
+        const kind = (update.kind as string) ?? row.kind;
+        if (row.scope !== "dj" || !row.owner_dj_id || (kind !== "cutout" && kind !== "name_logo")) return NextResponse.json({ error: "Only a DJ's cutout or name logo can be preferred." }, { status: 400 });
+        await createAdminClient().from("flyer_assets").update({ is_primary: false }).eq("owner_dj_id", row.owner_dj_id).eq("kind", kind).neq("id", row.id);
+        update.is_primary = true;
+        update.approved = true;
+      } else if (b.isPrimary === false) update.is_primary = false;
     }
     if (!Object.keys(update).length) return NextResponse.json({ error: "Nothing to change." }, { status: 400 });
     if ("folder" in update) update.updated_at = new Date().toISOString();

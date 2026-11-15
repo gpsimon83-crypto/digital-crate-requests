@@ -8,14 +8,15 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { ScenePreviewClient } from "@/components/flyers/client";
 import type { Asset } from "@/components/flyers/editor-panels";
+import { ActivateMenu, activeLabels, type Activation, type UpcomingEvent } from "@/components/flyers/template-activation";
 import { cn } from "@/lib/utils";
-import { fillText } from "@/lib/flyers/scene";
+import { linkedText } from "@/lib/flyers/links";
 import { FORMATS, FORMAT_KEYS, type FormatKey, type Scene, type TemplateContent } from "@/lib/flyers/types";
 
 type Row = { id: string; slug: string | null; name: string; description: string | null; venue_id: string | null; status: "draft" | "published" | "archived"; draft: TemplateContent; formats: FormatKey[]; versions: number; current_version: number | null; published_at: string | null; designs: number; updated_at: string };
 
 const SAMPLE = { dj_name: "DJ Name", event_title: "Saturday Night", event_date: "Saturday, November 22", start_time: "9 PM", end_time: "2 AM", venue_name: "Venue Name", venue_address: "123 Main St, Milwaukee, WI" };
-const preview = (s: Scene): Scene => ({ ...s, nodes: s.nodes.map((n) => (n.kind === "text" ? { ...n, text: fillText(n.text, SAMPLE) } : n)) });
+const preview = (s: Scene): Scene => ({ ...s, nodes: s.nodes.map((n) => (n.kind === "text" ? { ...n, text: linkedText(n.text, { values: SAMPLE, slots: [], venueId: null, hasEvent: false }) } : n)) });
 
 export default function AdminFlyersPage() {
   const router = useRouter();
@@ -29,6 +30,12 @@ export default function AdminFlyersPage() {
   const [busy, setBusy] = useState(false);
   const [importMsg, setImportMsg] = useState<string | null>(null);
   const [placeholders, setPlaceholders] = useState(true);
+  const [acts, setActs] = useState<{ activations: Activation[]; events: UpcomingEvent[]; ready: boolean }>({ activations: [], events: [], ready: false });
+  async function loadActs() {
+    const r = await fetch("/api/admin/flyers/activations");
+    const j = await r.json().catch(() => null);
+    if (r.ok && j) setActs({ activations: j.activations ?? [], events: [...(j.upcoming ?? []), ...((j.events ?? []) as UpcomingEvent[]).filter((e) => !(j.upcoming ?? []).some((u: UpcomingEvent) => u.id === e.id))], ready: !!j.ready });
+  }
 
   /** New template straight from a layered SVG: every text stays editable, pictures become image layers. */
   async function importSvgFile(file: File) {
@@ -77,6 +84,7 @@ export default function AdminFlyersPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
+    void loadActs();
   }, []);
 
   async function create() {
@@ -141,6 +149,11 @@ export default function AdminFlyersPage() {
                       </p>
                       <p className="mt-1 text-xs text-muted">{t.formats.map((f) => FORMATS[f].label).join(" · ") || "No sizes"}</p>
                       {t.venue_id && <p className="text-xs text-muted">For {venues.find((v) => v.id === t.venue_id)?.name ?? "a venue"}</p>}
+                      {activeLabels(t.id, acts.activations, venues, acts.events).map((l) => (
+                        <p key={l} className="mt-0.5 flex items-center gap-1 truncate text-[11px] font-semibold text-gold-dim">
+                          <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden /> Active · {l}
+                        </p>
+                      ))}
                       <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
                         <Link href={`/admin/flyers/templates/${t.id}`} className="inline-flex h-8 items-center gap-1 rounded-[8px] border border-black/12 px-2.5 text-xs hover:border-gold">
                           <Pencil size={13} /> Edit
@@ -159,6 +172,7 @@ export default function AdminFlyersPage() {
                         <button className="inline-flex h-8 items-center gap-1 rounded-[8px] border border-status-declined/30 px-2.5 text-xs text-status-declined" onClick={() => void remove(t)} aria-label={`Delete ${t.name}`}>
                           <Trash2 size={13} />
                         </button>
+                        {t.status === "published" && <ActivateMenu templateId={t.id} templateName={t.name} defaultVenueId={t.venue_id} venues={venues} events={acts.events} acts={acts.activations} ready={acts.ready} onChanged={() => void loadActs()} />}
                       </div>
                     </div>
                   </li>

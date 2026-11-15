@@ -7,6 +7,7 @@ import { Group, Image as KImage, Layer, Line, Rect, Stage, Text as KText, Transf
 import { imageLayout } from "@/lib/flyers/scene";
 import { boundsOf, snapBox, type Guide } from "@/lib/flyers/snap";
 import { needsProcessing, processedImage } from "@/lib/flyers/feather";
+import { shownByData } from "@/lib/flyers/links";
 import type { FlyerNode, ImageNode, Scene, TextNode } from "@/lib/flyers/types";
 import { fontString, loadSceneFonts, loadSceneImages, srcFor, useImage, type SrcContext } from "./loaders";
 
@@ -58,7 +59,7 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
     [img, lay?.x, lay?.y, lay?.width, lay?.height, node.width, node.height, node.flipX, node.flipY, feather.amount, feather.shape, feather.curve, feather.sides?.top, feather.sides?.right, feather.sides?.bottom, feather.sides?.left, recolor.mode, recolor.color, recolor.knockoutWhite]
   );
   const movable = !!act && act.interactive && !node.locked && act.canMove(node);
-  const label = node.source.type === "dj_photo" ? "DJ photo" : node.source.type === "venue_logo" ? "Venue logo" : "Image";
+  const label = node.source.type === "dj_photo" ? "DJ photo" : node.source.type === "dj_logo" ? "DJ name logo" : node.source.type === "venue_logo" ? "Venue logo" : "Image";
   return (
     <Group
       id={node.id}
@@ -91,7 +92,11 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
           />
         )}
       </Group>
-      {!img && !exporting && (
+      {!img && status !== "loading" && node.source.type === "dj_logo" && (node.source.djId || ctx.previewDjId) && (
+        // No name logo uploaded/approved: the DJ's display name as styled text (this is real content, so it exports).
+        <NameFallback node={node} name={ctx.djNames?.[(node.source.djId ?? ctx.previewDjId)!] ?? "DJ NAME"} />
+      )}
+      {!img && !exporting && !(node.source.type === "dj_logo" && status !== "loading" && (node.source.djId || ctx.previewDjId)) && (
         <>
           <Rect width={node.width} height={node.height} cornerRadius={r} fill="rgba(255,255,255,0.06)" stroke="rgba(229,182,71,0.85)" strokeWidth={3} dash={[14, 10]} listening={false} />
           <KText
@@ -99,7 +104,21 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
             height={node.height}
             align="center"
             verticalAlign="middle"
-            text={status === "loading" ? "Loading…" : node.source.type === "dj_photo" ? "Add your photo" : node.source.type === "venue_logo" ? "No venue logo" : `${label} missing`}
+            text={
+              status === "loading"
+                ? "Loading…"
+                : node.source.type === "dj_photo"
+                  ? node.source.djId || ctx.previewDjId
+                    ? "⚠ No photo for this DJ"
+                    : `DJ ${node.source.slot ?? 1} photo — no DJ assigned`
+                  : node.source.type === "dj_logo"
+                    ? `DJ ${node.source.slot ?? 1} name logo — no DJ assigned`
+                    : node.source.type === "venue_logo"
+                      ? node.source.venueId
+                        ? "This venue has no logo"
+                        : "Venue logo (no venue linked)"
+                      : `${label} missing`
+            }
             fontSize={Math.max(18, Math.min(40, node.width / 10))}
             fontFamily="DCF Montserrat, sans-serif"
             fontStyle="600"
@@ -116,23 +135,50 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
   );
 }
 
-/** Font size that keeps every line inside the box (only shrinks, never grows), measured exactly as Konva will draw it. */
-function fittedSize(node: TextNode, text: string, family: string, style: string): number {
-  if (!node.shrink || typeof document === "undefined") return node.fontSize;
-  const probe = new KonvaLib.Text({ text, fontFamily: `${family}, sans-serif`, fontStyle: style, fontSize: node.fontSize, letterSpacing: node.letterSpacing, wrap: "none" });
-  const widest = probe.getTextWidth();
-  probe.destroy();
-  if (!(widest > node.width)) return node.fontSize;
-  // Shrinking isn't perfectly linear (kerning, rounding): step down until it fits.
-  let size = Math.floor(((node.fontSize * node.width) / widest) * 100) / 100;
-  for (let i = 0; i < 6; i++) {
-    const p = new KonvaLib.Text({ text, fontFamily: `${family}, sans-serif`, fontStyle: style, fontSize: size, letterSpacing: node.letterSpacing, wrap: "none" });
-    const w = p.getTextWidth();
-    p.destroy();
-    if (w <= node.width - 0.5) break;
-    size = Math.max(6, size * 0.985);
+const probeText = (o: { text: string; family: string; style: string; size: number; spacing: number; width?: number; lineHeight?: number }) => {
+  const p = new KonvaLib.Text({ text: o.text, fontFamily: `${o.family}, sans-serif`, fontStyle: o.style, fontSize: o.size, letterSpacing: o.spacing, lineHeight: o.lineHeight ?? 1, ...(o.width ? { width: o.width, wrap: "word" } : { wrap: "none" }) });
+  const r = { width: p.getTextWidth(), height: p.height() };
+  p.destroy();
+  return r;
+};
+
+/**
+ * How a text layer is drawn: its font size after shrinking (one-line shrink,
+ * or shrink-to-fit-the-box with a minimum size), its drawn height, and
+ * whether it still doesn't fit (flagged before export). Measured exactly as
+ * Konva will draw it.
+ */
+export function textLayout(node: TextNode, fontsReady = true): { size: number; height: number; overflow: boolean } {
+  const text = node.uppercase ? node.text.toUpperCase() : node.text;
+  const f = fontString(node);
+  const lines = Math.max(1, text.split("\n").length);
+  if (typeof document === "undefined" || !fontsReady) return { size: node.fontSize, height: node.fontSize * node.lineHeight * lines, overflow: false };
+  const base = { text, family: f.family, style: f.style, spacing: node.letterSpacing, lineHeight: node.lineHeight };
+  if (node.fitBox) {
+    const min = Math.max(6, Math.min(node.minFontSize ?? 12, node.fontSize));
+    const fits = (size: number) => probeText({ ...base, size, width: node.width }).height <= node.height + 0.5;
+    if (fits(node.fontSize)) return { size: node.fontSize, height: probeText({ ...base, size: node.fontSize, width: node.width }).height, overflow: false };
+    let lo = min;
+    let hi = node.fontSize;
+    for (let i = 0; i < 14 && hi - lo > 0.25; i++) {
+      const mid = (lo + hi) / 2;
+      if (fits(mid)) lo = mid;
+      else hi = mid;
+    }
+    const size = Math.floor(lo * 100) / 100;
+    return { size, height: probeText({ ...base, size, width: node.width }).height, overflow: !fits(size) };
   }
-  return size;
+  if (node.shrink) {
+    const widest = probeText({ ...base, size: node.fontSize }).width;
+    let size = node.fontSize;
+    if (widest > node.width) {
+      // Shrinking isn't perfectly linear (kerning, rounding): step down until it fits.
+      size = Math.floor(((node.fontSize * node.width) / widest) * 100) / 100;
+      for (let i = 0; i < 6 && probeText({ ...base, size }).width > node.width - 0.5; i++) size = Math.max(6, size * 0.985);
+    }
+    return { size, height: node.fontSize * node.lineHeight * lines, overflow: false };
+  }
+  return { size: node.fontSize, height: probeText({ ...base, size: node.fontSize, width: node.width }).height, overflow: false };
 }
 
 function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | null; fontsKey: number }) {
@@ -140,42 +186,77 @@ function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | nu
   const movable = !!act && act.interactive && !node.locked && act.canMove(node);
   const shown = node.uppercase ? node.text.toUpperCase() : node.text;
   // fontsKey changes once the font file has loaded, so the measurement is redone with the real letters.
-  const size = useMemo(() => fittedSize(node, shown, f.family, f.style), [node, shown, f.family, f.style, fontsKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const lay = useMemo(() => textLayout(node, fontsKey > 0), [node, fontsKey]);
   const lines = shown.split("\n").length;
+  const panel = node.panel?.enabled ? node.panel : null;
   return (
-    <KText
-      key={fontsKey}
-      id={node.id}
-      name="flyer-node"
-      x={node.x}
-      y={node.y}
-      width={node.width}
-      rotation={node.rotation}
-      opacity={node.opacity}
-      text={shown}
-      globalCompositeOperation={blendOp(node.blend)}
-      fontFamily={`${f.family}, sans-serif`}
-      fontStyle={f.style}
-      fontSize={size}
-      // Shrunk text stays on one line, centred on where the full-size line was.
-      {...(node.shrink ? { wrap: "none", height: node.fontSize * node.lineHeight * lines, verticalAlign: "middle" } : {})}
-      lineHeight={node.lineHeight}
-      letterSpacing={node.letterSpacing}
-      align={node.align}
-      fill={node.fill}
-      stroke={node.stroke.enabled && node.stroke.width > 0 ? node.stroke.color : undefined}
-      strokeWidth={node.stroke.enabled ? node.stroke.width : 0}
-      fillAfterStrokeEnabled
-      lineJoin="round"
-      {...shadowProps(node.shadow)}
-      draggable={movable}
-      listening={!!act?.interactive && !node.locked}
-      onMouseDown={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey)}
-      onTap={() => act?.onSelect(node.id, false)}
-      onDblClick={() => act?.onEditText?.(node.id)}
-      onDblTap={() => act?.onEditText?.(node.id)}
-    />
+    <>
+      {panel && (
+        // Background panel behind the text; moves with it (see FlyerStage drag handling).
+        <Rect
+          id={`${node.id}__panel`}
+          x={node.x}
+          y={node.y}
+          offsetX={panel.padding}
+          offsetY={panel.padding}
+          rotation={node.rotation}
+          width={node.width + panel.padding * 2}
+          height={(node.fitBox ? node.height : lay.height) + panel.padding * 2}
+          cornerRadius={panel.radius}
+          fill={panel.color}
+          opacity={panel.opacity * node.opacity}
+          globalCompositeOperation={blendOp(node.blend)}
+          listening={false}
+        />
+      )}
+      <KText
+        key={fontsKey}
+        id={node.id}
+        name="flyer-node"
+        x={node.x}
+        y={node.y}
+        width={node.width}
+        rotation={node.rotation}
+        opacity={node.opacity}
+        text={shown}
+        globalCompositeOperation={blendOp(node.blend)}
+        fontFamily={`${f.family}, sans-serif`}
+        fontStyle={f.style}
+        fontSize={lay.size}
+        // Shrunk text stays on one line, centred on where the full-size line was.
+        {...(node.shrink && !node.fitBox ? { wrap: "none", height: node.fontSize * node.lineHeight * lines, verticalAlign: "middle" } : {})}
+        lineHeight={node.lineHeight}
+        letterSpacing={node.letterSpacing}
+        align={node.align}
+        fill={node.fill}
+        stroke={node.stroke.enabled && node.stroke.width > 0 ? node.stroke.color : undefined}
+        strokeWidth={node.stroke.enabled ? node.stroke.width : 0}
+        fillAfterStrokeEnabled
+        lineJoin="round"
+        {...shadowProps(node.shadow)}
+        draggable={movable}
+        listening={!!act?.interactive && !node.locked}
+        onMouseDown={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey)}
+        onTap={() => act?.onSelect(node.id, false)}
+        onDblClick={() => act?.onEditText?.(node.id)}
+        onDblTap={() => act?.onEditText?.(node.id)}
+      />
+    </>
   );
+}
+
+/** A DJ name-logo slot without a logo: the DJ's display name, fitted on one line in the frame. */
+function NameFallback({ node, name }: { node: ImageNode; name: string }) {
+  const fb = node.fallback ?? { font: "bebas", weight: 400, fill: "#ffffff", uppercase: true };
+  const text = fb.uppercase ? name.toUpperCase() : name;
+  const f = fontString({ font: fb.font, weight: fb.weight, italic: false });
+  const size = useMemo(() => {
+    const start = node.height * 0.8;
+    if (typeof document === "undefined") return start;
+    const w = probeText({ text, family: f.family, style: f.style, size: start, spacing: 2 }).width;
+    return w > node.width * 0.96 ? (start * node.width * 0.96) / w : start;
+  }, [text, f.family, f.style, node.width, node.height]);
+  return <KText width={node.width} height={node.height} align="center" verticalAlign="middle" text={text} fontFamily={`${f.family}, sans-serif`} fontStyle={f.style} fontSize={size} letterSpacing={2} fill={fb.fill} wrap="none" listening={false} />;
 }
 
 /** The layers themselves, drawn the same way in the editor, the preview and every export. */
@@ -184,7 +265,8 @@ export function SceneNodes({ scene, ctx, exporting, act, fontsKey, onStatus }: {
     <>
       <Rect width={scene.width} height={scene.height} fill={scene.background} listening={false} />
       {scene.nodes.map((n) =>
-        !n.visible ? null : n.kind === "image" ? (
+        // Hidden by the user, or by its data ("only show when…", empty "hide when empty" text).
+        !shownByData(n, ctx.values) ? null : n.kind === "image" ? (
           <ImageLayer key={n.id} node={n} ctx={ctx} exporting={exporting} act={act} onStatus={onStatus} />
         ) : (
           <TextLayer key={n.id} node={n} act={act} fontsKey={fontsKey} />
@@ -267,7 +349,19 @@ export function FlyerStage({
     });
   }
 
+  // Text background panels follow their text while it's dragged.
+  function syncPanels() {
+    const stage = stageRef.current;
+    if (!stage) return;
+    for (const n of selNodes) {
+      const k = stage.findOne(`#${n.id}`);
+      const p = stage.findOne(`#${n.id}__panel`);
+      if (k && p) p.setAttrs({ x: k.x(), y: k.y(), rotation: k.rotation() });
+    }
+  }
+
   function onDragMove(e: Konva.KonvaEventObject<DragEvent>) {
+    syncPanels();
     if (!showGuides || selNodes.length !== 1) return;
     const k = e.target;
     const layer = k.getLayer();
@@ -280,6 +374,7 @@ export function FlyerStage({
       k.y(k.y() + dy);
     }
     setGuides(g);
+    syncPanels();
   }
 
   // Two fingers = pinch zoom (handled by the editor); stop any layer drag the first finger started.
@@ -339,6 +434,7 @@ export function FlyerStage({
           flipEnabled={false}
           boundBoxFunc={(oldBox, newBox) => (Math.abs(newBox.width) < 10 || Math.abs(newBox.height) < 10 ? oldBox : newBox)}
           onTransform={() => {
+            syncPanels();
             // Side handles on text change the box width, not the letter shapes.
             const k = trRef.current?.nodes()[0];
             const anchor = trRef.current?.getActiveAnchor();

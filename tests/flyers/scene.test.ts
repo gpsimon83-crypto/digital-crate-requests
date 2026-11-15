@@ -62,7 +62,7 @@ describe("placeholders and bookings", () => {
     const out = instantiate(s, { values: { dj_name: "DJ Que", event_date: "Friday, Dec 4" }, djId: DJ, venueId: VENUE });
     const portrait = out.nodes.find((n) => n.role === "portrait");
     const logo = out.nodes.find((n) => n.role === "logo");
-    expect(portrait?.kind === "image" && portrait.source).toEqual({ type: "dj_photo", djId: DJ });
+    expect(portrait?.kind === "image" && portrait.source).toEqual({ type: "dj_photo", djId: DJ, slot: 1 });
     expect(logo?.kind === "image" && logo.source).toEqual({ type: "venue_logo", venueId: VENUE });
     const texts = out.nodes.filter((n): n is TextNode => n.kind === "text").map((n) => n.text);
     expect(texts.some((t) => t.includes("{{"))).toBe(false);
@@ -70,9 +70,10 @@ describe("placeholders and bookings", () => {
     expect(texts).toContain("Saturday Night Live"); // fallback in the title
     expect(texts).toContain("Venue name"); // readable label when nothing to fill
   });
-  it("hides the venue logo slot when there's no venue", () => {
+  it("leaves the venue logo slot empty (not exported) when there's no venue", () => {
     const out = instantiate(sampleTemplateContent().formats.story!, { values: {}, djId: DJ, venueId: null });
-    expect(out.nodes.find((n) => n.role === "logo")?.visible).toBe(false);
+    const logo = out.nodes.find((n) => n.role === "logo");
+    expect(logo?.kind === "image" && logo.source).toEqual({ type: "venue_logo", venueId: null });
   });
 });
 
@@ -274,5 +275,56 @@ describe("blend modes", () => {
     expect(newText("text", s).blend).toBe("normal");
     const p = parseScene({ format: "square", nodes: [{ kind: "image", blend: "screen" }, { kind: "text", blend: "copy" }, { kind: "text", blend: "soft-light" }] });
     expect(p.ok && p.value.nodes.map((n) => n.blend)).toEqual(["screen", "normal", "soft-light"]);
+  });
+});
+
+describe("linked content", () => {
+  it("switching events refills linked layers, keeps positions, and never touches overrides; reset brings event data back", async () => {
+    const { linkScene, resolveScene, resetNode, isOverridden } = await import("@/lib/flyers/links");
+    const base = emptyScene("square");
+    const venueText = newText("venue", base, { id: "v", text: "{{venue.name}}", x: 111, y: 222 });
+    const djText = newText("dj_name", base, { id: "d", text: "{{dj.displayName}}" });
+    const photo = newImage("portrait", { type: "dj_photo", slot: 2 }, base, { id: "p", x: 50, y: 60 });
+    const tpl = linkScene({ ...base, nodes: [venueText, djText, photo] });
+    const e1 = { values: { venue_name: "Kyote's", dj_name: "DJ Que" }, slots: ["dj-a", "dj-b"], venueId: "v1", hasEvent: true };
+    const e2 = { values: { venue_name: "Peace Lounge", dj_name: "DJ Peace" }, slots: ["dj-b", "dj-c"], venueId: "v2", hasEvent: true };
+    let s = resolveScene(tpl, e1);
+    expect(s.nodes.map((n) => (n.kind === "text" ? n.text : n.source))).toEqual(["Kyote's", "DJ Que", { type: "dj_photo", slot: 2, djId: "dj-b" }]);
+    // Override the DJ name for this flyer only.
+    s = { ...s, nodes: s.nodes.map((n) => (n.id === "d" ? { ...n, text: "QUE LIVE", override: true } : n)) };
+    s = resolveScene(s, e2);
+    const byId = (id: string) => s.nodes.find((n) => n.id === id)!;
+    expect(byId("v")).toMatchObject({ text: "Peace Lounge", x: 111, y: 222 });
+    expect(byId("d")).toMatchObject({ text: "QUE LIVE", override: true });
+    expect(byId("p")).toMatchObject({ x: 50, y: 60, source: { djId: "dj-c" } });
+    const reset = resetNode(byId("d"), e2);
+    expect(reset).toMatchObject({ text: "DJ Peace", override: false });
+    expect(isOverridden(reset)).toBe(false);
+  });
+
+  it("without an event, linked text shows labels; empty specials hide; preflight flags missing DJs and photos", async () => {
+    const { linkScene, resolveScene, shownByData, preflight } = await import("@/lib/flyers/links");
+    const base = emptyScene("square");
+    const head = newText("specials", base, { id: "h", text: "DRINK SPECIALS", link: { showWhen: "drink_specials" } });
+    const body = newText("specials", base, { id: "b", text: "{{event.drinkSpecials}}", hideIfEmpty: true });
+    const photo = newImage("portrait", { type: "dj_photo", slot: 2 }, base, { id: "p" });
+    const title = newText("title", base, { id: "t", text: "{{event.title}}", link: { required: true } });
+    const tpl = linkScene({ ...base, nodes: [head, body, photo, title] });
+    const noEvent = resolveScene(tpl, { values: {}, slots: [], venueId: null, hasEvent: false });
+    expect((noEvent.nodes.find((n) => n.id === "t") as { text: string }).text).toBe("Event title");
+    const ctx = { values: { dj_name: "DJ Que" }, slots: ["dj-a"], venueId: null, hasEvent: true };
+    const s = resolveScene(tpl, ctx);
+    expect(s.nodes.filter((n) => shownByData(n, ctx.values)).map((n) => n.id)).toEqual(["p", "t"]);
+    const issues = preflight(s, { ...ctx, djs: [{ id: "dj-a", display_name: "DJ Que", has_photo: true }] });
+    expect(issues.map((i) => [i.nodeId, i.level])).toEqual([
+      ["p", "error"],
+      ["t", "error"]
+    ]);
+    const withSpecials = { ...ctx, values: { ...ctx.values, drink_specials: "$5 Margaritas" } };
+    expect(resolveScene(tpl, withSpecials).nodes.filter((n) => shownByData(n, withSpecials.values)).map((n) => n.id)).toContain("h");
+  });
+
+  it("old templates' {{dj_name}} tokens and the new dotted ones fill the same values", () => {
+    expect(fillText("{{dj_name}} / {{dj.displayName}} / {{event.startTime}} / {{dj2.displayName}}", { dj_name: "Que", start_time: "9:30 PM", dj2_name: "Peace" })).toBe("Que / Que / 9:30 PM / Peace");
   });
 });

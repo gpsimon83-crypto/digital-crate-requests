@@ -23,6 +23,8 @@ export const ROLES = {
   venue: "Venue",
   address: "Address",
   details: "Supporting text",
+  specials: "Drink specials",
+  dj_logo: "DJ name logo",
   overlay: "Decorative overlay",
   text: "Text",
   image: "Image"
@@ -43,7 +45,36 @@ export const PLACEHOLDERS = {
   venue_address: "Venue address"
 } as const;
 export type PlaceholderKey = keyof typeof PLACEHOLDERS;
-export type PlaceholderValues = Partial<Record<PlaceholderKey, string | null>>;
+/** Values by placeholder key: the keys above plus dj2_name, dj3_name…, drink_specials, event_details. */
+export type PlaceholderValues = Partial<Record<PlaceholderKey, string | null>> & Record<string, string | null | undefined>;
+
+/**
+ * Structured placeholders (what templates should use). Each maps to a value
+ * key above; {{dj2.displayName}} etc. address the 2nd, 3rd… DJ slot.
+ * Older templates' {{dj_name}}-style tokens keep working.
+ */
+export const FIELD_TOKENS = {
+  "dj.displayName": { key: "dj_name", label: "DJ name" },
+  "event.title": { key: "event_title", label: "Event title" },
+  "event.date": { key: "event_date", label: "Event date" },
+  "event.weekday": { key: "event_weekday", label: "Day of the week" },
+  "event.month": { key: "event_month", label: "Month (short)" },
+  "event.day": { key: "event_day", label: "Day of the month" },
+  "event.startTime": { key: "start_time", label: "Start time" },
+  "event.endTime": { key: "end_time", label: "End time" },
+  "event.drinkSpecials": { key: "drink_specials", label: "Drink specials" },
+  "event.details": { key: "event_details", label: "Event details (occasion)" },
+  "venue.name": { key: "venue_name", label: "Venue name" },
+  "venue.address": { key: "venue_address", label: "Venue address" }
+} as const;
+
+/** Linked-content settings shared by every layer. */
+export type LinkOpts = {
+  /** Required for export: flagged before export when its linked content is empty. */
+  required?: boolean;
+  /** Only show this layer when this value has content (e.g. "drink_specials" for a specials heading). */
+  showWhen?: string | null;
+};
 
 /** Blend modes, as canvas names them ("normal" = source-over). */
 export const BLEND_MODES = {
@@ -75,7 +106,10 @@ export type Perms = { move: boolean; edit: boolean; style: boolean; remove: bool
 export type ImageSource =
   | { type: "asset"; assetId: string }
   | { type: "static"; src: string }
-  | { type: "dj_photo"; djId?: string | null }
+  /** The DJ in slot N (1 = lead): their preferred approved cutout, else their profile photo. */
+  | { type: "dj_photo"; djId?: string | null; slot?: number }
+  /** The DJ in slot N: their preferred approved name logo, else their name as styled text. */
+  | { type: "dj_logo"; djId?: string | null; slot?: number }
   | { type: "venue_logo"; venueId?: string | null }
   | { type: "none" };
 
@@ -96,6 +130,7 @@ type Base = {
   locked: boolean;
   groupId: string | null;
   perms: Perms;
+  link?: LinkOpts;
 };
 
 export type ImageNode = Base & {
@@ -124,6 +159,15 @@ export type ImageNode = Base & {
    */
   recolor: { mode: "none" | "solid" | "tint"; color: string; knockoutWhite: boolean };
   shadow: Shadow;
+  /**
+   * Overridden for this flyer: the picture was replaced by hand, so event
+   * changes don't swap it. `linked` keeps the template's linked source for
+   * "Reset to event data".
+   */
+  override?: boolean;
+  linked?: ImageSource | null;
+  /** DJ name logo with no logo uploaded: how the DJ's name is drawn instead. */
+  fallback?: { font: string; weight: number; fill: string; uppercase: boolean } | null;
 };
 
 export type TextNode = Base & {
@@ -139,9 +183,24 @@ export type TextNode = Base & {
   uppercase: boolean;
   /** Keep each line on one line: shrink the letters when the words get longer than the box. */
   shrink: boolean;
+  /** Wrap within the box and shrink until it fits the box height (not below minFontSize). */
+  fitBox?: boolean;
+  minFontSize?: number;
   fill: string;
   stroke: Stroke;
   shadow: Shadow;
+  /**
+   * Linked text: `source` is the template wording with placeholders
+   * ({{event.startTime}} – {{event.endTime}}); `text` is what it currently
+   * says. `override` = edited by hand for this flyer, so event changes no
+   * longer update it (until "Reset to event data").
+   */
+  source?: string | null;
+  override?: boolean;
+  /** Hide the layer when its text comes out empty (e.g. no drink specials). */
+  hideIfEmpty?: boolean;
+  /** Optional box behind the text. */
+  panel?: { enabled: boolean; color: string; opacity: number; padding: number; radius: number } | null;
 };
 
 export type FlyerNode = ImageNode | TextNode;

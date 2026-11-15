@@ -18,7 +18,7 @@ type Loaded = {
   djs: { id: string; display_name: string; has_photo: boolean }[];
 };
 
-const SAMPLE = { dj_name: "DJ Name", event_title: "Saturday Night", event_date: "Saturday, November 22", start_time: "9 PM", end_time: "2 AM", venue_name: "Venue Name", venue_address: "123 Main St, Milwaukee, WI" };
+const SAMPLE = { dj_name: "DJ Name", event_title: "Saturday Night", event_date: "Saturday, November 22", start_time: "9 PM", end_time: "2 AM", venue_name: "Venue Name", venue_address: "123 Main St, Milwaukee, WI", drink_specials: "$5 Margaritas\n$3 Domestic bottles", event_details: "Birthday bash", dj2_name: "DJ Two" };
 
 export default function TemplateEditPage() {
   const { id } = useParams<{ id: string }>();

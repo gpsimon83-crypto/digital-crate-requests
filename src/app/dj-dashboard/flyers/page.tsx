@@ -8,12 +8,12 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { ScenePreviewClient } from "@/components/flyers/client";
 import { cn } from "@/lib/utils";
-import { fillText } from "@/lib/flyers/scene";
+import { linkedText } from "@/lib/flyers/links";
 import { FORMATS, FORMAT_KEYS, type FormatKey, type PlaceholderValues, type Scene, type TemplateContent } from "@/lib/flyers/types";
 
 type Template = { id: string; name: string; description: string | null; venue_id: string | null; venue_name: string | null; version: number; content: TemplateContent };
 type Design = { id: string; dj_id: string; title: string; format: FormatKey; scene: Scene; updated_at: string; djs?: { display_name: string } | null };
-type Booking = { id: string; title: string | null; starts_at: string | null; venue_id: string | null; venue_name: string | null; values: PlaceholderValues };
+type Booking = { id: string; title: string | null; starts_at: string | null; venue_id: string | null; venue_name: string | null; dj_id?: string | null; values: PlaceholderValues };
 type Boot = {
   me: { staff: boolean; dj: { id: string; display_name: string; has_photo: boolean } | null };
   templates: Template[];
@@ -33,7 +33,7 @@ export default function FlyersPage() {
 const SAMPLE: PlaceholderValues = { dj_name: "DJ Name", event_title: "Saturday Night", event_date: "Saturday, November 22", start_time: "9 PM", end_time: "2 AM", venue_name: "Venue Name", venue_address: "123 Main St, Milwaukee, WI" };
 
 function previewScene(scene: Scene, values: PlaceholderValues): Scene {
-  return { ...scene, nodes: scene.nodes.map((n) => (n.kind === "text" ? { ...n, text: fillText(n.text, values) } : n)) };
+  return { ...scene, nodes: scene.nodes.map((n) => (n.kind === "text" ? { ...n, text: linkedText(n.text, { values, slots: [], venueId: null, hasEvent: false }) } : n)) };
 }
 
 function Flyers() {
@@ -131,15 +131,35 @@ function StartDialog({ data, initialEvent, onClose, onCreated }: { data: Boot; i
   // Templates for the booking's venue first.
   const templates = useMemo(() => [...data.templates].sort((a, b) => Number(b.venue_id === event?.venue_id && !!b.venue_id) - Number(a.venue_id === event?.venue_id && !!a.venue_id)), [data.templates, event]);
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
+  const [venueFilter, setVenueFilter] = useState("");
+  const venueOpts = useMemo(() => [...new Map(data.events.filter((e) => e.venue_id).map((e) => [e.venue_id!, e.venue_name ?? "Venue"])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [data.events]);
+  const shownEvents = data.events.filter((e) => !venueFilter || e.venue_id === venueFilter || e.id === eventId);
+  // The template activated for this event (event override → venue default → company default) is picked for you.
+  const [active, setActive] = useState<{ templateId: string | null; via: string | null }>({ templateId: null, via: null });
+  useEffect(() => {
+    let live = true;
+    const q = eventId ? `event=${eventId}` : venueFilter ? `venue=${venueFilter}` : "";
+    fetch(`/api/flyers/designs${q ? `?${q}` : ""}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!live || !j) return;
+        setActive(j);
+        if (j.templateId && data.templates.some((t) => t.id === j.templateId)) setTemplateId(j.templateId);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [eventId, venueFilter, data.templates]);
   const template = templates.find((t) => t.id === templateId) ?? null;
   const formats = FORMAT_KEYS.filter((k) => template?.content.formats[k]);
   const [format, setFormat] = useState<FormatKey>("portrait");
   const fmt = formats.includes(format) ? format : (formats[0] ?? "portrait");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const djName = staffOnly ? data.djs.find((d) => d.id === djId)?.display_name ?? "DJ Name" : data.me.dj!.display_name;
+  const djName = staffOnly ? data.djs.find((d) => d.id === (djId || event?.dj_id))?.display_name ?? "DJ Name" : data.me.dj!.display_name;
   const values = { ...SAMPLE, dj_name: djName, ...Object.fromEntries(Object.entries(event?.values ?? {}).filter(([, v]) => v)) };
-  const previewDj = staffOnly ? djId || null : data.me.dj?.id ?? null;
+  const previewDj = staffOnly ? djId || event?.dj_id || null : data.me.dj?.id ?? null;
 
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -171,11 +191,40 @@ function StartDialog({ data, initialEvent, onClose, onCreated }: { data: Boot; i
         </div>
         <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto p-5 md:grid-cols-[1fr_260px]">
           <div className="flex flex-col gap-4">
+            {venueOpts.length > 1 && (
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Venue</span>
+                <select className={field} value={venueFilter} onChange={(e) => setVenueFilter(e.target.value)}>
+                  <option value="">All venues</option>
+                  {venueOpts.map(([id, name]) => (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {(
+              <label className="block">
+                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">{staffOnly ? "Event" : "Booking"} (recommended)</span>
+                <select className={field} value={eventId} onChange={(e) => setEventId(e.target.value)}>
+                  <option value="">No event: I&apos;ll type the details</option>
+                  {shownEvents.map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {[e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : null, e.title, e.venue_name].filter(Boolean).join(" · ")}
+                    </option>
+                  ))}
+                </select>
+                <span className="mt-1 flex items-center gap-1 text-[11px] text-muted">
+                  <CalendarClock size={11} /> The event&apos;s venue, DJs, date, time and drink specials fill in and stay up to date. Editing the flyer never changes the event.
+                </span>
+              </label>
+            )}
             {staffOnly && (
               <label className="block">
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">For which DJ</span>
                 <select className={field} value={djId} onChange={(e) => setDjId(e.target.value)}>
-                  <option value="">Choose a DJ…</option>
+                  <option value="">{eventId ? "The event's lead DJ" : "Choose a DJ…"}</option>
                   {data.djs.map((d) => (
                     <option key={d.id} value={d.id}>
                       {d.display_name}
@@ -184,22 +233,7 @@ function StartDialog({ data, initialEvent, onClose, onCreated }: { data: Boot; i
                 </select>
               </label>
             )}
-            {!staffOnly && (
-              <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Booking (optional)</span>
-                <select className={field} value={eventId} onChange={(e) => setEventId(e.target.value)}>
-                  <option value="">No booking: I&apos;ll type the details</option>
-                  {data.events.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {[e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : null, e.title, e.venue_name].filter(Boolean).join(" · ")}
-                    </option>
-                  ))}
-                </select>
-                <span className="mt-1 flex items-center gap-1 text-[11px] text-muted">
-                  <CalendarClock size={11} /> The booking&apos;s date, time and venue fill in. Editing the flyer never changes the booking.
-                </span>
-              </label>
-            )}
+
             <fieldset>
               <legend className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Template</legend>
               {templates.length ? (
@@ -213,6 +247,7 @@ function StartDialog({ data, initialEvent, onClose, onCreated }: { data: Boot; i
                           <ScenePreviewClient scene={previewScene(sc, values)} width={sc.format === "story" ? 90 : 140} ctx={{ previewDjId: previewDj }} />
                         </div>
                         <p className="mt-1.5 truncate text-sm font-medium">{t.name}</p>
+                        {active.templateId === t.id && active.via && active.via !== "latest" && <p className="truncate text-[11px] font-semibold text-gold-dim">Active for this {active.via === "event" ? "event" : active.via === "venue" ? "venue" : "company"}</p>}
                         {t.venue_name && <p className="truncate text-[11px] text-muted">For {t.venue_name}</p>}
                       </label>
                     );
@@ -248,7 +283,7 @@ function StartDialog({ data, initialEvent, onClose, onCreated }: { data: Boot; i
                 {err}
               </p>
             )}
-            <Button variant="cta" onClick={() => void create()} disabled={busy || !template || (staffOnly && !djId)}>
+            <Button variant="cta" onClick={() => void create()} disabled={busy || !template || (staffOnly && !djId && !event?.dj_id)}>
               {busy ? "Starting…" : "Start editing"}
             </Button>
           </div>

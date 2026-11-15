@@ -19,6 +19,24 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-15-flyers-linked-to-events",
+    date: "2026-11-15",
+    area: "CRM",
+    title: "Flyers now follow their event",
+    summary: "Pick an event and its venue, DJs, date, times and drink specials fill the flyer. They stay up to date until you change a field by hand.",
+    bullets: [
+      "New Event tab in the flyer editor: choose the event (filter by venue), which DJ fills each photo / name-logo slot, and switch template",
+      "Every linked layer shows “Linked to the event” or “Overridden for this flyer”, with Reset to event data. Nothing on the flyer ever changes the event or a DJ's profile",
+      "Activate a template for everyone, a venue, or one event (Admin → Flyer Templates → Activate). New flyers start from it; existing drafts change only if you choose to, and exported flyers never do",
+      "Drink specials per night with a venue default: add the Drink specials block (heading, list, optional panel); it hides itself when a night has none. Edit them on the admin event page or in the flyer editor",
+      "Several DJs per flyer: DJ 1, 2, 3 photo slots and name-logo slots. A DJ without a name logo gets their name in styled text",
+      "DJ cutouts and name logos: upload them in the DJ's library; staff approve them and pick the preferred one (Art library → choose the DJ)",
+      "Before export: missing DJs, photos, required content and text that doesn't fit are listed. Warnings never appear in the image",
+      "Text can now wrap and shrink to fit its box with a smallest size, and positions show as % of the flyer"
+    ],
+    action: "Run supabase/migrations/0052_flyer_event_links.sql in Supabase (SQL editor) to turn on event links, activation and DJ cutouts."
+  },
+  {
     id: "2026-11-14-flyer-asset-library",
     date: "2026-11-14",
     area: "CRM",

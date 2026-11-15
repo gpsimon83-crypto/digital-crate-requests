@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ensureSampleTemplate, flyerActor, flyerError } from "@/lib/flyers/server";
 import { publicAssets } from "@/lib/flyers/server";
-import { EVENT_SELECT, eventValues, type EventRow, type VenueRow } from "@/lib/flyers/data";
+import { EVENT_SELECT, eventValues, flyerEvents, type EventRow, type VenueRow } from "@/lib/flyers/data";
 import type { TemplateContent } from "@/lib/flyers/types";
 
 /**
@@ -52,18 +52,21 @@ export async function GET() {
       : { data: [], error: null };
     if (uErr) throw uErr;
 
-    let events: unknown[] = [];
-    if (djId) {
-      const since = new Date(Date.now() - 2 * 86400_000).toISOString();
-      const { data: ev, error: eErr } = await db.from("events").select(EVENT_SELECT).eq("dj_id", djId).gte("starts_at", since).order("starts_at").limit(60);
-      if (eErr) throw eErr;
-      events = ((ev ?? []) as unknown as (EventRow & { venues: VenueRow | VenueRow[] | null })[])
-        .map((e) => ({ ...e, venues: Array.isArray(e.venues) ? (e.venues[0] ?? null) : e.venues }))
-        .filter((e) => e.status !== "declined" && e.status !== "cancelled")
-        .map((e) => ({ id: e.id, title: e.title, starts_at: e.starts_at, venue_id: e.venue_id, venue_name: e.venues?.name ?? e.venue_name, values: eventValues(e, actor.dj!.display_name) }));
-    }
-
     const djs = actor.staff ? ((await db.from("djs").select("id, display_name, photo_url").order("display_name")).data ?? []) : [];
+    const djName = (id: string | null) => (djs as { id: string; display_name: string }[]).find((d) => d.id === id)?.display_name ?? "DJ Name";
+
+    // Upcoming events: a DJ's own (lead or crew), every event for staff. Starting a flyer from one links it.
+    let events: unknown[] = [];
+    const list = actor.staff || djId ? await flyerEvents(db, { djId, staff: actor.staff }) : [];
+    if (list.length) {
+      const { data: ev, error: eErr } = await db.from("events").select(EVENT_SELECT).in("id", list.map((e) => e.id));
+      if (eErr) throw eErr;
+      const rows = ((ev ?? []) as unknown as (EventRow & { venues: VenueRow | VenueRow[] | null })[]).map((e) => ({ ...e, venues: Array.isArray(e.venues) ? (e.venues[0] ?? null) : e.venues }));
+      events = list.flatMap((l) => {
+        const e = rows.find((r) => r.id === l.id);
+        return e ? [{ id: e.id, title: e.title, starts_at: e.starts_at, venue_id: e.venue_id, venue_name: e.venues?.name ?? e.venue_name, dj_id: l.dj_id, values: eventValues(e, actor.dj && !actor.staff ? actor.dj.display_name : djName(l.dj_id)) }] : [];
+      });
+    }
 
     return NextResponse.json({
       me: { staff: actor.staff, dj: actor.dj ? { id: actor.dj.id, display_name: actor.dj.display_name, has_photo: !!actor.dj.photo_url } : null },

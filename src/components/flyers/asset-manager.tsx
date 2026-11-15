@@ -4,10 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Folder, FolderInput, FolderOpen, Image as ImageIcon, Loader2, Pencil, Search, Trash2, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type LibAsset = { id: string; kind: string; name: string | null; folder: string | null; width: number; height: number; has_alpha: boolean; bytes: number | null; created_at: string };
+export type LibAsset = { id: string; kind: string; name: string | null; folder: string | null; width: number; height: number; has_alpha: boolean; bytes: number | null; created_at: string; approved?: boolean; is_primary?: boolean };
 type Usage = { designs: number; templates: string[]; publishedVersions: number };
 
-const KIND_LABEL: Record<string, string> = { background: "Background", overlay: "Overlay", logo: "Logo", image: "Image", photo: "Photo of me" };
+const KIND_LABEL: Record<string, string> = { background: "Background", overlay: "Overlay", logo: "Logo", image: "Image", photo: "Photo of me", cutout: "Cutout (flyer photo)", name_logo: "DJ name logo" };
 const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-1";
 const btn = cn("inline-flex h-9 items-center justify-center gap-1.5 rounded-[8px] border border-black/12 bg-white px-3 text-xs font-medium hover:border-gold disabled:pointer-events-none disabled:opacity-40", FOCUS);
 const field = cn("w-full rounded-[8px] border border-black/12 bg-white px-2.5 py-1.5 text-sm", FOCUS);
@@ -21,7 +21,7 @@ const sizeLabel = (b: number | null) => (b == null ? "" : b > 1024 * 1024 ? `${(
  * delete. Staff manage template art (scope "template"); a DJ manages their own
  * uploads (scope "dj"). Deleting something in use asks first and says where.
  */
-export function AssetManager({ scope, djId }: { scope: "template" | "dj"; djId?: string | null }) {
+export function AssetManager({ scope, djId, staff = false }: { scope: "template" | "dj"; djId?: string | null; staff?: boolean }) {
   const [assets, setAssets] = useState<LibAsset[] | null>(null);
   const [foldersReady, setFoldersReady] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export function AssetManager({ scope, djId }: { scope: "template" | "dj"; djId?:
   const [moveTo, setMoveTo] = useState("");
   const [uploadKind, setUploadKind] = useState(scope === "template" ? "background" : "photo");
   const fileRef = useRef<HTMLInputElement>(null);
-  const kinds = scope === "template" ? ["background", "overlay", "logo", "image"] : ["photo", "image"];
+  const kinds = scope === "template" ? ["background", "overlay", "logo", "image"] : ["photo", "cutout", "name_logo", "image"];
 
   async function load() {
     const url = `/api/flyers/assets?scope=${scope}${djId ? `&dj=${djId}` : ""}`;
@@ -293,6 +293,11 @@ export function AssetManager({ scope, djId }: { scope: "template" | "dj"; djId?:
                       {KIND_LABEL[a.kind] ?? a.kind}
                       {a.folder && folder === ALL ? ` · ${a.folder}` : ""}
                     </p>
+                    {(a.kind === "cutout" || a.kind === "name_logo") && (
+                      <p className={cn("mt-0.5 text-[10px] font-semibold uppercase", a.approved === false ? "text-status-pending" : "text-status-approved")}>
+                        {a.approved === false ? "Waiting for approval" : a.is_primary ? "Approved · preferred" : "Approved"}
+                      </p>
+                    )}
                   </div>
                 </button>
                 <label className={cn("absolute left-2 top-2 grid h-7 w-7 cursor-pointer place-items-center rounded-full border bg-white/95 shadow-sm", sel ? "border-gold" : "border-black/15 opacity-80 group-hover:opacity-100")}>
@@ -319,7 +324,7 @@ export function AssetManager({ scope, djId }: { scope: "template" | "dj"; djId?:
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={`/api/flyers/assets/${open.id}`} alt={open.name ?? "Image"} className="max-h-full max-w-full object-contain" />
             </div>
-            <DetailForm key={open.id} a={open} kinds={kinds} foldersReady={foldersReady} folderList={folders.map(([f]) => f)} scope={scope} busy={busy} onSave={(body) => patch([open.id], body).then((ok) => ok && setNotice("Saved."))} onDelete={() => window.confirm(`Delete “${open.name ?? "this image"}”?`) && void remove([open.id])} />
+            <DetailForm key={open.id} a={open} kinds={kinds} staff={staff} onFlag={(body) => patch([open.id], body).then((ok) => { if (ok) { setNotice("Saved."); if (body.isPrimary) void load(); } })} foldersReady={foldersReady} folderList={folders.map(([f]) => f)} scope={scope} busy={busy} onSave={(body) => patch([open.id], body).then((ok) => ok && setNotice("Saved."))} onDelete={() => window.confirm(`Delete “${open.name ?? "this image"}”?`) && void remove([open.id])} />
           </div>
         </div>
       )}
@@ -327,7 +332,7 @@ export function AssetManager({ scope, djId }: { scope: "template" | "dj"; djId?:
   );
 }
 
-function DetailForm({ a, kinds, foldersReady, folderList, scope, busy, onSave, onDelete }: { a: LibAsset; kinds: string[]; foldersReady: boolean; folderList: string[]; scope: string; busy: boolean; onSave: (b: Record<string, unknown>) => void; onDelete: () => void }) {
+function DetailForm({ a, kinds, staff, onFlag, foldersReady, folderList, scope, busy, onSave, onDelete }: { a: LibAsset; kinds: string[]; staff: boolean; onFlag: (b: Record<string, unknown>) => void; foldersReady: boolean; folderList: string[]; scope: string; busy: boolean; onSave: (b: Record<string, unknown>) => void; onDelete: () => void }) {
   const [name, setName] = useState(a.name ?? "");
   const [folder, setFolder] = useState(a.folder ?? "");
   const [kind, setKind] = useState(a.kind);
@@ -372,6 +377,26 @@ function DetailForm({ a, kinds, foldersReady, folderList, scope, busy, onSave, o
           ))}
         </select>
       </label>
+      {(a.kind === "cutout" || a.kind === "name_logo") && (
+        <div className="rounded-[10px] bg-black/[0.04] p-3 text-xs">
+          <p className="font-semibold">{a.approved === false ? "Waiting for staff approval" : a.is_primary ? "Approved · used on flyers first" : "Approved"}</p>
+          <p className="mt-1 text-muted">{a.kind === "cutout" ? "Approved cutouts fill DJ photo slots on flyers (instead of the profile photo)." : "Approved name logos fill DJ name logo slots. Without one, the DJ's name is shown as text."}</p>
+          {staff ? (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              <button type="button" className={btn} disabled={busy} onClick={() => onFlag({ approved: a.approved === false })}>
+                {a.approved === false ? "Approve" : "Withdraw approval"}
+              </button>
+              {!a.is_primary && (
+                <button type="button" className={btn} disabled={busy} onClick={() => onFlag({ isPrimary: true })}>
+                  Make preferred
+                </button>
+              )}
+            </div>
+          ) : (
+            a.approved === false && <p className="mt-1 text-muted">Staff will review it before it appears on flyers.</p>
+          )}
+        </div>
+      )}
       <p className="text-xs text-muted">
         {a.width} × {a.height} px {sizeLabel(a.bytes) && `· ${sizeLabel(a.bytes)}`} {a.has_alpha && "· transparent"} · added {new Date(a.created_at).toLocaleDateString()}
       </p>
