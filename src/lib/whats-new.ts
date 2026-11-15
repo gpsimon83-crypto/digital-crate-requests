@@ -19,6 +19,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-15-flyer-date-badges",
+    date: "2026-11-15",
+    area: "CRM",
+    title: "Date badges for flyers",
+    summary: "Five ready-made date badges (Orange Ticket, Luxury Gold, Torn Paper, Neon Panel, Bold Editorial) with live weekday, date and time that fill from the event.",
+    bullets: [
+      "Badges tab in the flyer and template editors. Each badge is a group: drag, resize, rotate, duplicate or lock it as one; click a piece again (or pick it in Layers) to move, turn or restyle just that piece",
+      "The artwork is a normal image layer: replace it, crop, zoom, reposition or fade it; text stays live and is never baked into the picture",
+      "Text fits on one line inside its box down to a smallest size; if it still doesn't fit you get a red outline in the editor and a warning before export",
+      "Time shows the event's own start–end (or just the start). CLOSE appears only when you pick “Start – CLOSE” under Time shows",
+      "New text settings: rotate around the box centre, position in the box, padding, and letter spacing in em that follows auto-fit",
+      "New fonts: Barlow Condensed (with italics) and Cormorant Garamond; Montserrat Bold",
+      "PNG 2× export for high-resolution files"
+    ]
+  },
+  {
     id: "2026-11-15-flyer-shapes",
     date: "2026-11-15",
     area: "CRM",

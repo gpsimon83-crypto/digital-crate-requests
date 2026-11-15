@@ -3,18 +3,23 @@
 export type Box = { x: number; y: number; width: number; height: number };
 export type Guide = { orient: "v" | "h"; pos: number };
 
-/** Axis-aligned bounds of a rotated rectangle (rotation in degrees around its top-left corner, Konva's default). */
-export function boundsOf(n: Box & { rotation?: number }): Box {
+/**
+ * Axis-aligned bounds of a rotated rectangle: the box's final visible extent.
+ * Rotation (degrees, clockwise) is around the top-left corner (Konva's default)
+ * or, for `pivot: "center"` layers, around the box centre.
+ */
+export function boundsOf(n: Box & { rotation?: number; pivot?: "center" | "topLeft" }): Box {
   const r = ((n.rotation ?? 0) * Math.PI) / 180;
   if (!r) return { x: n.x, y: n.y, width: n.width, height: n.height };
   const cos = Math.cos(r);
   const sin = Math.sin(r);
+  const [ox, oy] = n.pivot === "center" ? [n.width / 2, n.height / 2] : [0, 0];
   const pts = [
     [0, 0],
     [n.width, 0],
     [0, n.height],
     [n.width, n.height]
-  ].map(([px, py]) => [n.x + px * cos - py * sin, n.y + px * sin + py * cos]);
+  ].map(([px, py]) => [n.x + ox + (px - ox) * cos - (py - oy) * sin, n.y + oy + (px - ox) * sin + (py - oy) * cos]);
   const xs = pts.map((p) => p[0]);
   const ys = pts.map((p) => p[1]);
   return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };

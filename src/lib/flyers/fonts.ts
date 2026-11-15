@@ -12,10 +12,12 @@ export const FLYER_FONTS: FlyerFont[] = [
   { key: "archivo-black", label: "Archivo Black", weights: [400], file: "archivo-black", category: "display" },
   { key: "bungee", label: "Bungee", weights: [400], file: "bungee", category: "display" },
   { key: "righteous", label: "Righteous", weights: [400], file: "righteous", category: "display" },
-  { key: "montserrat", label: "Montserrat", weights: [400, 600, 800, 900], italic: [800], file: "montserrat", category: "sans" },
+  { key: "barlow-condensed", label: "Barlow Condensed", weights: [500, 600, 700, 800], italic: [600, 700, 800], file: "barlow-condensed", category: "display" },
+  { key: "montserrat", label: "Montserrat", weights: [400, 600, 700, 800, 900], italic: [700, 800], file: "montserrat", category: "sans" },
   { key: "poppins", label: "Poppins", weights: [400, 600, 800], file: "poppins", category: "sans" },
   { key: "inter", label: "Inter", weights: [400, 600, 800], file: "inter", category: "sans" },
   { key: "arimo", label: "Arimo (Arial)", weights: [400, 700], italic: [700], file: "arimo", category: "sans" },
+  { key: "cormorant", label: "Cormorant Garamond", weights: [400, 600, 700], italic: [400, 600, 700], file: "cormorant-garamond", category: "serif" },
   { key: "playfair", label: "Playfair Display", weights: [400, 700, 900], italic: [700], file: "playfair-display", category: "serif" },
   { key: "permanent-marker", label: "Permanent Marker", weights: [400], file: "permanent-marker", category: "script" },
   { key: "great-vibes", label: "Great Vibes", weights: [400], file: "great-vibes", category: "script" }
@@ -67,7 +69,8 @@ export function matchFont(family: string, weight: number): { key: string; weight
   }
   if (/bebas/.test(f)) return pick("bebas");
   if (/impact|league gothic|compressed|condensed/.test(f)) return pick("anton");
-  if (/times|georgia|garamond|serif(?!.*sans)/.test(f) && !/sans/.test(f)) return pick("playfair");
+  if (/garamond|cormorant/.test(f)) return pick("cormorant");
+  if (/times|georgia|serif(?!.*sans)/.test(f) && !/sans/.test(f)) return pick("playfair");
   if (/script|brush|vibes|hand/.test(f)) return pick("great-vibes");
   return pick("arimo"); // Arial, Helvetica and anything unknown
 }

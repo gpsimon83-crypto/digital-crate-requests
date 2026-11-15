@@ -131,6 +131,7 @@ export async function loadFlyerContext(db: Db, opts: { eventId: string | null; v
   if (night && !night.starts_at) {
     base.start_time = null;
     base.end_time = null;
+    base.event_time_range = null;
   }
   const values: PlaceholderValues = {
     ...base,

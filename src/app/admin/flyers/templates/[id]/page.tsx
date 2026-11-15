@@ -1,5 +1,6 @@
 "use client";
 
+import { BADGE_SAMPLES } from "@/lib/flyers/scene";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
@@ -18,7 +19,7 @@ type Loaded = {
   djs: { id: string; display_name: string; has_photo: boolean }[];
 };
 
-const SAMPLE = { dj_name: "DJ Name", event_title: "Saturday Night", event_date: "Saturday, November 22", start_time: "9 PM", end_time: "2 AM", venue_name: "Venue Name", venue_address: "123 Main St, Milwaukee, WI", drink_specials: "$5 Margaritas\n$3 Domestic bottles", event_details: "Birthday bash", dj2_name: "DJ Two" };
+const SAMPLE = { dj_name: "DJ Name", event_title: "Saturday Night", event_date: "Saturday, November 22", start_time: "9 PM", end_time: "2 AM", venue_name: "Venue Name", venue_address: "123 Main St, Milwaukee, WI", drink_specials: "$5 Margaritas\n$3 Domestic bottles", event_details: "Birthday bash", dj2_name: "DJ Two" , ...BADGE_SAMPLES};
 
 export default function TemplateEditPage() {
   const { id } = useParams<{ id: string }>();

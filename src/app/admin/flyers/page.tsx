@@ -1,5 +1,6 @@
 "use client";
 
+import { BADGE_SAMPLES } from "@/lib/flyers/scene";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,7 +16,7 @@ import { FORMATS, FORMAT_KEYS, type FormatKey, type Scene, type TemplateContent 
 
 type Row = { id: string; slug: string | null; name: string; description: string | null; venue_id: string | null; status: "draft" | "published" | "archived"; draft: TemplateContent; formats: FormatKey[]; versions: number; current_version: number | null; published_at: string | null; designs: number; updated_at: string };
 
-const SAMPLE = { dj_name: "DJ Name", event_title: "Saturday Night", event_date: "Saturday, November 22", start_time: "9 PM", end_time: "2 AM", venue_name: "Venue Name", venue_address: "123 Main St, Milwaukee, WI" };
+const SAMPLE = { dj_name: "DJ Name", event_title: "Saturday Night", event_date: "Saturday, November 22", start_time: "9 PM", end_time: "2 AM", venue_name: "Venue Name", venue_address: "123 Main St, Milwaukee, WI" , ...BADGE_SAMPLES};
 const preview = (s: Scene): Scene => ({ ...s, nodes: s.nodes.map((n) => (n.kind === "text" ? { ...n, text: linkedText(n.text, { values: SAMPLE, slots: [], venueId: null, hasEvent: false }) } : n)) });
 
 export default function AdminFlyersPage() {

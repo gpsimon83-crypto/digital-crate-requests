@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils";
 import { FLYER_FONTS, fontByKey, nearestWeight } from "@/lib/flyers/fonts";
 import { featherOn } from "@/lib/flyers/feather";
 import { isLinked, isOverridden } from "@/lib/flyers/links";
+import { BADGES, type BadgePreset } from "@/lib/flyers/badges";
 import { BLEND_MODES, FIELD_TOKENS, ROLES, type BlendMode, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type ShapeNode, type TextNode } from "@/lib/flyers/types";
 
 export type Asset = { id: string; kind: string; name: string | null; folder?: string | null; width: number; height: number; has_alpha: boolean };
@@ -158,6 +159,11 @@ export type PropsApi = {
   openReplace: (id: string) => void;
   /** Flyers linked to an event: put a layer back to the event's data. */
   resetToEvent?: (id: string) => void;
+  /** Several layers selected (a group): lock or unlock them all. */
+  setLocked?: (locked: boolean) => void;
+  selectionLocked?: boolean;
+  /** Grouped selection: true when it's exactly one group (e.g. a date badge). */
+  selectionIsGroup?: boolean;
 };
 
 export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRef }: { scene: Scene; node: FlyerNode | null; multi: number; api: PropsApi; sceneControls: React.ReactNode; textRef: React.RefObject<HTMLTextAreaElement | null> }) {
@@ -170,9 +176,19 @@ export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRe
             <button className={iconBtn} onClick={api.duplicate}>
               <Copy size={14} /> Duplicate
             </button>
+            {api.setLocked && (
+              <button className={iconBtn} onClick={() => api.setLocked!(!api.selectionLocked)}>
+                {api.selectionLocked ? <Unlock size={14} /> : <Lock size={14} />} {api.selectionLocked ? "Unlock all" : "Lock all"}
+              </button>
+            )}
             <button className={iconBtn} onClick={api.remove}>
               <Trash2 size={14} /> Delete
             </button>
+            <p className="w-full text-xs text-muted">
+              {api.selectionIsGroup
+                ? "This is a group: drag, resize or rotate it as one. Click a piece again (or pick it in Layers) to edit it on its own."
+                : "Drag, resize or rotate them together."}
+            </p>
           </div>
         ) : (
           <p className="text-xs text-muted">Select a layer on the flyer or in Layers to edit it. Tip: double-click text to edit the wording.</p>
@@ -220,6 +236,15 @@ export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRe
           <Num label="Width" value={n.width} min={8} max={8000} onChange={(v) => set({ width: v }, "width")} disabled={!canMove} suffix="px" />
           {n.kind !== "text" ? <Num label="Height" value={n.height} min={8} max={8000} onChange={(v) => set({ height: v }, "height")} disabled={!canMove} suffix="px" /> : <div />}
           <Num label="Rotation" value={n.rotation} min={-360} max={360} onChange={(v) => set({ rotation: v }, "rotation")} disabled={!canMove} suffix="°" />
+          {n.kind === "text" && (
+            <label className="block">
+              <span className={labelCls}>Rotate around</span>
+              <select className={inputCls} value={n.pivot ?? "topLeft"} disabled={!canMove} onChange={(e) => set(repivot(n, e.target.value as "center" | "topLeft"), "pivot")}>
+                <option value="center">Box centre</option>
+                <option value="topLeft">Top-left corner</option>
+              </select>
+            </label>
+          )}
           <div className="flex items-end">
             <button className={cn(iconBtn, "w-full")} disabled={!canMove} onClick={() => set({ x: Math.round((scene.width - n.width) / 2) }, "x")}>
               Center horizontally
@@ -330,15 +355,30 @@ function TextProps({ n, set, canEdit, canStyle, mode, textRef }: { n: TextNode; 
             <select className={inputCls} value={nearestWeight(n.font, n.weight)} disabled={!canStyle || font.weights.length < 2} onChange={(e) => set({ weight: parseInt(e.target.value, 10) }, "weight")}>
               {font.weights.map((w) => (
                 <option key={w} value={w}>
-                  {{ 400: "Regular", 600: "Semibold", 700: "Bold", 800: "Extra bold", 900: "Black" }[w] ?? w}
+                  {{ 400: "Regular", 500: "Medium", 600: "Semibold", 700: "Bold", 800: "Extra bold", 900: "Black" }[w] ?? w}
                 </option>
               ))}
             </select>
           </label>
           <Num label="Size" value={n.fontSize} min={6} max={600} onChange={(v) => set({ fontSize: v }, "fontSize")} disabled={!canStyle} suffix="px" />
           <Num label="Line spacing" value={n.lineHeight} min={0.6} max={3} step={0.05} onChange={(v) => set({ lineHeight: v }, "lineHeight")} disabled={!canStyle} />
-          <Num label="Letter spacing" value={n.letterSpacing} min={-20} max={80} step={0.5} onChange={(v) => set({ letterSpacing: v }, "letterSpacing")} disabled={!canStyle} suffix="px" />
+          {n.trackingEm != null ? (
+            <Num label="Letter spacing" value={n.trackingEm} min={-0.3} max={1} step={0.01} onChange={(v) => set({ trackingEm: v }, "trackingEm")} disabled={!canStyle} suffix="em" />
+          ) : (
+            <Num label="Letter spacing" value={n.letterSpacing} min={-20} max={80} step={0.5} onChange={(v) => set({ letterSpacing: v }, "letterSpacing")} disabled={!canStyle} suffix="px" />
+          )}
         </div>
+        <button
+          className="self-start text-[11px] font-medium text-gold-dim underline disabled:opacity-40"
+          disabled={!canStyle}
+          onClick={() =>
+            n.trackingEm != null
+              ? set({ trackingEm: null, letterSpacing: Math.round(n.trackingEm * n.fontSize * 10) / 10 }, "trackingEm")
+              : set({ trackingEm: Math.round((n.letterSpacing / Math.max(1, n.fontSize)) * 100) / 100 }, "trackingEm")
+          }
+        >
+          {n.trackingEm != null ? "Letter spacing in px instead" : "Letter spacing in em (follows auto-fit)"}
+        </button>
         <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Text alignment">
           {(["left", "center", "right"] as const).map((a) => {
             const Icon = a === "left" ? AlignLeft : a === "center" ? AlignCenter : AlignRight;
@@ -359,18 +399,36 @@ function TextProps({ n, set, canEdit, canStyle, mode, textRef }: { n: TextNode; 
         </div>
         <label className="block">
           <span className={labelCls}>When the text is long</span>
-          <select className={inputCls} value={n.fitBox ? "box" : n.shrink ? "line" : "wrap"} disabled={!canStyle} onChange={(e) => set({ shrink: e.target.value === "line", fitBox: e.target.value === "box", minFontSize: n.minFontSize ?? Math.max(10, Math.round(n.fontSize / 3)) }, "fit")}>
+          <select
+            className={inputCls}
+            value={n.fitBox ? (n.shrink ? "linebox" : "box") : n.shrink ? "line" : "wrap"}
+            disabled={!canStyle}
+            onChange={(e) => set({ shrink: e.target.value === "line" || e.target.value === "linebox", fitBox: e.target.value === "box" || e.target.value === "linebox", minFontSize: n.minFontSize ?? Math.max(10, Math.round(n.fontSize / 3)) }, "fit")}
+          >
             <option value="wrap">Wrap onto more lines</option>
             <option value="line">Stay on one line, shrink to fit</option>
             <option value="box">Wrap, then shrink to fit the box</option>
+            <option value="linebox">One line, fit inside the box</option>
           </select>
         </label>
         {(n.fitBox || n.shrink) && (
           <div className="grid grid-cols-2 gap-2">
             {n.fitBox && <Num label="Box height" value={n.height} min={8} max={8000} onChange={(v) => set({ height: v }, "height")} disabled={!canStyle} suffix="px" />}
             <Num label="Smallest size" value={n.minFontSize ?? Math.max(10, Math.round(n.fontSize / 3))} min={6} max={n.fontSize} onChange={(v) => set({ minFontSize: v }, "minFontSize")} disabled={!canStyle} suffix="px" />
+            {n.fitBox && (
+              <label className="block">
+                <span className={labelCls}>In the box</span>
+                <select className={inputCls} value={n.valign ?? "top"} disabled={!canStyle} onChange={(e) => set({ valign: e.target.value as "top" | "middle" | "bottom" }, "valign")}>
+                  <option value="top">Top</option>
+                  <option value="middle">Middle</option>
+                  <option value="bottom">Bottom</option>
+                </select>
+              </label>
+            )}
+            <Num label="Padding" value={n.padding ?? 0} min={0} max={400} onChange={(v) => set({ padding: v }, "padding")} disabled={!canStyle} suffix="px" />
           </div>
         )}
+        <TimeEnds n={n} set={set} canEdit={canEdit} mode={mode} />
         <ColorField label="Color" value={n.fill} disabled={!canStyle} onChange={(v) => set({ fill: v }, "fill")} />
       </Section>
       <Section title="Outline" defaultOpen={n.stroke.enabled}>
@@ -401,6 +459,54 @@ function TextProps({ n, set, canEdit, canStyle, mode, textRef }: { n: TextNode; 
 }
 
 const IMAGE_ROLES = ["background", "portrait", "logo", "dj_logo", "overlay", "image"];
+/**
+ * Change a text layer's rotation pivot without moving it on the flyer:
+ * the same rotated box, described around the other point.
+ */
+function repivot(n: TextNode, pivot: "center" | "topLeft"): Partial<TextNode> {
+  if ((n.pivot ?? "topLeft") === pivot) return {};
+  const h = n.fitBox ? n.height : n.fontSize * n.lineHeight * Math.max(1, n.text.split("\n").length) + (n.padding ?? 0) * 2;
+  const r = (n.rotation * Math.PI) / 180;
+  const [c, s] = [Math.cos(r), Math.sin(r)];
+  // World position of the box's top-left corner and centre under each pivot.
+  if (pivot === "center") {
+    // Was turned around its top-left corner: the centre is the corner plus the turned half-size.
+    const cx = n.x + (n.width / 2) * c - (h / 2) * s;
+    const cy = n.y + (n.width / 2) * s + (h / 2) * c;
+    return { pivot, x: Math.round((cx - n.width / 2) * 10) / 10, y: Math.round((cy - h / 2) * 10) / 10 };
+  }
+  const cx = n.x + n.width / 2;
+  const cy = n.y + h / 2;
+  return { pivot, x: Math.round((cx - (n.width / 2) * c + (h / 2) * s) * 10) / 10, y: Math.round((cy - (n.width / 2) * s - (h / 2) * c) * 10) / 10 };
+}
+
+const TIME_SOURCES: [string, string][] = [
+  ["{{event.timeRange}}", "Start–end from the event"],
+  ["{{event.startTime}}–CLOSE", "Start – CLOSE"],
+  ["{{event.startTime}}", "Start time only"]
+];
+
+/** Linked time text: how the end is shown. CLOSE appears only when chosen here. */
+function TimeEnds({ n, set, canEdit, mode }: { n: TextNode; set: (p: Partial<TextNode>, k?: string) => void; canEdit: boolean; mode: "design" | "template" }) {
+  const src = mode === "template" ? n.text : n.source;
+  if (!src || !/\{\{\s*(event\.timeRange|event\.startTime|start_time)\s*\}\}/.test(src)) return null;
+  const cur = TIME_SOURCES.find(([v]) => v === src.trim())?.[0] ?? "";
+  return (
+    <label className="block">
+      <span className={labelCls}>Time shows</span>
+      <select className={inputCls} value={cur} disabled={!canEdit} onChange={(e) => e.target.value && set(mode === "template" ? { text: e.target.value } : { source: e.target.value, override: false }, "timeEnds")}>
+        {!cur && <option value="">Custom wording</option>}
+        {TIME_SOURCES.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+      </select>
+      <span className="mt-1 block text-[11px] text-muted">CLOSE is only shown when you pick it; otherwise the event&apos;s own end time is used (or just the start).</span>
+    </label>
+  );
+}
+
 const pct = (v: number, of: number) => `${Math.round((v / of) * 1000) / 10}%`;
 
 const SHOW_WHEN: [string, string][] = [
@@ -760,6 +866,8 @@ export type LibraryApi = {
   addPreset?: (k: "specials" | "details" | "dj2") => void;
   /** Add a box, rectangle, oval or circle. */
   addShape?: (k: "box" | "rectangle" | "oval" | "circle") => void;
+  /** Add a date badge (artwork + live weekday / date / time text, grouped). */
+  addBadge?: (id: BadgePreset["id"]) => void;
 };
 
 const thumb = (src: string, alt: string) => (
@@ -810,7 +918,7 @@ export function LibraryPanel({
       <FolderOpen size={13} /> Organise or delete images
     </a>
   ) : null;
-  const tabs = [...(eventSlot ? [["event", "Event"]] : []), ...(templatesSlot ? [["templates", "Templates"]] : []), ["text", "Text"], ...(api.addShape ? [["shapes", "Shapes"]] : []), ["photos", "Photos"], ["logos", "Logos"], ["assets", api.mode === "template" ? "Assets" : "Art"]] as [string, string][];
+  const tabs = [...(eventSlot ? [["event", "Event"]] : []), ...(templatesSlot ? [["templates", "Templates"]] : []), ["text", "Text"], ...(api.addShape ? [["shapes", "Shapes"]] : []), ...(api.addBadge ? [["badges", "Badges"]] : []), ["photos", "Photos"], ["logos", "Logos"], ["assets", api.mode === "template" ? "Assets" : "Art"]] as [string, string][];
 
   async function onFile(f: File | undefined) {
     if (!f) return;
@@ -870,6 +978,22 @@ export function LibraryPanel({
               </>
             )}
             <p className="text-[11px] text-muted">{api.mode === "template" ? "New text starts with a placeholder like {{event_title}}. DJs see it filled from their booking." : "Every text box is its own layer: move it anywhere."}</p>
+          </div>
+        )}
+        {tab === "badges" && api.addBadge && (
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              {BADGES.map((b) => (
+                <button key={b.id} className={cn(iconBtn, "h-auto flex-col gap-1.5 bg-[#16141b] p-2 text-xs text-[#f3ead8] hover:bg-[#1f1c25]")} onClick={() => api.addBadge!(b.id)}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={b.src} alt="" className="h-20 w-full object-contain" loading="lazy" />
+                  {b.name}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted">
+              Each badge is a group: the artwork plus live weekday, date and time text that fill from the event. Drag, resize or rotate it as one; click a piece again (or pick it in Layers) to change it on its own, replace the artwork, or override the wording for this flyer.
+            </p>
           </div>
         )}
         {tab === "shapes" && api.addShape && (

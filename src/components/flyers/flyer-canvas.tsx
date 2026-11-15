@@ -16,7 +16,8 @@ export type NodePatch = { id: string; patch: Partial<FlyerNode> };
 type Interact = {
   interactive: boolean;
   canMove: (n: FlyerNode) => boolean;
-  onSelect: (id: string, additive: boolean) => void;
+  /** "down" on press, "click" on release without dragging, "tap" on touch. */
+  onSelect: (id: string, additive: boolean, phase?: "down" | "click" | "tap") => void;
   onEditText?: (id: string) => void;
 };
 
@@ -71,8 +72,9 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
       globalCompositeOperation={blendOp(node.blend)}
       draggable={movable}
       listening={!!act?.interactive && !node.locked}
-      onMouseDown={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey)}
-      onTap={() => act?.onSelect(node.id, false)}
+      onMouseDown={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey, "down")}
+      onClick={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey, "click")}
+      onTap={() => act?.onSelect(node.id, false, "tap")}
     >
       {/* Full-size hit area so empty or transparent frames are still easy to grab. */}
       <Rect width={node.width} height={node.height} fill="rgba(0,0,0,0)" />
@@ -143,21 +145,46 @@ const probeText = (o: { text: string; family: string; style: string; size: numbe
 };
 
 /**
- * How a text layer is drawn: its font size after shrinking (one-line shrink,
- * or shrink-to-fit-the-box with a minimum size), its drawn height, and
- * whether it still doesn't fit (flagged before export). Measured exactly as
- * Konva will draw it.
+ * How a text layer is drawn: its font size after auto-fit (one-line shrink,
+ * shrink-to-fit-the-box, or one line fitted to the box), the height of the
+ * text block, the letter spacing at that size, the box's height, and
+ * whether it still doesn't fit at the smallest size (flagged in the editor
+ * and before export). Measured exactly as Konva will draw it, for the
+ * editor, the preview and the export alike.
  */
-export function textLayout(node: TextNode, fontsReady = true): { size: number; height: number; overflow: boolean } {
+export type TextLay = { size: number; height: number; overflow: boolean; spacing: number; boxHeight: number; oneLine: boolean; lineWidth?: number };
+export function textLayout(node: TextNode, fontsReady = true): TextLay {
   const text = node.uppercase ? node.text.toUpperCase() : node.text;
   const f = fontString(node);
   const lines = Math.max(1, text.split("\n").length);
-  if (typeof document === "undefined" || !fontsReady) return { size: node.fontSize, height: node.fontSize * node.lineHeight * lines, overflow: false };
-  const base = { text, family: f.family, style: f.style, spacing: node.letterSpacing, lineHeight: node.lineHeight };
+  const pad = node.padding ?? 0;
+  const innerW = Math.max(4, node.width - pad * 2);
+  const innerH = Math.max(4, node.height - pad * 2);
+  // Tracking in em follows the fitted size, so shrunk text keeps its look.
+  const sp = (size: number) => (node.trackingEm != null ? node.trackingEm * size : node.letterSpacing);
+  const oneLine = !!node.shrink;
+  const min = Math.max(6, Math.min(node.minFontSize ?? 12, node.fontSize));
+  const box = (size: number, height: number, overflow = false): TextLay => ({ size, height, overflow, spacing: sp(size), boxHeight: node.fitBox ? node.height : (oneLine ? node.fontSize * node.lineHeight * lines : height) + pad * 2, oneLine });
+  if (typeof document === "undefined" || !fontsReady) return box(node.fontSize, node.fontSize * node.lineHeight * lines);
+  const base = { text, family: f.family, style: f.style, lineHeight: node.lineHeight };
+
+  if (node.fitBox && oneLine) {
+    // One line, as large as fits both the box's width and its height.
+    const widthAt = (size: number) => probeText({ ...base, size, spacing: sp(size) }).width;
+    let size = Math.min(node.fontSize, innerH / (node.lineHeight * lines));
+    const w = widthAt(size);
+    if (w > innerW) {
+      size = Math.floor(((size * innerW) / w) * 100) / 100;
+      for (let i = 0; i < 8 && widthAt(size) > innerW - 0.5; i++) size *= 0.985;
+    }
+    const overflow = size < min - 0.01;
+    size = Math.max(size, min);
+    const lineWidth = widthAt(size);
+    return { ...box(size, probeText({ ...base, size, spacing: sp(size) }).height, overflow || lineWidth > innerW + 0.5), lineWidth };
+  }
   if (node.fitBox) {
-    const min = Math.max(6, Math.min(node.minFontSize ?? 12, node.fontSize));
-    const fits = (size: number) => probeText({ ...base, size, width: node.width }).height <= node.height + 0.5;
-    if (fits(node.fontSize)) return { size: node.fontSize, height: probeText({ ...base, size: node.fontSize, width: node.width }).height, overflow: false };
+    const fits = (size: number) => probeText({ ...base, size, spacing: sp(size), width: innerW }).height <= innerH + 0.5;
+    if (fits(node.fontSize)) return box(node.fontSize, probeText({ ...base, size: node.fontSize, spacing: sp(node.fontSize), width: innerW }).height);
     let lo = min;
     let hi = node.fontSize;
     for (let i = 0; i < 14 && hi - lo > 0.25; i++) {
@@ -166,19 +193,38 @@ export function textLayout(node: TextNode, fontsReady = true): { size: number; h
       else hi = mid;
     }
     const size = Math.floor(lo * 100) / 100;
-    return { size, height: probeText({ ...base, size, width: node.width }).height, overflow: !fits(size) };
+    return box(size, probeText({ ...base, size, spacing: sp(size), width: innerW }).height, !fits(size));
   }
-  if (node.shrink) {
-    const widest = probeText({ ...base, size: node.fontSize }).width;
+  if (oneLine) {
+    const widest = probeText({ ...base, size: node.fontSize, spacing: sp(node.fontSize) }).width;
     let size = node.fontSize;
-    if (widest > node.width) {
+    if (widest > innerW) {
       // Shrinking isn't perfectly linear (kerning, rounding): step down until it fits.
-      size = Math.floor(((node.fontSize * node.width) / widest) * 100) / 100;
-      for (let i = 0; i < 6 && probeText({ ...base, size }).width > node.width - 0.5; i++) size = Math.max(6, size * 0.985);
+      size = Math.floor(((node.fontSize * innerW) / widest) * 100) / 100;
+      for (let i = 0; i < 6 && probeText({ ...base, size, spacing: sp(size) }).width > innerW - 0.5; i++) size = Math.max(6, size * 0.985);
     }
-    return { size, height: node.fontSize * node.lineHeight * lines, overflow: false };
+    return box(size, node.fontSize * node.lineHeight * lines);
   }
-  return { size: node.fontSize, height: probeText({ ...base, size: node.fontSize, width: node.width }).height, overflow: false };
+  return box(node.fontSize, probeText({ ...base, size: node.fontSize, spacing: sp(node.fontSize), width: innerW }).height);
+}
+
+/**
+ * Where a text layer's box sits and how it turns. The box is node.x/y/width
+ * and its height (the fit box, or the laid-out text). Rotation is clockwise
+ * around the pivot: the box centre for `pivot: "center"` (date badges), else
+ * the top-left corner (older layers, unchanged). The text block sits inside
+ * the padding, vertically aligned in the box.
+ */
+export function textGeometry(node: TextNode, lay: TextLay) {
+  const pad = node.padding ?? 0;
+  const bw = node.width;
+  const bh = lay.boxHeight;
+  const va = node.fitBox ? (node.valign ?? "top") : "top";
+  const free = bh - pad * 2 - lay.height;
+  const dy = va === "middle" ? free / 2 : va === "bottom" ? free : 0;
+  const px = node.pivot === "center" ? bw / 2 : 0;
+  const py = node.pivot === "center" ? bh / 2 : 0;
+  return { pad, bw, bh, px, py, x: node.x + px, y: node.y + py, offsetX: px - pad, offsetY: py - pad - dy };
 }
 
 function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | null; fontsKey: number }) {
@@ -187,21 +233,26 @@ function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | nu
   const shown = node.uppercase ? node.text.toUpperCase() : node.text;
   // fontsKey changes once the font file has loaded, so the measurement is redone with the real letters.
   const lay = useMemo(() => textLayout(node, fontsKey > 0), [node, fontsKey]);
+  const g = textGeometry(node, lay);
   const lines = shown.split("\n").length;
+  // One-line text that can't fit even at its smallest size is drawn whole (never cut off) and flagged.
+  const inner = Math.max(1, g.bw - g.pad * 2);
+  const extra = lay.oneLine && lay.lineWidth && lay.lineWidth > inner ? Math.ceil(lay.lineWidth - inner) + 2 : 0;
+  const shiftX = node.align === "center" ? extra / 2 : node.align === "right" ? extra : 0;
   const panel = node.panel?.enabled ? node.panel : null;
   return (
     <>
       {panel && (
-        // Background panel behind the text; moves with it (see FlyerStage drag handling).
+        // Background panel behind the text box; moves and turns with it (see FlyerStage drag handling).
         <Rect
           id={`${node.id}__panel`}
-          x={node.x}
-          y={node.y}
-          offsetX={panel.padding}
-          offsetY={panel.padding}
+          x={g.x}
+          y={g.y}
+          offsetX={g.px + panel.padding}
+          offsetY={g.py + panel.padding}
           rotation={node.rotation}
-          width={node.width + panel.padding * 2}
-          height={(node.fitBox ? node.height : lay.height) + panel.padding * 2}
+          width={g.bw + panel.padding * 2}
+          height={g.bh + panel.padding * 2}
           cornerRadius={panel.radius}
           fill={panel.color}
           opacity={panel.opacity * node.opacity}
@@ -209,13 +260,19 @@ function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | nu
           listening={false}
         />
       )}
+      {/* Editor only: text that can't fit its box even at the smallest size is outlined in red (never exported). */}
+      {act?.interactive && lay.overflow && (
+        <Rect x={g.x} y={g.y} offsetX={g.px} offsetY={g.py} rotation={node.rotation} width={g.bw} height={g.bh} stroke="#e5484d" strokeWidth={3} dash={[10, 6]} listening={false} />
+      )}
       <KText
         key={fontsKey}
         id={node.id}
         name="flyer-node"
-        x={node.x}
-        y={node.y}
-        width={node.width}
+        x={g.x}
+        y={g.y}
+        offsetX={g.offsetX + shiftX}
+        offsetY={g.offsetY}
+        width={inner + extra}
         rotation={node.rotation}
         opacity={node.opacity}
         text={shown}
@@ -223,10 +280,10 @@ function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | nu
         fontFamily={`${f.family}, sans-serif`}
         fontStyle={f.style}
         fontSize={lay.size}
-        // Shrunk text stays on one line, centred on where the full-size line was.
-        {...(node.shrink && !node.fitBox ? { wrap: "none", height: node.fontSize * node.lineHeight * lines, verticalAlign: "middle" } : {})}
+        // One-line text never wraps. Shrunk text (without a fit box) stays centred on where the full-size line was.
+        {...(node.shrink && !node.fitBox ? { wrap: "none", height: node.fontSize * node.lineHeight * lines, verticalAlign: "middle" } : node.shrink ? { wrap: "none" } : {})}
         lineHeight={node.lineHeight}
-        letterSpacing={node.letterSpacing}
+        letterSpacing={lay.spacing}
         align={node.align}
         fill={node.fill}
         stroke={node.stroke.enabled && node.stroke.width > 0 ? node.stroke.color : undefined}
@@ -236,8 +293,9 @@ function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | nu
         {...shadowProps(node.shadow)}
         draggable={movable}
         listening={!!act?.interactive && !node.locked}
-        onMouseDown={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey)}
-        onTap={() => act?.onSelect(node.id, false)}
+        onMouseDown={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey, "down")}
+      onClick={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey, "click")}
+        onTap={() => act?.onSelect(node.id, false, "tap")}
         onDblClick={() => act?.onEditText?.(node.id)}
         onDblTap={() => act?.onEditText?.(node.id)}
       />
@@ -269,8 +327,9 @@ function ShapeLayer({ node, act }: { node: ShapeNode; act: Interact | null }) {
       globalCompositeOperation={blendOp(node.blend)}
       draggable={movable}
       listening={!!act?.interactive && !node.locked}
-      onMouseDown={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey)}
-      onTap={() => act?.onSelect(node.id, false)}
+      onMouseDown={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey, "down")}
+      onClick={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey, "click")}
+      onTap={() => act?.onSelect(node.id, false, "tap")}
     >
       {/* Full-size hit area, so outline-only shapes are easy to grab. */}
       <Rect width={node.width} height={node.height} fill="rgba(0,0,0,0)" />
@@ -340,7 +399,7 @@ export function FlyerStage({
   fontsKey: number;
   showGuides: boolean;
   canMove: (n: FlyerNode) => boolean;
-  onSelect: (id: string, additive: boolean) => void;
+  onSelect: (id: string, additive: boolean, phase?: "down" | "click" | "tap") => void;
   onClear: () => void;
   onChange: (patches: NodePatch[], key: string) => void;
   onEditText: (id: string) => void;
@@ -379,8 +438,21 @@ export function FlyerStage({
         patch.width = Math.max(8, Math.round(n.width * sx));
         patch.height = Math.max(8, Math.round(n.height * sy));
       } else {
-        patch.width = Math.max(20, Math.round((k as Konva.Text).width() * sx));
-        if (Math.abs(sy - 1) > 0.001) (patch as Partial<TextNode>).fontSize = Math.max(6, Math.round(n.fontSize * sy * 10) / 10);
+        const pad = n.padding ?? 0;
+        const w = Math.max(20, Math.round(((k as Konva.Text).width() + pad * 2) * sx));
+        patch.width = w;
+        const tp = patch as Partial<TextNode>;
+        if (Math.abs(sy - 1) > 0.001) {
+          tp.fontSize = Math.max(6, Math.round(n.fontSize * sy * 10) / 10);
+          if (n.minFontSize) tp.minFontSize = Math.max(6, Math.round(n.minFontSize * sy * 10) / 10);
+          if (n.fitBox) tp.height = Math.max(8, Math.round(n.height * sy));
+        }
+        if (n.pivot === "center") {
+          // k.x/k.y is the box centre (the pivot): keep it, and store the box's top-left.
+          const bh = n.fitBox ? (tp.height ?? n.height) : ((k as Konva.Text).height() + pad * 2) * sy;
+          patch.x = Math.round((k.x() - w / 2) * 10) / 10;
+          patch.y = Math.round((k.y() - bh / 2) * 10) / 10;
+        }
       }
       k.scaleX(1);
       k.scaleY(1);
@@ -478,8 +550,14 @@ export function FlyerStage({
             const k = trRef.current?.nodes()[0];
             const anchor = trRef.current?.getActiveAnchor();
             if (single?.kind === "text" && k && (anchor === "middle-left" || anchor === "middle-right")) {
+              // Keep the left edge where the handle put it while the width (not the letters) changes.
+              const before = k.getTransform().point({ x: 0, y: k.offsetY() });
               k.width(Math.max(20, k.width() * k.scaleX()));
               k.scaleX(1);
+              if (single.pivot === "center") k.offsetX((k.width() + (single.padding ?? 0) * 2) / 2 - (single.padding ?? 0));
+              const after = k.getTransform().point({ x: 0, y: k.offsetY() });
+              k.x(k.x() + before.x - after.x);
+              k.y(k.y() + before.y - after.y);
             }
           }}
           onTransformEnd={() => {
@@ -519,7 +597,7 @@ export function FlyerStage({
  * and image has loaded, then hands back the PNG/JPEG. Uses the same layer
  * drawing as the editor, so the export matches what's on screen.
  */
-export function ExportStage({ scene, ctx, mime, quality, onDone }: { scene: Scene; ctx: SrcContext; mime: "image/png" | "image/jpeg"; quality: number; onDone: (blob: Blob | null, error?: string) => void }) {
+export function ExportStage({ scene, ctx, mime, quality, onDone, pixelRatio = 1 }: { scene: Scene; ctx: SrcContext; mime: "image/png" | "image/jpeg"; quality: number; onDone: (blob: Blob | null, error?: string) => void; pixelRatio?: number }) {
   const stageRef = useRef<Konva.Stage>(null);
   const [ready, setReady] = useState(false);
   const pending = useRef(new Map<string, boolean>());
@@ -555,8 +633,9 @@ export function ExportStage({ scene, ctx, mime, quality, onDone }: { scene: Scen
         if (!stage) return doneRef.current(null, "The flyer couldn't be drawn.");
         try {
           stage.draw();
-          const canvas = stage.toCanvas({ pixelRatio: 1, x: 0, y: 0, width: scene.width, height: scene.height });
-          if (canvas.width !== scene.width || canvas.height !== scene.height) return doneRef.current(null, "The export came out the wrong size.");
+          // Same layers, fonts and layout as the editor; pixelRatio 2 = high-resolution (every text and shape redrawn sharp).
+          const canvas = stage.toCanvas({ pixelRatio, x: 0, y: 0, width: scene.width, height: scene.height });
+          if (canvas.width !== Math.round(scene.width * pixelRatio) || canvas.height !== Math.round(scene.height * pixelRatio)) return doneRef.current(null, "The export came out the wrong size.");
           if (mime === "image/jpeg") {
             // JPEG has no transparency: put the flyer on its background colour.
             const flat = document.createElement("canvas");
@@ -574,7 +653,7 @@ export function ExportStage({ scene, ctx, mime, quality, onDone }: { scene: Scen
       });
     });
     return () => cancelAnimationFrame(raf);
-  }, [ready, settledTick, imageIds, mime, quality, scene.width, scene.height, scene.background]);
+  }, [ready, settledTick, imageIds, mime, quality, scene.width, scene.height, scene.background, pixelRatio]);
 
   if (!ready) return null;
   return (

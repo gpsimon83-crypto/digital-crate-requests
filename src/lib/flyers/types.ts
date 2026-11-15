@@ -40,6 +40,11 @@ export const PLACEHOLDERS = {
   event_weekday: "Day of the week",
   event_month: "Month (short)",
   event_day: "Day of the month",
+  event_weekday_short: "Weekday (WED)",
+  event_month_short: "Month (NOV)",
+  event_day_number: "Day number (25)",
+  event_month_day: "Month and day (NOV 25)",
+  event_time_range: "Start–end time",
   start_time: "Start time",
   end_time: "End time",
   venue_name: "Venue name",
@@ -61,6 +66,11 @@ export const FIELD_TOKENS = {
   "event.weekday": { key: "event_weekday", label: "Day of the week" },
   "event.month": { key: "event_month", label: "Month (short)" },
   "event.day": { key: "event_day", label: "Day of the month" },
+  "event.weekdayShort": { key: "event_weekday_short", label: "Weekday (WED)" },
+  "event.monthShort": { key: "event_month_short", label: "Month (NOV)" },
+  "event.dayNumber": { key: "event_day_number", label: "Day number (25)" },
+  "event.monthDay": { key: "event_month_day", label: "Month and day (NOV 25)" },
+  "event.timeRange": { key: "event_time_range", label: "Start–end time (9 PM–1 AM)" },
   "event.startTime": { key: "start_time", label: "Start time" },
   "event.endTime": { key: "end_time", label: "End time" },
   "event.drinkSpecials": { key: "drink_specials", label: "Drink specials" },
@@ -200,6 +210,14 @@ export type TextNode = Base & {
   override?: boolean;
   /** Hide the layer when its text comes out empty (e.g. no drink specials). */
   hideIfEmpty?: boolean;
+  /** Vertical position of the text inside its box (fit-to-box text). */
+  valign?: "top" | "middle" | "bottom";
+  /** Space kept clear inside the box edges, in px. */
+  padding?: number;
+  /** Rotation pivot: the box centre (date badges, new text) or its top-left corner (older layers). */
+  pivot?: "center" | "topLeft";
+  /** Letter spacing as a share of the font size (0.12 = 0.12em); follows auto-fit. Overrides letterSpacing. */
+  trackingEm?: number | null;
   /** Optional box behind the text. */
   panel?: { enabled: boolean; color: string; opacity: number; padding: number; radius: number } | null;
 };

@@ -2,8 +2,14 @@ Flyer Creator fonts (latin subsets, from the Fontsource packages).
 
 SIL Open Font License 1.1 (https://openfontlicense.org):
   Anton, Bebas Neue, Oswald, Archivo Black, Bungee, Righteous, Montserrat,
-  Poppins, Inter, Arimo, Playfair Display, Great Vibes
+  Poppins, Inter, Arimo, Playfair Display, Great Vibes, Barlow Condensed,
+  Cormorant Garamond
 Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0):
   Permanent Marker
 
 The fonts may be embedded in flyers and exported images.
+
+Cormorant Garamond is included with its digits switched to the font's own
+lining figures (the "lnum" alternates) so dates read as even capitals;
+renamed "Cormorant Garamond Lining" inside the files, as the licence asks
+of modified versions. No other changes.

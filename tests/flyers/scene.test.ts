@@ -356,3 +356,59 @@ describe("shapes", () => {
     expect(checkDjChanges(locked, { ...s, nodes: [{ ...box, perms: { ...LOCKED_PERMS } }, newShape("circle", s)] })).toBeNull();
   });
 });
+
+describe("date badges", () => {
+  it("event values: short weekday / month (SEPT) / day / time range in the event's time zone; no CLOSE is invented", async () => {
+    const { bookingValues } = await import("@/lib/flyers/scene");
+    // 9 PM Wednesday Nov 25 in Chicago is 03:00 UTC on the 26th: must not slip to THU / 26.
+    const a = bookingValues({ starts_at: "2026-11-26T03:00:00Z", ends_at: null, timezone: "America/Chicago" }, "DJ");
+    expect(a).toMatchObject({ event_weekday_short: "WED", event_month_short: "NOV", event_day_number: "25", event_month_day: "NOV 25", event_time_range: "9 PM", end_time: null });
+    // 10:30 PM Sept 30 (CDT) to 1:30 AM.
+    const b = bookingValues({ starts_at: "2028-10-01T03:30:00Z", ends_at: "2028-10-01T06:30:00Z", timezone: "America/Chicago" }, "DJ");
+    expect(b).toMatchObject({ event_weekday_short: "SAT", event_month_short: "SEPT", event_day_number: "30", event_month_day: "SEPT 30", event_time_range: "10:30 PM–1:30 AM" });
+    expect(JSON.stringify(b)).not.toContain("CLOSE");
+    expect(bookingValues(null, "DJ").event_time_range).toBeNull();
+  });
+
+  it("a badge is a group: artwork (fit, not stretched) below live linked text; the paper month is one word turned -90° around its centre", async () => {
+    const { newBadge, BADGES } = await import("@/lib/flyers/badges");
+    const { linkScene, resolveScene } = await import("@/lib/flyers/links");
+    const s = emptyScene("portrait");
+    for (const b of BADGES) {
+      const nodes = newBadge(b.id, s, { x: 100, y: 200, width: 400 });
+      expect(new Set(nodes.map((n) => n.groupId)).size).toBe(1);
+      expect(nodes[0]).toMatchObject({ kind: "image", fit: "contain", width: 400, height: Math.round(400 / b.aspect) });
+      for (const t of nodes.slice(1)) expect(t).toMatchObject({ kind: "text", pivot: "center", fitBox: true, shrink: true, valign: "middle" });
+    }
+    const paper = newBadge("paper", s, { x: 0, y: 0, width: 400 });
+    const month = paper.find((n) => n.name === "Month")!;
+    expect(month).toMatchObject({ rotation: -90, text: "{{event.monthShort}}" });
+    // Its box lies on its side: the stored (unturned) width is the visible height.
+    const vis = BADGES.find((b) => b.id === "paper")!.texts.find((t) => t.key === "month")!.box;
+    const H = Math.round(400 / BADGES.find((b) => b.id === "paper")!.aspect);
+    expect(month.width).toBeCloseTo((vis[3] / 100) * H, 0);
+    expect(month.height).toBeCloseTo((vis[2] / 100) * 400, 0);
+    // Without an event the badge shows the example date; with one, the event's.
+    const sc = linkScene({ ...s, nodes: newBadge("ticket", s) });
+    const texts = (ctx: Parameters<typeof resolveScene>[1]) => resolveScene(sc, ctx).nodes.filter((n) => n.kind === "text").map((n) => (n.kind === "text" ? n.text : ""));
+    expect(texts({ values: {}, slots: [], venueId: null, hasEvent: false })).toEqual(["WED", "NOV 25", "9 PM–CLOSE"]);
+    expect(texts({ values: { event_weekday_short: "SAT", event_month_day: "SEPT 30", event_time_range: "10:30 PM–1:30 AM" }, slots: [], venueId: null, hasEvent: true })).toEqual(["SAT", "SEPT 30", "10:30 PM–1:30 AM"]);
+  });
+
+  it("new text settings save and load; older text without them is unchanged; rotated bounds use the centre pivot", async () => {
+    const { parseScene } = await import("@/lib/flyers/scene");
+    const { boundsOf } = await import("@/lib/flyers/snap");
+    const s = emptyScene("square");
+    const t = newText("date", s, { id: "t", pivot: "center", valign: "middle", padding: 8, trackingEm: 0.12, rotation: -90, x: 100, y: 100, width: 200, height: 60 });
+    const old = newText("title", s, { id: "o" });
+    const p = parseScene(JSON.parse(JSON.stringify({ ...s, nodes: [t, old] })), "square");
+    expect(p.ok).toBe(true);
+    if (!p.ok) return;
+    expect(p.value.nodes[0]).toMatchObject({ pivot: "center", valign: "middle", padding: 8, trackingEm: 0.12, rotation: -90 });
+    const o = p.value.nodes[1];
+    expect(o.kind === "text" && o.pivot === undefined && o.valign === undefined && !o.trackingEm).toBe(true);
+    // -90° around the centre: a 200×60 box becomes 60×200 around the same centre (200, 130).
+    const b = boundsOf({ x: 100, y: 100, width: 200, height: 60, rotation: -90, pivot: "center" });
+    expect([b.x, b.y, b.width, b.height].map((v) => Math.round(v))).toEqual([170, 30, 60, 200]);
+  });
+});

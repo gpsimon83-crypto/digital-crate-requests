@@ -67,7 +67,7 @@ export async function GET() {
           // A venue night from the Google Calendar: its venue, date and usual hours.
           const v = venueList.find((x) => x.id === l.venue_id);
           const values = eventValues({ id: l.id, title: l.title, starts_at: l.starts_at, ends_at: l.ends_at ?? null, timezone: "America/Chicago", dj_id: l.dj_id, venue_id: l.venue_id, venue_name: l.venue_name, status: null, venues: null }, l.dj_name ?? djName(l.dj_id));
-          if (!l.timed) values.start_time = values.end_time = null;
+          if (!l.timed) values.start_time = values.end_time = values.event_time_range = null;
           return [{ id: l.id, title: l.title, starts_at: l.starts_at, venue_id: l.venue_id, venue_name: v?.name ?? l.venue_name, dj_id: l.dj_id, source: "calendar", values }];
         }
         const e = rows.find((r) => r.id === l.id);

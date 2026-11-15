@@ -53,6 +53,7 @@ import {
 import { ExportStage, FlyerStage, textLayout, type NodePatch } from "./flyer-canvas";
 import { linkedText, linkScene, preflight, resetNode, resolveScene, type Issue, type LinkContext } from "@/lib/flyers/links";
 import { EventPanel, IssuesDialog, SendToVenueDialog } from "./editor-link-panel";
+import { newBadge } from "@/lib/flyers/badges";
 import {
   FOCUS,
   LayersPanel,
@@ -215,6 +216,8 @@ export function FlyerEditor(props: FlyerEditorProps) {
   const [exportJob, setExportJob] = useState<{
     mime: "image/png" | "image/jpeg";
     purpose: "download" | "preview" | "venue";
+    /** 2 = high-resolution PNG (twice the pixels). */
+    scale?: number;
   } | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
   const sendOpts = useRef<{ note: string; replace: boolean }>({ note: "", replace: true });
@@ -347,12 +350,15 @@ export function FlyerEditor(props: FlyerEditorProps) {
               if (n.kind === "text" && n.source != null && "text" in patch && (patch as { text?: string }).text !== n.text) patch.override = true;
               if (n.kind === "image" && n.linked && "source" in patch) patch.override = true;
             }
+            // A new linked wording (e.g. the time's "Start – CLOSE"): fill it from the event straight away.
+            if (mode === "design" && n.kind === "text" && typeof (patch as { source?: unknown }).source === "string" && !("text" in patch) && linkData)
+              (patch as { text?: string }).text = linkedText((patch as { source: string }).source, linkCtxOf(linkData));
             return { ...n, ...patch } as FlyerNode;
           }),
         }),
         key,
       ),
-    [setScene, mode],
+    [setScene, mode, linkData],
   );
   const update = useCallback(
     (id: string, patch: Partial<FlyerNode>, key: string) =>
@@ -360,20 +366,47 @@ export function FlyerEditor(props: FlyerEditorProps) {
     [applyPatches],
   );
 
+  // Groups (date badges): a press on any piece of an unselected group picks the
+  // whole group, so dragging moves it as one. Pressing a group that's already
+  // selected keeps it (drag still moves the group); releasing without dragging
+  // then goes into the group and picks just that piece. Once inside, pressing
+  // another piece of the same group picks that piece.
+  const enterOnClick = useRef<string | null>(null);
   const select = useCallback(
-    (id: string, additive: boolean) => {
+    (id: string, additive: boolean, phase: "down" | "click" | "tap" = "down") => {
       const ids = withGroup(scene.nodes, id);
-      setSelected((cur) =>
-        additive
-          ? ids.every((x) => cur.includes(x))
+      if (phase === "click") {
+        if (enterOnClick.current === id) setSelected([id]);
+        enterOnClick.current = null;
+        return;
+      }
+      setSelected((cur) => {
+        if (additive) {
+          enterOnClick.current = null;
+          return ids.every((x) => cur.includes(x))
             ? cur.filter((x) => !ids.includes(x))
-            : [...new Set([...cur, ...ids])]
-          : ids,
-      );
+            : [...new Set([...cur, ...ids])];
+        }
+        const grouped = ids.length > 1;
+        const wholeGroup = grouped && ids.every((x) => cur.includes(x)) && cur.every((x) => ids.includes(x));
+        const insideGroup = grouped && cur.length > 0 && !wholeGroup && cur.every((x) => ids.includes(x));
+        if (phase === "tap") {
+          enterOnClick.current = null;
+          return wholeGroup || insideGroup ? [id] : ids;
+        }
+        enterOnClick.current = wholeGroup ? id : null;
+        if (wholeGroup) return cur;
+        return insideGroup ? [id] : ids;
+      });
       setReplacing(null);
     },
     [scene.nodes],
   );
+  // The Layers list always picks exactly the layer clicked (a group's pieces included).
+  const selectExact = useCallback((id: string, additive: boolean) => {
+    setSelected((cur) => (additive ? (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]) : [id]));
+    setReplacing(null);
+  }, []);
 
   const selNodes = scene.nodes.filter((n) => selected.includes(n.id));
   const single = selNodes.length === 1 ? selNodes[0] : null;
@@ -652,7 +685,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
   /* ---- linked content (flyers): event, venue, DJ slots ---- */
   const [linkBusy, setLinkBusy] = useState(false);
   const [issues, setIssues] = useState<Issue[] | null>(null);
-  const [pendingJob, setPendingJob] = useState<{ mime: "image/png" | "image/jpeg"; purpose: "download" | "venue" } | null>(null);
+  const [pendingJob, setPendingJob] = useState<{ mime: "image/png" | "image/jpeg"; purpose: "download" | "venue"; scale?: number } | null>(null);
 
   /** New event data in: refill linked layers (layout and overrides untouched). */
   function applyLinkData(c: LinkData, note?: string) {
@@ -705,14 +738,14 @@ export function FlyerEditor(props: FlyerEditorProps) {
     }
     return list;
   }
-  function requestExport(mime: "image/png" | "image/jpeg", purpose: "download" | "venue" = "download") {
+  function requestExport(mime: "image/png" | "image/jpeg", purpose: "download" | "venue" = "download", scale = 1) {
     const found = mode === "design" ? exportIssues() : [];
     if (found.length) {
       setIssues(found);
-      setPendingJob({ mime, purpose });
+      setPendingJob({ mime, purpose, scale });
       return;
     }
-    setExportJob({ mime, purpose });
+    setExportJob({ mime, purpose, scale });
   }
 
   /* ---- export ---- */
@@ -745,7 +778,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
         .replace(/\s+/g, "-")
         .slice(0, 60) || "flyer";
     a.href = url;
-    a.download = `${safe}-${scene.width}x${scene.height}.${job.mime === "image/png" ? "png" : "jpg"}`;
+    a.download = `${safe}-${scene.width * (job.scale ?? 1)}x${scene.height * (job.scale ?? 1)}.${job.mime === "image/png" ? "png" : "jpg"}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -901,9 +934,18 @@ export function FlyerEditor(props: FlyerEditorProps) {
         remove: removeSelected,
         duplicate: duplicateSelected,
         reorder: reorderSel,
+        setLocked: (locked) =>
+          applyPatches(
+            selNodes.filter((n) => mode === "template" || can(n, "move")).map((n) => ({ id: n.id, patch: { locked } })),
+            `lock:${selected.join(",")}`,
+          ),
+        selectionLocked: selNodes.length > 0 && selNodes.every((n) => n.locked),
+        selectionIsGroup: selNodes.length > 1 && !!selNodes[0].groupId && selNodes.every((n) => n.groupId === selNodes[0].groupId),
         openReplace: (id) => {
           setReplacing(id);
-          setLeftTab(mode === "template" ? "assets" : "photos");
+          const target = scene.nodes.find((n) => n.id === id);
+          // Open the tab with pictures of the right kind: DJ photos, logos, or art (badges, overlays, backgrounds).
+          setLeftTab(mode === "template" ? "assets" : target?.role === "portrait" ? "photos" : target?.role === "logo" || target?.role === "dj_logo" ? "logos" : "assets");
           if (!desktop) setDrawer("add");
         },
         resetToEvent: props.link ? resetToEvent : undefined,
@@ -916,7 +958,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
     <LayersPanel
       scene={scene}
       selected={selected}
-      onSelect={select}
+      onSelect={selectExact}
       update={update}
       reorderOne={(id, dir) =>
         setScene((s) => ({ ...s, nodes: reorder(s.nodes, id, dir) }), null)
@@ -945,6 +987,12 @@ export function FlyerEditor(props: FlyerEditorProps) {
         mode,
         addText,
         addPreset,
+        addBadge: (id) => {
+          const nodes = linkNew(newBadge(id, scene));
+          setScene((s) => ({ ...s, nodes: [...s.nodes, ...nodes] }), null);
+          setSelected(nodes.map((n) => n.id));
+          if (!desktop) setDrawer("props");
+        },
         addShape: (k) => {
           addNode(newShape(k, scene));
           if (!desktop) setDrawer("props");
@@ -1046,6 +1094,14 @@ export function FlyerEditor(props: FlyerEditorProps) {
         disabled={!!exportJob}
       >
         <Download size={15} /> PNG
+      </button>
+      <button
+        className={iconBtn}
+        onClick={() => requestExport("image/png", "download", 2)}
+        disabled={!!exportJob}
+        title={`High resolution: ${scene.width * 2} × ${scene.height * 2} px`}
+      >
+        <Download size={15} /> PNG 2×
       </button>
       <button
         className={iconBtn}
@@ -1493,6 +1549,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
             ctx={ctx}
             mime={exportJob.mime}
             quality={0.92}
+            pixelRatio={exportJob.scale ?? 1}
             onDone={finishExport}
           />
         </>

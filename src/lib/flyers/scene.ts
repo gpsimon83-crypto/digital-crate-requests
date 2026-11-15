@@ -258,6 +258,10 @@ const textSchema = z.object({
   source: z.preprocess((v) => (typeof v === "string" ? v.slice(0, MAX_TEXT) : null), z.string().nullable()),
   override: z.preprocess((v) => (typeof v === "boolean" ? v : undefined), z.boolean().optional()),
   hideIfEmpty: z.preprocess((v) => (typeof v === "boolean" ? v : undefined), z.boolean().optional()),
+  valign: z.preprocess((v) => (v === "middle" || v === "bottom" || v === "top" ? v : undefined), z.enum(["top", "middle", "bottom"]).optional()),
+  padding: z.preprocess((v) => (typeof v === "number" && Number.isFinite(v) ? Math.min(400, Math.max(0, v)) : undefined), z.number().optional()),
+  pivot: z.preprocess((v) => (v === "center" || v === "topLeft" ? v : undefined), z.enum(["center", "topLeft"]).optional()),
+  trackingEm: z.preprocess((v) => (typeof v === "number" && Number.isFinite(v) ? Math.min(1, Math.max(-0.3, v)) : null), z.number().nullable().optional()),
   panel: z.preprocess(
     (v) => (v && typeof v === "object" ? v : null),
     z.object({ enabled: bool(false), color: color("#000000"), opacity: num(0, 1, 0.6), padding: num(0, 200, 24), radius: num(0, 400, 12) }).nullable()
@@ -356,6 +360,8 @@ export function tokenLabel(token: string): string {
   const key = canonicalKey(token);
   const dj = key.match(/^dj(\d+)_name$/);
   if (dj) return `DJ ${dj[1]} name`;
+  // Date-badge pieces show the example date until there's an event (a label wouldn't fit the badge).
+  if (BADGE_SAMPLES[key]) return BADGE_SAMPLES[key];
   return (PLACEHOLDERS as Record<string, string>)[key] ?? Object.values(FIELD_TOKENS).find((f) => f.key === key)?.label ?? "";
 }
 
@@ -383,6 +389,22 @@ export function instantiate(scene: Scene, ctx: { values: PlaceholderValues; djId
 }
 
 /** Booking fields as flyer text (Central time unless the booking says otherwise). */
+const MONTHS_SHORT = ["JAN", "FEB", "MAR", "APR", "MAY", "JUNE", "JULY", "AUG", "SEPT", "OCT", "NOV", "DEC"];
+/** Flyer-style month abbreviations (JUNE, JULY, SEPT) from a month number "1"…"12". */
+export function monthShort(n: string | null | undefined): string | null {
+  const i = n ? Number(n) - 1 : -1;
+  return MONTHS_SHORT[i] ?? null;
+}
+
+/** What badge placeholders show before a flyer is linked to an event (the package's default example). */
+export const BADGE_SAMPLES: Record<string, string> = {
+  event_weekday_short: "WED",
+  event_month_short: "NOV",
+  event_day_number: "25",
+  event_month_day: "NOV 25",
+  event_time_range: "9 PM–CLOSE"
+};
+
 export function bookingValues(
   e: { title?: string | null; starts_at?: string | null; ends_at?: string | null; timezone?: string | null; venue_name?: string | null; venue_address?: string | null } | null,
   djName: string
@@ -410,6 +432,13 @@ export function bookingValues(
     event_weekday: part({ weekday: "long" }),
     event_month: part({ month: "short" }),
     event_day: part({ day: "numeric" }),
+    // Date badges: short forms in the event's own time zone (never re-parsed as UTC).
+    event_weekday_short: part({ weekday: "short" })?.toUpperCase() ?? null,
+    event_month_short: monthShort(part({ month: "numeric" })),
+    event_day_number: part({ day: "numeric" }),
+    event_month_day: start ? `${monthShort(part({ month: "numeric" }))} ${part({ day: "numeric" })}` : null,
+    // Start–end only from the event's own times: nothing is invented (no "CLOSE" unless a layer says so).
+    event_time_range: time(e?.starts_at) ? [time(e?.starts_at), time(e?.ends_at)].filter(Boolean).join("–") : null,
     start_time: time(e?.starts_at),
     end_time: time(e?.ends_at),
     venue_name: e?.venue_name?.trim() || null,
@@ -475,7 +504,7 @@ export function withGroup(nodes: FlyerNode[], id: string): string[] {
 /* ---------------- DJ permission check (server side) ---------------- */
 
 const MOVE_KEYS = ["x", "y", "width", "height", "rotation"] as const;
-const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend", "fitBox", "minFontSize", "panel"] as const;
+const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend", "fitBox", "minFontSize", "panel", "valign", "padding", "trackingEm"] as const;
 const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "shadow", "opacity", "blend"] as const;
 const STYLE_KEYS_SHAPE = ["shape", "fillEnabled", "fill", "stroke", "radius", "keepRatio", "shadow", "opacity", "blend"] as const;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
