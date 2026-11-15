@@ -54,7 +54,19 @@ export type SrcContext = {
   values?: import("@/lib/flyers/types").PlaceholderValues;
   /** DJ names by id: a DJ name-logo slot with no logo draws the name instead. */
   djNames?: Record<string, string>;
+  /** Template preview: which DJ shows in DJ slot 1, 2, … and which venue's logo shows. */
+  previewSlots?: (string | null)[];
+  previewVenueId?: string | null;
 };
+
+/** The DJ an image slot shows: its own DJ, else (template preview) the DJ previewed in that slot. */
+export function slotDjId(source: ImageSource, ctx: SrcContext = {}): string | null {
+  if (source.type !== "dj_photo" && source.type !== "dj_logo") return null;
+  if (source.djId) return source.djId;
+  const slot = Math.max(1, source.slot ?? 1);
+  if (ctx.previewSlots) return ctx.previewSlots[slot - 1] ?? null;
+  return ctx.previewDjId ?? null;
+}
 
 /** Same-origin URL for an image source (so the canvas can be exported), or null when there's nothing to show. */
 export function srcFor(source: ImageSource, ctx: SrcContext = {}): string | null {
@@ -64,15 +76,17 @@ export function srcFor(source: ImageSource, ctx: SrcContext = {}): string | null
     case "static":
       return source.src;
     case "dj_photo": {
-      const id = source.djId ?? ctx.previewDjId;
+      const id = slotDjId(source, ctx);
       return id ? `/api/flyers/photo/${id}` : null;
     }
     case "dj_logo": {
-      const id = source.djId ?? ctx.previewDjId;
+      const id = slotDjId(source, ctx);
       return id ? `/api/flyers/dj-logo/${id}` : null;
     }
-    case "venue_logo":
-      return source.venueId ? `/api/flyers/venue-logo/${source.venueId}` : null;
+    case "venue_logo": {
+      const id = source.venueId ?? ctx.previewVenueId ?? null;
+      return id ? `/api/flyers/venue-logo/${id}` : null;
+    }
     default:
       return null;
   }

@@ -9,7 +9,7 @@ import { boundsOf, snapBox, type Guide } from "@/lib/flyers/snap";
 import { needsProcessing, processedImage } from "@/lib/flyers/feather";
 import { shownByData } from "@/lib/flyers/links";
 import type { FlyerNode, ImageNode, Scene, TextNode } from "@/lib/flyers/types";
-import { fontString, loadSceneFonts, loadSceneImages, srcFor, useImage, type SrcContext } from "./loaders";
+import { fontString, loadSceneFonts, loadSceneImages, slotDjId, srcFor, useImage, type SrcContext } from "./loaders";
 
 export type NodePatch = { id: string; patch: Partial<FlyerNode> };
 
@@ -92,11 +92,11 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
           />
         )}
       </Group>
-      {!img && status !== "loading" && node.source.type === "dj_logo" && (node.source.djId || ctx.previewDjId) && (
+      {!img && status !== "loading" && node.source.type === "dj_logo" && slotDjId(node.source, ctx) && (
         // No name logo uploaded/approved: the DJ's display name as styled text (this is real content, so it exports).
-        <NameFallback node={node} name={ctx.djNames?.[(node.source.djId ?? ctx.previewDjId)!] ?? "DJ NAME"} />
+        <NameFallback node={node} name={ctx.djNames?.[slotDjId(node.source, ctx)!] ?? "DJ NAME"} />
       )}
-      {!img && !exporting && !(node.source.type === "dj_logo" && status !== "loading" && (node.source.djId || ctx.previewDjId)) && (
+      {!img && !exporting && !(node.source.type === "dj_logo" && status !== "loading" && slotDjId(node.source, ctx)) && (
         <>
           <Rect width={node.width} height={node.height} cornerRadius={r} fill="rgba(255,255,255,0.06)" stroke="rgba(229,182,71,0.85)" strokeWidth={3} dash={[14, 10]} listening={false} />
           <KText

@@ -93,9 +93,19 @@ export default function FlyerEditPage() {
         setRev((x) => x + 1);
         return null;
       },
-      onExported: data.linksReady ? () => void patch({ exported: true }) : undefined
+      onExported: data.linksReady ? () => void patch({ exported: true }) : undefined,
+      designId: data.design.id,
+      sendToVenue: async (png, o) => {
+        const fd = new FormData();
+        fd.append("file", new File([png], "flyer.png", { type: "image/png" }));
+        if (o.note.trim()) fd.append("note", o.note.trim());
+        if (o.replace) fd.append("replace", "1");
+        const r = await fetch(`/api/flyers/designs/${id}/send`, { method: "POST", body: fd });
+        const j = await r.json().catch(() => ({}));
+        return r.ok ? { ok: true, message: `Sent to ${j.venue?.name ?? "the venue"}'s portal. They can download it as PNG or JPEG.` } : { ok: false, message: j.error ?? "Couldn't send it to the venue." };
+      }
     };
-  }, [data, patch, fetchDesign]);
+  }, [data, patch, fetchDesign, id]);
 
   const save = useCallback(
     async (scenes: Scenes, title: string): Promise<SaveResult> => {

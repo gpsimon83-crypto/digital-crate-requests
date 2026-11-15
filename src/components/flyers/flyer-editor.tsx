@@ -16,6 +16,7 @@ import {
   Redo2,
   Ruler,
   Save,
+  Send,
   SlidersHorizontal,
   Undo2,
   X,
@@ -50,7 +51,7 @@ import {
 } from "@/lib/flyers/types";
 import { ExportStage, FlyerStage, textLayout, type NodePatch } from "./flyer-canvas";
 import { linkedText, linkScene, preflight, resetNode, resolveScene, type Issue, type LinkContext } from "@/lib/flyers/links";
-import { EventPanel, IssuesDialog } from "./editor-link-panel";
+import { EventPanel, IssuesDialog, SendToVenueDialog } from "./editor-link-panel";
 import {
   FOCUS,
   LayersPanel,
@@ -80,7 +81,7 @@ export type LinkData = {
   hasEvent: boolean;
 };
 export type FlyerDjInfo = { id: string; display_name: string; has_photo: boolean; has_cutout: boolean; has_logo: boolean; role: string };
-export type EventOpt = { id: string; title: string | null; starts_at: string | null; venue_id: string | null; venue_name: string | null; dj_id: string | null };
+export type EventOpt = { id: string; title: string | null; starts_at: string | null; venue_id: string | null; venue_name: string | null; dj_id: string | null; source?: "event" | "calendar"; dj_name?: string | null };
 export type LinkProps = {
   context: LinkData;
   events: EventOpt[];
@@ -97,6 +98,10 @@ export type LinkProps = {
   /** Switch this flyer to another template's layout (the page reloads the flyer). */
   applyTemplate: (templateId: string) => Promise<string | null>;
   onExported?: () => void;
+  /** This flyer's id (for its venue-portal copies). */
+  designId: string;
+  /** Upload the rendered PNG to the venue's portal. */
+  sendToVenue?: (png: Blob, opts: { note: string; replace: boolean }) => Promise<{ ok: boolean; message: string }>;
 };
 
 export type FlyerEditorProps = {
@@ -126,6 +131,10 @@ export type FlyerEditorProps = {
   onSaveReady?: (saveNow: () => Promise<boolean>) => void;
   /** Flyers (design mode): the event / venue / DJs its linked layers follow. */
   link?: LinkProps;
+  /** Template mode: preview with a real event / venue and chosen DJs (display only, never saved). */
+  preview?: { values: PlaceholderValues; slots: (string | null)[]; venueId: string | null } | null;
+  /** Template mode: the controls that choose that preview (shown in the sizes bar). */
+  previewBar?: React.ReactNode;
 };
 
 const linkCtxOf = (c: LinkData): LinkContext => ({ values: c.values, slots: c.slots, venueId: c.venue?.id ?? null, hasEvent: c.hasEvent });
@@ -204,8 +213,10 @@ export function FlyerEditor(props: FlyerEditorProps) {
   const [shared, setShared] = useState<Asset[]>(props.shared);
   const [exportJob, setExportJob] = useState<{
     mime: "image/png" | "image/jpeg";
-    purpose: "download" | "preview";
+    purpose: "download" | "preview" | "venue";
   } | null>(null);
+  const [sendOpen, setSendOpen] = useState(false);
+  const sendOpts = useRef<{ note: string; replace: boolean }>({ note: "", replace: true });
   const [preview, setPreview] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [previewDjId, setPreviewDjId] = useState<string | null>(
@@ -221,16 +232,24 @@ export function FlyerEditor(props: FlyerEditorProps) {
   const scenes = hist.present;
   const scene = scenes[active] ?? emptyScene(active);
   const zoom = zoomMode === "fit" ? fitZoom : zoomMode;
+  // Template preview text: the sample wording, with real values from a chosen event / venue / DJs on top.
+  const previewValues = useMemo(() => {
+    if (mode !== "template" || !sampleText || !props.sampleValues) return undefined;
+    const real = Object.fromEntries(Object.entries(props.preview?.values ?? {}).filter(([, v]) => v != null && v !== ""));
+    return { ...props.sampleValues, ...real } as PlaceholderValues;
+  }, [mode, sampleText, props.sampleValues, props.preview]);
   const ctx: SrcContext = useMemo(() => {
     const names: Record<string, string> = {};
     for (const d of props.previewDjs ?? []) names[d.id] = d.display_name;
     for (const d of linkData?.djs ?? []) names[d.id] = d.display_name;
     return {
       previewDjId: mode === "template" ? previewDjId : null,
-      values: mode === "template" ? (sampleText ? props.sampleValues : undefined) : linkData?.values,
+      previewSlots: mode === "template" && props.preview ? props.preview.slots : undefined,
+      previewVenueId: mode === "template" ? (props.preview?.venueId ?? null) : null,
+      values: mode === "template" ? previewValues : linkData?.values,
       djNames: names
     };
-  }, [mode, previewDjId, linkData, sampleText, props.sampleValues, props.previewDjs]);
+  }, [mode, previewDjId, linkData, previewValues, props.previewDjs, props.preview]);
 
   /* ---- permissions ---- */
   const can = useCallback(
@@ -632,7 +651,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
   /* ---- linked content (flyers): event, venue, DJ slots ---- */
   const [linkBusy, setLinkBusy] = useState(false);
   const [issues, setIssues] = useState<Issue[] | null>(null);
-  const [pendingMime, setPendingMime] = useState<"image/png" | "image/jpeg" | null>(null);
+  const [pendingJob, setPendingJob] = useState<{ mime: "image/png" | "image/jpeg"; purpose: "download" | "venue" } | null>(null);
 
   /** New event data in: refill linked layers (layout and overrides untouched). */
   function applyLinkData(c: LinkData, note?: string) {
@@ -685,14 +704,14 @@ export function FlyerEditor(props: FlyerEditorProps) {
     }
     return list;
   }
-  function requestExport(mime: "image/png" | "image/jpeg") {
+  function requestExport(mime: "image/png" | "image/jpeg", purpose: "download" | "venue" = "download") {
     const found = mode === "design" ? exportIssues() : [];
     if (found.length) {
       setIssues(found);
-      setPendingMime(mime);
+      setPendingJob({ mime, purpose });
       return;
     }
-    setExportJob({ mime, purpose: "download" });
+    setExportJob({ mime, purpose });
   }
 
   /* ---- export ---- */
@@ -706,6 +725,15 @@ export function FlyerEditor(props: FlyerEditorProps) {
         if (old) URL.revokeObjectURL(old);
         return url;
       });
+      return;
+    }
+    if (job.purpose === "venue") {
+      // The same PNG an export makes, sent to the venue's portal.
+      URL.revokeObjectURL(url);
+      const send = props.link?.sendToVenue;
+      if (!send) return;
+      setNotice("Sending to the venue…");
+      void send(blob, sendOpts.current).then((r) => setNotice(r.message));
       return;
     }
     const a = document.createElement("a");
@@ -730,16 +758,16 @@ export function FlyerEditor(props: FlyerEditorProps) {
 
   // Template mode shows sample wording in place of placeholders (display only).
   const displayScene = useMemo(() => {
-    if (mode !== "template" || !sampleText || !props.sampleValues) return scene;
+    if (mode !== "template" || !previewValues) return scene;
     return {
       ...scene,
       nodes: scene.nodes.map((n) =>
         n.kind === "text"
-          ? { ...n, text: linkedText(n.text, { values: props.sampleValues!, slots: [], venueId: null, hasEvent: false }) }
+          ? { ...n, text: linkedText(n.text, { values: previewValues, slots: [], venueId: null, hasEvent: false }) }
           : n,
       ),
     };
-  }, [scene, mode, sampleText, props.sampleValues]);
+  }, [scene, mode, previewValues]);
 
   /* ---- template sizes ---- */
   function addFormat(f: FormatKey, copyFrom: FormatKey | null) {
@@ -1021,6 +1049,11 @@ export function FlyerEditor(props: FlyerEditorProps) {
       >
         <Download size={15} /> JPEG
       </button>
+      {props.link?.sendToVenue && (
+        <button className={iconBtn} onClick={() => setSendOpen(true)} disabled={!!exportJob}>
+          <Send size={15} /> Send to venue
+        </button>
+      )}
     </>
   );
 
@@ -1155,7 +1188,8 @@ export function FlyerEditor(props: FlyerEditorProps) {
               />{" "}
               Show sample text
             </label>
-            {props.previewDjs && (
+            {props.previewBar}
+            {props.previewDjs && !props.previewBar && (
               <label className="flex items-center gap-1.5">
                 Photo preview
                 <select
@@ -1406,6 +1440,18 @@ export function FlyerEditor(props: FlyerEditorProps) {
           </div>
         </div>
       )}
+      {sendOpen && props.link && (
+        <SendToVenueDialog
+          designId={props.link.designId}
+          venueName={linkData?.venue?.name ?? null}
+          onClose={() => setSendOpen(false)}
+          onSend={(o) => {
+            sendOpts.current = o;
+            setSendOpen(false);
+            requestExport("image/png", "venue");
+          }}
+        />
+      )}
       {issues && (
         <IssuesDialog
           issues={issues}
@@ -1417,7 +1463,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
           onCancel={() => setIssues(null)}
           onExport={() => {
             setIssues(null);
-            if (pendingMime) setExportJob({ mime: pendingMime, purpose: "download" });
+            if (pendingJob) setExportJob(pendingJob);
           }}
         />
       )}
@@ -1432,7 +1478,9 @@ export function FlyerEditor(props: FlyerEditorProps) {
               <Loader2 size={15} className="animate-spin" />{" "}
               {exportJob.purpose === "preview"
                 ? "Rendering preview…"
-                : "Exporting…"}
+                : exportJob.purpose === "venue"
+                  ? "Preparing the flyer for the venue…"
+                  : "Exporting…"}
             </span>
           </div>
           <ExportStage

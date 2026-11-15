@@ -16,7 +16,7 @@ export async function GET() {
     const { data: probe, error } = await db.from("flyer_template_activations").select("id").limit(1);
     void probe;
     // Upcoming events, for picking an event override.
-    const upcoming = await flyerEvents(db, { djId: null, staff: true });
+    const upcoming = await flyerEvents(db, { djId: null, staff: true, calendar: false });
     return NextResponse.json({ activations: acts, events: ev ?? [], upcoming, ready: !error });
   } catch (err) {
     return flyerError(err);

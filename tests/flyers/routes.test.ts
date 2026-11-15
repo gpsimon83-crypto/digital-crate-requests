@@ -46,6 +46,17 @@ function query(table: string) {
     in: (k: string, v: unknown[]) => (filters.push((r) => v.includes(r[k])), q),
     neq: (k: string, v: unknown) => (filters.push((r) => r[k] !== v), q),
     is: (k: string, v: unknown) => (filters.push((r) => (r[k] ?? null) === v), q),
+    lt: (k: string, v: string) => (filters.push((r) => String(r[k] ?? "") < v), q),
+    // PostgREST "a.ilike.*x*,b.ilike.*y*": any of them.
+    or: (expr: string) => (
+      filters.push((r) =>
+        expr.split(",").some((part) => {
+          const m = /^(\w+)\.ilike\.\*(.*)\*$/.exec(part);
+          return !!m && String(r[m[1]] ?? "").toLowerCase().includes(m[2].toLowerCase());
+        })
+      ),
+      q
+    ),
     gte: (k: string, v: string) => (filters.push((r) => String(r[k] ?? "") >= v), q),
     contains: (k: string, v: unknown) => (filters.push((r) => jsonContains(r[k], v)), q),
     order: () => q,
@@ -502,3 +513,89 @@ describe("reusing images already uploaded", () => {
     expect((await POST(req("/api/flyers/assets/copy", { method: "POST", body: { sourceIds: [sharedAsset], djId: randomUUID() } }))).status).toBe(404);
   });
 });
+
+/* ---------- calendar venue nights, weddings, sending to the venue portal ---------- */
+describe("flyers for Google Calendar venue nights and the venue portal", () => {
+  const V = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+  const VENUE_USER = "user-venue";
+  const asVenue = () => (user = { id: VENUE_USER, app_metadata: { role: "venue" } });
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() + 5 * 86400000));
+  beforeEach(() => {
+    Object.assign(db.venues[0], { portal_enabled: true, is_active: true, calendar_names: ["Kyotes"], recurring_nights: [{ day: new Date(`${today}T12:00:00Z`).getUTCDay(), label: "Kyotes Thursday", start: "21:30", end: "01:00" }], locations: [] });
+    db.calendar_dj_names = [{ id: "m1", calendar_name: "Peace", display_name: "DJ Peace" }];
+    // An all-day calendar entry "Kyotes - Peace" five days from now.
+    db.external_calendar_busy_blocks = [{ google_event_id: "g-123", summary: "Kyotes - Peace", starts_at: `${today}T00:00:00Z`, ends_at: new Date(Date.parse(`${today}T00:00:00Z`) + 86400000).toISOString() }];
+    db.venue_managers = [{ id: "vm1", venue_id: V, user_id: VENUE_USER, is_active: true }];
+    db.venue_flyers = [];
+    for (const d of db.flyer_designs) Object.assign(d, { venue_id: null, dj_slots: null, exported_at: null, calendar_night: null });
+    // A wedding: never offered for flyers.
+    db.events.push({ id: randomUUID(), dj_id: DJ_A, title: "Smith Wedding", starts_at: "2026-12-05T22:00:00Z", ends_at: null, timezone: null, venue_id: null, venue_name: "Barn", status: "confirmed", event_category: "wedding", venues: null });
+  });
+
+  it("lists venue nights from the calendar (with the DJ and the venue's usual hours) and leaves weddings out", async () => {
+    const { flyerEvents } = await import("@/lib/flyers/data");
+    const staffList = await flyerEvents(createAdminClientForTest(), { djId: null, staff: true });
+    expect(staffList.some((e) => e.title === "Smith Wedding")).toBe(false);
+    const night = staffList.find((e) => e.source === "calendar")!;
+    expect(night).toMatchObject({ venue_id: V, venue_name: "Kyote's Bar N Grill", dj_id: DJ_B, dj_name: "DJ Peace", title: "Kyotes Thursday", date: today });
+    expect(new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hour: "numeric", minute: "2-digit" }).format(new Date(night.starts_at!))).toBe("9:30 PM");
+    // DJ Peace sees their night; DJ Que doesn't.
+    expect((await flyerEvents(createAdminClientForTest(), { djId: DJ_B, staff: false })).some((e) => e.id === night.id)).toBe(true);
+    expect((await flyerEvents(createAdminClientForTest(), { djId: DJ_A, staff: false })).some((e) => e.id === night.id)).toBe(false);
+  });
+
+  it("links a flyer to a calendar night, fills it, and sends the PNG to that venue's portal only", async () => {
+    const { flyerEvents } = await import("@/lib/flyers/data");
+    const night = (await flyerEvents(createAdminClientForTest(), { djId: null, staff: true })).find((e) => e.source === "calendar")!;
+    const { PATCH } = await designRoute();
+    asA();
+    // DJ Que isn't on that night.
+    expect((await PATCH(req(`/api/flyers/designs/${designA}`, { method: "PATCH", body: { eventId: night.id } }), p({ id: designA }))).status).toBe(403);
+    asStaff();
+    const r = await json(await PATCH(req(`/api/flyers/designs/${designA}`, { method: "PATCH", body: { eventId: night.id } }), p({ id: designA })));
+    expect(r.status).toBe(200);
+    expect(r.body.context.values).toMatchObject({ venue_name: "Kyote's Bar N Grill", dj_name: "DJ Peace", start_time: "9:30 PM", end_time: "1 AM", event_title: "Kyotes Thursday" });
+    expect(r.body.context.slots[0]).toBe(DJ_B);
+
+    // Send it: a real PNG, stored, listed for the venue, downloadable by its manager.
+    const send = await import("@/app/api/flyers/designs/[id]/send/route");
+    const fd = new FormData();
+    fd.append("file", new File([tinyPng() as BlobPart], "flyer.png", { type: "image/png" }));
+    fd.append("note", "Post Thursday");
+    const sent = await json(await send.POST(req(`/api/flyers/designs/${designA}/send`, { method: "POST", form: fd }), p({ id: designA })));
+    expect(sent.status).toBe(200);
+    expect(sent.body.venue.id).toBe(V);
+    const row = db.venue_flyers[0];
+    row.hidden ??= false; // the column default in Postgres
+    expect(row).toMatchObject({ venue_id: V, design_id: designA, night_date: today, note: "Post Thursday", width: 1080, height: 1350 });
+    expect(db.flyer_designs.find((d) => d.id === designA)!.exported_at).toBeTruthy();
+
+    const list = await import("@/app/api/venue/flyers/route");
+    const img = await import("@/app/api/venue/flyers/[id]/route");
+    asVenue();
+    const l = await json(await list.GET(req(`/api/venue/flyers?venue=${V}`)));
+    expect(l.body.flyers.map((f: { id: string }) => f.id)).toEqual([row.id]);
+    const got = await img.GET(req(`/api/venue/flyers/${row.id}?download=1`), p({ id: row.id as string }));
+    expect(got.status).toBe(200);
+    expect(got.headers.get("content-disposition")).toContain(".png");
+    // Another venue's manager can't see it.
+    db.venue_managers = [{ id: "vm2", venue_id: randomUUID(), user_id: VENUE_USER, is_active: true }];
+    expect((await img.GET(req(`/api/venue/flyers/${row.id}`), p({ id: row.id as string }))).status).not.toBe(200);
+    // A DJ can't send another DJ's flyer.
+    asB();
+    expect((await send.POST(req(`/api/flyers/designs/${designA}/send`, { method: "POST", form: fd }), p({ id: designA }))).status).toBe(404);
+  });
+});
+
+function tinyPng(): Uint8Array {
+  // A 1080x1350 PNG (one color, so it stays small).
+  return Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAABDgAAAVGCAIAAAD0LZzdAAAX9UlEQVR42u3XoQEAMAjAsDGJRvP/mbyARCQn1DUq+wEAAFzyJQAAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQkAAAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAABgVCQAAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAGBUJAAAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQkAAAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAAIwKAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAACAUQEAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAADAqAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAARgUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAMCoAAAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAGBUAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACjAgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAYFQAAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAGBUAAAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAjAoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAIBRAQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAMCoAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAABGBQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAwKgAAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAAAYFQAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAKMCAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAABgVAAAAIwKAABgVCQAAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAACMCgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAgFEBAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAAAwKgAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAAEYFAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAADAqAAAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAABgVAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAowIAAGBUAAAAjAoAAGBUAAAAtgaDAQrIU1XttgAAAABJRU5ErkJggg==", "base64"));
+}
+async function createAdminClientForTestAsync() {
+  return (await import("@/lib/supabase/admin")).createAdminClient();
+}
+void createAdminClientForTestAsync;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function createAdminClientForTest(): any {
+  return { from: (t: string) => query(t), storage: { from: () => ({}) } };
+}

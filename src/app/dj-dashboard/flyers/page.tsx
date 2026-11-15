@@ -13,7 +13,7 @@ import { FORMATS, FORMAT_KEYS, type FormatKey, type PlaceholderValues, type Scen
 
 type Template = { id: string; name: string; description: string | null; venue_id: string | null; venue_name: string | null; version: number; content: TemplateContent };
 type Design = { id: string; dj_id: string; title: string; format: FormatKey; scene: Scene; updated_at: string; djs?: { display_name: string } | null };
-type Booking = { id: string; title: string | null; starts_at: string | null; venue_id: string | null; venue_name: string | null; dj_id?: string | null; values: PlaceholderValues };
+type Booking = { id: string; title: string | null; starts_at: string | null; venue_id: string | null; venue_name: string | null; dj_id?: string | null; source?: "event" | "calendar"; values: PlaceholderValues };
 type Boot = {
   me: { staff: boolean; dj: { id: string; display_name: string; has_photo: boolean } | null };
   templates: Template[];
@@ -209,11 +209,22 @@ function StartDialog({ data, initialEvent, onClose, onCreated }: { data: Boot; i
                 <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">{staffOnly ? "Event" : "Booking"} (recommended)</span>
                 <select className={field} value={eventId} onChange={(e) => setEventId(e.target.value)}>
                   <option value="">No event: I&apos;ll type the details</option>
-                  {shownEvents.map((e) => (
-                    <option key={e.id} value={e.id}>
-                      {[e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : null, e.title, e.venue_name].filter(Boolean).join(" · ")}
-                    </option>
-                  ))}
+                  {(
+                    [
+                      ["Bookings", shownEvents.filter((e) => e.source !== "calendar")],
+                      ["Venue nights (Google Calendar)", shownEvents.filter((e) => e.source === "calendar")]
+                    ] as const
+                  ).map(([label, list]) =>
+                    list.length ? (
+                      <optgroup key={label} label={label}>
+                        {list.map((e) => (
+                          <option key={e.id} value={e.id}>
+                            {[e.starts_at ? new Date(e.starts_at).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "America/Chicago" }) : null, e.source === "calendar" ? e.venue_name : e.title, e.source === "calendar" ? e.title : e.venue_name].filter(Boolean).join(" · ")}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ) : null
+                  )}
                 </select>
                 <span className="mt-1 flex items-center gap-1 text-[11px] text-muted">
                   <CalendarClock size={11} /> The event&apos;s venue, DJs, date, time and drink specials fill in and stay up to date. Editing the flyer never changes the event.

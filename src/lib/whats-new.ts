@@ -19,6 +19,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-15-flyers-calendar-and-venue-portal",
+    date: "2026-11-15",
+    area: "CRM",
+    title: "Flyers for calendar nights, live template previews, and sending flyers to venues",
+    summary: "Start a flyer from any venue night on the Google Calendar, preview templates with a real night and real DJs, and send finished flyers straight to the venue's portal.",
+    bullets: [
+      "New flyer and the editor's Event tab now list Venue nights (Google Calendar) as well as bookings, with the DJ named on the calendar and the venue's usual hours",
+      "Weddings no longer appear in flyer event lists",
+      "Template editor: “Preview with” any venue, booking or calendar night, and pick DJ 1 and DJ 2 to see their cutouts and name logos (or their name when there's no logo). Preview only: nothing is saved into the template",
+      "Send to venue: from the flyer editor, send the finished flyer (identical to the PNG export) to the venue's portal with an optional note; replace or remove earlier copies",
+      "Venue portal: new Flyers section where the venue views and downloads each flyer as PNG or JPEG",
+      "Flyers stay fully editable after sending; send again to update the venue's copy"
+    ],
+    action: "Run supabase/migrations/0053_flyer_calendar_nights.sql in Supabase (SQL editor) to turn on calendar-night flyers and sending to venues."
+  },
+  {
     id: "2026-11-15-flyers-linked-to-events",
     date: "2026-11-15",
     area: "CRM",

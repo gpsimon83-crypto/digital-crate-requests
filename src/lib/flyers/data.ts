@@ -1,6 +1,7 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { bookingValues } from "./scene";
 import type { PlaceholderValues } from "./types";
+import { calendarNights, chicagoInstant, type CalendarNightRef } from "./calendar-nights";
 
 type Db = ReturnType<typeof createAdminClient>;
 
@@ -76,15 +77,22 @@ async function djInfo(db: Db, ids: string[]): Promise<Map<string, Omit<FlyerDj, 
  * and the night's drink specials, and works out every placeholder value.
  * Only reads: nothing here changes the event, venue or DJ records.
  */
-export async function loadFlyerContext(db: Db, opts: { eventId: string | null; venueId?: string | null; djSlots?: (string | null)[] | null; fallbackDjId?: string | null }): Promise<FlyerContext> {
-  const event = opts.eventId ? await loadEvent(db, opts.eventId) : null;
+export async function loadFlyerContext(db: Db, opts: { eventId: string | null; venueId?: string | null; djSlots?: (string | null)[] | null; fallbackDjId?: string | null; calendarNight?: CalendarNightRef | null }): Promise<FlyerContext> {
+  const loaded = opts.eventId ? await loadEvent(db, opts.eventId) : null;
+  // A venue night from the Google Calendar stands in for an event (read only, like events).
+  const night = !loaded && opts.calendarNight ? opts.calendarNight : null;
+  const event: EventRow | null =
+    loaded ??
+    (night
+      ? { id: night.id, title: night.title, starts_at: night.starts_at, ends_at: night.ends_at, timezone: "America/Chicago", dj_id: night.dj_id, venue_id: night.venue_id, venue_name: night.venue_name, status: "confirmed", venues: null }
+      : null);
   const venueId = event?.venue_id ?? opts.venueId ?? null;
 
   // The event's DJs: lead (events.dj_id), then any extra crew on the event.
   const crew: { dj_id: string; role: string }[] = [];
   if (event?.dj_id) crew.push({ dj_id: event.dj_id, role: "lead_dj" });
-  if (event) {
-    const { data } = await db.from("event_staff_assignments").select("dj_id, role, status, created_at").eq("event_id", event.id).order("created_at");
+  if (loaded) {
+    const { data } = await db.from("event_staff_assignments").select("dj_id, role, status, created_at").eq("event_id", loaded.id).order("created_at");
     for (const r of (data ?? []) as { dj_id: string; role: string; status: string }[]) if (r.status !== "declined" && !crew.some((c) => c.dj_id === r.dj_id)) crew.push({ dj_id: r.dj_id, role: r.role });
   }
   if (!event && opts.fallbackDjId) crew.push({ dj_id: opts.fallbackDjId, role: "lead_dj" });
@@ -106,7 +114,7 @@ export async function loadFlyerContext(db: Db, opts: { eventId: string | null; v
   // Drink specials: the night's own (venue_night_plans), else the venue's default list.
   let drink: FlyerContext["drinkSpecials"] = { text: null, from: null };
   let occasion: string | null = null;
-  const date = eventDate(event);
+  const date = night ? night.date : eventDate(event);
   if (venueId && date) {
     const { data } = await db.from("venue_night_plans").select("drink_specials, occasion, location_id").eq("venue_id", venueId).eq("night_date", date);
     const rows = ((data ?? []) as { drink_specials: string | null; occasion: string | null; location_id?: string | null }[]).sort((a, b) => Number(!!a.location_id) - Number(!!b.location_id));
@@ -117,8 +125,15 @@ export async function loadFlyerContext(db: Db, opts: { eventId: string | null; v
   if (!drink.text && venue?.default_drink_specials) drink = { text: venue.default_drink_specials, from: "venue" };
 
   const slotDjs = slots.map((id) => (id ? withRole(id) : null));
+  // A calendar night with no hours still has its date.
+  const forValues = night && !night.starts_at ? { ...event!, starts_at: chicagoInstant(night.date, "12:00") } : event;
+  const base = eventValues(forValues ? { ...forValues, venues: venue } : null, slotDjs[0]?.display_name ?? "");
+  if (night && !night.starts_at) {
+    base.start_time = null;
+    base.end_time = null;
+  }
   const values: PlaceholderValues = {
-    ...eventValues(event ? { ...event, venues: venue } : null, slotDjs[0]?.display_name ?? ""),
+    ...base,
     venue_name: venue?.name ?? event?.venue_name ?? null,
     venue_address: venueAddress(venue),
     drink_specials: drink.text,
@@ -127,7 +142,8 @@ export async function loadFlyerContext(db: Db, opts: { eventId: string | null; v
   slotDjs.forEach((d, i) => {
     if (i > 0) values[`dj${i + 1}_name`] = d?.display_name ?? null;
   });
-  if (!slotDjs[0]) values.dj_name = null;
+  // The calendar names a DJ who has no CRM profile yet: their name still fills the text.
+  if (!slotDjs[0]) values.dj_name = !opts.djSlots?.length && night?.dj_name && !night.dj_id ? night.dj_name : null;
 
   return {
     event: event ? { id: event.id, title: event.title, starts_at: event.starts_at, venue_id: event.venue_id, venue_name: venue?.name ?? event.venue_name } : null,
@@ -149,8 +165,18 @@ export async function djOnEvent(db: Db, eventId: string, djId: string): Promise<
   return ((data ?? []) as { status: string }[]).some((r) => r.status !== "declined");
 }
 
-/** Events a flyer can be linked to: a DJ's own (lead or crew); staff see every upcoming event. */
-export async function flyerEvents(db: Db, opts: { djId: string | null; staff: boolean; include?: string | null }) {
+/** Event types that never get flyers (private client events). */
+const NO_FLYER = new Set(["wedding", "consultation"]);
+
+export type FlyerEventOpt = { id: string; title: string | null; starts_at: string | null; venue_id: string | null; venue_name: string | null; dj_id: string | null; source: "event" | "calendar"; date?: string; dj_name?: string | null; ends_at?: string | null; timed?: boolean };
+
+/**
+ * What a flyer can be made for: CRM events (not weddings) and venue nights
+ * from the Google Calendar. A DJ sees their own (lead or crew, or named on
+ * the calendar night); staff see everything upcoming. `include` keeps the
+ * flyer's current event or night in the list.
+ */
+export async function flyerEvents(db: Db, opts: { djId: string | null; staff: boolean; include?: string | null; calendar?: boolean }): Promise<FlyerEventOpt[]> {
   const since = new Date(Date.now() - 3 * 86400_000).toISOString();
   let ids: string[] | null = null;
   if (!opts.staff) {
@@ -159,16 +185,26 @@ export async function flyerEvents(db: Db, opts: { djId: string | null; staff: bo
     const { data: crew } = await db.from("event_staff_assignments").select("event_id, status").eq("dj_id", opts.djId);
     ids = [...new Set([...((lead ?? []) as { id: string }[]).map((r) => r.id), ...((crew ?? []) as { event_id: string; status: string }[]).filter((r) => r.status !== "declined").map((r) => r.event_id)])];
   }
-  let q = db.from("events").select("id, title, starts_at, timezone, status, venue_id, venue_name, dj_id, venues(name)").gte("starts_at", since).order("starts_at").limit(300);
+  let q = db.from("events").select("id, title, starts_at, timezone, status, event_category, venue_id, venue_name, dj_id, venues(name)").gte("starts_at", since).order("starts_at").limit(300);
   if (ids) q = q.in("id", ids.length ? ids : ["00000000-0000-0000-0000-000000000000"]);
   const { data } = await q;
-  let rows = ((data ?? []) as unknown as { id: string; title: string | null; starts_at: string | null; status: string | null; venue_id: string | null; venue_name: string | null; dj_id: string | null; venues: { name: string } | { name: string }[] | null }[]).filter((e) => e.status !== "declined" && e.status !== "cancelled");
-  if (opts.include && !rows.some((r) => r.id === opts.include)) {
+  type Row = { id: string; title: string | null; starts_at: string | null; status: string | null; event_category?: string | null; venue_id: string | null; venue_name: string | null; dj_id: string | null; venues: { name: string } | { name: string }[] | null };
+  let rows = ((data ?? []) as unknown as Row[]).filter((e) => e.status !== "declined" && e.status !== "cancelled" && e.status !== "inquiry" && !NO_FLYER.has(String(e.event_category ?? "")));
+  if (opts.include && !opts.include.startsWith("cal:") && !rows.some((r) => r.id === opts.include)) {
     const extra = await loadEvent(db, opts.include);
     if (extra) rows = [{ ...extra, venues: extra.venues ? { name: extra.venues.name } : null }, ...rows];
   }
-  return rows.map((e) => {
+  const events: FlyerEventOpt[] = rows.map((e) => {
     const v = Array.isArray(e.venues) ? e.venues[0] : e.venues;
-    return { id: e.id, title: e.title, starts_at: e.starts_at, venue_id: e.venue_id, venue_name: v?.name ?? e.venue_name ?? null, dj_id: e.dj_id };
+    return { id: e.id, title: e.title, starts_at: e.starts_at, venue_id: e.venue_id, venue_name: v?.name ?? e.venue_name ?? null, dj_id: e.dj_id, source: "event" as const, date: e.starts_at ? (eventDate({ starts_at: e.starts_at }) ?? undefined) : undefined };
   });
+  if (opts.calendar === false) return events;
+
+  // Venue nights on the Google Calendar, unless a CRM event already covers that venue and date.
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const nights = await calendarNights(db, { fromDate: today, months: 3 }).catch(() => []);
+  const covered = new Set(events.map((e) => `${e.venue_id}|${e.date}`));
+  const mine = nights.filter((n) => (opts.staff || (opts.djId && n.dj_id === opts.djId) || n.id === opts.include) && !covered.has(`${n.venue_id}|${n.date}`));
+  const cal: FlyerEventOpt[] = mine.map((n) => ({ id: n.id, title: n.title, starts_at: n.starts_at ?? chicagoInstant(n.date, "12:00"), venue_id: n.venue_id, venue_name: n.venue_name, dj_id: n.dj_id, source: "calendar", date: n.date, dj_name: n.dj_name, ends_at: n.ends_at, timed: !!n.starts_at }));
+  return [...events, ...cal].sort((a, b) => (a.starts_at ?? "").localeCompare(b.starts_at ?? ""));
 }

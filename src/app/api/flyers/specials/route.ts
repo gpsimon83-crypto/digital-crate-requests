@@ -3,6 +3,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { flyerActor, flyerError, setupMissing, uuidOk } from "@/lib/flyers/server";
 import { eventDate, loadEvent } from "@/lib/flyers/data";
 import { cleanPlanText, PLAN_LIMITS } from "@/lib/venue/night-plans";
+import { parseCalendarKey } from "@/lib/flyers/calendar-nights";
+
+/** The venue and date behind a CRM event id or a calendar night key. */
+async function nightOf(db: ReturnType<typeof createAdminClient>, id: string): Promise<{ venue_id: string | null; date: string | null } | null> {
+  const cal = parseCalendarKey(id);
+  if (cal) return { venue_id: cal.venueId, date: cal.date };
+  if (!uuidOk(id)) return null;
+  const ev = await loadEvent(db, id);
+  return ev ? { venue_id: ev.venue_id, date: eventDate(ev) } : null;
+}
 
 /**
  * An event's drink specials. The night's own list lives in
@@ -14,12 +24,12 @@ export async function GET(req: NextRequest) {
   const actor = await flyerActor();
   if (actor instanceof NextResponse) return actor;
   const eventId = req.nextUrl.searchParams.get("event");
-  if (!uuidOk(eventId)) return NextResponse.json({ error: "Choose an event." }, { status: 400 });
+  if (!eventId) return NextResponse.json({ error: "Choose an event." }, { status: 400 });
   try {
     const db = createAdminClient();
-    const ev = await loadEvent(db, eventId);
+    const ev = await nightOf(db, eventId);
     if (!ev) return NextResponse.json({ error: "Event not found." }, { status: 404 });
-    const date = eventDate(ev);
+    const date = ev.date;
     let night: string | null = null;
     if (ev.venue_id && date) {
       const { data } = await db.from("venue_night_plans").select("drink_specials, location_id").eq("venue_id", ev.venue_id).eq("night_date", date);
@@ -37,11 +47,11 @@ export async function PUT(req: NextRequest) {
   if (actor instanceof NextResponse) return actor;
   if (!actor.staff) return NextResponse.json({ error: "Drink specials are set by Digital Crate DJs staff or the venue." }, { status: 403 });
   const b = (await req.json().catch(() => ({}))) as { eventId?: string; scope?: string; text?: unknown };
-  if (!uuidOk(b.eventId)) return NextResponse.json({ error: "Choose an event." }, { status: 400 });
+  if (typeof b.eventId !== "string" || !b.eventId) return NextResponse.json({ error: "Choose an event." }, { status: 400 });
   const text = cleanPlanText(b.text, PLAN_LIMITS.drink_specials);
   try {
     const db = createAdminClient();
-    const ev = await loadEvent(db, b.eventId);
+    const ev = await nightOf(db, b.eventId);
     if (!ev?.venue_id) return NextResponse.json({ error: "This event has no venue." }, { status: 400 });
     if (b.scope === "venue") {
       const { error } = await db.from("venues").update({ default_drink_specials: text }).eq("id", ev.venue_id);
@@ -51,7 +61,7 @@ export async function PUT(req: NextRequest) {
       }
       return NextResponse.json({ ok: true });
     }
-    const date = eventDate(ev);
+    const date = ev.date;
     if (!date) return NextResponse.json({ error: "This event has no date." }, { status: 400 });
     // The night's plan (venue as a whole): update its specials, keeping the rest of the plan.
     const { data: existing } = await db.from("venue_night_plans").select("id").eq("venue_id", ev.venue_id).eq("night_date", date).eq("location_id", "").maybeSingle();

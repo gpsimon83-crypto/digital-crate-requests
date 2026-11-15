@@ -5,6 +5,7 @@ import { publicAssets } from "@/lib/flyers/server";
 import { checkDjChanges, parseScene, parseTemplateContent } from "@/lib/flyers/scene";
 import { djOnEvent, flyerEvents, loadEvent, loadFlyerContext, type FlyerContext } from "@/lib/flyers/data";
 import { resolveTemplate } from "@/lib/flyers/activation";
+import { findCalendarNight, isCalendarKey, type CalendarNightRef } from "@/lib/flyers/calendar-nights";
 import { applyTemplateKeepingOverrides } from "@/lib/flyers/links";
 import type { FormatKey, Scene, TemplateContent } from "@/lib/flyers/types";
 
@@ -25,10 +26,12 @@ type DesignRow = {
   venue_id?: string | null;
   dj_slots?: (string | null)[] | null;
   exported_at?: string | null;
+  /** Present after migration 0053: the Google Calendar venue night this flyer is for. */
+  calendar_night?: CalendarNightRef | null;
 };
 
 const slotsOf = (row: DesignRow) => (Array.isArray(row.dj_slots) ? row.dj_slots : null);
-const contextFor = (db: ReturnType<typeof createAdminClient>, row: DesignRow) => loadFlyerContext(db, { eventId: row.event_id, venueId: row.venue_id ?? null, djSlots: slotsOf(row), fallbackDjId: row.dj_id });
+const contextFor = (db: ReturnType<typeof createAdminClient>, row: DesignRow) => loadFlyerContext(db, { eventId: row.event_id, venueId: row.venue_id ?? null, djSlots: slotsOf(row), fallbackDjId: row.dj_id, calendarNight: row.event_id ? null : (row.calendar_night ?? null) });
 /** What the browser needs to fill linked layers (the same rules run there). */
 const contextJson = (c: FlyerContext) => ({ event: c.event, venue: c.venue, eventDjs: c.eventDjs, slots: c.slots, djs: c.djs, values: c.values, drinkSpecials: c.drinkSpecials, hasEvent: c.hasEvent });
 
@@ -87,11 +90,12 @@ export async function GET(_req: NextRequest, { params }: Params) {
       shared: publicAssets(shared),
       venues: ((venues ?? []) as { id: string; name: string; logo_url: string | null }[]).map((v) => ({ id: v.id, name: v.name, has_logo: !!v.logo_url })),
       context: contextJson(ctx),
-      events: await flyerEvents(db, { djId: actor.staff ? null : (actor.dj?.id ?? null), staff: actor.staff, include: row.event_id }),
+      events: await flyerEvents(db, { djId: actor.staff ? null : (actor.dj?.id ?? null), staff: actor.staff, include: row.event_id ?? row.calendar_night?.id ?? null }),
       templates,
       activeTemplate: active,
       allDjs: djs,
-      linksReady: "dj_slots" in row
+      linksReady: "dj_slots" in row,
+      calendarReady: "calendar_night" in row
     });
   } catch (err) {
     return flyerError(err);
@@ -113,14 +117,27 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (typeof b.title === "string") update.title = b.title.trim().slice(0, 80) || "Untitled flyer";
 
     // Link the flyer to an event (the event's venue and DJs then fill it). Read only: the event isn't changed.
+    let night: CalendarNightRef | null = null;
     if (b.eventId !== undefined) {
-      if (b.eventId === null) update.event_id = null;
-      else {
+      if (b.eventId === null) {
+        update.event_id = null;
+        if ("calendar_night" in row) update.calendar_night = null;
+      } else if (isCalendarKey(b.eventId)) {
+        // A venue night from the Google Calendar (looked up again here, never taken from the browser).
+        if (!("calendar_night" in row)) return NextResponse.json({ error: "Flyers for calendar nights need migration 0053_flyer_calendar_nights.sql in Supabase.", setup: true }, { status: 503 });
+        night = await findCalendarNight(db, b.eventId);
+        if (!night) return NextResponse.json({ error: "That night isn't on the calendar anymore." }, { status: 404 });
+        if (!actor.staff && night.dj_id !== row.dj_id && night.id !== row.calendar_night?.id) return NextResponse.json({ error: "That night isn't one of this DJ's on the calendar." }, { status: 403 });
+        update.event_id = null;
+        update.calendar_night = night;
+        update.venue_id = night.venue_id;
+      } else {
         if (!uuidOk(b.eventId)) return NextResponse.json({ error: "Unknown event." }, { status: 400 });
         const ev = await loadEvent(db, b.eventId);
         if (!ev) return NextResponse.json({ error: "Event not found." }, { status: 404 });
         if (!actor.staff && !(await djOnEvent(db, ev.id, row.dj_id))) return NextResponse.json({ error: "That event isn't one of this DJ's bookings." }, { status: 403 });
         update.event_id = ev.id;
+        if ("calendar_night" in row) update.calendar_night = null;
       }
       // New event: its own DJs fill the slots again unless slots are sent too.
       if (b.djSlots === undefined) update.dj_slots = null;
@@ -133,9 +150,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       if (b.djSlots !== null && (!Array.isArray(b.djSlots) || b.djSlots.length > 8 || b.djSlots.some((x) => x !== null && !uuidOk(x)))) return NextResponse.json({ error: "Unknown DJ." }, { status: 400 });
       const slots = (b.djSlots as (string | null)[] | null) ?? null;
       // DJs may only put DJs who are on the event into slots; staff can assign anyone.
-      const eventId = (update.event_id as string | null | undefined) ?? row.event_id;
+      const eventId = update.event_id !== undefined ? (update.event_id as string | null) : row.event_id;
+      const calNight = (update.calendar_night !== undefined ? (update.calendar_night as CalendarNightRef | null) : row.calendar_night) ?? null;
       if (slots && !actor.staff) {
-        for (const id of slots) if (id && id !== row.dj_id && !(eventId && (await djOnEvent(db, eventId, id)))) return NextResponse.json({ error: "Only DJs on this event can be added." }, { status: 403 });
+        for (const id of slots) if (id && id !== row.dj_id && id !== calNight?.dj_id && !(eventId && (await djOnEvent(db, eventId, id)))) return NextResponse.json({ error: "Only DJs on this event can be added." }, { status: 403 });
       }
       update.dj_slots = slots;
     }

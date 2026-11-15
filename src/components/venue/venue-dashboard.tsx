@@ -12,6 +12,7 @@ import {
   Clock,
   Eye,
   Headphones,
+  ImageIcon,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -29,6 +30,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/site/logo";
 import { VenueBanner } from "./venue-banner";
+import { VenueFlyers } from "./venue-flyers";
 import { DAY_NAMES, fmtClock, type CoverFocus, type RecurringNight } from "@/lib/venue/types";
 import { cn } from "@/lib/utils";
 
@@ -146,6 +148,7 @@ const NAV = [
   { id: "calendar", label: "Calendar", icon: CalendarDays },
   { id: "lineup", label: "DJ Lineup", icon: Headphones },
   { id: "planner", label: "Specials", icon: Martini },
+  { id: "flyers", label: "Flyers", icon: ImageIcon },
   { id: "holidays", label: "Holidays", icon: Sparkles },
   { id: "messages", label: "Messages", icon: MessageSquare }
 ];
@@ -654,6 +657,8 @@ export function VenueDashboard() {
                 <NightPlanner data={view!} book={book} locName={locId ? () => null : locName} onPlan={openPlan} />
               </div>
 
+              <VenueFlyers venueId={data.venue.id} cardClass={C.card} eyebrowClass={C.eyebrow} mutedClass={C.muted} />
+
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-5 xl:grid-cols-3">
                 <Section id="holidays" title="Holiday planning">
                   <ul className="flex flex-col divide-y divide-white/5">
@@ -750,7 +755,7 @@ export function VenueDashboard() {
       </div>
 
       {/* Mobile bottom navigation */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-[#c99428]/20 bg-[#0e0e0e]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Venue portal">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-[#c99428]/20 bg-[#0e0e0e]/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Venue portal">
         {NAV.map((n) => (
           <a key={n.id} href={`#${n.id}`} className="flex min-h-14 flex-col items-center justify-center gap-1 text-[10px] text-[#cfc6b6] active:text-[#e5b647]">
             <n.icon size={18} className="text-[#c99428]" />

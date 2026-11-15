@@ -7,7 +7,7 @@ import { applyTemplateKeepingOverrides } from "@/lib/flyers/links";
 import { parseScene, parseTemplateContent } from "@/lib/flyers/scene";
 import type { FormatKey, Scene, TemplateContent } from "@/lib/flyers/types";
 
-type Draft = { id: string; dj_id: string; event_id: string | null; venue_id?: string | null; dj_slots?: (string | null)[] | null; format: FormatKey; scene: Scene; template_id: string | null; exported_at?: string | null };
+type Draft = { id: string; dj_id: string; event_id: string | null; venue_id?: string | null; dj_slots?: (string | null)[] | null; format: FormatKey; scene: Scene; template_id: string | null; exported_at?: string | null; calendar_night?: import("@/lib/flyers/calendar-nights").CalendarNightRef | null };
 
 /**
  * Drafts whose active template is now this one but which use a different
@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
         continue;
       }
       const prev = parseScene(d.scene, d.format);
-      const ctx = await loadFlyerContext(db, { eventId: d.event_id, venueId: d.venue_id ?? null, djSlots: Array.isArray(d.dj_slots) ? d.dj_slots : null, fallbackDjId: d.dj_id });
+      const ctx = await loadFlyerContext(db, { eventId: d.event_id, venueId: d.venue_id ?? null, djSlots: Array.isArray(d.dj_slots) ? d.dj_slots : null, fallbackDjId: d.dj_id, calendarNight: d.event_id ? null : (d.calendar_night ?? null) });
       const scene = applyTemplateKeepingOverrides(prev.ok ? prev.value : layout, layout, { values: ctx.values, slots: ctx.slots, venueId: ctx.venue?.id ?? null, hasEvent: ctx.hasEvent });
       const { error } = await db.from("flyer_designs").update({ scene, template_id: t.id, template_version_id: v!.id, updated_by: admin.user.id, updated_at: new Date().toISOString() }).eq("id", d.id).is("exported_at", null);
       if (error) throw error;

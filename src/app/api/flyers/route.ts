@@ -59,12 +59,19 @@ export async function GET() {
     let events: unknown[] = [];
     const list = actor.staff || djId ? await flyerEvents(db, { djId, staff: actor.staff }) : [];
     if (list.length) {
-      const { data: ev, error: eErr } = await db.from("events").select(EVENT_SELECT).in("id", list.map((e) => e.id));
+      const { data: ev, error: eErr } = await db.from("events").select(EVENT_SELECT).in("id", list.filter((e) => e.source === "event").map((e) => e.id));
       if (eErr) throw eErr;
       const rows = ((ev ?? []) as unknown as (EventRow & { venues: VenueRow | VenueRow[] | null })[]).map((e) => ({ ...e, venues: Array.isArray(e.venues) ? (e.venues[0] ?? null) : e.venues }));
       events = list.flatMap((l) => {
+        if (l.source === "calendar") {
+          // A venue night from the Google Calendar: its venue, date and usual hours.
+          const v = venueList.find((x) => x.id === l.venue_id);
+          const values = eventValues({ id: l.id, title: l.title, starts_at: l.starts_at, ends_at: l.ends_at ?? null, timezone: "America/Chicago", dj_id: l.dj_id, venue_id: l.venue_id, venue_name: l.venue_name, status: null, venues: null }, l.dj_name ?? djName(l.dj_id));
+          if (!l.timed) values.start_time = values.end_time = null;
+          return [{ id: l.id, title: l.title, starts_at: l.starts_at, venue_id: l.venue_id, venue_name: v?.name ?? l.venue_name, dj_id: l.dj_id, source: "calendar", values }];
+        }
         const e = rows.find((r) => r.id === l.id);
-        return e ? [{ id: e.id, title: e.title, starts_at: e.starts_at, venue_id: e.venue_id, venue_name: e.venues?.name ?? e.venue_name, dj_id: l.dj_id, values: eventValues(e, actor.dj && !actor.staff ? actor.dj.display_name : djName(l.dj_id)) }] : [];
+        return e ? [{ id: e.id, title: e.title, starts_at: e.starts_at, venue_id: e.venue_id, venue_name: e.venues?.name ?? e.venue_name, dj_id: l.dj_id, source: "event", values: eventValues(e, actor.dj && !actor.staff ? actor.dj.display_name : djName(l.dj_id)) }] : [];
       });
     }
 

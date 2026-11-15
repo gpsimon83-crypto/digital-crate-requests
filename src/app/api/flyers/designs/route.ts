@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { flyerActor, flyerError, uuidOk } from "@/lib/flyers/server";
 import { djOnEvent, loadEvent, loadFlyerContext } from "@/lib/flyers/data";
 import { resolveTemplate } from "@/lib/flyers/activation";
+import { findCalendarNight, isCalendarKey, parseCalendarKey, type CalendarNightRef } from "@/lib/flyers/calendar-nights";
 import { linkScene, resolveScene } from "@/lib/flyers/links";
 import { parseTemplateContent } from "@/lib/flyers/scene";
 import { FORMATS, FORMAT_KEYS, type FormatKey } from "@/lib/flyers/types";
@@ -20,7 +21,13 @@ export async function POST(req: NextRequest) {
   try {
     const db = createAdminClient();
     let event = null;
-    if (b.eventId) {
+    let night: CalendarNightRef | null = null;
+    if (isCalendarKey(b.eventId)) {
+      // A venue night from the Google Calendar.
+      night = await findCalendarNight(db, b.eventId);
+      if (!night) return NextResponse.json({ error: "That night isn't on the calendar anymore." }, { status: 404 });
+      if (!actor.staff && night.dj_id !== actor.dj?.id) return NextResponse.json({ error: "That night isn't one of yours on the calendar." }, { status: 403 });
+    } else if (b.eventId) {
       if (!uuidOk(b.eventId)) return NextResponse.json({ error: "Unknown event." }, { status: 400 });
       event = await loadEvent(db, b.eventId);
       if (!event) return NextResponse.json({ error: "Event not found." }, { status: 404 });
@@ -33,11 +40,11 @@ export async function POST(req: NextRequest) {
       if (!actor.staff || !uuidOk(b.djId)) return NextResponse.json({ error: "You can only make your own flyers." }, { status: 403 });
       ownerId = b.djId;
     }
-    if (actor.staff && !b.djId && event?.dj_id) ownerId = event.dj_id;
+    if (actor.staff && !b.djId && (event?.dj_id || night?.dj_id)) ownerId = event?.dj_id ?? night!.dj_id;
     if (!ownerId) return NextResponse.json({ error: "Choose which DJ this flyer is for." }, { status: 400 });
     if (event && b.djId && actor.staff && event.dj_id !== b.djId && !(await djOnEvent(db, event.id, b.djId))) return NextResponse.json({ error: "That DJ isn't on this event." }, { status: 400 });
 
-    const venueId = event?.venue_id ?? (b.venueId && uuidOk(b.venueId) ? b.venueId : null);
+    const venueId = event?.venue_id ?? night?.venue_id ?? (b.venueId && uuidOk(b.venueId) ? b.venueId : null);
     const templateId = b.templateId && uuidOk(b.templateId) ? b.templateId : (await resolveTemplate(db, { eventId: event?.id, venueId })).templateId;
     if (!templateId) return NextResponse.json({ error: "No template is published yet." }, { status: 400 });
 
@@ -53,9 +60,9 @@ export async function POST(req: NextRequest) {
     if (!format) return NextResponse.json({ error: "This template has no layouts." }, { status: 400 });
     if (wanted && wanted !== format) return NextResponse.json({ error: `This template has no ${FORMATS[wanted].label.toLowerCase()} layout.` }, { status: 400 });
 
-    const ctx = await loadFlyerContext(db, { eventId: event?.id ?? null, venueId: venueId ?? t.venue_id ?? null, fallbackDjId: ownerId });
+    const ctx = await loadFlyerContext(db, { eventId: event?.id ?? null, venueId: venueId ?? t.venue_id ?? null, fallbackDjId: ownerId, calendarNight: night });
     const scene = resolveScene(linkScene(content.value.formats[format]!), { values: ctx.values, slots: ctx.slots, venueId: ctx.venue?.id ?? null, hasEvent: ctx.hasEvent });
-    const title = (b.title?.trim() || [event?.title, t.name].filter(Boolean).join(" · ") || "Untitled flyer").slice(0, 80);
+    const title = (b.title?.trim() || [event?.title ?? night?.title, t.name].filter(Boolean).join(" · ") || "Untitled flyer").slice(0, 80);
     const row: Record<string, unknown> = {
       dj_id: ownerId,
       template_id: t.id,
@@ -70,7 +77,9 @@ export async function POST(req: NextRequest) {
       updated_by: actor.user.id
     };
     if (!event && venueId) row.venue_id = venueId;
+    if (night) row.calendar_night = night;
     let { data: made, error } = await db.from("flyer_designs").insert(row).select("id").single();
+    if (error && night) return NextResponse.json({ error: "Flyers for calendar nights need migration 0053_flyer_calendar_nights.sql in Supabase." }, { status: 503 });
     if (error && "venue_id" in row) {
       // Before migration 0052 (no venue_id column): save without it.
       delete row.venue_id;
@@ -91,8 +100,9 @@ export async function GET(req: NextRequest) {
   const venueParam = req.nextUrl.searchParams.get("venue");
   try {
     const db = createAdminClient();
+    const cal = eventId ? parseCalendarKey(eventId) : null;
     const event = eventId && uuidOk(eventId) ? await loadEvent(db, eventId) : null;
-    return NextResponse.json(await resolveTemplate(db, { eventId: event?.id, venueId: event?.venue_id ?? (venueParam && uuidOk(venueParam) ? venueParam : null) }));
+    return NextResponse.json(await resolveTemplate(db, { eventId: event?.id, venueId: event?.venue_id ?? cal?.venueId ?? (venueParam && uuidOk(venueParam) ? venueParam : null) }));
   } catch (err) {
     return flyerError(err);
   }

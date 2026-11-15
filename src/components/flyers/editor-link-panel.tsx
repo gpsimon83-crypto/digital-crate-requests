@@ -78,11 +78,24 @@ export function EventPanel({
           <select className={inputCls} value={data.event?.id ?? ""} disabled={busy} onChange={(e) => onChange({ eventId: e.target.value || null })}>
             <option value="">No event (type the details yourself)</option>
             {data.event && !events.some((e) => e.id === data.event!.id) && <option value={data.event.id}>{[fmt(data.event.starts_at), data.event.title, data.event.venue_name].filter(Boolean).join(" · ")}</option>}
-            {events.map((e) => (
-              <option key={e.id} value={e.id}>
-                {[fmt(e.starts_at), e.title, e.venue_name].filter(Boolean).join(" · ")}
-              </option>
-            ))}
+            {events.some((e) => e.source !== "calendar") && (
+              <optgroup label="Bookings">
+                {events.filter((e) => e.source !== "calendar").map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {[fmt(e.starts_at), e.title, e.venue_name].filter(Boolean).join(" · ")}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {events.some((e) => e.source === "calendar") && (
+              <optgroup label="Venue nights (Google Calendar)">
+                {events.filter((e) => e.source === "calendar").map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {[fmt(e.starts_at), e.venue_name, e.dj_name].filter(Boolean).join(" · ")}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </label>
         {data.event ? (
@@ -287,6 +300,95 @@ export function IssuesDialog({ issues, onPick, onCancel, onExport }: { issues: I
             Export anyway
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+type SentCopy = { id: string; title: string; night_date: string | null; sent_at: string };
+
+/** Send the finished flyer to the venue's portal: who gets it, an optional note, and copies already sent. */
+export function SendToVenueDialog({ designId, venueName, onClose, onSend }: { designId: string; venueName: string | null; onClose: () => void; onSend: (o: { note: string; replace: boolean }) => void }) {
+  const [info, setInfo] = useState<{ venue: { id: string; name: string; portal: boolean } | null; sent: SentCopy[]; ready: boolean } | null>(null);
+  const [note, setNote] = useState("");
+  const [replace, setReplace] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const load = () =>
+    fetch(`/api/flyers/designs/${designId}/send`)
+      .then((r) => r.json())
+      .then(setInfo)
+      .catch(() => setInfo({ venue: null, sent: [], ready: false }));
+  useEffect(() => {
+    void load();
+    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [designId]);
+  async function remove(id: string) {
+    setErr(null);
+    const r = await fetch(`/api/flyers/venue-sent/${id}`, { method: "DELETE" });
+    if (!r.ok) return setErr((await r.json().catch(() => ({}))).error ?? "Couldn't remove it.");
+    void load();
+  }
+  const venue = info?.venue;
+  const can = !!venue?.portal && info?.ready !== false;
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="send-title" onClick={onClose}>
+      <div className="flex w-full max-w-md flex-col gap-3 rounded-[16px] bg-[var(--card)] p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <p id="send-title" className="text-base font-semibold">
+          Send to venue portal
+        </p>
+        {!info ? (
+          <p className="text-sm text-muted">Checking…</p>
+        ) : !venue ? (
+          <p className="text-sm text-muted">Link this flyer to an event or venue night first (Event tab), so we know which venue gets it.</p>
+        ) : !venue.portal ? (
+          <p className="text-sm text-muted">{venue.name} doesn&apos;t have a venue portal yet. Turn it on in Admin → Venue Portals.</p>
+        ) : info.ready === false ? (
+          <p className="rounded-[10px] bg-status-pending/10 p-3 text-xs text-status-pending">Sending to venues needs migration 0053_flyer_calendar_nights.sql in Supabase.</p>
+        ) : (
+          <>
+            <p className="text-sm">
+              <b>{venue.name}</b>{" "}will see this flyer in their portal and can download it as PNG or JPEG. It&apos;s the same image as the PNG export.
+            </p>
+            <label className="block">
+              <span className={label}>Note for the venue (optional)</span>
+              <textarea className={cn(inputCls, "min-h-[64px]")} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Post Thursday and Saturday" />
+            </label>
+            {info.sent.length > 0 && (
+              <label className="flex items-start gap-2 text-sm">
+                <input type="checkbox" className="mt-1 accent-[#c99428]" checked={replace} onChange={(e) => setReplace(e.target.checked)} />
+                <span>Replace the copy sent before (the venue sees only this version)</span>
+              </label>
+            )}
+          </>
+        )}
+        {info && info.sent.length > 0 && (
+          <div className="border-t border-black/8 pt-3">
+            <p className={label}>Already in their portal</p>
+            <ul className="flex flex-col gap-1">
+              {info.sent.map((s) => (
+                <li key={s.id} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="truncate">Sent {new Date(s.sent_at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                  <button className="shrink-0 font-medium text-status-declined underline" onClick={() => void remove(s.id)}>
+                    Remove from portal
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {err && <p className="text-xs text-status-declined">{err}</p>}
+        <div className="mt-1 flex justify-end gap-2">
+          <button className={iconBtn} onClick={onClose}>
+            Cancel
+          </button>
+          <button className={cn(iconBtn, "border-gold bg-gold font-semibold text-[#1a140b]")} disabled={!can} onClick={() => onSend({ note, replace })}>
+            Send{venueName ? ` to ${venueName}` : ""}
+          </button>
+        </div>
+        <p className="text-[11px] text-muted">You can keep editing afterwards. The venue keeps the version you sent until you send again.</p>
       </div>
     </div>
   );
