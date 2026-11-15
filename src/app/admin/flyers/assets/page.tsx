@@ -41,7 +41,7 @@ export default function FlyerAssetsPage() {
           </select>
           {dj && <span className="text-xs text-muted">Approve cutouts and name logos, and pick the preferred one. Flyers use only approved ones.</span>}
         </div>
-        {dj ? <AssetManager key={dj} scope="dj" djId={dj} staff /> : <AssetManager scope="template" staff />}
+        {dj ? <AssetManager key={dj} scope="dj" djId={dj} staff otherDjs={djs} /> : <AssetManager scope="template" staff />}
       </div>
     </div>
   );

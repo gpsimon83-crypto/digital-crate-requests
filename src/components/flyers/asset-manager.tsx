@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Folder, FolderInput, FolderOpen, Image as ImageIcon, Loader2, Pencil, Search, Trash2, Upload, X } from "lucide-react";
+import { Check, CopyPlus, Folder, FolderInput, FolderOpen, Image as ImageIcon, Loader2, Pencil, Search, Trash2, Upload, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type LibAsset = { id: string; kind: string; name: string | null; folder: string | null; width: number; height: number; has_alpha: boolean; bytes: number | null; created_at: string; approved?: boolean; is_primary?: boolean };
@@ -21,7 +21,8 @@ const sizeLabel = (b: number | null) => (b == null ? "" : b > 1024 * 1024 ? `${(
  * delete. Staff manage template art (scope "template"); a DJ manages their own
  * uploads (scope "dj"). Deleting something in use asks first and says where.
  */
-export function AssetManager({ scope, djId, staff = false }: { scope: "template" | "dj"; djId?: string | null; staff?: boolean }) {
+export function AssetManager({ scope, djId, staff = false, otherDjs = [] }: { scope: "template" | "dj"; djId?: string | null; staff?: boolean; otherDjs?: { id: string; display_name: string }[] }) {
+  const [reuseOpen, setReuseOpen] = useState(false);
   const [assets, setAssets] = useState<LibAsset[] | null>(null);
   const [foldersReady, setFoldersReady] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -219,7 +220,25 @@ export function AssetManager({ scope, djId, staff = false }: { scope: "template"
           <label htmlFor={`upl-${scope}`} className={cn(btn, "cursor-pointer border-gold bg-gold font-semibold text-[#1a140b]", busy && "pointer-events-none opacity-50")}>
             <Upload size={14} /> Upload{folder !== ALL && folder !== UNFILED ? ` to “${folder}”` : ""}
           </label>
+          {scope === "dj" && staff && djId && (
+            <button className={btn} onClick={() => setReuseOpen(true)} disabled={busy}>
+              <CopyPlus size={14} /> Add from existing images
+            </button>
+          )}
         </div>
+        {reuseOpen && djId && (
+          <ReusePicker
+            djId={djId}
+            otherDjs={otherDjs.filter((d) => d.id !== djId)}
+            folder={folder !== ALL && folder !== UNFILED && foldersReady ? folder : null}
+            onClose={() => setReuseOpen(false)}
+            onAdded={(list) => {
+              setAssets((cur) => [...list, ...(cur ?? [])]);
+              setNotice(`Added ${list.length} image${list.length === 1 ? "" : "s"} to this DJ's library.`);
+              setReuseOpen(false);
+            }}
+          />
+        )}
 
         {/* Selection bar */}
         {selected.length > 0 && (
@@ -409,5 +428,143 @@ function DetailForm({ a, kinds, staff, onFlag, foldersReady, folderList, scope, 
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Staff: pick images already uploaded (template art, or another DJ's
+ * library) and add copies to this DJ's library, choosing what they are.
+ */
+function ReusePicker({ djId, otherDjs, folder, onClose, onAdded }: { djId: string; otherDjs: { id: string; display_name: string }[]; folder: string | null; onClose: () => void; onAdded: (a: LibAsset[]) => void }) {
+  const [source, setSource] = useState("template");
+  const [items, setItems] = useState<LibAsset[] | null>(null);
+  const [q, setQ] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
+  const [kind, setKind] = useState("cutout");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setItems(null);
+    setPicked([]);
+    fetch(source === "template" ? "/api/flyers/assets?scope=template" : `/api/flyers/assets?scope=dj&dj=${source}`)
+      .then((r) => r.json())
+      .then((j) => live && setItems(j.assets ?? []))
+      .catch(() => live && setItems([]));
+    return () => {
+      live = false;
+    };
+  }, [source]);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onClose]);
+
+  const shown = (items ?? []).filter((a) => {
+    const n = q.trim().toLowerCase();
+    return !n || (a.name ?? "").toLowerCase().includes(n) || (a.folder ?? "").toLowerCase().includes(n);
+  });
+
+  async function add() {
+    setBusy(true);
+    setErr(null);
+    const r = await fetch("/api/flyers/assets/copy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceIds: picked, djId, kind, folder }) });
+    const j = await r.json().catch(() => ({}));
+    setBusy(false);
+    if (!r.ok) return setErr(j.error ?? "Couldn't add those images.");
+    onAdded((j.assets ?? []) as LibAsset[]);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="reuse-title" onClick={onClose}>
+      <div className="flex max-h-[92dvh] w-full max-w-4xl flex-col overflow-hidden rounded-t-[18px] bg-[var(--card)] shadow-2xl sm:rounded-[18px]" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between gap-3 border-b border-black/10 px-5 py-4">
+          <div>
+            <p id="reuse-title" className="font-semibold">
+              Add from existing images
+            </p>
+            <p className="text-xs text-muted">Pick images that are already uploaded. Copies go into this DJ&apos;s library; the originals stay where they are.</p>
+          </div>
+          <button autoFocus className={cn(btn, "h-9 w-9 shrink-0 border-0 px-0")} aria-label="Close" onClick={onClose}>
+            <X size={16} />
+          </button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-b border-black/10 px-5 py-3">
+          <label className="flex items-center gap-2 text-sm">
+            <span className="font-medium">From</span>
+            <select className={cn(field, "w-auto")} value={source} onChange={(e) => setSource(e.target.value)} aria-label="Take images from">
+              <option value="template">Template art library</option>
+              {otherDjs.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.display_name}&apos;s library
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="relative min-w-[160px] flex-1">
+            <span className="sr-only">Search</span>
+            <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+            <input className={cn(field, "pl-8")} placeholder="Search by name or folder" value={q} onChange={(e) => setQ(e.target.value)} />
+          </label>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+          {!items && <p className="text-sm text-muted">Loading…</p>}
+          {items && !shown.length && <p className="text-sm text-muted">{items.length ? "Nothing matches." : "No images there yet."}</p>}
+          <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-6">
+            {shown.map((a) => {
+              const on = picked.includes(a.id);
+              return (
+                <li key={a.id}>
+                  <button
+                    className={cn("block w-full overflow-hidden rounded-[10px] border-2 text-left", FOCUS, on ? "border-gold" : "border-transparent hover:border-black/15")}
+                    aria-pressed={on}
+                    onClick={() => setPicked((p) => (on ? p.filter((x) => x !== a.id) : [...p, a.id]))}
+                  >
+                    <span className="relative flex aspect-square items-center justify-center bg-[repeating-conic-gradient(#eee_0_25%,#fff_0_50%)] bg-[length:12px_12px] p-1.5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={`/api/flyers/assets/${a.id}`} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />
+                      {on && (
+                        <span className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full bg-gold text-[#1a140b]">
+                          <Check size={13} />
+                        </span>
+                      )}
+                    </span>
+                    <span className="block truncate px-1.5 py-1 text-[11px]">{a.name ?? "Untitled"}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-black/10 px-5 py-3">
+          <label className="flex items-center gap-2 text-sm">
+            <span className="font-medium">Add as</span>
+            <select className={cn(field, "w-auto")} value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Add as">
+              {["cutout", "name_logo", "photo", "image"].map((k) => (
+                <option key={k} value={k}>
+                  {KIND_LABEL[k]}
+                </option>
+              ))}
+            </select>
+          </label>
+          {folder && <span className="text-xs text-muted">into “{folder}”</span>}
+          {err && (
+            <span role="alert" className="text-xs text-status-declined">
+              {err}
+            </span>
+          )}
+          <span className="flex-1" />
+          <button className={btn} onClick={onClose}>
+            Cancel
+          </button>
+          <button className={cn(btn, "border-gold bg-gold font-semibold text-[#1a140b]")} disabled={!picked.length || busy} onClick={() => void add()}>
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <CopyPlus size={14} />} Add {picked.length || ""} to library
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

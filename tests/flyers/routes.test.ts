@@ -479,3 +479,26 @@ describe("flyers linked to events: two venues, two DJs", () => {
     expect(db.flyer_assets.find((a) => a.id === c1)).toMatchObject({ is_primary: false });
   });
 });
+
+describe("reusing images already uploaded", () => {
+  it("staff copy template art into a DJ's library as an approved cutout; the original stays; DJs can't", async () => {
+    const { POST } = await import("@/app/api/flyers/assets/copy/route");
+    const src = db.flyer_assets.find((a) => a.id === sharedAsset)!;
+    Object.assign(src, { kind: "background", name: "Que on white", bytes: 1, width: 800, height: 1000, has_alpha: true });
+    asA();
+    expect((await POST(req("/api/flyers/assets/copy", { method: "POST", body: { sourceIds: [sharedAsset], djId: DJ_A, kind: "cutout" } }))).status).toBe(403);
+    asStaff();
+    const r = await json(await POST(req("/api/flyers/assets/copy", { method: "POST", body: { sourceIds: [sharedAsset], djId: DJ_A, kind: "cutout" } })));
+    expect(r.status).toBe(200);
+    expect(r.body.assets[0]).toMatchObject({ kind: "cutout", name: "Que on white", width: 800, has_alpha: true });
+    const copy = db.flyer_assets.find((a) => a.id === r.body.assets[0].id)!;
+    expect(copy).toMatchObject({ scope: "dj", owner_dj_id: DJ_A, approved: true });
+    expect(copy.storage_path).not.toBe(src.storage_path);
+    expect(storage.get(copy.storage_path as string)).toEqual(storage.get("template/bg.png"));
+    // The original is untouched and still in the template library.
+    expect(db.flyer_assets.find((a) => a.id === sharedAsset)).toMatchObject({ scope: "template", kind: "background" });
+    // Unknown ids and missing DJs are refused.
+    expect((await POST(req("/api/flyers/assets/copy", { method: "POST", body: { sourceIds: [randomUUID()], djId: DJ_A } }))).status).toBe(404);
+    expect((await POST(req("/api/flyers/assets/copy", { method: "POST", body: { sourceIds: [sharedAsset], djId: randomUUID() } }))).status).toBe(404);
+  });
+});

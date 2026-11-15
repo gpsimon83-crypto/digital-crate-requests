@@ -31,6 +31,7 @@ export const UPDATES: UpdateEntry[] = [
       "Drink specials per night with a venue default: add the Drink specials block (heading, list, optional panel); it hides itself when a night has none. Edit them on the admin event page or in the flyer editor",
       "Several DJs per flyer: DJ 1, 2, 3 photo slots and name-logo slots. A DJ without a name logo gets their name in styled text",
       "DJ cutouts and name logos: upload them in the DJ's library; staff approve them and pick the preferred one (Art library → choose the DJ)",
+      "Reuse images you already uploaded: in a DJ's library, “Add from existing images” copies template art (or another DJ's images) in as a cutout, name logo or photo, with no re-uploading",
       "Before export: missing DJs, photos, required content and text that doesn't fit are listed. Warnings never appear in the image",
       "Text can now wrap and shrink to fit its box with a smallest size, and positions show as % of the flyer"
     ],
