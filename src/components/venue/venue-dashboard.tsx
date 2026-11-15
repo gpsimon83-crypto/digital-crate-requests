@@ -255,6 +255,19 @@ export function VenueDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  // Tapping anywhere outside the account menu, or Escape, closes it.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const away = (e: PointerEvent) => !menuRef.current?.contains(e.target as Node) && setMenuOpen(false);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
+    document.addEventListener("pointerdown", away);
+    window.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      window.removeEventListener("keydown", esc);
+    };
+  }, [menuOpen]);
   const [pickedDay, setPickedDay] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [filter, setFilter] = useState<"all" | "pending">("all");
@@ -474,7 +487,7 @@ export function VenueDashboard() {
             <a href="#messages" aria-label="Messages" className={cn("grid h-11 w-11 place-items-center rounded-full hover:bg-white/5", FOCUS_RING)}>
               <Bell size={17} />
             </a>
-            <div className="relative">
+            <div className="relative" ref={menuRef}>
               <button
                 aria-label="Account menu"
                 aria-expanded={menuOpen}
@@ -486,7 +499,7 @@ export function VenueDashboard() {
                 </span>
               </button>
               {menuOpen && (
-                <div className={cn(C.card, "absolute right-0 top-12 w-48 p-1.5 text-sm")} role="menu">
+                <div className={cn(C.card, "absolute right-0 top-12 z-30 w-48 p-1.5 text-sm")} role="menu">
                   <button role="menuitem" onClick={signOut} className="flex min-h-11 w-full items-center gap-2 rounded-[8px] px-3 text-left hover:bg-white/5">
                     <LogOut size={14} /> Sign out
                   </button>
@@ -1265,7 +1278,12 @@ function Dialog({ label, onClose, children }: { label: string; onClose: () => vo
         role="dialog"
         aria-modal="true"
         aria-label={label}
-        className={cn(C.card, "max-h-[88dvh] w-full max-w-md overflow-y-auto p-5")}
+        // The header row (with the Close button) stays pinned while the panel scrolls, so it's always reachable on phones.
+        className={cn(
+          C.card,
+          "max-h-[88dvh] w-full max-w-md overflow-y-auto overscroll-contain bg-[#141414] p-5",
+          "[&>*:first-child]:sticky [&>*:first-child]:top-0 [&>*:first-child]:z-10 [&>*:first-child]:-mx-5 [&>*:first-child]:-mt-5 [&>*:first-child]:bg-[#141414] [&>*:first-child]:px-5 [&>*:first-child]:pb-2 [&>*:first-child]:pt-4"
+        )}
         onClick={(ev) => ev.stopPropagation()}
       >
         {children}
@@ -1715,18 +1733,21 @@ function NightPlanDialog({
         {err && <p role="alert" className="text-xs text-[#ee9a93]">{err}</p>}
         {done && <p role="status" className="text-xs text-[#8fdcb0]">{done}</p>}
 
-        {canEdit && (
-          <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {canEdit && (
             <button type="submit" disabled={busy || !!done} className={cn("min-h-11 flex-1 rounded-[10px] bg-[#e5b647] px-4 text-sm font-semibold text-[#17130b] hover:bg-[#f0c766] disabled:opacity-60", FOCUS_RING)}>
               {busy ? "Saving…" : "Save"}
             </button>
-            {existing && (
-              <button type="button" disabled={busy || !!done} onClick={() => void save(true)} className={cn("min-h-11 rounded-[10px] border border-[#c85b52]/45 px-4 text-sm text-[#ee9a93] hover:bg-[#c85b52]/10 disabled:opacity-60", FOCUS_RING)}>
-                Remove
-              </button>
-            )}
-          </div>
-        )}
+          )}
+          {canEdit && existing && (
+            <button type="button" disabled={busy || !!done} onClick={() => void save(true)} className={cn("min-h-11 rounded-[10px] border border-[#c85b52]/45 px-4 text-sm text-[#ee9a93] hover:bg-[#c85b52]/10 disabled:opacity-60", FOCUS_RING)}>
+              Remove
+            </button>
+          )}
+          <button type="button" onClick={onClose} className={cn("min-h-11 rounded-[10px] border border-white/15 px-4 text-sm text-[#d9cfbd] hover:bg-white/5", !canEdit && "flex-1", FOCUS_RING)}>
+            {canEdit ? "Cancel" : "Close"}
+          </button>
+        </div>
       </form>
     </Dialog>
   );
