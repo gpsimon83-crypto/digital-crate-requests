@@ -289,7 +289,7 @@ describe("linked content", () => {
     const e1 = { values: { venue_name: "Kyote's", dj_name: "DJ Que" }, slots: ["dj-a", "dj-b"], venueId: "v1", hasEvent: true };
     const e2 = { values: { venue_name: "Peace Lounge", dj_name: "DJ Peace" }, slots: ["dj-b", "dj-c"], venueId: "v2", hasEvent: true };
     let s = resolveScene(tpl, e1);
-    expect(s.nodes.map((n) => (n.kind === "text" ? n.text : n.source))).toEqual(["Kyote's", "DJ Que", { type: "dj_photo", slot: 2, djId: "dj-b" }]);
+    expect(s.nodes.map((n) => (n.kind === "text" ? n.text : n.kind === "image" ? n.source : null))).toEqual(["Kyote's", "DJ Que", { type: "dj_photo", slot: 2, djId: "dj-b" }]);
     // Override the DJ name for this flyer only.
     s = { ...s, nodes: s.nodes.map((n) => (n.id === "d" ? { ...n, text: "QUE LIVE", override: true } : n)) };
     s = resolveScene(s, e2);
@@ -326,5 +326,33 @@ describe("linked content", () => {
 
   it("old templates' {{dj_name}} tokens and the new dotted ones fill the same values", () => {
     expect(fillText("{{dj_name}} / {{dj.displayName}} / {{event.startTime}} / {{dj2.displayName}}", { dj_name: "Que", start_time: "9:30 PM", dj2_name: "Peace" })).toBe("Que / Que / 9:30 PM / Peace");
+  });
+});
+
+describe("shapes", () => {
+  it("box, rectangle, oval and circle save and load; bad values are cleaned; template style locks apply", async () => {
+    const { newShape, parseScene, emptyScene, checkDjChanges, LOCKED_PERMS } = await import("@/lib/flyers/scene");
+    const s = emptyScene("square");
+    const box = newShape("box", s, { id: "b" });
+    const oval = newShape("oval", s, { id: "o" });
+    const circle = newShape("circle", s, { id: "c" });
+    expect(box).toMatchObject({ kind: "shape", shape: "rect", keepRatio: true });
+    expect(box.width).toBe(box.height);
+    expect(oval).toMatchObject({ shape: "ellipse", keepRatio: false });
+    expect(oval.width).toBeGreaterThan(oval.height);
+    expect(circle).toMatchObject({ shape: "ellipse", keepRatio: true });
+    const raw = JSON.parse(JSON.stringify({ ...s, nodes: [box, oval, { ...circle, shape: "star", fill: "javascript:alert(1)", radius: -5 }] }));
+    const p = parseScene(raw, "square");
+    expect(p.ok).toBe(true);
+    if (!p.ok) return;
+    expect(p.value.nodes.map((n) => n.kind)).toEqual(["shape", "shape", "shape"]);
+    const bad = p.value.nodes[2];
+    expect(bad).toMatchObject({ shape: "rect", radius: 0 });
+    expect(bad.kind === "shape" && /^#[0-9a-f]{6}$/i.test(bad.fill)).toBe(true);
+    // A template shape locked for DJs: color and position can't change; a DJ's own new shape is theirs.
+    const locked = { ...s, nodes: [{ ...box, perms: { ...LOCKED_PERMS } }] };
+    expect(checkDjChanges(locked, { ...s, nodes: [{ ...box, perms: { ...LOCKED_PERMS }, fill: "#000000" }] })).toMatch(/style/);
+    expect(checkDjChanges(locked, { ...s, nodes: [{ ...box, perms: { ...LOCKED_PERMS }, x: box.x + 40 }] })).toMatch(/fixed in place/);
+    expect(checkDjChanges(locked, { ...s, nodes: [{ ...box, perms: { ...LOCKED_PERMS } }, newShape("circle", s)] })).toBeNull();
   });
 });

@@ -33,6 +33,7 @@ import {
   duplicateNodes,
   emptyScene,
   newImage,
+  newShape,
   newText,
   reorder,
   uid,
@@ -944,6 +945,10 @@ export function FlyerEditor(props: FlyerEditorProps) {
         mode,
         addText,
         addPreset,
+        addShape: (k) => {
+          addNode(newShape(k, scene));
+          if (!desktop) setDrawer("props");
+        },
         placeImage: (src, role, asset) => {
           placeImageSource(src, role, asset);
           if (!desktop) setDrawer(null);

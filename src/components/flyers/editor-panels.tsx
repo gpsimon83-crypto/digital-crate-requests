@@ -21,8 +21,10 @@ import {
   PenLine,
   RotateCcw,
   ImagePlus,
+  Circle,
   Lock,
   Search,
+  Square,
   Trash2,
   Type,
   Ungroup,
@@ -34,7 +36,7 @@ import { cn } from "@/lib/utils";
 import { FLYER_FONTS, fontByKey, nearestWeight } from "@/lib/flyers/fonts";
 import { featherOn } from "@/lib/flyers/feather";
 import { isLinked, isOverridden } from "@/lib/flyers/links";
-import { BLEND_MODES, FIELD_TOKENS, ROLES, type BlendMode, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type TextNode } from "@/lib/flyers/types";
+import { BLEND_MODES, FIELD_TOKENS, ROLES, type BlendMode, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type ShapeNode, type TextNode } from "@/lib/flyers/types";
 
 export type Asset = { id: string; kind: string; name: string | null; folder?: string | null; width: number; height: number; has_alpha: boolean };
 export type VenueOpt = { id: string; name: string; has_logo: boolean };
@@ -209,13 +211,14 @@ export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRe
 
       {n.kind === "text" && <TextProps n={n} set={set} canEdit={canEdit} canStyle={canStyle} mode={api.mode} textRef={textRef} />}
       {n.kind === "image" && <ImageProps n={n} set={set} canEdit={canEdit} canStyle={canStyle} api={api} />}
+      {n.kind === "shape" && <ShapeProps n={n} set={set} canStyle={canStyle} />}
 
       <Section title="Position & size">
         <div className="grid grid-cols-2 gap-2">
           <Num label="X" value={n.x} onChange={(v) => set({ x: v }, "x")} disabled={!canMove} suffix="px" />
           <Num label="Y" value={n.y} onChange={(v) => set({ y: v }, "y")} disabled={!canMove} suffix="px" />
           <Num label="Width" value={n.width} min={8} max={8000} onChange={(v) => set({ width: v }, "width")} disabled={!canMove} suffix="px" />
-          {n.kind === "image" ? <Num label="Height" value={n.height} min={8} max={8000} onChange={(v) => set({ height: v }, "height")} disabled={!canMove} suffix="px" /> : <div />}
+          {n.kind !== "text" ? <Num label="Height" value={n.height} min={8} max={8000} onChange={(v) => set({ height: v }, "height")} disabled={!canMove} suffix="px" /> : <div />}
           <Num label="Rotation" value={n.rotation} min={-360} max={360} onChange={(v) => set({ rotation: v }, "rotation")} disabled={!canMove} suffix="°" />
           <div className="flex items-end">
             <button className={cn(iconBtn, "w-full")} disabled={!canMove} onClick={() => set({ x: Math.round((scene.width - n.width) / 2) }, "x")}>
@@ -224,7 +227,7 @@ export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRe
           </div>
         </div>
         <p className="text-[11px] text-muted">
-          {pct(n.x, scene.width)} from left · {pct(n.y, scene.height)} from top · {pct(n.width, scene.width)} wide{n.kind === "image" || (n.kind === "text" && n.fitBox) ? ` · ${pct(n.height, scene.height)} tall` : ""} (of the flyer)
+          {pct(n.x, scene.width)} from left · {pct(n.y, scene.height)} from top · {pct(n.width, scene.width)} wide{n.kind !== "text" || n.fitBox ? ` · ${pct(n.height, scene.height)} tall` : ""} (of the flyer)
         </p>
         <Slider label="Opacity" value={Math.round(n.opacity * 100)} min={0} max={100} step={1} display={`${Math.round(n.opacity * 100)}%`} disabled={!canStyle} onChange={(v) => set({ opacity: v / 100 }, "opacity")} />
         <label className="block">
@@ -462,6 +465,43 @@ function LinkSettings({ n, set }: { n: FlyerNode; set: (p: Partial<FlyerNode>, k
   );
 }
 
+/** Shape: which shape, fill, outline, corners. */
+function ShapeProps({ n, set, canStyle }: { n: ShapeNode; set: (p: Partial<ShapeNode>, k?: string) => void; canStyle: boolean }) {
+  return (
+    <>
+      <Section title="Shape">
+        <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Shape">
+          {(
+            [
+              ["rect", "Box / rectangle"],
+              ["ellipse", "Oval / circle"]
+            ] as const
+          ).map(([k, l]) => (
+            <button key={k} className={cn(iconBtn, n.shape === k && "border-gold bg-gold-soft")} aria-pressed={n.shape === k} disabled={!canStyle} onClick={() => set({ shape: k }, "shape")}>
+              {k === "rect" ? <Square size={14} /> : <Circle size={14} />} {l}
+            </button>
+          ))}
+        </div>
+        <Check label={n.shape === "ellipse" ? "Keep it a perfect circle when resizing" : "Keep it square when resizing"} checked={n.keepRatio} disabled={!canStyle} onChange={(v) => set(v ? { keepRatio: true, height: n.width } : { keepRatio: false }, "keepRatio")} />
+        <Check label="Fill" checked={n.fillEnabled} disabled={!canStyle} onChange={(v) => set({ fillEnabled: v, ...(v ? {} : { stroke: { ...n.stroke, enabled: true } }) }, "fillEnabled")} />
+        {n.fillEnabled && <ColorField label="Fill color" value={n.fill} disabled={!canStyle} onChange={(v) => set({ fill: v }, "fill")} />}
+        {n.shape === "rect" && <Slider label="Rounded corners" value={n.radius} min={0} max={Math.round(Math.min(n.width, n.height) / 2)} step={1} disabled={!canStyle} onChange={(v) => set({ radius: v }, "radius")} />}
+      </Section>
+      <Section title="Outline" defaultOpen={n.stroke.enabled}>
+        <Check label="Outline" checked={n.stroke.enabled} disabled={!canStyle} onChange={(v) => set({ stroke: { ...n.stroke, enabled: v } }, "stroke")} />
+        {n.stroke.enabled && (
+          <div className="grid grid-cols-2 gap-2">
+            <ColorField label="Outline color" value={n.stroke.color} disabled={!canStyle} onChange={(v) => set({ stroke: { ...n.stroke, color: v } }, "stroke")} />
+            <Num label="Thickness" value={n.stroke.width} min={0} max={60} onChange={(v) => set({ stroke: { ...n.stroke, width: v } }, "stroke")} disabled={!canStyle} suffix="px" />
+          </div>
+        )}
+        <p className="text-[11px] text-muted">Turn Fill off for an empty frame. Lower the Opacity (under Position &amp; size) for a see-through panel behind text.</p>
+      </Section>
+      <ShadowSection value={n.shadow} disabled={!canStyle} onChange={(s) => set({ shadow: s }, "shadow")} />
+    </>
+  );
+}
+
 function ShadowSection({ value, onChange, disabled }: { value: TextNode["shadow"]; onChange: (s: TextNode["shadow"]) => void; disabled: boolean }) {
   return (
     <Section title="Shadow & glow" defaultOpen={value.enabled}>
@@ -562,6 +602,7 @@ function TemplatePermsSection({ n, set }: { n: FlyerNode; set: (p: Partial<Flyer
   const none = !p.move && !p.edit && !p.style && !p.remove;
   return (
     <Section title="Template settings">
+      {n.kind !== "shape" && (
       <label className="block">
         <span className={labelCls}>Layer type</span>
         <select className={inputCls} value={n.role} onChange={(e) => set({ role: e.target.value as Role }, "role")}>
@@ -574,6 +615,7 @@ function TemplatePermsSection({ n, set }: { n: FlyerNode; set: (p: Partial<Flyer
             ))}
         </select>
       </label>
+      )}
       <label className="block">
         <span className={labelCls}>Layer name</span>
         <input className={inputCls} value={n.name} maxLength={60} onChange={(e) => set({ name: e.target.value }, "name")} />
@@ -582,7 +624,7 @@ function TemplatePermsSection({ n, set }: { n: FlyerNode; set: (p: Partial<Flyer
         <legend className={labelCls}>DJs can</legend>
         <div className="grid grid-cols-2">
           <Check label="Move & resize" checked={p.move} onChange={(v) => set({ perms: { ...p, move: v } }, "perms")} />
-          <Check label={n.kind === "text" ? "Edit wording" : "Replace image"} checked={p.edit} onChange={(v) => set({ perms: { ...p, edit: v } }, "perms")} />
+          <Check label={n.kind === "text" ? "Edit wording" : n.kind === "shape" ? "Hide / show" : "Replace image"} checked={p.edit} onChange={(v) => set({ perms: { ...p, edit: v } }, "perms")} />
           <Check label="Change style" checked={p.style} onChange={(v) => set({ perms: { ...p, style: v } }, "perms")} />
           <Check label="Delete" checked={p.remove} onChange={(v) => set({ perms: { ...p, remove: v } }, "perms")} />
         </div>
@@ -643,7 +685,7 @@ export function LayersPanel({
       <ul className="flex flex-col gap-1 p-2" aria-label="Layers, front to back">
         {list.map((n, i) => {
           const sel = selected.includes(n.id);
-          const Icon = n.kind === "text" ? Type : n.role === "portrait" ? UserSquare2 : ImagePlus;
+          const Icon = n.kind === "text" ? Type : n.kind === "shape" ? (n.shape === "ellipse" ? Circle : Square) : n.role === "portrait" ? UserSquare2 : ImagePlus;
           return (
             <li key={n.id} className={cn("flex items-center gap-1 rounded-[8px] border px-1.5 py-1", sel ? "border-gold bg-gold-soft/60" : "border-transparent hover:bg-black/[0.03]")}>
               {n.groupId && <span className="h-6 w-1 shrink-0 rounded-full" style={{ background: groupColors.get(n.groupId) }} title="Grouped" />}
@@ -716,6 +758,8 @@ export type LibraryApi = {
   cancelReplace: () => void;
   /** Ready-made linked blocks: drink specials (heading + list), event details, 2nd DJ's name. */
   addPreset?: (k: "specials" | "details" | "dj2") => void;
+  /** Add a box, rectangle, oval or circle. */
+  addShape?: (k: "box" | "rectangle" | "oval" | "circle") => void;
 };
 
 const thumb = (src: string, alt: string) => (
@@ -766,7 +810,7 @@ export function LibraryPanel({
       <FolderOpen size={13} /> Organise or delete images
     </a>
   ) : null;
-  const tabs = [...(eventSlot ? [["event", "Event"]] : []), ...(templatesSlot ? [["templates", "Templates"]] : []), ["text", "Text"], ["photos", "Photos"], ["logos", "Logos"], ["assets", api.mode === "template" ? "Assets" : "Art"]] as [string, string][];
+  const tabs = [...(eventSlot ? [["event", "Event"]] : []), ...(templatesSlot ? [["templates", "Templates"]] : []), ["text", "Text"], ...(api.addShape ? [["shapes", "Shapes"]] : []), ["photos", "Photos"], ["logos", "Logos"], ["assets", api.mode === "template" ? "Assets" : "Art"]] as [string, string][];
 
   async function onFile(f: File | undefined) {
     if (!f) return;
@@ -826,6 +870,26 @@ export function LibraryPanel({
               </>
             )}
             <p className="text-[11px] text-muted">{api.mode === "template" ? "New text starts with a placeholder like {{event_title}}. DJs see it filled from their booking." : "Every text box is its own layer: move it anywhere."}</p>
+          </div>
+        )}
+        {tab === "shapes" && api.addShape && (
+          <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  ["box", "Box", "h-10 w-10 rounded-[3px]"],
+                  ["rectangle", "Rectangle", "h-8 w-14 rounded-[3px]"],
+                  ["oval", "Oval", "h-8 w-14 rounded-[50%]"],
+                  ["circle", "Circle", "h-10 w-10 rounded-full"]
+                ] as const
+              ).map(([k, l, shape]) => (
+                <button key={k} className={cn(iconBtn, "h-24 flex-col gap-2 text-sm")} onClick={() => api.addShape!(k)}>
+                  <span className={cn("block bg-gold", shape)} aria-hidden />
+                  {l}
+                </button>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted">Shapes are layers like everything else: move, resize, recolor, round the corners, outline only, or put one behind text as a panel.</p>
           </div>
         )}
         {tab === "photos" && (

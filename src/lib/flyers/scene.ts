@@ -18,6 +18,7 @@ import {
   type Scene,
   type Shadow,
   type TemplateContent,
+  type ShapeNode,
   type TextNode
 } from "./types";
 
@@ -102,6 +103,38 @@ export function newImage(role: Role, source: ImageSource, scene: Pick<Scene, "wi
     frame: { enabled: false, color: "#e5b647", width: 6, radius: 0 },
     feather: { amount: 0, shape: "edges" },
     recolor: { mode: "none", color: "#ffffff", knockoutWhite: false },
+    shadow: { ...NO_SHADOW },
+    ...patch
+  };
+}
+
+/** A new shape layer: "box" and "circle" keep equal sides, "rectangle" and "oval" are wider. */
+export function newShape(kind: "box" | "rectangle" | "oval" | "circle", scene: Pick<Scene, "width" | "height">, patch: Partial<ShapeNode> = {}): ShapeNode {
+  const square = kind === "box" || kind === "circle";
+  const width = Math.round(scene.width * (square ? 0.35 : 0.6));
+  const height = square ? width : Math.round(width * 0.55);
+  return {
+    id: uid(),
+    kind: "shape",
+    name: { box: "Box", rectangle: "Rectangle", oval: "Oval", circle: "Circle" }[kind],
+    role: "shape",
+    x: Math.round((scene.width - width) / 2),
+    y: Math.round((scene.height - height) / 2),
+    width,
+    height,
+    rotation: 0,
+    opacity: 1,
+    blend: "normal",
+    visible: true,
+    locked: false,
+    groupId: null,
+    perms: { ...FULL_PERMS },
+    shape: kind === "oval" || kind === "circle" ? "ellipse" : "rect",
+    fillEnabled: true,
+    fill: "#e5b647",
+    stroke: { enabled: false, color: "#ffffff", width: 6 },
+    radius: 0,
+    keepRatio: square,
     shadow: { ...NO_SHADOW },
     ...patch
   };
@@ -231,9 +264,25 @@ const textSchema = z.object({
   )
 });
 
+const shapeSchema = z.object({
+  ...base,
+  kind: z.literal("shape"),
+  shape: z.preprocess((v) => (v === "ellipse" ? "ellipse" : "rect"), z.enum(["rect", "ellipse"])),
+  fillEnabled: bool(true),
+  fill: color("#e5b647"),
+  stroke: strokeSchema,
+  radius: num(0, 4000, 0),
+  keepRatio: bool(false),
+  shadow: shadowSchema
+});
+
 const nodeSchema = z.preprocess(
-  (v) => (v && typeof v === "object" && (v as { kind?: string }).kind === "text" ? v : v && typeof v === "object" ? { ...(v as object), kind: "image" } : null),
-  z.discriminatedUnion("kind", [imageSchema, textSchema])
+  (v) => {
+    if (!v || typeof v !== "object") return null;
+    const k = (v as { kind?: string }).kind;
+    return k === "text" || k === "shape" ? v : { ...(v as object), kind: "image" };
+  },
+  z.discriminatedUnion("kind", [imageSchema, textSchema, shapeSchema])
 );
 
 export type ParseResult<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -428,6 +477,7 @@ export function withGroup(nodes: FlyerNode[], id: string): string[] {
 const MOVE_KEYS = ["x", "y", "width", "height", "rotation"] as const;
 const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend", "fitBox", "minFontSize", "panel"] as const;
 const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "shadow", "opacity", "blend"] as const;
+const STYLE_KEYS_SHAPE = ["shape", "fillEnabled", "fill", "stroke", "radius", "keepRatio", "shadow", "opacity", "blend"] as const;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 /**
@@ -461,7 +511,7 @@ export function checkDjChanges(prev: Scene, next: Scene): string | null {
       if (n.visible !== p.visible) return `“${p.name}” can't be hidden.`;
     }
     if (!p.perms.style) {
-      const keys = p.kind === "text" ? STYLE_KEYS_TEXT : STYLE_KEYS_IMAGE;
+      const keys = p.kind === "text" ? STYLE_KEYS_TEXT : p.kind === "shape" ? STYLE_KEYS_SHAPE : STYLE_KEYS_IMAGE;
       if (keys.some((k) => !same((n as Record<string, unknown>)[k], (p as Record<string, unknown>)[k]))) return `The style of “${p.name}” is set by the template.`;
     }
   }

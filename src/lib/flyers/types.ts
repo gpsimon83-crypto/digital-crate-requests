@@ -26,6 +26,7 @@ export const ROLES = {
   specials: "Drink specials",
   dj_logo: "DJ name logo",
   overlay: "Decorative overlay",
+  shape: "Shape",
   text: "Text",
   image: "Image"
 } as const;
@@ -203,7 +204,22 @@ export type TextNode = Base & {
   panel?: { enabled: boolean; color: string; opacity: number; padding: number; radius: number } | null;
 };
 
-export type FlyerNode = ImageNode | TextNode;
+/** A drawn shape: box / rectangle (rounded corners optional) or oval / circle. */
+export type ShapeNode = Base & {
+  kind: "shape";
+  shape: "rect" | "ellipse";
+  /** Filled with a color, or outline only. */
+  fillEnabled: boolean;
+  fill: string;
+  stroke: Stroke;
+  /** Rounded corners (rectangles only). */
+  radius: number;
+  /** Resizing keeps the proportions (squares and circles). */
+  keepRatio: boolean;
+  shadow: Shadow;
+};
+
+export type FlyerNode = ImageNode | TextNode | ShapeNode;
 
 export type Scene = {
   version: 1;

@@ -28,14 +28,15 @@ export function linkScene(scene: Scene): Scene {
     ...scene,
     nodes: scene.nodes.map((n): FlyerNode => {
       if (n.kind === "text") return n.source == null && hasTokens(n.text) ? { ...n, source: n.text, override: false } : n;
+      if (n.kind === "shape") return n;
       if (isLinkedSource(n.source) && !n.linked) return { ...n, linked: n.source, override: false };
       return n;
     })
   };
 }
 
-export const isLinked = (n: FlyerNode) => (n.kind === "text" ? n.source != null : !!n.linked);
-export const isOverridden = (n: FlyerNode) => isLinked(n) && !!n.override;
+export const isLinked = (n: FlyerNode) => (n.kind === "text" ? n.source != null : n.kind === "image" ? !!n.linked : false);
+export const isOverridden = (n: FlyerNode) => n.kind !== "shape" && isLinked(n) && !!n.override;
 
 /** Fills one linked text from the values. */
 export function linkedText(source: string, ctx: LinkContext): string {
@@ -62,7 +63,7 @@ export function resolveScene(scene: Scene, ctx: LinkContext): Scene {
         if (n.source == null || n.override) return n;
         return { ...n, text: linkedText(n.source, ctx) };
       }
-      if (!n.linked || n.override) return n;
+      if (n.kind === "shape" || !n.linked || n.override) return n;
       return { ...n, source: linkedImage(n.linked, ctx) };
     })
   };
@@ -71,7 +72,7 @@ export function resolveScene(scene: Scene, ctx: LinkContext): Scene {
 /** "Reset to event data": drop this flyer's override and refill from the event. */
 export function resetNode(n: FlyerNode, ctx: LinkContext): FlyerNode {
   if (n.kind === "text") return n.source == null ? n : { ...n, override: false, text: linkedText(n.source, ctx) };
-  if (!n.linked) return n;
+  if (n.kind === "shape" || !n.linked) return n;
   return { ...n, override: false, source: linkedImage(n.linked, ctx), crop: { zoom: 1, x: 0, y: 0 } };
 }
 

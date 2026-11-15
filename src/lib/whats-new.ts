@@ -19,6 +19,19 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-15-flyer-shapes",
+    date: "2026-11-15",
+    area: "CRM",
+    title: "Flyer shapes: box, rectangle, oval, circle",
+    summary: "A new Shapes tab in the flyer and template editors adds boxes, rectangles, ovals and circles as layers.",
+    bullets: [
+      "Fill color or outline only, outline color and thickness, rounded corners, shadow, opacity and blend modes",
+      "Box and circle keep their proportions when resized (switch it off to stretch them)",
+      "Use a see-through box behind text as a panel, or an outline circle around a DJ photo",
+      "In templates, shapes have the same DJ permissions as other layers (lock them in place or let DJs restyle them)"
+    ]
+  },
+  {
     id: "2026-11-15-flyers-calendar-and-venue-portal",
     date: "2026-11-15",
     area: "CRM",

@@ -3,12 +3,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import KonvaLib from "konva";
 import type Konva from "konva";
-import { Group, Image as KImage, Layer, Line, Rect, Stage, Text as KText, Transformer } from "react-konva";
+import { Ellipse, Group, Image as KImage, Layer, Line, Rect, Stage, Text as KText, Transformer } from "react-konva";
 import { imageLayout } from "@/lib/flyers/scene";
 import { boundsOf, snapBox, type Guide } from "@/lib/flyers/snap";
 import { needsProcessing, processedImage } from "@/lib/flyers/feather";
 import { shownByData } from "@/lib/flyers/links";
-import type { FlyerNode, ImageNode, Scene, TextNode } from "@/lib/flyers/types";
+import type { FlyerNode, ImageNode, Scene, ShapeNode, TextNode } from "@/lib/flyers/types";
 import { fontString, loadSceneFonts, loadSceneImages, slotDjId, srcFor, useImage, type SrcContext } from "./loaders";
 
 export type NodePatch = { id: string; patch: Partial<FlyerNode> };
@@ -246,6 +246,43 @@ function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | nu
 }
 
 /** A DJ name-logo slot without a logo: the DJ's display name, fitted on one line in the frame. */
+/** Box / rectangle / oval / circle. The outline sits inside the shape's edges, so the size you set is the size you get. */
+function ShapeLayer({ node, act }: { node: ShapeNode; act: Interact | null }) {
+  const movable = !!act && act.interactive && !node.locked && act.canMove(node);
+  const sw = node.stroke.enabled ? Math.min(node.stroke.width, Math.min(node.width, node.height) / 2) : 0;
+  const common = {
+    fill: node.fillEnabled ? node.fill : undefined,
+    fillEnabled: node.fillEnabled,
+    stroke: sw > 0 ? node.stroke.color : undefined,
+    strokeWidth: sw,
+    listening: false,
+    ...shadowProps(node.shadow)
+  };
+  return (
+    <Group
+      id={node.id}
+      name="flyer-node"
+      x={node.x}
+      y={node.y}
+      rotation={node.rotation}
+      opacity={node.opacity}
+      globalCompositeOperation={blendOp(node.blend)}
+      draggable={movable}
+      listening={!!act?.interactive && !node.locked}
+      onMouseDown={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey)}
+      onTap={() => act?.onSelect(node.id, false)}
+    >
+      {/* Full-size hit area, so outline-only shapes are easy to grab. */}
+      <Rect width={node.width} height={node.height} fill="rgba(0,0,0,0)" />
+      {node.shape === "ellipse" ? (
+        <Ellipse x={node.width / 2} y={node.height / 2} radiusX={Math.max(0.5, (node.width - sw) / 2)} radiusY={Math.max(0.5, (node.height - sw) / 2)} {...common} />
+      ) : (
+        <Rect x={sw / 2} y={sw / 2} width={Math.max(1, node.width - sw)} height={Math.max(1, node.height - sw)} cornerRadius={Math.min(node.radius, Math.min(node.width, node.height) / 2)} {...common} />
+      )}
+    </Group>
+  );
+}
+
 function NameFallback({ node, name }: { node: ImageNode; name: string }) {
   const fb = node.fallback ?? { font: "bebas", weight: 400, fill: "#ffffff", uppercase: true };
   const text = fb.uppercase ? name.toUpperCase() : name;
@@ -268,6 +305,8 @@ export function SceneNodes({ scene, ctx, exporting, act, fontsKey, onStatus }: {
         // Hidden by the user, or by its data ("only show when…", empty "hide when empty" text).
         !shownByData(n, ctx.values) ? null : n.kind === "image" ? (
           <ImageLayer key={n.id} node={n} ctx={ctx} exporting={exporting} act={act} onStatus={onStatus} />
+        ) : n.kind === "shape" ? (
+          <ShapeLayer key={n.id} node={n} act={act} />
         ) : (
           <TextLayer key={n.id} node={n} act={act} fontsKey={fontsKey} />
         )
@@ -336,7 +375,7 @@ export function FlyerStage({
       const sx = k.scaleX();
       const sy = k.scaleY();
       const patch: Partial<FlyerNode> = { x: Math.round(k.x() * 10) / 10, y: Math.round(k.y() * 10) / 10, rotation: Math.round(k.rotation() * 10) / 10 };
-      if (n.kind === "image") {
+      if (n.kind === "image" || n.kind === "shape") {
         patch.width = Math.max(8, Math.round(n.width * sx));
         patch.height = Math.max(8, Math.round(n.height * sy));
       } else {
@@ -420,7 +459,7 @@ export function FlyerStage({
           rotateEnabled={allMovable}
           resizeEnabled={allMovable}
           enabledAnchors={anchors}
-          keepRatio={single?.kind !== "image"}
+          keepRatio={single?.kind === "shape" ? single.keepRatio : single?.kind !== "image"}
           anchorSize={anchorSize}
           anchorCornerRadius={anchorSize / 2}
           anchorStroke="#c99428"
