@@ -32,6 +32,9 @@
      (paired with reduced opacity + non-color cues, never color alone). */
   --disabled: #9A948A;
 
+  /* Muted taupe for quiet structure on cream: timeline rails and upcoming ticks. */
+  --taupe: #CDBFAC;
+
   /* Card geometry — rounded, softly elevated (replaces the old flat
      sharp-corner/border-only system app-wide). */
   --radius-card: 16px;
@@ -67,6 +70,7 @@
   --color-status-declined: var(--status-declined);
   --color-status-urgent: var(--status-urgent);
   --color-disabled: var(--disabled);
+  --color-taupe: var(--taupe);
 
   --radius-card: var(--radius-card);
   --shadow-card: var(--shadow-card);

@@ -656,7 +656,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
             </div>
           )}
 
-          <Tabs items={TAB_ITEMS} active={activeTab} hrefFor={(key) => `/admin/events/${id}?tab=${key}`} className="mt-6" />
+          <Tabs items={TAB_ITEMS} active={activeTab} hrefFor={(key) => `/admin/events/${id}?tab=${key}`} className="mt-6" emphasis />
 
           {error && <p className="mt-3 text-sm text-status-declined">{error}</p>}
 
