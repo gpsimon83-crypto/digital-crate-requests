@@ -777,7 +777,7 @@ export function LayersPanel({
   return (
     <div className="flex flex-col">
       <div className="flex items-center justify-between gap-2 border-b border-black/8 px-4 py-3">
-        <p className="text-sm font-semibold">Layers</p>
+        <p className="text-sm font-semibold" data-tour="flyer-layers">Layers</p>
         <div className="flex gap-1.5">
           <button className={iconBtn} disabled={selNodes.length < 2} onClick={group} title="Group selected layers">
             <GroupIcon size={14} /> Group
@@ -940,7 +940,7 @@ export function LibraryPanel({
     <div className="flex h-full flex-col">
       <div role="tablist" aria-label="Add to flyer" className="flex gap-1 overflow-x-auto border-b border-black/8 px-2 pt-2">
         {tabs.map(([k, l]) => (
-          <button key={k} role="tab" aria-selected={tab === k} className={cn("shrink-0 rounded-t-[8px] px-3 py-2 text-xs font-semibold", FOCUS, tab === k ? "bg-gold-soft text-foreground" : "text-muted hover:text-foreground")} onClick={() => setTab(k)}>
+          <button key={k} role="tab" data-tour={`flyer-tab-${k}`} aria-selected={tab === k} className={cn("shrink-0 rounded-t-[8px] px-3 py-2 text-xs font-semibold", FOCUS, tab === k ? "bg-gold-soft text-foreground" : "text-muted hover:text-foreground")} onClick={() => setTab(k)}>
             {l}
           </button>
         ))}

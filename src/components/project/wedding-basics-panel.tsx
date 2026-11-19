@@ -85,7 +85,7 @@ export function WeddingBasicsPanel({ eventId, clientPhone, clientFirstName }: { 
         <p className="rounded-[10px] bg-status-pending/10 p-3 text-xs text-status-pending">Run migration 0055_wedding_basics_contact.sql in Supabase to add the “best way to reach you / best days and times” questions.</p>
       )}
       {!view || !view.ready ? null : !link ? (
-        <Button variant="secondary" size="sm" className="self-start" disabled={busy} onClick={() => void act("create")}>
+        <Button variant="secondary" size="sm" className="self-start" data-tour="wb-send" disabled={busy} onClick={() => void act("create")}>
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />} Create link to send
         </Button>
       ) : (
@@ -111,7 +111,7 @@ export function WeddingBasicsPanel({ eventId, clientPhone, clientFirstName }: { 
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" data-tour="wb-send">
             <a href={smsHref}>
               <Button variant="secondary" size="sm">
                 <MessageSquare size={14} /> Text it{clientPhone ? ` to ${clientPhone}` : ""}

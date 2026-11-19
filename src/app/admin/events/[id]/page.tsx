@@ -693,7 +693,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               <FilesPanel eventId={id} />
 
               {(event.event_category === "wedding" || !event.event_category) && (
-                <WeddingBasicsPanel eventId={id} clientPhone={event.clients?.phone ?? null} clientFirstName={event.clients?.first_name ?? null} />
+                <div data-tour="wb-panel"><WeddingBasicsPanel eventId={id} clientPhone={event.clients?.phone ?? null} clientFirstName={event.clients?.first_name ?? null} /></div>
               )}
 
               {event.event_category === "wedding" && (
@@ -1011,7 +1011,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
                 <EquipmentAssignmentsPanel eventId={id} />
 
-                {event.event_category !== "wedding" && <EventFlyerPanel eventId={id} />}
+                {event.event_category !== "wedding" && <div data-tour="event-flyer"><EventFlyerPanel eventId={id} /></div>}
 
                 {(event.must_play?.length || event.do_not_play?.length) ? (
                   <GlassCard className="flex flex-col gap-3">

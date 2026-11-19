@@ -18,6 +18,204 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-15-wedding-basics-link": [
+    {
+      path: "/admin/events",
+      target: '[data-tour="project-link"]',
+      title: "Open a wedding project",
+      body: "Wedding Basics lives on each wedding's project page. Click the name of any wedding to continue."
+    },
+    {
+      path: "/admin/events/*",
+      target: 'a[href$="?tab=Files"]',
+      title: "Files tab",
+      body: "Wedding Basics is on the project's Files tab. Click Next to open it.",
+      follow: 'a[href$="?tab=Files"]',
+      waitHint: "Open any wedding project to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Files",
+      target: '[data-tour="wb-panel"]',
+      title: "Wedding Basics questionnaire",
+      body: "For couples you can't email yet: a private link, no login, with the must-know questions one at a time, just like the planning questionnaire. Every question is required.",
+      waitHint: "Open the Files tab to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Files",
+      target: '[data-tour="wb-send"]',
+      title: "Create it, then text it",
+      body: "Create link to send makes the private link. Text it opens Messages with the link and a short note filled in; Copy message pastes into any app. New link retires the old one and keeps their answers."
+    },
+    {
+      path: "/admin/events/*?tab=Files",
+      target: '[data-tour="wb-panel"]',
+      title: "Locked in when they submit",
+      body: "Watch it go from Not opened to In progress to Submitted. Submitted answers lock (Let them edit unlocks them), empty event and client fields fill in, any differences are listed, and the best way and time to reach them shows at the top."
+    },
+    {
+      path: "/admin/questionnaires",
+      title: "Change the questions",
+      body: "Admin → Questionnaires → Wedding Basics: reword, reorder or add questions. Links you've already sent show the changes the next time they're opened."
+    }
+  ],
+  "2026-11-15-flyer-date-badges": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "Date badges are in the flyer editor. Click Next to open your first flyer, or click any flyer. No flyers yet? Make one with New flyer.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-tab-badges"]',
+      title: "Badges tab",
+      body: "Five styles: Orange Ticket, Luxury Gold, Torn Paper, Neon Panel and Bold Editorial. Click one to add it. The weekday, date and time are live text that fill from the flyer's event.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-layers"]',
+      title: "A badge moves as one",
+      body: "Drag, resize, rotate or lock the whole badge. Click a piece a second time, or pick it here in Layers, to move or restyle just that piece. Replace the artwork like any picture."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-tab-event"]',
+      title: "Dates come from the event",
+      body: "Pick the event here and the badge fills in. Time shows the event's start–end; choose Start – CLOSE under Time shows on the time text if you want CLOSE. Typing over a piece overrides it, with Reset to event data to undo."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-png2x"]',
+      title: "High-resolution export",
+      body: "PNG 2× saves the flyer at double size for print or big screens. If any text doesn't fit its box, you'll get a warning first; warnings never appear in the image."
+    }
+  ],
+  "2026-11-15-flyer-shapes": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "Shapes are in the flyer editor. Click Next to open your first flyer, or click any flyer. No flyers yet? Make one with New flyer.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-tab-shapes"]',
+      title: "Shapes tab",
+      body: "Add a box, rectangle, oval or circle as its own layer. A see-through box behind text makes a panel; an outline circle frames a DJ photo.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-layers"]',
+      title: "Style and arrange it",
+      body: "Select the shape to set fill or outline only, outline color and thickness, rounded corners, shadow, opacity and blend. Box and circle keep their proportions; switch that off to stretch. Move it up or down in Layers."
+    }
+  ],
+  "2026-11-15-flyers-calendar-and-venue-portal": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-new"]',
+      title: "Start from a venue night",
+      body: "New flyer now lists Venue nights (Google Calendar) as well as bookings, with the DJ named on the calendar and the venue's usual hours. Weddings are left out."
+    },
+    {
+      path: "/admin/flyers",
+      target: '[data-tour="flyer-tpl-edit"]',
+      title: "Preview a template with real data",
+      body: "Click Next to open the first template, or click Edit on any template.",
+      follow: '[data-tour="flyer-tpl-edit"]'
+    },
+    {
+      path: "/admin/flyers/templates/*",
+      target: '[data-tour="flyer-preview-with"]',
+      title: "Preview with",
+      body: "Pick any venue, booking or calendar night, then DJ 1 and DJ 2, to see their cutouts and name logos in place (or their name when there's no logo). Preview only: nothing is saved into the template.",
+      waitHint: "Open any template to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "Next, sending a flyer to a venue. Click Next to open your first flyer, or click any flyer. No flyers yet? Make one with New flyer.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-send-venue"]',
+      title: "Send to venue",
+      body: "On a flyer for a venue, Send to venue puts the finished flyer (the same as the PNG) in that venue's portal, with an optional note. Send again to update it, or remove it from the portal.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      title: "What the venue sees",
+      body: "A Flyers section in their venue portal, where they view and download each flyer as PNG or JPEG. The flyer stays editable here; later edits don't change their copy until you send again."
+    }
+  ],
+  "2026-11-15-flyers-linked-to-events": [
+    {
+      path: "/admin/flyers",
+      target: '[data-tour="flyer-tpl-activate"]',
+      title: "Activate a template",
+      body: "Make a published template the starting point for everyone, one venue, or one event. New flyers start from it; drafts change only if you choose, and exported flyers never do."
+    },
+    {
+      path: "/admin/flyers",
+      target: '[data-tour="flyer-art-library"]',
+      title: "DJ cutouts and name logos",
+      body: "Each DJ's cutouts and name logos live in the Art library. Next opens it."
+    },
+    {
+      path: "/admin/flyers/assets",
+      target: '[data-tour="flyer-lib-dj"]',
+      title: "Choose a DJ's library",
+      body: "Pick a DJ to see their images. Approve cutouts and name logos and choose the preferred one, which fills their slot on flyers."
+    },
+    {
+      path: "/admin/flyers/assets",
+      target: '[data-tour="flyer-reuse"]',
+      title: "Add from existing images",
+      body: "Copy template art or another DJ's images into this DJ's library as a cutout, name logo or photo, with no re-uploading. This button shows once you've picked a DJ."
+    },
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "Now the flyer editor. Click Next to open your first flyer, or click any flyer. No flyers yet? Make one with New flyer.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-tab-event"]',
+      title: "Event tab",
+      body: "Choose the event (filter by venue), which DJ fills each photo and name-logo slot, and switch template. Linked layers say “Linked to the event”; change one by hand and it says “Overridden”, with Reset to event data. Nothing here changes the event or a DJ's profile.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/admin/events",
+      target: '[data-tour="project-link"]',
+      title: "From the event page",
+      body: "Every non-wedding project has a Flyer card. Click any project that isn't a wedding to continue."
+    },
+    {
+      path: "/admin/events/*",
+      target: 'a[href$="?tab=Details"]',
+      title: "Details tab",
+      body: "The Flyer card is on the project's Details tab. Click Next to open it.",
+      follow: 'a[href$="?tab=Details"]',
+      waitHint: "Open any project that isn't a wedding to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Details",
+      target: '[data-tour="event-flyer"]',
+      title: "Flyer card",
+      body: "Set this night's drink specials (or use the venue default), pick a template just for this event, and start a flyer that's already linked to it.",
+      waitHint: "Open the Details tab to continue."
+    }
+  ],
   "2026-11-11-inquiry-security": [
     {
       path: "/admin/security",

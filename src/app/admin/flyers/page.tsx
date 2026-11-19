@@ -121,7 +121,7 @@ export default function AdminFlyersPage() {
         subtitle="Build layered flyer templates. DJs pick one, their photo and name fill in, and they edit every piece."
         action={
           <div className="flex items-center gap-2">
-            <Link href="/admin/flyers/assets" className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:text-foreground">
+            <Link href="/admin/flyers/assets" data-tour="flyer-art-library" className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:text-foreground">
               <FolderOpen size={13} /> Art library
             </Link>
             <Link href="/dj-dashboard/flyers" className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted hover:text-foreground">
@@ -156,7 +156,7 @@ export default function AdminFlyersPage() {
                         </p>
                       ))}
                       <div className="mt-auto flex flex-wrap gap-1.5 pt-2">
-                        <Link href={`/admin/flyers/templates/${t.id}`} className="inline-flex h-8 items-center gap-1 rounded-[8px] border border-black/12 px-2.5 text-xs hover:border-gold">
+                        <Link href={`/admin/flyers/templates/${t.id}`} data-tour="flyer-tpl-edit" className="inline-flex h-8 items-center gap-1 rounded-[8px] border border-black/12 px-2.5 text-xs hover:border-gold">
                           <Pencil size={13} /> Edit
                         </Link>
                         {t.status === "archived" ? (
@@ -173,7 +173,7 @@ export default function AdminFlyersPage() {
                         <button className="inline-flex h-8 items-center gap-1 rounded-[8px] border border-status-declined/30 px-2.5 text-xs text-status-declined" onClick={() => void remove(t)} aria-label={`Delete ${t.name}`}>
                           <Trash2 size={13} />
                         </button>
-                        {t.status === "published" && <ActivateMenu templateId={t.id} templateName={t.name} defaultVenueId={t.venue_id} venues={venues} events={acts.events} acts={acts.activations} ready={acts.ready} onChanged={() => void loadActs()} />}
+                        {t.status === "published" && <span data-tour="flyer-tpl-activate" className="contents"><ActivateMenu templateId={t.id} templateName={t.name} defaultVenueId={t.venue_id} venues={venues} events={acts.events} acts={acts.activations} ready={acts.ready} onChanged={() => void loadActs()} /></span>}
                       </div>
                     </div>
                   </li>

@@ -75,7 +75,7 @@ function Flyers() {
                 <FolderOpen size={14} /> My uploads
               </Link>
             )}
-            <Button variant="primary" onClick={() => setStartOpen(true)} disabled={!data}>
+            <Button variant="primary" data-tour="flyer-new" onClick={() => setStartOpen(true)} disabled={!data}>
               <Plus size={15} /> New flyer
             </Button>
           </div>
@@ -91,7 +91,7 @@ function Flyers() {
               <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                 {data.designs.map((d) => (
                   <li key={d.id} className="group relative">
-                    <Link href={`/dj-dashboard/flyers/${d.id}`} className="block rounded-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+                    <Link href={`/dj-dashboard/flyers/${d.id}`} data-tour="flyer-design-link" className="block rounded-[12px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
                       <div className="flex aspect-[4/5] items-center justify-center overflow-hidden rounded-[12px] border border-black/10 bg-[#1a1610] p-2">
                         <ScenePreviewClient scene={d.scene} width={d.format === "story" ? 120 : 200} />
                       </div>

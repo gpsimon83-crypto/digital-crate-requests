@@ -31,7 +31,7 @@ export default function FlyerAssetsPage() {
           <label className="text-sm font-semibold" htmlFor="lib-dj">
             Library
           </label>
-          <select id="lib-dj" className="rounded-[8px] border border-black/12 bg-white px-2.5 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold" value={dj} onChange={(e) => setDj(e.target.value)}>
+          <select id="lib-dj" data-tour="flyer-lib-dj" className="rounded-[8px] border border-black/12 bg-white px-2.5 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold" value={dj} onChange={(e) => setDj(e.target.value)}>
             <option value="">Template art (shared)</option>
             {djs.map((d) => (
               <option key={d.id} value={d.id}>

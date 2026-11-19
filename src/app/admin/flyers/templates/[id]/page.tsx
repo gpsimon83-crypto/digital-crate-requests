@@ -155,7 +155,7 @@ export default function TemplateEditPage() {
         sampleValues={SAMPLE}
         preview={preview}
         previewBar={
-          <span className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Preview with">
+          <span className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Preview with" data-tour="flyer-preview-with">
             <span className="text-muted">Preview with</span>
             <select className={cn(inputCls, "w-auto max-w-[220px] py-1 text-xs")} aria-label="Preview with a booking, venue night or venue" value={pWith} onChange={(e) => setPWith(e.target.value)}>
               <option value="">Sample wording</option>

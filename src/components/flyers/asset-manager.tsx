@@ -221,7 +221,7 @@ export function AssetManager({ scope, djId, staff = false, otherDjs = [] }: { sc
             <Upload size={14} /> Upload{folder !== ALL && folder !== UNFILED ? ` to “${folder}”` : ""}
           </label>
           {scope === "dj" && staff && djId && (
-            <button className={btn} onClick={() => setReuseOpen(true)} disabled={busy}>
+            <button className={btn} data-tour="flyer-reuse" onClick={() => setReuseOpen(true)} disabled={busy}>
               <CopyPlus size={14} /> Add from existing images
             </button>
           )}

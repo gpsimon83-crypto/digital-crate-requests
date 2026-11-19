@@ -1100,6 +1100,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
         onClick={() => requestExport("image/png", "download", 2)}
         disabled={!!exportJob}
         title={`High resolution: ${scene.width * 2} × ${scene.height * 2} px`}
+        data-tour="flyer-png2x"
       >
         <Download size={15} /> PNG 2×
       </button>
@@ -1111,7 +1112,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
         <Download size={15} /> JPEG
       </button>
       {props.link?.sendToVenue && (
-        <button className={iconBtn} onClick={() => setSendOpen(true)} disabled={!!exportJob}>
+        <button className={iconBtn} data-tour="flyer-send-venue" onClick={() => setSendOpen(true)} disabled={!!exportJob}>
           <Send size={15} /> Send to venue
         </button>
       )}
