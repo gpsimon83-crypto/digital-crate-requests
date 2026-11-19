@@ -267,6 +267,6 @@ function CenteredShell({ children }: { children: React.ReactNode }) {
   return <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-6 py-12 text-center">{children}</div>;
 }
 
-function formatAnswer(question: { options: { value: string; label: string }[] }, value: AnswerValue | undefined): string {
+function formatAnswer(question: Pick<Question, "question_type" | "options">, value: AnswerValue | undefined): string {
   return displayAnswer(question, value, "You'll decide later");
 }
