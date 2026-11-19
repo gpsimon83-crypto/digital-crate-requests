@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, ClipboardList, Copy, Link2, Loader2, MessageSquare, RotateCcw, Unlock } from "lucide-react";
+import { Check, ClipboardList, Copy, Eye, Link2, Loader2, MessageSquare, RotateCcw, Unlock } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -16,7 +16,7 @@ type LinkView = {
   applied: { filled: string[]; differs: { field: string; current: string; answered: string }[] } | null;
   answers: { section: string; prompt: string; answer: string | null }[];
 };
-type View = { ready: boolean; total?: number; link?: LinkView | null };
+type View = { ready: boolean; templateId?: string; total?: number; link?: LinkView | null };
 
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
@@ -75,6 +75,17 @@ export function WeddingBasicsPanel({ eventId, clientPhone, clientFirstName }: { 
           <p className="text-sm font-medium">Wedding Basics questionnaire</p>
           <p className="text-xs text-muted">{view?.total ? `${view.total} required questions` : "Required questions"}, no login: date, venue, reception start, guest count, both names, married last name, both phones, email, and how and when they like to be reached.</p>
         </div>
+        {view?.ready && view.templateId && (
+          <a
+            href={`/portal/questionnaire/preview/${view.templateId}`}
+            target="_blank"
+            rel="noreferrer"
+            data-tour="wb-preview"
+            className="flex shrink-0 items-center gap-1.5 rounded-[10px] border border-black/12 px-3 py-1.5 text-xs font-medium text-muted hover:border-gold hover:text-foreground"
+          >
+            <Eye size={14} /> Preview questions
+          </a>
+        )}
       </div>
 
       {!view ? (

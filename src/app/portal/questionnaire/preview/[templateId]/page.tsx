@@ -9,7 +9,7 @@ import {
   getVisibleQuestions,
   computeProgress,
   findFlatIndex,
-  formatAnswerValue,
+  displayAnswer,
   type Answers,
   type AnswerValue,
   type Template,
@@ -268,5 +268,5 @@ function CenteredShell({ children }: { children: React.ReactNode }) {
 }
 
 function formatAnswer(question: { options: { value: string; label: string }[] }, value: AnswerValue | undefined): string {
-  return formatAnswerValue(question, value, "You'll decide later");
+  return displayAnswer(question, value, "You'll decide later");
 }

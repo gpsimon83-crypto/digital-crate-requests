@@ -37,7 +37,7 @@ export const TOURS: Record<string, TourStep[]> = {
       path: "/admin/events/*?tab=Files",
       target: '[data-tour="wb-panel"]',
       title: "Wedding Basics questionnaire",
-      body: "For couples you can't email yet: a private link, no login, with the must-know questions one at a time, just like the planning questionnaire. Every question is required.",
+      body: "For couples you can't email yet: a private link, no login, with the must-know questions one at a time, just like the planning questionnaire. Every question is required. Preview questions opens the exact screens they'll see, without saving anything.",
       waitHint: "Open the Files tab to continue."
     },
     {

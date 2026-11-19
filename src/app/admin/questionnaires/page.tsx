@@ -21,7 +21,8 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   bar_nightclub: "Bar & Nightclub",
   corporate: "Corporate",
   private_party: "Private Party",
-  school_dance: "School Dance"
+  school_dance: "School Dance",
+  wedding_basics: "Wedding Basics (text link)"
 };
 
 export default function AdminQuestionnairesPage() {

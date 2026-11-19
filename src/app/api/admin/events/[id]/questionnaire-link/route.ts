@@ -11,10 +11,11 @@ const uuidOk = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
 async function view(link: LinkRow | null) {
   const template = await weddingBasicsTemplate();
   if (!template) return { ready: false };
-  if (!link) return { ready: true, link: null, total: getVisibleQuestions(template.sections, {}).length };
+  if (!link) return { ready: true, templateId: template.id, link: null, total: getVisibleQuestions(template.sections, {}).length };
   const flat = getVisibleQuestions(template.sections, link.answers ?? {});
   return {
     ready: true,
+    templateId: template.id,
     total: flat.length,
     link: {
       url: `${appOrigin()}/q/${link.token}`,
