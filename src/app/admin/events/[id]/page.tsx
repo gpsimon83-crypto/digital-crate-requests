@@ -219,6 +219,20 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
       // storage blocked: use the default look
     }
   }, [themeKey]);
+  // The look covers the whole admin shell while this project is open (sidebar, tab bar, pop-ups), then goes back.
+  const themeCategory = event ? event.event_category ?? "" : null;
+  useEffect(() => {
+    if (themeCategory === null) return;
+    const t = themePick ?? defaultProjectTheme(themeCategory);
+    const body = document.body;
+    body.dataset.projectTheme = t;
+    if (PROJECT_THEMES.find((x) => x.id === t)?.dark) body.dataset.projectThemeDark = "";
+    else delete body.dataset.projectThemeDark;
+    return () => {
+      delete body.dataset.projectTheme;
+      delete body.dataset.projectThemeDark;
+    };
+  }, [themeCategory, themePick]);
   function pickTheme(t: ProjectThemeId) {
     setThemePick(t);
     try {
