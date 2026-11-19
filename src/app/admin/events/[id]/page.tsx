@@ -29,6 +29,7 @@ import { PackageSelectionPanel } from "@/components/project/package-selection-pa
 import { PortalHeroPanel } from "@/components/project/portal-hero-panel";
 import { MeetingsPanel } from "@/components/project/meetings-panel";
 import { EventFlyerPanel } from "@/components/flyers/event-flyer-panel";
+import { WeddingBasicsPanel } from "@/components/project/wedding-basics-panel";
 import type { EventCategory } from "@/lib/event-category";
 import type { HeroSettings } from "@/lib/hero-settings";
 import type { PortalHeroExtras } from "@/components/project/portal-hero-panel";
@@ -691,6 +692,10 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
               <FilesPanel eventId={id} />
 
+              {(event.event_category === "wedding" || !event.event_category) && (
+                <WeddingBasicsPanel eventId={id} clientPhone={event.clients?.phone ?? null} clientFirstName={event.clients?.first_name ?? null} />
+              )}
+
               {event.event_category === "wedding" && (
                 <GlassCard className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
@@ -1006,7 +1011,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
                 <EquipmentAssignmentsPanel eventId={id} />
 
-                <EventFlyerPanel eventId={id} />
+                {event.event_category !== "wedding" && <EventFlyerPanel eventId={id} />}
 
                 {(event.must_play?.length || event.do_not_play?.length) ? (
                   <GlassCard className="flex flex-col gap-3">

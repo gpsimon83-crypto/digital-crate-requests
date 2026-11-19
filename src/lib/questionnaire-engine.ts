@@ -1,4 +1,4 @@
-export type QuestionType = "single_select" | "multi_select" | "short_text" | "long_text" | "person_list" | "song" | "time";
+export type QuestionType = "single_select" | "multi_select" | "short_text" | "long_text" | "person_list" | "song" | "time" | "date" | "number" | "phone" | "email";
 
 export interface QuestionOption {
   value: string;
@@ -113,4 +113,63 @@ export function formatAnswerValue(
     return (value.value as string[]).map(labelFor).join(", ");
   }
   return value.value ? labelFor(value.value) : "Not answered";
+}
+
+/* ---------------- answer checks (date / number / phone / email) ---------------- */
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/** Digits in a phone number (US numbers may include a leading 1). */
+export function phoneDigits(v: string): string {
+  return v.replace(/\D/g, "");
+}
+
+/** "(262) 555-0123" for 10-digit US numbers; anything else as typed. */
+export function formatPhone(v: string): string {
+  const d = phoneDigits(v).replace(/^1(?=\d{10}$)/, "");
+  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : v.trim();
+}
+
+/**
+ * Why an answer isn't usable yet, or null when it's fine. Only checks
+ * answers that were given (required-ness is checked separately).
+ */
+export function answerProblem(question: Pick<Question, "question_type">, value: AnswerValue | undefined): string | null {
+  if (!value || "unsure" in value || Array.isArray(value.value)) return null;
+  const v = String(value.value).trim();
+  if (!v) return null;
+  switch (question.question_type) {
+    case "date": {
+      if (!DATE_RE.test(v) || Number.isNaN(Date.parse(`${v}T12:00:00Z`))) return "Pick a date from the calendar.";
+      const y = Number(v.slice(0, 4));
+      const now = new Date().getUTCFullYear();
+      if (y < now - 1 || y > now + 5) return "Double-check the year.";
+      return null;
+    }
+    case "number":
+      return /^\d{1,5}$/.test(v.replace(/[,\s]/g, "")) ? null : "Enter a number, like 150.";
+    case "phone": {
+      const d = phoneDigits(v);
+      return d.length >= 10 && d.length <= 15 ? null : "Enter the full phone number with area code.";
+    }
+    case "email":
+      return EMAIL_RE.test(v) && v.length <= 200 ? null : "Enter a full email address, like name@example.com.";
+    default:
+      return v.length > 4000 ? "That's a bit long — please shorten it." : null;
+  }
+}
+
+/** Answer shown back to people: dates written out, phones formatted, times in 12-hour. */
+export function displayAnswer(question: Pick<Question, "question_type" | "options">, value: AnswerValue | undefined, unsureLabel?: string): string {
+  if (value && !("unsure" in value) && typeof value.value === "string" && value.value.trim()) {
+    const v = value.value.trim();
+    if (question.question_type === "date" && DATE_RE.test(v)) return new Date(`${v}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" });
+    if (question.question_type === "phone") return formatPhone(v);
+    if (question.question_type === "time" && /^\d{2}:\d{2}$/.test(v)) {
+      const [h, m] = v.split(":").map(Number);
+      return `${h % 12 || 12}${m ? `:${String(m).padStart(2, "0")}` : ""} ${h < 12 ? "AM" : "PM"}`;
+    }
+  }
+  return formatAnswerValue(question, value, unsureLabel);
 }

@@ -70,7 +70,11 @@ const QUESTION_TYPE_LABELS: Record<QuestionType, string> = {
   long_text: "Long Text",
   person_list: "Person List",
   song: "Song",
-  time: "Time"
+  time: "Time",
+  date: "Date",
+  number: "Number",
+  phone: "Phone",
+  email: "Email"
 };
 
 const HAS_OPTIONS: QuestionType[] = ["single_select", "multi_select"];

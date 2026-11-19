@@ -4,7 +4,7 @@ import { updateQuestion, deleteQuestion } from "@/lib/data/questionnaires";
 import { errorMessage } from "@/lib/error-message";
 import type { QuestionType, QuestionOption } from "@/lib/questionnaire-engine";
 
-const VALID_TYPES: QuestionType[] = ["single_select", "multi_select", "short_text", "long_text", "person_list", "song", "time"];
+const VALID_TYPES: QuestionType[] = ["single_select", "multi_select", "short_text", "long_text", "person_list", "song", "time", "date", "number", "phone", "email"];
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ questionId: string }> }) {
   const denied = await requireAdmin();

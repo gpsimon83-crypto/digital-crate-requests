@@ -599,3 +599,97 @@ void createAdminClientForTestAsync;
 function createAdminClientForTest(): any {
   return { from: (t: string) => query(t), storage: { from: () => ({}) } };
 }
+
+/* ---------- Wedding Basics by private link ---------- */
+describe("Wedding Basics questionnaire link (no login)", () => {
+  const EV = "eeeeeeee-1111-4111-8111-111111111111";
+  const CL = "cccccccc-1111-4111-8111-111111111111";
+  const TPL = "abababab-1111-4111-8111-111111111111";
+  const answersFull = {
+    wedding_date: { value: "2027-06-12" },
+    venue: { value: "The Grand Hall, Milwaukee" },
+    reception_start: { value: "17:30" },
+    guest_count: { value: "150" },
+    partner_one_name: { value: "Caroline Catlin" },
+    partner_two_name: { value: "Josh Reed" },
+    married_name: { value: "Reed" },
+    partner_one_phone: { value: "262-555-0123" },
+    partner_two_phone: { value: "(414) 555-0199" },
+    email: { value: "caroline@example.com" }
+  };
+  beforeEach(() => {
+    const q = (sec: string, key: string, position: number, type: string) => ({ id: randomUUID(), section_id: sec, key, position, prompt: key, subtext: null, question_type: type, options: [], allow_unsure: false, required: true, depends_on_question_key: null, depends_on_values: null });
+    db.questionnaire_templates = [{ id: TPL, event_type: "wedding_basics", title: "Wedding Basics", opening_heading: "x", opening_body: "x", opening_cta_label: "Go", is_active: true }];
+    db.questionnaire_sections = [
+      { id: "s1", template_id: TPL, key: "the_day", title: "The Day", position: 1, transition_heading: null, transition_subheading: null },
+      { id: "s2", template_id: TPL, key: "the_couple", title: "The Couple", position: 2, transition_heading: null, transition_subheading: null }
+    ];
+    db.questionnaire_questions = [
+      q("s1", "wedding_date", 1, "date"), q("s1", "venue", 2, "short_text"), q("s1", "reception_start", 3, "time"), q("s1", "guest_count", 4, "number"),
+      q("s2", "partner_one_name", 1, "short_text"), q("s2", "partner_two_name", 2, "short_text"), q("s2", "married_name", 3, "short_text"),
+      q("s2", "partner_one_phone", 4, "phone"), q("s2", "partner_two_phone", 5, "phone"), q("s2", "email", 6, "email")
+    ];
+    db.questionnaire_links = [];
+    db.activity_log = [];
+    // A lead with only an (undeliverable) email and a venue already set.
+    db.clients = [{ id: CL, first_name: null, last_name: null, phone: null, email: "caroline@bounced.example" }];
+    db.events.push({ id: EV, client_id: CL, starts_at: null, timezone: "America/Chicago", venue_name: "Kyote's Bar N Grill", expected_guests: null, couple_display_name: null, title: "Catlin wedding", event_category: "wedding" });
+  });
+
+  it("staff make a link; the client answers all 10 (checked, required), submits, answers lock, and only empty CRM fields are filled", async () => {
+    const admin = await import("@/app/api/admin/events/[id]/questionnaire-link/route");
+    const pub = await import("@/app/api/q/[token]/route");
+    const sub = await import("@/app/api/q/[token]/submit/route");
+    asA();
+    expect((await admin.POST(req(`/api/admin/events/${EV}/questionnaire-link`, { method: "POST", body: { action: "create" } }), p({ id: EV }))).status).toBe(403);
+    asStaff();
+    const made = await json(await admin.POST(req(`/api/admin/events/${EV}/questionnaire-link`, { method: "POST", body: { action: "create" } }), p({ id: EV })));
+    expect(made.status).toBe(200);
+    expect(made.body.total).toBe(10);
+    const token = String(made.body.link.url).split("/q/")[1];
+    expect(token.length).toBeGreaterThanOrEqual(43);
+
+    user = null; // the client isn't signed in
+    const got = await json(await pub.GET(req(`/api/q/${token}`), p({ token })));
+    expect(got.status).toBe(200);
+    expect(got.body.template.sections.flatMap((s: { questions: unknown[] }) => s.questions)).toHaveLength(10);
+    // Unknown keys are dropped; partial answers save.
+    await pub.PATCH(req(`/api/q/${token}`, { method: "PATCH", body: { answers: { wedding_date: { value: "2027-06-12" }, hacker: { value: "x" } } } }), p({ token }));
+    expect(Object.keys(db.questionnaire_links[0].answers as object)).toEqual(["wedding_date"]);
+    // Missing or badly formed answers stop the submission.
+    let r = await json(await sub.POST(req(`/api/q/${token}/submit`, { method: "POST", body: {} }), p({ token })));
+    expect(r.status).toBe(400);
+    r = await json(await sub.POST(req(`/api/q/${token}/submit`, { method: "POST", body: { answers: { ...answersFull, partner_two_phone: { value: "555" }, email: { value: "nope" } } } }), p({ token })));
+    expect(r.status).toBe(400);
+    expect(r.body.problems.map((x: { key: string }) => x.key)).toEqual(["partner_two_phone", "email"]);
+    r = await json(await sub.POST(req(`/api/q/${token}/submit`, { method: "POST", body: { answers: answersFull } }), p({ token })));
+    expect(r.status).toBe(200);
+
+    const link = db.questionnaire_links[0];
+    expect(link.locked).toBe(true);
+    // Locked: no more changes through the link.
+    expect((await pub.PATCH(req(`/api/q/${token}`, { method: "PATCH", body: { answers: { venue: { value: "Elsewhere" } } } }), p({ token }))).status).toBe(409);
+
+    const ev = db.events.find((e) => e.id === EV)!;
+    // 5:30 PM Chicago on June 12 2027 (CDT) = 22:30 UTC.
+    expect(ev.starts_at).toBe("2027-06-12T22:30:00.000Z");
+    expect(ev).toMatchObject({ expected_guests: 150, couple_display_name: "Caroline & Josh", venue_name: "Kyote's Bar N Grill" });
+    expect(db.clients[0]).toMatchObject({ first_name: "Caroline", last_name: "Catlin", phone: "(262) 555-0123", email: "caroline@bounced.example" });
+    const applied = link.applied as { filled: string[]; differs: { field: string }[] };
+    expect(applied.filled).toEqual(expect.arrayContaining(["Date and start time", "Guest count", "Couple name", "Client first name", "Client phone"]));
+    expect(applied.differs.map((d) => d.field)).toEqual(expect.arrayContaining(["Venue", "Client email"]));
+
+    // Staff see the answers, can unlock, and a new link retires the old one.
+    asStaff();
+    const v = await json(await admin.GET(req(`/api/admin/events/${EV}/questionnaire-link`), p({ id: EV })));
+    expect(v.body.link.answers.find((a: { prompt: string }) => a.prompt === "wedding_date").answer).toBe("Saturday, June 12, 2027");
+    expect((await json(await admin.POST(req(`/api/admin/events/${EV}/questionnaire-link`, { method: "POST", body: { action: "unlock" } }), p({ id: EV })))).body.link.locked).toBe(false);
+    const renewed = await json(await admin.POST(req(`/api/admin/events/${EV}/questionnaire-link`, { method: "POST", body: { action: "renew" } }), p({ id: EV })));
+    const token2 = String(renewed.body.link.url).split("/q/")[1];
+    expect(token2).not.toBe(token);
+    user = null;
+    expect((await pub.GET(req(`/api/q/${token}`), p({ token }))).status).toBe(404);
+    expect((await pub.GET(req(`/api/q/${token2}`), p({ token: token2 }))).status).toBe(200);
+    expect((await pub.GET(req(`/api/q/not-a-real-token`), p({ token: "not-a-real-token" }))).status).toBe(404);
+  });
+});

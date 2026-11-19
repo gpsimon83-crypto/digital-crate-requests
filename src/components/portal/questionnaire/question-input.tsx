@@ -86,7 +86,29 @@ export function QuestionInput({ question, value, onChange, onSelectAdvance }: Qu
       );
 
     case "time":
-      return <input type="time" value={stringValue} onChange={(e) => onChange({ value: e.target.value })} className={inputClass} />;
+      return <input type="time" value={stringValue} onChange={(e) => onChange({ value: e.target.value })} className={inputClass} aria-label={question.prompt} />;
+
+    case "date":
+      return <input type="date" value={stringValue} onChange={(e) => onChange({ value: e.target.value })} className={inputClass} aria-label={question.prompt} autoFocus />;
+
+    case "number":
+      return (
+        <input
+          inputMode="numeric"
+          value={stringValue}
+          onChange={(e) => onChange({ value: e.target.value.replace(/[^\d,]/g, "").slice(0, 7) })}
+          placeholder="e.g. 150"
+          className={inputClass}
+          aria-label={question.prompt}
+          autoFocus
+        />
+      );
+
+    case "phone":
+      return <input type="tel" inputMode="tel" autoComplete="tel" value={stringValue} onChange={(e) => onChange({ value: e.target.value.slice(0, 30) })} placeholder="(262) 555-0123" className={inputClass} aria-label={question.prompt} autoFocus />;
+
+    case "email":
+      return <input type="email" inputMode="email" autoComplete="email" value={stringValue} onChange={(e) => onChange({ value: e.target.value.trim().slice(0, 200) })} placeholder="name@example.com" className={inputClass} aria-label={question.prompt} autoFocus />;
 
     case "long_text":
       return (
