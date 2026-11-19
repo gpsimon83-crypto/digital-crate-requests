@@ -53,7 +53,8 @@ export function WeddingBasicsPanel({ eventId, clientPhone, clientFirstName }: { 
   }
 
   const link = view?.link ?? null;
-  const textBody = link ? `Hi${clientFirstName ? ` ${clientFirstName}` : ""}, it's Digital Crate DJs! Here are 10 quick questions so we can lock in your wedding date (about 2 minutes): ${link.url}` : "";
+  const textBody = link ? `Hi${clientFirstName ? ` ${clientFirstName}` : ""}, it's Digital Crate DJs! Here are ${view?.total ?? "a few"} quick questions so we can lock in your wedding date and know the best way and time to reach you (about 2 minutes): ${link.url}` : "";
+  const reach = (link?.answers ?? []).filter((a) => a.section === "Staying in Touch" && a.answer);
   const smsHref = link ? `sms:${(clientPhone ?? "").replace(/[^\d+]/g, "")}?&body=${encodeURIComponent(textBody)}` : "#";
 
   async function copy(text: string) {
@@ -72,7 +73,7 @@ export function WeddingBasicsPanel({ eventId, clientPhone, clientFirstName }: { 
         <ClipboardList size={16} className="text-gold" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">Wedding Basics questionnaire</p>
-          <p className="text-xs text-muted">10 required questions, no login: date, venue, reception start, guest count, both names, married last name, both phones, email.</p>
+          <p className="text-xs text-muted">{view?.total ? `${view.total} required questions` : "Required questions"}, no login: date, venue, reception start, guest count, both names, married last name, both phones, email, and how and when they like to be reached.</p>
         </div>
       </div>
 
@@ -80,7 +81,10 @@ export function WeddingBasicsPanel({ eventId, clientPhone, clientFirstName }: { 
         <p className="text-xs text-muted">Loading…</p>
       ) : !view.ready ? (
         <p className="rounded-[10px] bg-status-pending/10 p-3 text-xs text-status-pending">Run migration 0054_questionnaire_links.sql in Supabase to turn this on.</p>
-      ) : !link ? (
+      ) : view.total === 10 && !link?.completed_at && (
+        <p className="rounded-[10px] bg-status-pending/10 p-3 text-xs text-status-pending">Run migration 0055_wedding_basics_contact.sql in Supabase to add the “best way to reach you / best days and times” questions.</p>
+      )}
+      {!view || !view.ready ? null : !link ? (
         <Button variant="secondary" size="sm" className="self-start" disabled={busy} onClick={() => void act("create")}>
           {busy ? <Loader2 size={14} className="animate-spin" /> : <Link2 size={14} />} Create link to send
         </Button>
@@ -126,6 +130,17 @@ export function WeddingBasicsPanel({ eventId, clientPhone, clientFirstName }: { 
             </Button>
           </div>
           <p className="text-[11px] text-muted">&ldquo;Text it&rdquo; opens Messages on your phone or Mac with the message filled in. You can also paste it into any app.</p>
+
+          {reach.length > 0 && (
+            <div className="rounded-[10px] border border-gold/30 bg-gold/5 p-3 text-xs">
+              <p className="mb-1 font-semibold">Best way and time to reach them</p>
+              {reach.map((a) => (
+                <p key={a.prompt}>
+                  <span className="text-muted">{a.prompt.replace(/\?$/, "")}:</span> <span className="font-medium">{a.answer}</span>
+                </p>
+              ))}
+            </div>
+          )}
 
           {link.applied && (link.applied.filled.length > 0 || link.applied.differs.length > 0) && (
             <div className="rounded-[10px] bg-black/[0.03] p-3 text-xs">

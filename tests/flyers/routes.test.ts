@@ -693,3 +693,17 @@ describe("Wedding Basics questionnaire link (no login)", () => {
     expect((await pub.GET(req(`/api/q/not-a-real-token`), p({ token: "not-a-real-token" }))).status).toBe(404);
   });
 });
+
+describe("Wedding Basics: staying in touch", () => {
+  it("contact method, days and times are required picks and show as labels", async () => {
+    const { submissionProblems } = await import("@/lib/data/questionnaire-links");
+    const { displayAnswer } = await import("@/lib/questionnaire-engine");
+    const opt = (v: string, l: string) => ({ value: v, label: l });
+    const mk = (key: string, options: { value: string; label: string }[]) => ({ id: key, section_id: "s3", key, position: 1, prompt: key, subtext: null, question_type: "multi_select" as const, options, allow_unsure: false, required: true, depends_on_question_key: null, depends_on_values: null });
+    const qs = [mk("contact_methods", [opt("text", "Text"), opt("call", "Phone call")]), mk("best_days", [opt("tue", "Tuesday"), opt("sat", "Saturday")]), mk("best_times", [opt("evening", "Evening (5 – 8 PM)")])];
+    const template = { id: "t", event_type: "wedding_basics", title: "x", opening_heading: "x", opening_body: "x", opening_cta_label: "x", sections: [{ id: "s3", key: "staying_in_touch", title: "Staying in Touch", position: 3, transition_heading: null, transition_subheading: null, questions: qs }] } as never;
+    expect(submissionProblems(template, { contact_methods: { value: [] } }).map((p) => p.key)).toEqual(["contact_methods", "best_days", "best_times"]);
+    expect(submissionProblems(template, { contact_methods: { value: ["text"] }, best_days: { value: ["tue", "sat"] }, best_times: { value: ["evening"] } })).toEqual([]);
+    expect(displayAnswer(qs[1], { value: ["tue", "sat"] })).toMatch(/Tuesday.*Saturday/);
+  });
+});

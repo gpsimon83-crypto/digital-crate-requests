@@ -26,12 +26,13 @@ export const UPDATES: UpdateEntry[] = [
     summary: "For wedding leads you can't email yet: send a private link (no login) with the 10 must-know questions, in the same one-question-at-a-time style as the planning questionnaire.",
     bullets: [
       "Event page → Wedding Basics questionnaire → Create link, then Text it or Copy",
-      "Asks: wedding date, reception venue, reception start time, guest count, both full names, married last name, both phone numbers, best email. All 10 are required and checked (real date, phone, email)",
+      "Asks: wedding date, reception venue, reception start time, guest count, both full names, married last name, both phone numbers, best email. All required and checked (real date, phone, email)",
+      "Staying in touch: best way to reach them (text, call, email, video, in person), best days, and best time of day for a call or meeting. Shown at the top of their answers on the event page",
       "Answers save as they go; once submitted they're locked. Use “Let them edit” to unlock, or “New link” to retire the old one",
       "On submit, empty event and client fields are filled in (date and time, venue, guests, couple name, client name, phone, email). Anything already in the CRM is kept, and differences are listed for you",
       "Edit the questions anytime in Admin → Questionnaires → Wedding Basics"
     ],
-    action: "Run migration 0054_questionnaire_links.sql in Supabase"
+    action: "Run migrations 0054_questionnaire_links.sql, then 0055_wedding_basics_contact.sql, in Supabase"
   },
   {
     id: "2026-11-15-flyer-date-badges",
