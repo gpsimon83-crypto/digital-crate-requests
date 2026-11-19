@@ -19,6 +19,21 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-18-client-portal-redesign",
+    date: "2026-11-18",
+    area: "CRM",
+    title: "Client portal redesign and portal looks",
+    summary: "Clients see a split event header, photo tabs, summary tiles, one clear next step, and a look that fits their event.",
+    bullets: [
+      "Split header: the event banner beside the title, date, venue, countdown and Build Your Package. A wedding with no banner shows the vineyard photo",
+      "The banner, blurred and desaturated, sits softly behind the header and fades into the page (on/off and strength per event)",
+      "Photo tabs: Overview, Conversations, Contracts, Forms, Documents, Music, Payments, each with its own photo",
+      "Overview: Contract, Balance due and Music plan tiles; Your next steps with the next available action as the big button (e.g. Start planning opens the event details form), other steps showing Done, To do or Not open yet; Recent conversations; a compact Your DJ card with the DJ's photo (headphones photo when there's no DJ or photo) and whether they're confirmed",
+      "Five looks: Ink & Brass, Indigo & Apricot, Pine & Copper, Slate & Electric Lime, Plum & Champagne. Assign one to each event type in Admin → Settings → Client portal looks, or pick one for a single event in the project's Customize Portal panel"
+    ],
+    action: "Run migration 0057_portal_themes.sql in Supabase to save per-event-type looks (per-event picks work without it)"
+  },
+  {
     id: "2026-11-18-project-page-themes",
     date: "2026-11-18",
     area: "CRM",

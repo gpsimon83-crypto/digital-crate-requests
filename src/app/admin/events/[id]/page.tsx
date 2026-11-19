@@ -965,6 +965,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                   portal_hero_subheading_override: event.portal_hero_subheading_override,
                   timezone: event.timezone
                 }}
+                eventCategory={event.event_category}
               />
 
               <GlassCard className="flex flex-col gap-3">

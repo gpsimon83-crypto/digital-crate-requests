@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getClientForAuthUser, updateClientEventNight } from "@/lib/data/portal";
 import { requirePortalReadAccess } from "@/lib/require-portal-access";
@@ -34,7 +35,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // Optional — a missing event_meetings table shouldn't take the page down.
     const meetings = await listUpcomingMeetingsForClient(id).catch(() => []);
 
-    return NextResponse.json({ event, payments, balance, contract, changeOrders, meetings, staffPreview: access.isStaffPreview });
+    // Palette staff assigned to this event's category (optional: before migration 0057 the defaults apply).
+    let portalThemeByCategory: Record<string, string> = {};
+    try {
+      const { data } = await createAdminClient().from("platform_settings").select("portal_theme_by_category").eq("id", true).maybeSingle();
+      portalThemeByCategory = (data?.portal_theme_by_category as Record<string, string> | null) ?? {};
+    } catch {
+      // keep the built-in defaults
+    }
+
+    return NextResponse.json({ event, payments, balance, contract, changeOrders, meetings, staffPreview: access.isStaffPreview, portalThemeByCategory });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }

@@ -42,7 +42,7 @@ export function PortalTopHeader({ eventId, firstName }: { eventId?: string; firs
         </Link>
         <div className="relative" ref={menuRef}>
           <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 text-sm">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white" style={{ background: "var(--foreground)" }}>
+            <span className="flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold" style={{ background: "var(--foreground)", color: "var(--background)" }}>
               {firstName ? firstName.charAt(0).toUpperCase() : "?"}
             </span>
             <span className="hidden sm:inline">Hi, {firstName ?? "there"}</span>

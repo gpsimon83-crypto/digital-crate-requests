@@ -1,12 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { HeroCropControls } from "@/components/ui/hero-crop-controls";
 import { cn } from "@/lib/utils";
 import { mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
+import { PORTAL_THEMES, backdropSettings, resolvePortalTheme, type PortalThemeId } from "@/lib/portal-themes";
+import { EVENT_CATEGORY_LABELS, type EventCategory } from "@/lib/event-category";
 
 export type PortalHeroBannerSize = "compact" | "standard" | "tall";
 
@@ -18,6 +20,10 @@ export type PortalHeroBannerSize = "compact" | "standard" | "tall";
 export interface PortalHeroExtras {
   bannerSize?: PortalHeroBannerSize;
   textColor?: string;
+  /** Portal palette for this event; unset = the event category's palette (src/lib/portal-themes.ts). */
+  portalTheme?: PortalThemeId | null;
+  /** Blurred banner backdrop behind the portal, configured separately from the palette. */
+  backdrop?: { enabled: boolean; strength: number };
 }
 
 const DEFAULT_TEXT_COLOR = "#ffffff";
@@ -47,8 +53,19 @@ interface PortalHeroData {
  * elsewhere): this one controls what the booking client sees in their
  * own portal.
  */
-export function PortalHeroPanel({ eventId, initial }: { eventId: string; initial: PortalHeroData }) {
+export function PortalHeroPanel({ eventId, initial, eventCategory = null }: { eventId: string; initial: PortalHeroData; eventCategory?: EventCategory | null }) {
   const [data, setData] = useState<PortalHeroData>(initial);
+  const [byCategory, setByCategory] = useState<Record<string, string>>({});
+  useEffect(() => {
+    fetch("/api/admin/settings/portal-themes")
+      .then((r) => r.json())
+      .then((j) => setByCategory(j.byCategory ?? {}))
+      .catch(() => {});
+  }, []);
+  const categoryTheme = resolvePortalTheme(eventCategory, null, byCategory);
+  const pick = data.portal_hero_settings?.portalTheme ?? null;
+  const backdrop = backdropSettings(data.portal_hero_settings?.backdrop);
+  const setExtras = (v: Partial<PortalHeroExtras>) => setData((d) => ({ ...d, portal_hero_settings: { ...d.portal_hero_settings, ...v } }));
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -220,6 +237,44 @@ export function PortalHeroPanel({ eventId, initial }: { eventId: string; initial
           </label>
         </>
       )}
+
+      <div data-tour="portal-look">
+        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Portal look</span>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Portal look">
+          {[{ id: null as PortalThemeId | null, name: `${eventCategory ? EVENT_CATEGORY_LABELS[eventCategory] : "Event type"} default`, swatch: PORTAL_THEMES.find((t) => t.id === categoryTheme)!.swatch, sub: PORTAL_THEMES.find((t) => t.id === categoryTheme)!.name }, ...PORTAL_THEMES.map((t) => ({ id: t.id as PortalThemeId | null, name: t.name, swatch: t.swatch, sub: null as string | null }))].map((o) => (
+            <button
+              key={o.id ?? "default"}
+              type="button"
+              role="radio"
+              aria-checked={pick === o.id}
+              onClick={() => setExtras({ portalTheme: o.id })}
+              className={cn("flex items-center gap-2 rounded-[10px] border px-2.5 py-1.5 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold", pick === o.id ? "border-gold bg-gold-soft" : "border-black/10 hover:border-gold/50")}
+            >
+              <span className="flex h-5 w-5 shrink-0 overflow-hidden rounded-full border border-black/10" aria-hidden>
+                <span className="h-full w-1/2" style={{ background: o.swatch[0] }} />
+                <span className="h-full w-1/2" style={{ background: o.swatch[1] }} />
+              </span>
+              <span>
+                <span className="block font-medium">{o.name}</span>
+                {o.sub && <span className="block text-[10px] text-muted">{o.sub}</span>}
+              </span>
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-[11px] text-muted">Default per event type is set in Admin → Settings → Client portal looks.</p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={backdrop.enabled} onChange={(e) => setExtras({ backdrop: { ...backdrop, enabled: e.target.checked } })} className="h-4 w-4 accent-[var(--gold)]" />
+          Blurred photo backdrop
+        </label>
+        <label className={cn("flex items-center gap-2 text-xs text-muted", !backdrop.enabled && "opacity-50")}>
+          Strength
+          <input type="range" min={0} max={100} step={5} value={backdrop.strength} disabled={!backdrop.enabled} onChange={(e) => setExtras({ backdrop: { ...backdrop, strength: Number(e.target.value) } })} className="w-32 accent-[var(--gold)]" />
+          <span className="w-8 tabular-nums">{backdrop.strength}%</span>
+        </label>
+      </div>
 
       <div className="flex items-center gap-3">
         <Button variant="primary" size="sm" onClick={saveFields} disabled={saving} className="w-fit">

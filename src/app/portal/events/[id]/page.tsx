@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
-import { Tabs } from "@/components/ui/tabs";
 import { TagPicker } from "@/components/dashboard/tag-picker";
 import { SongSlotField } from "@/components/portal/song-slot-field";
 import { PortalFilesList } from "@/components/portal/portal-files-list";
-import { PortalHeroPhoto, PortalWelcomeRow } from "@/components/portal/portal-hero";
+import { PortalEventHeader } from "@/components/portal/portal-event-header";
+import { PortalPhotoTabs } from "@/components/portal/portal-photo-tabs";
+import { PORTAL_THEMES, backdropSettings, resolvePortalTheme } from "@/lib/portal-themes";
 import type { PortalHeroExtras } from "@/components/project/portal-hero-panel"; // type-only — erased at build, no runtime import of the admin panel
 import { PortalTopHeader } from "@/components/portal/portal-top-header";
 import { DjProfileCard } from "@/components/portal/dj-profile-card";
@@ -17,7 +18,7 @@ import { ConversationPanel } from "@/components/portal/conversation-panel";
 import { NextStepsCard } from "@/components/portal/next-steps-card";
 import { UpcomingMeetingCard, type PortalMeeting } from "@/components/portal/upcoming-meeting-card";
 import { ChangeOrdersPanel, type ChangeOrderData } from "@/components/project/change-orders-panel";
-import { ArrowLeft, X, FileText, FileSignature, DollarSign, Music2, ChevronRight, MessageCircle, ClipboardList, type LucideIcon } from "lucide-react";
+import { ArrowLeft, X, FileText, FileSignature, DollarSign, Music2, ChevronRight, MessageCircle, type LucideIcon } from "lucide-react";
 import type { HeroSettings } from "@/lib/hero-settings";
 import type { EventCategory } from "@/lib/event-category";
 
@@ -78,7 +79,7 @@ interface EventDetail {
   contract_status: "none" | "draft" | "sent" | "signed" | "void";
   couple_display_name: string | null;
   portal_hero_image_url: string | null;
-  portal_hero_settings: (Partial<HeroSettings> & PortalHeroExtras) | null;
+  portal_hero_settings: (Partial<HeroSettings> & PortalHeroExtras & { portalTheme?: string | null; backdrop?: unknown }) | null;
   portal_hero_headline_override: string | null;
   portal_hero_subheading_override: string | null;
   timezone: string | null;
@@ -164,7 +165,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const [branding, setBranding] = useState<Branding | null>(null);
   const [questionnaireCompleted, setQuestionnaireCompleted] = useState(false);
   const [lastMessage, setLastMessage] = useState<{ body: string; created_at: string; direction: "inbound" | "outbound"; from_name: string | null } | null>(null);
-  const [documentCount, setDocumentCount] = useState(0);
+  const [portalThemeByCategory, setPortalThemeByCategory] = useState<Record<string, string>>({});
 
   const [mustPlay, setMustPlay] = useState<string[]>([]);
   const [doNotPlay, setDoNotPlay] = useState<string[]>([]);
@@ -196,6 +197,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       if (!res.ok) throw new Error(data.error || "Failed to load event");
       setEvent(data.event);
       setBalance(data.balance);
+      setPortalThemeByCategory(data.portalThemeByCategory ?? {});
       if (data.staffPreview) {
         setStaffPreview(true);
         setFirstName(data.event.clients?.first_name ?? null);
@@ -236,12 +238,22 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       .then((r) => r.json())
       .then((data) => setLastMessage(data.messages?.[data.messages.length - 1] ?? null))
       .catch(() => {});
-    fetch(`/api/portal/events/${id}/files`)
-      .then((r) => r.json())
-      .then((data) => setDocumentCount(data.files?.length ?? 0))
-      .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Pop-ups render on <body>: give it the same look while this page is open.
+  const bodyTheme = event ? resolvePortalTheme(event.event_category, event.portal_hero_settings?.portalTheme, portalThemeByCategory) : null;
+  useEffect(() => {
+    if (!bodyTheme) return;
+    const body = document.body;
+    body.dataset.portalTheme = bodyTheme;
+    if (PORTAL_THEMES.find((t) => t.id === bodyTheme)?.dark) body.dataset.portalThemeDark = "";
+    else delete body.dataset.portalThemeDark;
+    return () => {
+      delete body.dataset.portalTheme;
+      delete body.dataset.portalThemeDark;
+    };
+  }, [bodyTheme]);
 
   async function handleSave() {
     setSaving(true);
@@ -366,9 +378,23 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const heroSettings = event.portal_hero_image_url ? event.portal_hero_settings : null;
   const headline = event.portal_hero_headline_override ?? branding?.heading ?? null;
   const displayName = event.couple_display_name ?? event.title;
+  const theme = resolvePortalTheme(event.event_category, event.portal_hero_settings?.portalTheme, portalThemeByCategory);
+  const themeDark = PORTAL_THEMES.find((t) => t.id === theme)?.dark ?? false;
+  const backdrop = backdropSettings(event.portal_hero_settings?.backdrop);
+  const musicPlanOpen = !!event.wedding_music_plan_sent_at;
+  const balanceDue = !!balance && balance.balanceCents > 0;
+  const tabHref = (tab: string) => `/portal/events/${id}?tab=${tab}`;
 
   return (
-    <>
+    <div data-portal-theme={theme} data-portal-theme-dark={themeDark ? "" : undefined} className="relative isolate min-h-dvh">
+      {/* The event banner, heavily blurred and desaturated: colour near the header, fading to the workspace behind the tabs and cards. */}
+      {heroImage && backdrop.enabled && (
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[900px] overflow-hidden">
+          <div className="absolute inset-0 scale-125 bg-cover bg-center blur-[64px] saturate-[0.45]" style={{ backgroundImage: `url(${heroImage})`, opacity: backdrop.strength / 100 }} />
+          <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_0%,color-mix(in_srgb,var(--background)_55%,transparent)_45%,var(--background)_92%)]" />
+        </div>
+      )}
+
       <PortalTopHeader eventId={id} firstName={firstName} />
       {staffPreview && (
         <div className="sticky top-0 z-40 border-b border-[#4c86ff]/30 bg-[#eaf1ff] px-4 py-2 text-center text-xs text-[#24418a]">
@@ -376,139 +402,116 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
         </div>
       )}
 
-      <PortalHeroPhoto
-        imageUrl={heroImage}
-        heroSettings={heroSettings}
-        headline={headline}
-        displayName={displayName}
-        eventDateLabel={event.starts_at ? new Date(event.starts_at).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }) : null}
-        venueName={event.venues?.name ?? null}
-        tagline="Great music brings people closer."
-      />
-
-      <div className="px-[4%] py-8">
-        <div className="mb-4 flex items-center justify-between">
-          <Link href="/portal" className="flex items-center gap-1.5 text-sm text-muted hover:text-foreground">
+      <div className="px-[4%] pb-16 pt-6">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <Link href="/portal" className="flex items-center gap-1.5 rounded-[6px] text-sm text-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
             <ArrowLeft size={14} /> Your events
           </Link>
-          <Link href={`/portal/events/${id}/package`} className="shrink-0 text-sm font-medium text-gold hover:underline">
-            Build Your Package →
-          </Link>
+          {firstName && <p className="hidden text-sm text-muted sm:block">Welcome back, {firstName}.</p>}
         </div>
 
-        <PortalWelcomeRow firstName={firstName} startsAt={event.starts_at} timezone={event.timezone} />
+        <PortalEventHeader
+          imageUrl={heroImage}
+          heroSettings={heroSettings}
+          fallbackImage={isWedding ? "/portal/tabs/overview.webp" : null}
+          eyebrow={headline ?? (isWedding ? "Your wedding" : "Your event")}
+          title={displayName}
+          startsAt={event.starts_at}
+          timezone={event.timezone}
+          venueName={event.venues?.name ?? null}
+          packageHref={`/portal/events/${id}/package`}
+        />
 
-        <div className="mt-6 overflow-x-auto">
-          <Tabs items={TABS} active={activeTab} hrefFor={(key) => `/portal/events/${id}?tab=${key}`} className="min-w-max" />
+        <div className="mt-8">
+          <PortalPhotoTabs items={TABS} active={activeTab} hrefFor={tabHref} overviewPhoto={heroImage} />
         </div>
 
         {activeTab === "overview" && (
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-            <div className="flex flex-col gap-4">
-              <ChangeOrdersPanel
-                changeOrders={changeOrders}
-                role="client"
-                onAcknowledge={async (changeOrderId, fullName) => {
-                  const res = await fetch(`/api/portal/events/${id}/change-orders/${changeOrderId}/acknowledge`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ fullName })
-                  });
-                  const data = await res.json();
-                  if (!res.ok) throw new Error(data.error || "Failed to acknowledge");
-                  setChangeOrders((prev) => prev.map((c) => (c.id === changeOrderId ? data.changeOrder : c)));
-                }}
+          <div className="mt-8 flex flex-col gap-6">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <SummaryCard
+                icon={FileSignature}
+                label="Contract"
+                value={event.contract_status === "signed" ? "Signed" : event.contract_status === "sent" ? "Awaiting signature" : "Not sent yet"}
+                href={tabHref("contracts")}
               />
-              <div className="grid gap-3 sm:grid-cols-3">
-                <SummaryCard
-                  icon={FileSignature}
-                  label="Contract"
-                  value={event.contract_status === "signed" ? "Signed" : event.contract_status === "sent" ? "Awaiting signature" : "Not sent yet"}
-                  onClick={() => goTo("contracts")}
-                />
-                <SummaryCard icon={DollarSign} label="Balance due" value={balance ? `$${(balance.balanceCents / 100).toFixed(2)}` : "—"} onClick={() => goTo("payments")} />
-                <SummaryCard
-                  icon={Music2}
-                  label="Music plan"
-                  value={event.wedding_music_plan_sent_at ? (weddingPlan.first_dance_song ? "In progress" : "Not started") : "Not sent yet"}
-                  onClick={() => goTo("music")}
-                />
-              </div>
-
-              <UpcomingMeetingCard meetings={meetings} />
-
-              <NextStepsCard
-                questionnaireCompleted={questionnaireCompleted}
-                firstDanceSongSet={!!weddingPlan.first_dance_song}
-                isWedding={isWedding}
-                onOpenForms={() => goTo("forms")}
-                onOpenMusic={() => goTo("music")}
+              <SummaryCard icon={DollarSign} label="Balance due" value={balance ? `$${(balance.balanceCents / 100).toFixed(2)}` : "—"} href={tabHref("payments")} />
+              <SummaryCard
+                icon={Music2}
+                label="Music plan"
+                value={event.wedding_music_plan_sent_at ? (weddingPlan.first_dance_song ? "In progress" : "Not started") : "Not sent yet"}
+                href={tabHref("music")}
               />
-
-              <GlassCard className="flex flex-col gap-1">
-                <div className="mb-1 flex items-center justify-between">
-                  <p className="text-sm font-semibold">Recent conversations</p>
-                  <button onClick={() => goTo("conversations")} className="text-xs font-medium text-gold hover:underline">
-                    View all
-                  </button>
-                </div>
-                {lastMessage ? (
-                  <button onClick={() => goTo("conversations")} className="flex items-center gap-3 rounded-[10px] px-1 py-2 text-left hover:bg-panel">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-panel text-xs font-semibold text-muted">
-                      {(lastMessage.direction === "inbound" ? "You" : (lastMessage.from_name ?? "DJ")).slice(0, 2).toUpperCase()}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm">{lastMessage.body}</span>
-                      <span className="text-xs text-muted">{new Date(lastMessage.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
-                    </span>
-                    <ChevronRight size={15} className="shrink-0 text-muted" />
-                  </button>
-                ) : (
-                  <p className="flex items-center gap-2 px-1 py-2 text-xs text-muted">
-                    <MessageCircle size={14} /> No messages yet — say hello from the Conversations tab.
-                  </p>
-                )}
-              </GlassCard>
-
-              <GlassCard className="flex flex-col gap-1">
-                <div className="mb-1 flex items-center justify-between">
-                  <p className="text-sm font-semibold">Forms &amp; documents</p>
-                  <button onClick={() => goTo("documents")} className="text-xs font-medium text-gold hover:underline">
-                    View all
-                  </button>
-                </div>
-                <button onClick={() => goTo("forms")} className="flex items-center gap-3 rounded-[10px] px-1 py-2 text-left hover:bg-panel">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-soft text-gold-dim">
-                    <ClipboardList size={15} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium">Wedding questionnaire</span>
-                    <span className="text-xs text-muted">{questionnaireCompleted ? "Completed" : "Not started"}</span>
-                  </span>
-                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${questionnaireCompleted ? "bg-status-approved/15 text-status-approved" : "bg-panel text-muted"}`}>
-                    {questionnaireCompleted ? "Done" : "Not started"}
-                  </span>
-                </button>
-                <button onClick={() => goTo("documents")} className="flex items-center gap-3 rounded-[10px] px-1 py-2 text-left hover:bg-panel">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gold-soft text-gold-dim">
-                    <FileText size={15} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-medium">Shared documents</span>
-                    <span className="text-xs text-muted">{documentCount} file{documentCount === 1 ? "" : "s"}</span>
-                  </span>
-                  <ChevronRight size={15} className="shrink-0 text-muted" />
-                </button>
-              </GlassCard>
             </div>
 
-            <DjProfileCard
-              name={event.djs?.display_name ?? null}
-              photoUrl={event.djs?.photo_url ?? null}
-              heroSettings={event.djs?.hero_settings ?? null}
-              bio={event.djs?.bio ?? null}
-              onStartConversation={() => goTo("conversations")}
-            />
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+              <div className="flex min-w-0 flex-col gap-6">
+                <ChangeOrdersPanel
+                  changeOrders={changeOrders}
+                  role="client"
+                  onAcknowledge={async (changeOrderId, fullName) => {
+                    const res = await fetch(`/api/portal/events/${id}/change-orders/${changeOrderId}/acknowledge`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ fullName })
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || "Failed to acknowledge");
+                    setChangeOrders((prev) => prev.map((c) => (c.id === changeOrderId ? data.changeOrder : c)));
+                  }}
+                />
+
+                <UpcomingMeetingCard meetings={meetings} />
+
+                <NextStepsCard
+                  eventId={id}
+                  questionnaireCompleted={questionnaireCompleted}
+                  isWedding={isWedding}
+                  musicPlanOpen={musicPlanOpen}
+                  firstDanceSongSet={!!weddingPlan.first_dance_song}
+                  timelineSet={dayTimeline.some((t) => t.label?.trim())}
+                  contractAwaitingSignature={contract?.status === "sent"}
+                  balanceDue={balanceDue}
+                  onOpenMusic={() => goTo("music")}
+                  onOpenContracts={() => goTo("contracts")}
+                  onOpenPayments={() => goTo("payments")}
+                />
+
+                <GlassCard className="flex flex-col gap-1">
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-[2.5px] text-muted">Recent conversations</p>
+                    <Link href={tabHref("conversations")} className="rounded-[6px] text-xs font-medium text-gold-dim hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+                      View all
+                    </Link>
+                  </div>
+                  {lastMessage ? (
+                    <Link href={tabHref("conversations")} className="flex items-center gap-3 rounded-[10px] px-1 py-2 text-left hover:bg-panel/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-panel text-xs font-semibold text-muted">
+                        {(lastMessage.direction === "inbound" ? "You" : (lastMessage.from_name ?? "DJ")).slice(0, 2).toUpperCase()}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm">{lastMessage.body}</span>
+                        <span className="text-xs text-muted">{new Date(lastMessage.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                      </span>
+                      <ChevronRight size={15} className="shrink-0 text-muted" />
+                    </Link>
+                  ) : (
+                    <p className="flex items-center gap-2 px-1 py-2 text-xs text-muted">
+                      <MessageCircle size={14} /> No messages yet. Say hello from the Conversations tab.
+                    </p>
+                  )}
+                </GlassCard>
+              </div>
+
+              <DjProfileCard
+                name={event.djs?.display_name ?? null}
+                photoUrl={event.djs?.photo_url ?? null}
+                heroSettings={event.djs?.hero_settings ?? null}
+                bio={event.djs?.bio ?? null}
+                status={event.status}
+                onStartConversation={() => goTo("conversations")}
+              />
+            </div>
           </div>
         )}
 
@@ -1004,14 +1007,14 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
         </div>
       )}
       </div>
-    </>
+    </div>
   );
 }
 
-function SummaryCard({ icon: Icon, label, value, onClick }: { icon: LucideIcon; label: string; value: string; onClick: () => void }) {
+function SummaryCard({ icon: Icon, label, value, href }: { icon: LucideIcon; label: string; value: string; href: string }) {
   return (
-    <button onClick={onClick} className="text-left">
-      <GlassCard className="flex items-center gap-3 transition-colors hover:border-gold/40">
+    <Link href={href} className="rounded-[var(--radius-card)] text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]">
+      <GlassCard className="flex items-center gap-3 py-5 transition-colors hover:border-gold/40">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-soft text-gold-dim">
           <Icon size={17} />
         </span>
@@ -1021,7 +1024,7 @@ function SummaryCard({ icon: Icon, label, value, onClick }: { icon: LucideIcon; 
         </span>
         <ChevronRight size={15} className="shrink-0 text-muted" />
       </GlassCard>
-    </button>
+    </Link>
   );
 }
 

@@ -29,7 +29,14 @@ export function PortalFilesList({ eventId }: { eventId: string }) {
 
   useEffect(load, [eventId]);
 
-  if (!files || files.length === 0) return null;
+  if (!files) return null;
+  if (files.length === 0)
+    return (
+      <GlassCard className="flex flex-col gap-1">
+        <p className="text-sm font-semibold">Documents</p>
+        <p className="text-sm text-muted">Nothing shared yet. Files your DJ shares with you, like timelines and attachments, will show up here.</p>
+      </GlassCard>
+    );
 
   return (
     <GlassCard className="flex flex-col gap-3">

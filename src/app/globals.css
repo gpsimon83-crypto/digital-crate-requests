@@ -429,8 +429,10 @@ body {
    follows. Dark looks also flip black-tinted utilities (border-black/10,
    bg-black/5, …) to light tints so dividers and hovers stay visible.
    ───────────────────────────────────────────────────────────────────── */
-[data-project-theme] {
+[data-project-theme],
+[data-portal-theme] {
   --on-gold: #1a140a;
+  --header-accent: var(--gold-light);
   --header-panel: transparent;
   --header-fg: var(--foreground);
   --header-muted: var(--muted);
@@ -439,17 +441,21 @@ body {
   color: var(--foreground);
 }
 [data-project-theme] .text-\[\#1A140A\],
-[data-project-theme] .text-\[\#1a140b\] {
+[data-project-theme] .text-\[\#1a140b\],
+[data-portal-theme] .text-\[\#1A140A\],
+[data-portal-theme] .text-\[\#1a140b\] {
   color: var(--on-gold);
 }
-[data-project-theme-dark] {
+[data-project-theme-dark],
+[data-portal-theme-dark] {
   color-scheme: dark;
   --color-black: #ffffff;
   --shadow-card: 0 6px 24px rgba(0, 0, 0, 0.28);
   --shadow-card-hover: 0 10px 32px rgba(0, 0, 0, 0.38);
   --wash-opacity: 0.5;
 }
-[data-project-theme-dark] .bg-white {
+[data-project-theme-dark] .bg-white,
+[data-portal-theme-dark] .bg-white {
   background-color: var(--card);
 }
 
@@ -532,4 +538,95 @@ body {
 }
 [data-project-theme="classic"] {
   --wash-opacity: 0.18;
+}
+
+/* Client portal looks (src/lib/portal-themes.ts). Same tokens as above. */
+[data-portal-theme="ink-brass"] {
+  --header-accent: #c9944a;
+  --background: #f4f0e7;
+  --panel: #ece6d9;
+  --card: #fffdf8;
+  --foreground: #17181c;
+  --muted: #625c52;
+  --border: #e1d9c8;
+  --gold: #8a5a1c;
+  --gold-light: #a8722c;
+  --gold-dim: #7a4e17;
+  --gold-soft: #f1e5cf;
+  --taupe: #cdc3b0;
+  --on-gold: #ffffff;
+  --header-panel: #1b1d22;
+  --header-fg: #f6f1e7;
+  --header-muted: #c9c1b2;
+}
+[data-portal-theme="indigo-apricot"] {
+  --header-accent: #f4b183;
+  --background: #f3f2fa;
+  --panel: #ebe9f6;
+  --card: #ffffff;
+  --foreground: #1d1a3a;
+  --muted: #5f5b7a;
+  --border: #dedbee;
+  --gold: #3b2f8f;
+  --gold-light: #5747b8;
+  --gold-dim: #3b2f8f;
+  --gold-soft: #fde4d4;
+  --taupe: #c7c2dc;
+  --on-gold: #ffffff;
+  --header-panel: #2e2580;
+  --header-fg: #fbf7ff;
+  --header-muted: #d6d0f2;
+}
+[data-portal-theme="pine-copper"] {
+  --header-accent: #d98c58;
+  --background: #f2f0ea;
+  --panel: #e7e6dc;
+  --card: #fffefa;
+  --foreground: #16261f;
+  --muted: #56625b;
+  --border: #dcdcd0;
+  --gold: #a95a2b;
+  --gold-light: #c47440;
+  --gold-dim: #8f4a22;
+  --gold-soft: #f2dfcd;
+  --taupe: #c6c8b8;
+  --on-gold: #ffffff;
+  --header-panel: #1f3a2e;
+  --header-fg: #f1eee6;
+  --header-muted: #c3cfc6;
+}
+[data-portal-theme="slate-lime"] {
+  --header-accent: #c8f03c;
+  --background: #0d1117;
+  --panel: #161c25;
+  --card: #131922;
+  --foreground: #eef2f6;
+  --muted: #a1abb8;
+  --border: rgba(255, 255, 255, 0.11);
+  --gold: #c8f03c;
+  --gold-light: #dcff6a;
+  --gold-dim: #c8f03c;
+  --gold-soft: rgba(200, 240, 60, 0.14);
+  --taupe: #4b5563;
+  --on-gold: #10140a;
+  --disabled: #77808c;
+  --header-panel: #161c25;
+}
+[data-portal-theme="plum-champagne"] {
+  --header-accent: #ebd3bd;
+  --background: #fbf4f1;
+  --panel: #f5e9e5;
+  --card: #fffcfa;
+  --foreground: #3a1027;
+  --muted: #7a5a68;
+  --border: #ecdcd6;
+  --gold: #6e1f47;
+  --gold-light: #8e2d5d;
+  --gold-dim: #6e1f47;
+  --gold-soft: #f3e1d3;
+  --taupe: #d9c4c4;
+  --on-gold: #ffffff;
+  --header-panel: #5e1a3d;
+  --header-fg: #fbefe8;
+  --header-muted: #e7c9cf;
 }

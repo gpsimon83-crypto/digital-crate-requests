@@ -1,5 +1,6 @@
 "use client";
 
+import { PortalThemeSettings } from "@/components/admin/portal-theme-settings";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -394,6 +395,8 @@ function AdminSettingsPageInner() {
         <NotificationHealthCard />
 
         <GoogleCalendarCard />
+
+        <PortalThemeSettings />
 
         {!settings && !error && <p className="text-sm text-muted">Loading...</p>}
 
