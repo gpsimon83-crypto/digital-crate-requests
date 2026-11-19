@@ -19,6 +19,19 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-18-project-page-themes",
+    date: "2026-11-18",
+    area: "CRM",
+    title: "Project page redesign and themes",
+    summary: "Projects open with a split header, a booking panel that shows the next step, Venue / Ceremony / Reception cards, and a look that fits the event.",
+    bullets: [
+      "Split header: banner photo beside the title, date, time, venue, event type, guests and service. Change or remove the photo with the buttons on it, as before",
+      "Booking panel: the nine-stage rail, then the current stage, where things stand, what's next, and one button for the next step (e.g. Collect retainer, Start planning)",
+      "Tabs on their own row; Venue, Ceremony and Reception cards below them (Venue and Event for non-weddings), filled from the event and Wedding Basics",
+      "Theme menu (top right): Charcoal & Brass, Nightclub, School Dance, Ink & Brass Gala, Plum & Champagne or Classic Cream. Each event type opens in its own look; your pick is remembered for that project in your browser"
+    ]
+  },
+  {
     id: "2026-11-18-wedding-basics-packages",
     date: "2026-11-18",
     area: "CRM",

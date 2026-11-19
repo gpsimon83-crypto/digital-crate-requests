@@ -9,7 +9,12 @@ import { Tabs } from "@/components/ui/tabs";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { cn } from "@/lib/utils";
 import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
-import { MilestoneStepper } from "@/components/project/milestone-stepper";
+import { BookingPanel } from "@/components/project/booking-panel";
+import { ProjectDayCards } from "@/components/project/project-day-cards";
+import { ThemeMenu } from "@/components/project/theme-menu";
+import { stageGuide } from "@/lib/pipeline-guide";
+import { PROJECT_THEMES, defaultProjectTheme, isProjectTheme, type ProjectThemeId } from "@/lib/project-themes";
+import { EVENT_CATEGORY_LABELS } from "@/lib/event-category";
 
 // The stepper shows the forward-moving path only — Declined/Archived are
 // exceptions handled via the Pipeline Stage dropdown in the sidebar, not
@@ -41,6 +46,9 @@ import {
   FileText,
   X,
   CalendarDays,
+  ChevronRight,
+  Clock,
+  ImagePlus,
   MapPin,
   Camera,
   Music2,
@@ -122,6 +130,7 @@ interface EventDetail {
   dj_id: string | null;
   djs: { display_name: string } | null;
   venues: { name: string } | null;
+  venue_id?: string | null;
   clients: ClientRow | null;
 }
 
@@ -198,6 +207,26 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
   const activeTab = (searchParams.get("tab") as Tab | null) ?? "Activity";
 
   const [event, setEvent] = useState<EventDetail | null>(null);
+  // Page look: picked in the Theme menu (remembered per project in this browser), else the event type's default.
+  const [themePick, setThemePick] = useState<ProjectThemeId | null>(null);
+  const themeKey = `dcdj-project-theme:${id}`;
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(themeKey);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- browser-only preference, read after mount
+      if (isProjectTheme(v)) setThemePick(v);
+    } catch {
+      // storage blocked: use the default look
+    }
+  }, [themeKey]);
+  function pickTheme(t: ProjectThemeId) {
+    setThemePick(t);
+    try {
+      localStorage.setItem(themeKey, t);
+    } catch {
+      // storage blocked: the pick lasts until the page reloads
+    }
+  }
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [balance, setBalance] = useState<Balance | null>(null);
   const [contracts, setContracts] = useState<ContractRow[]>([]);
@@ -508,106 +537,167 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
   const name = clientName(event.clients);
 
+  const defaultTheme = defaultProjectTheme(event.event_category);
+  const theme = themePick ?? defaultTheme;
+  const themeDark = PROJECT_THEMES.find((t) => t.id === theme)?.dark ?? false;
+  const isWedding = event.event_category === "wedding";
+  const stage = event.pipeline_stage ?? "Inquiry";
+  const tz = event.timezone || undefined;
+  const timeOf = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { timeZone: tz, hour: "numeric", minute: "2-digit" });
+  const venueLabel = event.venues?.name ?? event.venue_name ?? null;
+  const latestSigned = contracts.filter((c) => c.signed_at).map((c) => c.signed_at as string).sort().pop() ?? null;
+  const retainerPaid = payments.filter((p) => p.status === "succeeded" && p.kind === "deposit").map((p) => p.paid_at ?? p.created_at).sort().pop() ?? null;
+  const guide = stageGuide(stage, { createdAt: event.created_at, signedAt: latestSigned, retainerPaidAt: retainerPaid, startsAt: event.starts_at, isWedding });
+  const stats = [
+    { label: "Event type", value: (event.event_category && EVENT_CATEGORY_LABELS[event.event_category]) || event.event_type || "—" },
+    { label: "Guests", value: event.expected_guests != null ? String(event.expected_guests) : "—" },
+    { label: "Service", value: event.service_type || "—" }
+  ];
+  const gala = theme === "gala";
+
   return (
-    <div className="pb-16">
-      <div className="mx-6 mt-5 flex items-center justify-between gap-3 sm:mx-8">
-        <Link
-          href="/admin/events"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[1.5px] text-muted hover:text-foreground"
-        >
-          <ArrowLeft size={14} /> Projects
-        </Link>
-        <a
-          href={`/portal/events/${id}`}
-          target="_blank"
-          rel="noreferrer"
-          data-tour="event-client-portal"
-          className="inline-flex items-center gap-1.5 rounded-[10px] border border-border px-3 py-1.5 text-xs font-medium hover:border-gold"
-        >
-          <ExternalLink size={13} /> View client portal
-        </a>
+    <div data-project-theme={theme} data-project-theme-dark={themeDark ? "" : undefined} className="relative isolate min-h-dvh pb-16">
+      {/* Muted wash of the banner photo behind the page; it shows in the gaps between sections. */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[1200px] overflow-hidden">
+        {event.hero_image_url ? (
+          <div className="absolute inset-0 scale-110 bg-cover bg-center blur-[56px] saturate-[0.85]" style={{ backgroundImage: `url(${event.hero_image_url})`, opacity: "var(--wash-opacity)" }} />
+        ) : (
+          <div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_25%_10%,var(--gold-soft),transparent_70%)]" />
+        )}
+        <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_0%,transparent_35%,var(--background)_100%)]" />
       </div>
 
-      <div
-        className={cn(
-          "relative mx-6 mt-3 flex min-h-[343px] flex-col justify-end overflow-hidden border border-border bg-cover bg-center p-6 sm:mx-8 sm:p-8",
-          !event.hero_image_url && "bg-none"
-        )}
-        style={
-          event.hero_image_url
-            ? { backgroundImage: `linear-gradient(0deg, rgba(0,0,0,0.55), rgba(0,0,0,0.15)), url(${event.hero_image_url})` }
-            : { background: "linear-gradient(135deg, var(--gold-dim), var(--gold) 70%, var(--gold-light))" }
-        }
-      >
-        <input
-          ref={heroFileInput}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleHeroPhotoSelected(file);
-          }}
-        />
-        <div className="absolute right-4 top-4 flex gap-1.5">
-          {event.hero_image_url && (
-            <button
-              onClick={handleRemoveHeroPhoto}
-              disabled={uploadingHero}
-              title="Remove banner photo"
-              className="rounded-[10px] bg-black/30 p-2 text-white backdrop-blur-sm hover:bg-black/50"
-            >
-              <X size={14} />
-            </button>
-          )}
-          <button
-            onClick={() => heroFileInput.current?.click()}
-            disabled={uploadingHero}
-            title={event.hero_image_url ? "Change banner photo" : "Add a banner photo"}
-            className="rounded-[10px] bg-black/30 p-2 text-white backdrop-blur-sm hover:bg-black/50"
+      <div className="mx-6 flex flex-wrap items-center justify-between gap-3 pt-5 sm:mx-8">
+        <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-2 text-sm">
+          <Link href="/admin/events" className="inline-flex shrink-0 items-center gap-1.5 text-gold hover:underline">
+            <ArrowLeft size={14} className="sm:hidden" /> Projects
+          </Link>
+          <ChevronRight size={14} className="hidden shrink-0 text-muted sm:block" aria-hidden />
+          <span className="hidden truncate text-foreground/90 sm:block">{event.title}</span>
+        </nav>
+        <div className="flex items-center gap-2">
+          <ThemeMenu value={theme} defaultId={defaultTheme} onChange={pickTheme} />
+          <a
+            href={`/portal/events/${id}`}
+            target="_blank"
+            rel="noreferrer"
+            data-tour="event-client-portal"
+            className="inline-flex items-center gap-1.5 rounded-[10px] border border-border bg-card/60 px-3 py-1.5 text-xs font-medium hover:border-gold"
           >
-            <Camera size={14} />
-          </button>
+            <ExternalLink size={13} /> View client portal
+          </a>
+        </div>
+      </div>
+
+      {/* Split header: banner photo, then the project's title and key facts. */}
+      <header className="mx-6 mt-4 grid gap-6 sm:mx-8 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)] lg:items-stretch">
+        <div>
+          <div
+            className={cn("relative aspect-[16/8] w-full overflow-hidden rounded-[16px] border border-border bg-cover bg-center shadow-[var(--shadow-card)] lg:aspect-auto lg:h-full lg:min-h-[280px]", !event.hero_image_url && "bg-panel")}
+            style={event.hero_image_url ? { backgroundImage: `url(${event.hero_image_url})` } : { backgroundImage: "radial-gradient(120% 90% at 30% 20%, var(--gold-soft), transparent 70%)" }}
+          >
+            <input
+              ref={heroFileInput}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleHeroPhotoSelected(file);
+              }}
+            />
+            {!event.hero_image_url && (
+              <button onClick={() => heroFileInput.current?.click()} disabled={uploadingHero} className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-muted hover:text-foreground">
+                <ImagePlus size={28} strokeWidth={1.4} className="text-gold" /> Add a banner photo
+              </button>
+            )}
+            <div className="absolute right-3 top-3 flex gap-1.5">
+              {event.hero_image_url && (
+                <button
+                  onClick={handleRemoveHeroPhoto}
+                  disabled={uploadingHero}
+                  title="Remove banner photo"
+                  className="rounded-[10px] bg-[rgba(0,0,0,0.38)] p-2 text-white backdrop-blur-sm hover:bg-[rgba(0,0,0,0.55)]"
+                >
+                  <X size={14} />
+                </button>
+              )}
+              <button
+                onClick={() => heroFileInput.current?.click()}
+                disabled={uploadingHero}
+                title={event.hero_image_url ? "Change banner photo" : "Add a banner photo"}
+                className="rounded-[10px] bg-[rgba(0,0,0,0.38)] p-2 text-white backdrop-blur-sm hover:bg-[rgba(0,0,0,0.55)]"
+              >
+                <Camera size={14} />
+              </button>
+            </div>
+          </div>
+          <p className="mt-2 text-[11px] text-muted">This banner photo also becomes the hero image guests see on the event&rsquo;s Crate Request page.</p>
         </div>
 
-        <p
-          className={cn(
-            "font-display text-4xl font-bold italic [text-shadow:0_2px_8px_rgba(0,0,0,0.6)] sm:text-5xl",
-            event.hero_image_url ? "text-white" : "text-[#1A140A]"
-          )}
-        >
-          {event.title}
-        </p>
-        <p
-          className={cn(
-            "mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold [text-shadow:0_1px_4px_rgba(0,0,0,0.6)]",
-            event.hero_image_url ? "text-white" : "text-[#1A140A]/80"
-          )}
-        >
-          {event.event_type && <span className="capitalize">{event.event_type}</span>}
-          <span className="flex items-center gap-1.5">
-            <CalendarDays size={14} />
-            {event.starts_at
-              ? new Date(event.starts_at).toLocaleDateString(undefined, { weekday: "short", month: "long", day: "numeric", year: "numeric" })
-              : "Date TBD"}
-          </span>
-          {event.venues?.name && (
-            <span className="flex items-center gap-1.5">
-              <MapPin size={14} /> {event.venues.name}
+        <div className={cn("flex flex-col justify-center rounded-[16px] bg-[var(--header-panel)] text-[var(--header-fg)]", gala ? "px-7 py-7" : "lg:px-2")}>
+          <p className="text-[11px] font-semibold uppercase tracking-[3px] text-gold" style={gala ? { color: "var(--gold-light)" } : undefined}>
+            Project detail
+          </p>
+          <h1 className="mt-2 font-display text-4xl leading-[1.08] sm:text-[44px]">{event.title}</h1>
+          <p className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-[15px]">
+            <span className="flex items-center gap-2">
+              <CalendarDays size={17} strokeWidth={1.6} className="opacity-80" />
+              {event.starts_at ? new Date(event.starts_at).toLocaleDateString(undefined, { timeZone: tz, weekday: "short", month: "short", day: "numeric", year: "numeric" }) : "Date TBD"}
             </span>
-          )}
-        </p>
-      </div>
-      <p className="mx-6 mt-2 text-[11px] text-muted sm:mx-8">
-        This banner photo also becomes the hero image guests see on the event&rsquo;s Crate Request page.
-      </p>
+            {event.starts_at && (
+              <span className="flex items-center gap-2">
+                <Clock size={17} strokeWidth={1.6} className="opacity-80" />
+                {timeOf(event.starts_at)}
+                {event.ends_at ? ` – ${timeOf(event.ends_at)}` : ""}
+              </span>
+            )}
+            {venueLabel && (
+              <span className="flex items-center gap-2">
+                <MapPin size={17} strokeWidth={1.6} className="opacity-80" /> {venueLabel}
+              </span>
+            )}
+          </p>
+          <div className="mt-5 h-px bg-[color-mix(in_srgb,var(--header-fg)_14%,transparent)]" aria-hidden />
+          <dl className="mt-4 grid grid-cols-3">
+            {stats.map((st, i) => (
+              <div key={st.label} className={cn("min-w-0 px-4 first:pl-0", i > 0 && "border-l border-[color-mix(in_srgb,var(--header-fg)_14%,transparent)]")}>
+                <dt className="text-[10px] font-semibold uppercase tracking-[2.5px] text-[var(--header-muted)]">{st.label}</dt>
+                <dd className="mt-1 truncate font-display text-xl capitalize">{st.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </header>
 
       <div className="mx-6 mt-6 sm:mx-8">
-        <MilestoneStepper
+        <BookingPanel
           stages={FORWARD_PIPELINE_STAGES}
-          current={event.pipeline_stage ?? "Inquiry"}
+          current={stage}
           onSelect={handlePipelineStageChange}
           disabled={savingPipelineStage}
+          guide={guide}
+          actionHref={(a) => `/admin/events/${id}?tab=${a.tab ?? "Activity"}${a.anchor ? `#${a.anchor}` : ""}`}
+          onMove={handlePipelineStageChange}
+        />
+      </div>
+
+      <div className="mx-6 mt-6 sm:mx-8">
+        <Tabs items={TAB_ITEMS} active={activeTab} hrefFor={(key) => `/admin/events/${id}?tab=${key}`} emphasis />
+      </div>
+
+      <div className="mx-6 mt-6 sm:mx-8">
+        <ProjectDayCards
+          eventId={id}
+          isWedding={isWedding}
+          venueName={venueLabel}
+          venueId={event.venue_id ?? null}
+          heroUrl={event.hero_image_url}
+          startsAt={event.starts_at}
+          endsAt={event.ends_at}
+          timezone={event.timezone}
+          serviceType={event.service_type}
+          guests={event.expected_guests}
         />
       </div>
 
@@ -656,7 +746,6 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
             </div>
           )}
 
-          <Tabs items={TAB_ITEMS} active={activeTab} hrefFor={(key) => `/admin/events/${id}?tab=${key}`} className="mt-6" emphasis />
 
           {error && <p className="mt-3 text-sm text-status-declined">{error}</p>}
 
@@ -702,7 +791,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               <FilesPanel eventId={id} />
 
               {(event.event_category === "wedding" || !event.event_category) && (
-                <div data-tour="wb-panel"><WeddingBasicsPanel eventId={id} clientPhone={event.clients?.phone ?? null} clientFirstName={event.clients?.first_name ?? null} /></div>
+                <div data-tour="wb-panel" id="wedding-basics" className="scroll-mt-6"><WeddingBasicsPanel eventId={id} clientPhone={event.clients?.phone ?? null} clientFirstName={event.clients?.first_name ?? null} /></div>
               )}
 
               {event.event_category === "wedding" && (
@@ -838,11 +927,17 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
           {activeTab === "Details" && (
             <div className="mt-6 flex flex-col gap-4">
-              <QuestionnaireSummary eventId={id} />
+              <div id="project-questionnaire" className="scroll-mt-6">
+                <QuestionnaireSummary eventId={id} />
+              </div>
 
-              <MeetingsPanel eventId={id} />
+              <div id="project-meetings" className="scroll-mt-6">
+                <MeetingsPanel eventId={id} />
+              </div>
 
-              <PackageTemplatePicker eventId={id} />
+              <div id="project-packages" className="scroll-mt-6">
+                <PackageTemplatePicker eventId={id} />
+              </div>
 
               <PackageSelectionPanel eventId={id} />
 
@@ -1023,7 +1118,9 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
               )}
 
               <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-                <ContractsPanel eventId={id} contracts={contracts} onChange={load} />
+                <div id="project-contracts" className="scroll-mt-6">
+                  <ContractsPanel eventId={id} contracts={contracts} onChange={load} />
+                </div>
 
                 <EquipmentAssignmentsPanel eventId={id} />
 

@@ -53,8 +53,38 @@ async function recommend(link: LinkRow, djId: string | null, eventDate: string |
   return { needs, addOns, notes, packages, packagesError };
 }
 
+/** The day at a glance for the project page's Venue / Ceremony / Reception cards: choices as labels, times as "5:00 PM". */
+function daySummary(template: Template, answers: LinkRow["answers"]) {
+  const q = new Map(template.sections.flatMap((s) => s.questions.map((x) => [x.key, x] as const)));
+  const raw = (k: string) => {
+    const v = answers?.[k];
+    return v && !("unsure" in v) ? v.value : undefined;
+  };
+  const label = (k: string) => {
+    const v = raw(k);
+    const opts = q.get(k)?.options ?? [];
+    if (typeof v === "string") return v ? (opts.find((o) => o.value === v)?.label ?? v) : null;
+    return null;
+  };
+  const time = (k: string) => {
+    const v = raw(k);
+    const question = q.get(k);
+    return typeof v === "string" && v && question ? displayAnswer(question, { value: v }) : null;
+  };
+  const coverage = raw("coverage");
+  return {
+    coverage: Array.isArray(coverage) ? coverage.filter((x): x is string => typeof x === "string") : [],
+    ceremonyLocation: raw("ceremony_location") === "unsure" ? null : label("ceremony_location"),
+    setting: raw("indoor_outdoor") === "unsure" ? null : label("indoor_outdoor"),
+    setupAccess: raw("setup_access") === "unsure" ? null : label("setup_access"),
+    receptionStart: time("reception_start"),
+    receptionEnd: time("reception_end"),
+    venue: typeof raw("venue") === "string" ? (raw("venue") as string) : null
+  };
+}
+
 async function view(template: Template, link: LinkRow | null, djId: string | null, eventDate: string | null) {
-  if (!link) return { ready: true, templateId: template.id, link: null, recommendations: null };
+  if (!link) return { ready: true, templateId: template.id, link: null, recommendations: null, day: null };
   const flat = getVisibleQuestions(template.sections, link.answers ?? {});
   const answered = flat.filter((f) => isAnswered(link.answers ?? {}, f.question.key)).length;
   return {
@@ -70,7 +100,8 @@ async function view(template: Template, link: LinkRow | null, djId: string | nul
       applied: link.applied,
       answers: flat.map(({ section, question }) => ({ section: section.title, prompt: question.prompt, answer: isAnswered(link.answers ?? {}, question.key) ? displayAnswer(question, link.answers[question.key]) : null }))
     },
-    recommendations: answered ? await recommend(link, djId, eventDate) : null
+    recommendations: answered ? await recommend(link, djId, eventDate) : null,
+    day: answered ? daySummary(template, link.answers ?? {}) : null
   };
 }
 
