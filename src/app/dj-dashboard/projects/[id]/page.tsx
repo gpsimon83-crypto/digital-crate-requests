@@ -4,7 +4,7 @@ import { use as usePromise, useEffect, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
-import { ArrowLeft, CalendarDays, MapPin } from "lucide-react";
+import { ArrowLeft, CalendarDays, ClipboardList, MapPin } from "lucide-react";
 import { EmailThreadPanel } from "@/components/project/email-thread-panel";
 import { ChangeOrdersPanel, type ChangeOrderData } from "@/components/project/change-orders-panel";
 import { TasksPanel } from "@/components/project/tasks-panel";
@@ -12,6 +12,7 @@ import { FilesPanel } from "@/components/project/files-panel";
 import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
 import { PackageTemplatePicker } from "@/components/project/package-template-picker";
 import { PackageSelectionPanel } from "@/components/project/package-selection-panel";
+import { WeddingBasicsInsights } from "@/components/project/wedding-basics-insights";
 import type { MergeContext } from "@/lib/merge-fields";
 
 interface ClientRow {
@@ -22,6 +23,7 @@ interface ClientRow {
 }
 
 interface EventDetail {
+  event_category?: string | null;
   id: string;
   event_code: string;
   title: string;
@@ -174,6 +176,19 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
                 ))}
               </div>
             )}
+          </GlassCard>
+        )}
+
+        {(event.event_category === "wedding" || !event.event_category) && (
+          <GlassCard className="flex flex-col gap-3" data-tour="dj-wedding-basics">
+            <div className="flex items-center gap-2">
+              <ClipboardList size={16} className="text-gold" />
+              <div>
+                <p className="text-sm font-semibold">Wedding Basics</p>
+                <p className="text-xs text-muted">The couple&apos;s answers, how to reach them, and the packages that fit.</p>
+              </div>
+            </div>
+            <WeddingBasicsInsights eventId={id} />
           </GlassCard>
         )}
 

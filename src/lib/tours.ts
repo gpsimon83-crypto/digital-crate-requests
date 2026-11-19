@@ -18,6 +18,41 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-18-wedding-basics-packages": [
+    {
+      path: "/admin/events",
+      target: '[data-tour="project-link"]',
+      title: "Open a wedding project",
+      body: "Click the name of any wedding to continue. The best one to try is a couple who has submitted Wedding Basics."
+    },
+    {
+      path: "/admin/events/*",
+      target: 'a[href$="?tab=Files"]',
+      title: "Files tab",
+      body: "Wedding Basics is on the Files tab. Click Next to open it.",
+      follow: 'a[href$="?tab=Files"]',
+      waitHint: "Open any wedding project to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Files",
+      target: '[data-tour="wb-recommend"]',
+      title: "Recommended for this couple",
+      body: "Up to three published wedding packages, best fit first, priced with the extras their day needs. Each one says why it fits and what to watch. Send to client portal puts it in their portal as a draft.",
+      waitHint: "Open the Files tab to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Files",
+      target: '[data-tour="wb-panel"]',
+      title: "What their day needs, and their details",
+      body: "Below the packages: the reason for each extra, what was filled into the client and event, and “Use their answer” wherever their answer differs from the CRM. The DJ sees this same card on their project page."
+    },
+    {
+      path: "/admin/events/*?tab=Files",
+      target: '[data-tour="wb-send"]',
+      title: "Links with their name",
+      body: "New links read like cratesdjs.com/w/caroline-catlin-7k2pxq9mab, and texts show them as a tappable Wedding Basics card."
+    }
+  ],
   "2026-11-15-wedding-basics-link": [
     {
       path: "/admin/events",

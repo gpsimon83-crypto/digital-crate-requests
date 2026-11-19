@@ -6,6 +6,14 @@ import { getVisibleQuestions, isAnswered, displayAnswer } from "@/lib/questionna
 import { logActivity } from "@/lib/activity";
 
 type P = { params: Promise<{ id: string }> };
+
+type LinkNameSource = { title: string | null; couple_display_name: string | null; clients: { first_name: string | null; last_name: string | null } | { first_name: string | null; last_name: string | null }[] | null };
+/** Name shown in the link: the client's name, else the couple's, else the event title. */
+function linkName(ev: LinkNameSource): string {
+  const c = Array.isArray(ev.clients) ? ev.clients[0] : ev.clients;
+  const client = [c?.first_name, c?.last_name].filter(Boolean).join(" ");
+  return client || ev.couple_display_name?.replace(/&/g, "and") || ev.title || "";
+}
 const uuidOk = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
 
 async function view(link: LinkRow | null) {
@@ -18,7 +26,7 @@ async function view(link: LinkRow | null) {
     templateId: template.id,
     total: flat.length,
     link: {
-      url: `${appOrigin()}/q/${link.token}`,
+      url: `${appOrigin()}/w/${link.token}`,
       created_at: link.created_at,
       opened_at: link.opened_at,
       completed_at: link.completed_at,
@@ -61,7 +69,7 @@ export async function POST(req: NextRequest, { params }: P) {
   try {
     const template = await weddingBasicsTemplate();
     if (!template) return NextResponse.json({ error: "Run migration 0054_questionnaire_links.sql in Supabase first." }, { status: 503 });
-    const { data: ev } = await db.from("events").select("id").eq("id", id).maybeSingle();
+    const { data: ev } = await db.from("events").select("id, title, couple_display_name, clients(first_name, last_name)").eq("id", id).maybeSingle();
     if (!ev) return NextResponse.json({ error: "Event not found" }, { status: 404 });
     const current = await linkForEvent(db, id, template.id);
     const now = new Date().toISOString();
@@ -70,7 +78,7 @@ export async function POST(req: NextRequest, { params }: P) {
       if (current) await db.from("questionnaire_links").update({ revoked_at: now }).eq("id", current.id);
       const { data, error } = await db
         .from("questionnaire_links")
-        .insert({ token: newToken(), event_id: id, template_id: template.id, created_by: staff.userId, answers: current?.answers ?? {}, completed_at: current?.completed_at ?? null, locked: current?.locked ?? false, applied: current?.applied ?? null })
+        .insert({ token: newToken(linkName(ev as unknown as LinkNameSource)), event_id: id, template_id: template.id, created_by: staff.userId, answers: current?.answers ?? {}, completed_at: current?.completed_at ?? null, locked: current?.locked ?? false, applied: current?.applied ?? null })
         .select("*")
         .single();
       if (error) throw error;

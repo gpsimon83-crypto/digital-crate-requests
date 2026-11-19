@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, ClipboardList, Copy, Eye, Link2, Loader2, MessageSquare, RotateCcw, Unlock } from "lucide-react";
+import { ClipboardList, Copy, Eye, Link2, Loader2, MessageSquare, RotateCcw, Unlock } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { WeddingBasicsInsights } from "./wedding-basics-insights";
 
 type LinkView = {
   url: string;
@@ -31,6 +32,7 @@ export function WeddingBasicsPanel({ eventId, clientPhone, clientFirstName }: { 
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [rev, setRev] = useState(0);
 
   const load = useCallback(() => {
     fetch(`/api/admin/events/${eventId}/questionnaire-link`)
@@ -48,13 +50,14 @@ export function WeddingBasicsPanel({ eventId, clientPhone, clientFirstName }: { 
     setBusy(false);
     if (!r.ok) return setMsg(j.error ?? "Something went wrong.");
     setView(j);
+    setRev((n) => n + 1);
     if (action === "renew") setMsg("New link made. The old link no longer works; answers so far carried over.");
     if (action === "unlock") setMsg("Unlocked. They can change their answers and submit again.");
   }
 
   const link = view?.link ?? null;
-  const textBody = link ? `Hi${clientFirstName ? ` ${clientFirstName}` : ""}, it's Digital Crate DJs! Here are ${view?.total ?? "a few"} quick questions so we can lock in your wedding date and know the best way and time to reach you (about 2 minutes): ${link.url}` : "";
-  const reach = (link?.answers ?? []).filter((a) => a.section === "Staying in Touch" && a.answer);
+  // The link goes on its own last line so phones show it as a tappable "Wedding Basics" card.
+  const textBody = link ? `Hi${clientFirstName ? ` ${clientFirstName}` : ""}! It's Digital Crate DJs. Here's your Wedding Basics questionnaire, a few quick questions to lock in your date (about 3 minutes):\n\n${link.url}` : "";
   const smsHref = link ? `sms:${(clientPhone ?? "").replace(/[^\d+]/g, "")}?&body=${encodeURIComponent(textBody)}` : "#";
 
   async function copy(text: string) {
@@ -73,7 +76,7 @@ export function WeddingBasicsPanel({ eventId, clientPhone, clientFirstName }: { 
         <ClipboardList size={16} className="text-gold" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">Wedding Basics questionnaire</p>
-          <p className="text-xs text-muted">{view?.total ? `${view.total} required questions` : "Required questions"}, no login: date, venue, reception start, guest count, both names, married last name, both phones, email, and how and when they like to be reached.</p>
+          <p className="text-xs text-muted">{view?.total ? `${view.total} required questions` : "Required questions"}, no login: the day, setup, the couple, and how to reach them. Their answers fill in the client and event, and recommend packages.</p>
         </div>
         {view?.ready && view.templateId && (
           <a
@@ -142,45 +145,7 @@ export function WeddingBasicsPanel({ eventId, clientPhone, clientFirstName }: { 
           </div>
           <p className="text-[11px] text-muted">&ldquo;Text it&rdquo; opens Messages on your phone or Mac with the message filled in. You can also paste it into any app.</p>
 
-          {reach.length > 0 && (
-            <div className="rounded-[10px] border border-gold/30 bg-gold/5 p-3 text-xs">
-              <p className="mb-1 font-semibold">Best way and time to reach them</p>
-              {reach.map((a) => (
-                <p key={a.prompt}>
-                  <span className="text-muted">{a.prompt.replace(/\?$/, "")}:</span> <span className="font-medium">{a.answer}</span>
-                </p>
-              ))}
-            </div>
-          )}
-
-          {link.applied && (link.applied.filled.length > 0 || link.applied.differs.length > 0) && (
-            <div className="rounded-[10px] bg-black/[0.03] p-3 text-xs">
-              {link.applied.filled.length > 0 && (
-                <p className="flex items-start gap-1.5">
-                  <Check size={13} className="mt-0.5 shrink-0 text-status-approved" /> Filled in: {link.applied.filled.join(", ")}
-                </p>
-              )}
-              {link.applied.differs.map((d) => (
-                <p key={d.field} className="mt-1 text-status-pending">
-                  {d.field}: they said &ldquo;{d.answered}&rdquo;, the CRM has &ldquo;{d.current}&rdquo; (left as is)
-                </p>
-              ))}
-            </div>
-          )}
-
-          {link.answered > 0 && (
-            <details className="text-sm" open={!!link.completed_at}>
-              <summary className="cursor-pointer text-xs font-medium text-gold">Answers</summary>
-              <dl className="mt-2 grid gap-1.5">
-                {link.answers.map((a) => (
-                  <div key={a.prompt} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3 border-b border-black/5 pb-1.5 text-xs">
-                    <dt className="text-muted">{a.prompt}</dt>
-                    <dd className={cn("font-medium", !a.answer && "text-muted")}>{a.answer ?? "—"}</dd>
-                  </div>
-                ))}
-              </dl>
-            </details>
-          )}
+          <WeddingBasicsInsights eventId={eventId} refreshKey={rev} showStatus={false} />
         </>
       )}
       {msg && <p className="text-xs text-muted">{msg}</p>}

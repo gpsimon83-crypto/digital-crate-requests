@@ -30,6 +30,7 @@ import { PortalHeroPanel } from "@/components/project/portal-hero-panel";
 import { MeetingsPanel } from "@/components/project/meetings-panel";
 import { EventFlyerPanel } from "@/components/flyers/event-flyer-panel";
 import { WeddingBasicsPanel } from "@/components/project/wedding-basics-panel";
+import { choiceLabels } from "@/lib/wedding-labels";
 import type { EventCategory } from "@/lib/event-category";
 import type { HeroSettings } from "@/lib/hero-settings";
 import type { PortalHeroExtras } from "@/components/project/portal-hero-panel";
@@ -57,6 +58,14 @@ interface ClientRow {
   phone: string | null;
   referral_source: string | null;
   tags: string[] | null;
+  // From Wedding Basics (migration 0056).
+  partner_first_name?: string | null;
+  partner_last_name?: string | null;
+  partner_phone?: string | null;
+  married_last_name?: string | null;
+  contact_methods?: string[] | null;
+  best_days?: string[] | null;
+  best_times?: string[] | null;
 }
 
 interface PaymentRow {
@@ -981,6 +990,13 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                     <Row label="DJ" value={event.djs?.display_name ?? "Unassigned"} />
                     <Row label="Venue" value={event.venues?.name ?? (event.venue_name ? `${event.venue_name} (not linked yet)` : "No venue")} />
                     <Row label="Budget range" value={event.budget_range ?? "—"} />
+                    {(event.clients?.partner_first_name || event.clients?.partner_last_name) && (
+                      <Row label="Partner" value={[event.clients.partner_first_name, event.clients.partner_last_name].filter(Boolean).join(" ") + (event.clients.partner_phone ? ` · ${event.clients.partner_phone}` : "")} />
+                    )}
+                    {event.clients?.married_last_name && <Row label="Married last name" value={event.clients.married_last_name} />}
+                    {choiceLabels(event.clients?.contact_methods) && (
+                      <Row label="Best way to reach" value={[choiceLabels(event.clients?.contact_methods), choiceLabels(event.clients?.best_days), choiceLabels(event.clients?.best_times)].filter(Boolean).join(" · ")} />
+                    )}
                     <Row label="Final amount" value={event.final_amount != null ? `$${event.final_amount.toFixed(2)}` : "—"} />
                   </>
                 )}

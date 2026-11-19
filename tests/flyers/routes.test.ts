@@ -52,7 +52,11 @@ function query(table: string) {
       filters.push((r) =>
         expr.split(",").some((part) => {
           const m = /^(\w+)\.ilike\.\*(.*)\*$/.exec(part);
-          return !!m && String(r[m[1]] ?? "").toLowerCase().includes(m[2].toLowerCase());
+          if (m) return String(r[m[1]] ?? "").toLowerCase().includes(m[2].toLowerCase());
+          const eq = /^(\w+)\.eq\.(.*)$/.exec(part);
+          if (eq) return String(r[eq[1]] ?? "") === eq[2];
+          const isNull = /^(\w+)\.is\.null$/.exec(part);
+          return !!isNull && (r[isNull[1]] ?? null) === null;
         })
       ),
       q
@@ -646,8 +650,9 @@ describe("Wedding Basics questionnaire link (no login)", () => {
     const made = await json(await admin.POST(req(`/api/admin/events/${EV}/questionnaire-link`, { method: "POST", body: { action: "create" } }), p({ id: EV })));
     expect(made.status).toBe(200);
     expect(made.body.total).toBe(10);
-    const token = String(made.body.link.url).split("/q/")[1];
-    expect(token.length).toBeGreaterThanOrEqual(43);
+    const token = String(made.body.link.url).split("/w/")[1];
+    // The client has no name yet, so the link uses the event title.
+    expect(token).toMatch(/^catlin-wedding-[a-z2-9]{10}$/);
 
     user = null; // the client isn't signed in
     const got = await json(await pub.GET(req(`/api/q/${token}`), p({ token })));
@@ -685,7 +690,7 @@ describe("Wedding Basics questionnaire link (no login)", () => {
     expect(v.body.link.answers.find((a: { prompt: string }) => a.prompt === "wedding_date").answer).toBe("Saturday, June 12, 2027");
     expect((await json(await admin.POST(req(`/api/admin/events/${EV}/questionnaire-link`, { method: "POST", body: { action: "unlock" } }), p({ id: EV })))).body.link.locked).toBe(false);
     const renewed = await json(await admin.POST(req(`/api/admin/events/${EV}/questionnaire-link`, { method: "POST", body: { action: "renew" } }), p({ id: EV })));
-    const token2 = String(renewed.body.link.url).split("/q/")[1];
+    const token2 = String(renewed.body.link.url).split("/w/")[1];
     expect(token2).not.toBe(token);
     user = null;
     expect((await pub.GET(req(`/api/q/${token}`), p({ token }))).status).toBe(404);
@@ -705,5 +710,126 @@ describe("Wedding Basics: staying in touch", () => {
     expect(submissionProblems(template, { contact_methods: { value: [] } }).map((p) => p.key)).toEqual(["contact_methods", "best_days", "best_times"]);
     expect(submissionProblems(template, { contact_methods: { value: ["text"] }, best_days: { value: ["tue", "sat"] }, best_times: { value: ["evening"] } })).toEqual([]);
     expect(displayAnswer(qs[1], { value: ["tue", "sat"] })).toMatch(/Tuesday.*Saturday/);
+  });
+});
+
+describe("Wedding Basics: links, client details and package recommendations", () => {
+  it("links read as the couple's name plus a random code", async () => {
+    const { newToken, nameSlug, tokenOk } = await import("@/lib/data/questionnaire-links");
+    expect(nameSlug("Caroline Catlin")).toBe("caroline-catlin");
+    expect(nameSlug("José & María O'Neil")).toBe("jose-and-maria-o-neil");
+    const t = newToken("Caroline Catlin");
+    expect(t).toMatch(/^caroline-catlin-[a-z2-9]{10}$/);
+    expect(newToken("Caroline Catlin")).not.toBe(t);
+    expect(tokenOk(t)).toBe(true);
+    expect(tokenOk("caroline-catlin")).toBe(false); // no random part
+    expect(tokenOk("A".repeat(43))).toBe(true); // older links still work
+  });
+
+  it("works out what the day needs from the answers", async () => {
+    const { needsFromAnswers, addOnsFor } = await import("@/lib/wedding-recommend");
+    const n = needsFromAnswers({
+      guest_count: { value: "180" },
+      reception_start: { value: "17:00" },
+      reception_end: { value: "23:00" },
+      coverage: { value: ["ceremony", "cocktail", "reception"] },
+      ceremony_location: { value: "different" },
+      indoor_outdoor: { value: "both" },
+      setup_access: { value: "stairs" },
+      venue: { value: "The Grand Hall, Milwaukee" }
+    });
+    expect(n).toMatchObject({ guests: 180, receptionHours: 6, hoursNeeded: 7.5 });
+    const { addOns, notes } = addOnsFor(n);
+    const by = Object.fromEntries(addOns.map((a) => [a.key, a.quantity]));
+    // 101–200 guests = 1 extra speaker, + 1 because part of it is outdoors.
+    expect(by).toEqual({ speaker: 2, ceremony_sound: 1, mic: 1, cocktail_sound: 1, mc: 1, setup: 1 });
+    expect(notes.join(" ")).toMatch(/travel distance to The Grand Hall/);
+    // Small indoor wedding, ceremony in the same room: no extra speakers, just a mic.
+    const small = addOnsFor(needsFromAnswers({ guest_count: { value: "80" }, coverage: { value: ["ceremony", "reception"] }, ceremony_location: { value: "same_room" }, indoor_outdoor: { value: "indoors" }, setup_access: { value: "easy" } }));
+    expect(small.addOns.map((a) => a.key).sort()).toEqual(["mc", "mic"]);
+    // Late night: an end time after midnight counts the right hours.
+    expect(needsFromAnswers({ reception_start: { value: "19:00" }, reception_end: { value: "01:00" }, coverage: { value: ["reception"] } }).hoursNeeded).toBe(6);
+  });
+
+  it("scores packages on guests, hours and what they include, and adds the extras", async () => {
+    const { needsFromAnswers, addOnsFor, fitPackage } = await import("@/lib/wedding-recommend");
+    const n = needsFromAnswers({ guest_count: { value: "180" }, reception_start: { value: "17:00" }, reception_end: { value: "22:00" }, coverage: { value: ["ceremony", "reception"] }, ceremony_location: { value: "same_venue" } });
+    const { addOns } = addOnsFor(n);
+    const li = (id: string, name: string, mode: string, inc = 0, max: number | null = null) => ({ id, section_id: "s", catalog_item_id: id, catalog_item: { name } as never, name_override: null, description_override: null, pricing_method_override: null, price_cents_override: null, included_quantity: inc, min_quantity: null, max_quantity: max, selection_mode: mode as never, is_client_visible: true, position: 0 });
+    const tpl = (id: string, extra: object) => ({ id, name: id, tier: null, min_guest_count: null, max_guest_count: null, included_hours: null, ...extra }) as never;
+    const sections = [{ id: "s", package_template_id: "x", title: "", description: null, position: 0, is_hidden: false, line_items: [li("dj", "DJ Performance", "included", 1), li("cer", "Ceremony Sound", "optional"), li("spk", "Additional Speaker", "optional", 0, 4), li("mc", "MC Services", "included", 1)] }];
+    const good = fitPackage(tpl("Signature", { min_guest_count: 100, max_guest_count: 250, included_hours: 6 }), sections, n, addOns);
+    expect(good.selections).toMatchObject({ dj: 1, cer: 1, spk: 1, mc: 1 });
+    expect(good.why.join(" | ")).toMatch(/Built for 100–250 guests.*6 hours included.*Adds ceremony sound.*Includes MC services/);
+    expect(good.notOffered.map((a) => a.key)).toEqual(["mic"]);
+    const small = fitPackage(tpl("Essential", { max_guest_count: 120, included_hours: 4 }), sections, n, addOns);
+    expect(small.score).toBeLessThan(good.score);
+    expect(small.watch.join(" ")).toMatch(/up to 120 guests.*about 5\.5 needed/);
+  });
+
+  describe("on the event (staff and the event's DJ)", () => {
+    const EV = "eeeeeeee-2222-4222-8222-222222222222";
+    const CL = "cccccccc-2222-4222-8222-222222222222";
+    const TPL = "abababab-2222-4222-8222-222222222222";
+    const answers = {
+      wedding_date: { value: "2027-06-12" },
+      venue: { value: "The Grand Hall, Milwaukee" },
+      reception_start: { value: "19:00" },
+      reception_end: { value: "00:30" },
+      guest_count: { value: "180" },
+      coverage: { value: ["ceremony", "reception"] },
+      ceremony_location: { value: "same_venue" },
+      partner_one_name: { value: "Caroline Catlin" },
+      partner_two_name: { value: "Josh Reed" },
+      married_name: { value: "Reed" },
+      partner_one_phone: { value: "262-555-0123" },
+      partner_two_phone: { value: "4145550199" },
+      email: { value: "caroline@example.com" },
+      contact_methods: { value: ["text", "call"] },
+      best_days: { value: ["tue", "sat"] },
+      best_times: { value: ["evening"] }
+    };
+    beforeEach(async () => {
+      const q = (key: string, position: number, type: string, options: { value: string; label: string }[] = []) => ({ id: randomUUID(), section_id: "s1", key, position, prompt: key, subtext: null, question_type: type, options, allow_unsure: false, required: true, depends_on_question_key: null, depends_on_values: null });
+      db.questionnaire_templates = [{ id: TPL, event_type: "wedding_basics", title: "Wedding Basics", opening_heading: "x", opening_body: "x", opening_cta_label: "Go", is_active: true }];
+      db.questionnaire_sections = [{ id: "s1", template_id: TPL, key: "all", title: "All", position: 1, transition_heading: null, transition_subheading: null }];
+      db.questionnaire_questions = Object.keys(answers).map((k, i) => q(k, i, k === "coverage" || k.startsWith("best_") || k === "contact_methods" ? "multi_select" : "short_text", k === "contact_methods" ? [{ value: "text", label: "Text" }, { value: "call", label: "Phone call" }] : []));
+      db.clients = [{ id: CL, first_name: "Caroline", last_name: "Catlin", phone: null, email: "caroline@bounced.example" }];
+      db.events.push({ id: EV, dj_id: DJ_A, client_id: CL, starts_at: null, ends_at: null, timezone: "America/Chicago", venue_name: "Kyote's", expected_guests: null, couple_display_name: null, title: "Catlin wedding", event_category: "wedding" });
+      const { applyWeddingBasics } = await import("@/lib/data/questionnaire-links");
+      const { getTemplateForEventType } = await import("@/lib/data/questionnaires");
+      const applied = await applyWeddingBasics((await import("@/lib/supabase/admin")).createAdminClient(), EV, answers, { template: await getTemplateForEventType("wedding_basics") });
+      db.questionnaire_links = [{ id: randomUUID(), token: "caroline-catlin-abcdefghjk", event_id: EV, template_id: TPL, answers, completed_at: "2026-11-18T03:00:00Z", locked: true, applied, created_at: "2026-11-17T00:00:00Z", updated_at: "x", opened_at: "2026-11-17T01:00:00Z", revoked_at: null }];
+      db.package_templates = [];
+    });
+
+    it("fills the partner, married name, contact choices and an after-midnight end time", () => {
+      const ev = db.events.find((e) => e.id === EV)!;
+      expect(ev.starts_at).toBe("2027-06-13T00:00:00.000Z"); // 7 PM CDT
+      expect(ev.ends_at).toBe("2027-06-13T05:30:00.000Z"); // 12:30 AM the next morning
+      expect(db.clients[0]).toMatchObject({ partner_first_name: "Josh", partner_last_name: "Reed", partner_phone: "(414) 555-0199", married_last_name: "Reed", contact_methods: ["text", "call"], best_days: ["tue", "sat"], best_times: ["evening"], email: "caroline@bounced.example" });
+      const link = db.questionnaire_links[0] as { applied: { differs: { field: string; current: string; answered: string }[] } };
+      expect(link.applied.differs).toEqual(expect.arrayContaining([{ field: "Venue", current: "Kyote's", answered: "The Grand Hall, Milwaukee" }, { field: "Client email", current: "caroline@bounced.example", answered: "caroline@example.com" }]));
+    });
+
+    it("the event's DJ sees answers and recommendations; another DJ can't; either can use an answer", async () => {
+      const route = await import("@/app/api/events/[id]/wedding-basics/route");
+      asB();
+      expect((await route.GET(req(`/api/events/${EV}/wedding-basics`), p({ id: EV }))).status).toBe(403);
+      asA();
+      const got = await json(await route.GET(req(`/api/events/${EV}/wedding-basics`), p({ id: EV })));
+      expect(got.status).toBe(200);
+      expect(got.body.recommendations.addOns.map((a: { key: string }) => a.key)).toEqual(["speaker", "ceremony_sound", "mic", "mc"]);
+      expect(got.body.recommendations.packages).toEqual([]);
+      expect(got.body.link.answers.find((a: { prompt: string }) => a.prompt === "contact_methods").answer).toBe("Text, Phone call");
+      // Use their answer for the email the CRM had wrong.
+      const used = await json(await route.POST(req(`/api/events/${EV}/wedding-basics`, { method: "POST", body: { action: "use", field: "Client email" } }), p({ id: EV })));
+      expect(used.status).toBe(200);
+      expect(db.clients[0].email).toBe("caroline@example.com");
+      expect(used.body.link.applied.differs.map((d: { field: string }) => d.field)).toEqual(["Venue"]);
+      expect(used.body.link.applied.filled).toContain("Client email");
+      // Only fields that actually differ can be changed this way.
+      expect((await route.POST(req(`/api/events/${EV}/wedding-basics`, { method: "POST", body: { action: "use", field: "Guest count" } }), p({ id: EV }))).status).toBe(400);
+    });
   });
 });

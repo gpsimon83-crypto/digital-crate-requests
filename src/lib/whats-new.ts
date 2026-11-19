@@ -19,6 +19,23 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-18-wedding-basics-packages",
+    date: "2026-11-18",
+    area: "CRM",
+    title: "Wedding Basics: package picks, the DJ's view, and links with the couple's name",
+    summary: "The couple's answers now fill in their client record, show on the DJ's project page, and recommend the packages that fit, with the reasons.",
+    bullets: [
+      "New questions: reception end time, which parts of the day to cover (ceremony, cocktail hour, reception), where the ceremony is, indoors or outdoors, and what the setup spot is like",
+      "Recommended for this couple: the best-fitting published wedding packages, priced with the extras their day needs. Guest count sets the speakers (1 extra for 101–200 guests, 2 for 201–300, 3 over 300; +1 outdoors), the ceremony adds ceremony sound and a mic, the cocktail hour adds cocktail-hour sound, a hard load-in adds setup time",
+      "Send to client portal puts a recommended package, extras included, in their portal as a draft to review",
+      "Fills the client's partner name and phone, married last name, and best way, days and times to reach them (shown on the project's Details tab), plus the event's end time",
+      "When an answer differs from what's in the CRM, “Use their answer” updates it",
+      "DJs see the same Wedding Basics card on their project page",
+      "Links now read like cratesdjs.com/w/caroline-catlin-7k2pxq9mab and show as a “Wedding Basics · Digital Crate DJs” card in texts. Older links keep working"
+    ],
+    action: "Run migration 0056_wedding_basics_setup.sql in Supabase (after 0054 and 0055). Publish at least one wedding package in Admin → Packages to get package picks"
+  },
+  {
     id: "2026-11-15-wedding-basics-link",
     date: "2026-11-15",
     area: "CRM",
