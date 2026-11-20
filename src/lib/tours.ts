@@ -18,6 +18,79 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-18-client-portal-redesign": [
+    {
+      path: "/admin/settings",
+      target: '[data-tour="settings-portal-looks"]',
+      title: "A look for each event type",
+      body: "Pick the client-portal palette for each event type: Ink & Brass, Indigo & Apricot, Pine & Copper, Slate & Electric Lime or Plum & Champagne, then Save looks. Every client portal for that type uses it unless the event picks its own."
+    },
+    {
+      path: "/admin/events",
+      target: '[data-tour="project-link"]',
+      title: "Open a project",
+      body: "One event can have its own look. Click any project to continue."
+    },
+    {
+      path: "/admin/events/*",
+      target: 'a[href$="?tab=Details"]',
+      title: "Details tab",
+      body: "Customize Portal is on the Details tab. Click Next to open it.",
+      follow: 'a[href$="?tab=Details"]',
+      waitHint: "Open any project to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Details",
+      target: '[data-tour="portal-look"]',
+      title: "Portal look for this event",
+      body: "Choose a palette for just this client, or the event type's default. Below it: turn the blurred banner backdrop on or off and set its strength. Click Save to apply.",
+      waitHint: "Open the Details tab to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Details",
+      title: "What the client sees",
+      body: "A split header with their banner photo and a countdown, photo tabs, Contract / Balance / Music plan tiles, their next step as one big button, recent messages, and their DJ. Use View Client Portal at the top of Customize Portal to see it as they do."
+    }
+  ],
+  "2026-11-18-project-page-themes": [
+    {
+      path: "/admin/events",
+      target: '[data-tour="project-link"]',
+      title: "Open a project",
+      body: "Click any project to see the new layout."
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="project-header"]',
+      title: "Split header",
+      body: "The banner photo beside the title, date, time, venue, event type, guests and service. Use the buttons on the photo to change or remove it.",
+      waitHint: "Open any project to continue."
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="project-timeline"]',
+      title: "Booking panel",
+      body: "The nine-stage rail (click a stage to move there), then the current stage, where things stand, what's next, and one button for the next step, like Collect retainer or Start planning."
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="project-tabs"]',
+      title: "Tabs",
+      body: "Activity, Files, Tasks, Financials, Notes and Details, on their own row."
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="project-day-cards"]',
+      title: "The day at a glance",
+      body: "Venue, Ceremony and Reception for weddings (Venue and Event for everything else), filled from the event and Wedding Basics. Click a card for its details."
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="project-theme"]',
+      title: "Theme",
+      body: "Switch how this project page looks to you: Charcoal & Brass, Nightclub, School Dance, Ink & Brass Gala, Plum & Champagne or Classic Cream. It only changes your view in this browser; the client's colours are set in Customize Portal."
+    }
+  ],
   "2026-11-18-wedding-basics-packages": [
     {
       path: "/admin/events",

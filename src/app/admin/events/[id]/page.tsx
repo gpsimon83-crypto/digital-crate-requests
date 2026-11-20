@@ -604,7 +604,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
       </div>
 
       {/* Split header: banner photo, then the project's title and key facts. */}
-      <header className="mx-6 mt-4 grid gap-6 sm:mx-8 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)] lg:items-stretch">
+      <header data-tour="project-header" className="mx-6 mt-4 grid gap-6 sm:mx-8 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)] lg:items-stretch">
         <div>
           <div
             className={cn("relative aspect-[16/8] w-full overflow-hidden rounded-[16px] border border-border bg-cover bg-center shadow-[var(--shadow-card)] lg:aspect-auto lg:h-full lg:min-h-[280px]", !event.hero_image_url && "bg-panel")}
@@ -696,7 +696,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
         />
       </div>
 
-      <div className="mx-6 mt-6 sm:mx-8">
+      <div className="mx-6 mt-6 sm:mx-8" data-tour="project-tabs">
         <Tabs items={TAB_ITEMS} active={activeTab} hrefFor={(key) => `/admin/events/${id}?tab=${key}`} emphasis />
       </div>
 

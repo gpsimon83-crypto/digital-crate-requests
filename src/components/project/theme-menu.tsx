@@ -27,6 +27,7 @@ export function ThemeMenu({ value, defaultId, onChange }: { value: ProjectThemeI
       <button
         type="button"
         aria-haspopup="menu"
+        data-tour="project-theme"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className="inline-flex items-center gap-1.5 rounded-[10px] border border-border bg-card/60 px-3 py-1.5 text-xs font-medium hover:border-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
