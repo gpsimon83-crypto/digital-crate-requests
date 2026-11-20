@@ -18,6 +18,51 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-19-wedding-playbook": [
+    {
+      path: "/admin/events",
+      target: '[data-tour="project-link"]',
+      title: "Open a wedding",
+      body: "Click any wedding project to see its playbook."
+    },
+    {
+      path: "/admin/events/*",
+      target: 'a[href$="?tab=Tasks"]',
+      title: "Tasks tab",
+      body: "The playbook lives here. Click Next to open it.",
+      follow: 'a[href$="?tab=Tasks"]',
+      waitHint: "Open any wedding project to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Tasks",
+      target: '[data-tour="playbook-next-up"]',
+      title: "Next up",
+      body: "The one task to do now, who owns it and when it's due. The button opens the right record."
+    },
+    {
+      path: "/admin/events/*?tab=Tasks",
+      target: '[data-tour="playbook"] [data-task]',
+      title: "Coached tasks",
+      body: "Tasks are grouped by stage; finished stages fold away. Open one for Your next move, a Coach's tip, the Ready when checklist, and Mark waiting / Mark ready. Record-based tasks finish themselves."
+    },
+    {
+      path: "/admin/events/*?tab=Tasks",
+      target: '[data-tour="playbook-request"]',
+      title: "Requests",
+      body: "Add your own task, or log a request for extra coverage, overtime or a package change. Requests go to the booking lead, who handles pricing."
+    },
+    {
+      path: "/admin/settings",
+      target: '[data-tour="playbook-timing"]',
+      title: "Timing",
+      body: "When each task is due, in days from the booking or the wedding date. Open tasks follow changes; dates set by hand on a task stay put."
+    },
+    {
+      path: "/admin/settings",
+      title: "What the DJ and couple see",
+      body: "The assigned DJ sees their tasks on their project page, with a Day-before brief for their phone. Couples see their own steps as a planning checklist on the portal Overview."
+    }
+  ],
   "2026-11-19-details-equipment-plan": [
     {
       path: "/admin/events",

@@ -24,7 +24,7 @@ const FORWARD_PIPELINE_STAGES = PIPELINE_STAGES.filter((s) => s !== "Declined" &
 import { type MergeContext } from "@/lib/merge-fields";
 import { clientName } from "@/lib/format";
 import { EmailThreadPanel } from "@/components/project/email-thread-panel";
-import { TasksPanel } from "@/components/project/tasks-panel";
+import { PlaybookPanel } from "@/components/project/playbook-panel";
 import { FilesPanel } from "@/components/project/files-panel";
 import { ContractsPanel, type ContractRow } from "@/components/project/contracts-panel";
 import { type ChangeOrderData } from "@/components/project/change-orders-panel";
@@ -902,7 +902,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
 
           {activeTab === "Tasks" && (
             <div className="mt-6">
-              <TasksPanel eventId={id} />
+              <PlaybookPanel eventId={id} />
             </div>
           )}
 

@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireStaffUser } from "@/lib/comm/server";
+import { requireEventAccess } from "@/lib/require-event-access";
 import { confirmPlan, planView, type ConfirmItem } from "@/lib/data/equipment-plans";
 import { logActivity } from "@/lib/activity";
 
 type P = { params: Promise<{ id: string }> };
 const uuidOk = (v: string) => /^[0-9a-f-]{36}$/i.test(v);
 
-/** Staff: the recommended setup for this event, what it's based on, and what's already assigned. */
+/** Staff or the event's DJ (read-only): the recommended setup, what it's based on, and what's already assigned. */
 export async function GET(_req: NextRequest, { params }: P) {
-  const staff = await requireStaffUser();
-  if (staff instanceof NextResponse) return staff;
   const id = (await params).id;
   if (!uuidOk(id)) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const access = await requireEventAccess(id);
+  if (!access.authorized) return NextResponse.json({ error: access.error }, { status: access.status });
   try {
     const view = await planView(id);
     if (!view) return NextResponse.json({ error: "Not found" }, { status: 404 });

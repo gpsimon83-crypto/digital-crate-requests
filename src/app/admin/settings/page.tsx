@@ -1,6 +1,7 @@
 "use client";
 
 import { PortalThemeSettings } from "@/components/admin/portal-theme-settings";
+import { PlaybookTimingSettings } from "@/components/admin/playbook-timing-settings";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -397,6 +398,8 @@ function AdminSettingsPageInner() {
         <GoogleCalendarCard />
 
         <PortalThemeSettings />
+
+        <PlaybookTimingSettings />
 
         {!settings && !error && <p className="text-sm text-muted">Loading...</p>}
 

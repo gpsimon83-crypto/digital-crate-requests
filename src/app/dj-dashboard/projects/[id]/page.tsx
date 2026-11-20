@@ -7,7 +7,7 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { ArrowLeft, CalendarDays, ClipboardList, MapPin } from "lucide-react";
 import { EmailThreadPanel } from "@/components/project/email-thread-panel";
 import { ChangeOrdersPanel, type ChangeOrderData } from "@/components/project/change-orders-panel";
-import { TasksPanel } from "@/components/project/tasks-panel";
+import { PlaybookPanel } from "@/components/project/playbook-panel";
 import { FilesPanel } from "@/components/project/files-panel";
 import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
 import { PackageTemplatePicker } from "@/components/project/package-template-picker";
@@ -137,6 +137,11 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
             <MapPin size={14} /> {event.venues?.name ?? "No venue"}
           </span>
           {balanceCents > 0 && <span>Balance due: {money(balanceCents)}</span>}
+          {event.event_category === "wedding" && (
+            <Link href={`/dj-dashboard/projects/${id}/brief`} className="ml-auto text-xs font-medium text-gold-dim hover:underline" data-tour="dj-brief-link">
+              Day-before brief →
+            </Link>
+          )}
         </GlassCard>
 
         <ChangeOrdersPanel
@@ -149,6 +154,8 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
             setChangeOrders((prev) => prev.map((c) => (c.id === changeOrderId ? data.changeOrder : c)));
           }}
         />
+
+        <PlaybookPanel eventId={id} />
 
         {balance && (
           <GlassCard className="flex flex-col gap-3">
@@ -197,8 +204,6 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
         <PackageTemplatePicker eventId={id} />
 
         <PackageSelectionPanel eventId={id} />
-
-        <TasksPanel eventId={id} />
 
         <FilesPanel eventId={id} />
 

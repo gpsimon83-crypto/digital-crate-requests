@@ -19,6 +19,26 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-19-wedding-playbook",
+    date: "2026-11-19",
+    area: "CRM",
+    title: "Wedding Playbook in the Tasks tab",
+    summary: "Every wedding's Tasks tab now walks the booking from inquiry to the thank-you: one Next up task, the work grouped by stage, and coaching on each step.",
+    bullets: [
+      "Next up at the top: the one task to do now, who owns it, when it's due, and a button to the right record",
+      "Eight stages (Inquiry → After the wedding). Finished stages fold away; open a task for Your next move, a Coach's tip, and a Ready when checklist",
+      "Tasks that depend on records finish themselves: proposal sent, contract signed, retainer paid, DJ assigned, questionnaire, music plan, equipment confirmed",
+      "Judgment tasks stay open until someone marks them Ready. Mark waiting says what's missing and who needs to act",
+      "If the venue, date, guest count or coverage changes after a task was reviewed, only the tasks that depend on it reopen, with the reason",
+      "Due dates follow the wedding date; a date you set by hand stays put. Timing is editable in Settings → Wedding Playbook timing",
+      "DJs see their own tasks on their project page, can ask the booking lead for extra coverage, overtime or a package change, and get a day-before brief built for a phone",
+      "After the wedding: the DJ's recap feeds the thank-you draft; staff send review and referral notes through messages (each goes out once). An issue in the recap holds them until it's resolved",
+      "Couples see their own steps in a planning checklist on the portal Overview",
+      "Manual tasks still work as before"
+    ],
+    action: "Run migration 0059_wedding_playbook.sql in Supabase"
+  },
+  {
     id: "2026-11-19-details-equipment-plan",
     date: "2026-11-19",
     area: "CRM",

@@ -16,6 +16,7 @@ import { PortalTopHeader } from "@/components/portal/portal-top-header";
 import { DjProfileCard } from "@/components/portal/dj-profile-card";
 import { ConversationPanel } from "@/components/portal/conversation-panel";
 import { NextStepsCard } from "@/components/portal/next-steps-card";
+import { PlanningChecklistCard } from "@/components/portal/planning-checklist-card";
 import { UpcomingMeetingCard, type PortalMeeting } from "@/components/portal/upcoming-meeting-card";
 import { ChangeOrdersPanel, type ChangeOrderData } from "@/components/project/change-orders-panel";
 import { ArrowLeft, X, FileText, FileSignature, DollarSign, Music2, ChevronRight, MessageCircle, type LucideIcon } from "lucide-react";
@@ -476,6 +477,8 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                   onOpenContracts={() => goTo("contracts")}
                   onOpenPayments={() => goTo("payments")}
                 />
+
+                {isWedding && <PlanningChecklistCard eventId={id} />}
 
                 <GlassCard className="flex flex-col gap-1">
                   <div className="mb-1 flex items-center justify-between">
