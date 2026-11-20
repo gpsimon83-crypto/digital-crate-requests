@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Ban, Loader2, Plus, X } from "lucide-react";
+import { Ban, Loader2, Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PAYMENT_KINDS, PAYMENT_METHODS, type PaymentKind, type PaymentMethod } from "@/lib/payment-methods";
 import { cn } from "@/lib/utils";
@@ -28,7 +28,8 @@ const input = "rounded-[8px] border border-black/10 bg-panel px-3 py-2 text-sm f
 /**
  * Payment history on the Financials tab, with "Record a payment" for money
  * the client paid outside the portal (cash, check, Zelle, Venmo...). A
- * mistaken entry is voided with a reason; it stays listed but stops counting.
+ * mistaken entry is voided with a reason (stays listed, stops counting) or
+ * removed permanently.
  */
 export function PaymentLedger({ eventId, payments, balanceCents, depositCents, onChange }: { eventId: string; payments: LedgerPayment[]; balanceCents: number | null; depositCents: number | null; onChange: () => void }) {
   const paidAny = payments.some((p) => p.status === "succeeded");
@@ -38,6 +39,7 @@ export function PaymentLedger({ eventId, payments, balanceCents, depositCents, o
   const [err, setErr] = useState<string | null>(null);
   const [voiding, setVoiding] = useState<string | null>(null);
   const [reason, setReason] = useState("");
+  const [removing, setRemoving] = useState<string | null>(null);
 
   function start() {
     // Sensible defaults: the deposit if nothing's been paid, otherwise the remaining balance.
@@ -68,6 +70,17 @@ export function PaymentLedger({ eventId, payments, balanceCents, depositCents, o
     if (!r.ok) return setErr(j.error ?? "Couldn't void it.");
     setVoiding(null);
     setReason("");
+    onChange();
+  }
+
+  async function removePayment(id: string) {
+    setBusy(true);
+    setErr(null);
+    const r = await fetch(`/api/admin/events/${eventId}/payments/${id}`, { method: "DELETE" });
+    const j = await r.json().catch(() => ({}));
+    setBusy(false);
+    if (!r.ok) return setErr(j.error ?? "Couldn't remove it.");
+    setRemoving(null);
     onChange();
   }
 
@@ -164,14 +177,34 @@ export function PaymentLedger({ eventId, payments, balanceCents, depositCents, o
                 <span className="text-xs text-muted">{p.paid_at ? new Date(p.paid_at).toLocaleDateString() : "—"}</span>
                 <span className={cn("w-24 text-right text-sm font-semibold", voided && "text-muted line-through")}>{money(p.amount_cents)}</span>
                 {p.status !== "succeeded" && !voided && <span className="text-xs capitalize text-status-pending">{p.status}</span>}
-                {manual && !voided && p.status === "succeeded" && voiding !== p.id && (
-                  <button onClick={() => { setVoiding(p.id); setReason(""); setErr(null); }} className="flex items-center gap-1 text-xs text-muted hover:text-status-declined" aria-label={`Void ${money(p.amount_cents)} payment`}>
+                {manual && !voided && p.status === "succeeded" && voiding !== p.id && removing !== p.id && (
+                  <button onClick={() => { setVoiding(p.id); setRemoving(null); setReason(""); setErr(null); }} className="flex items-center gap-1 text-xs text-muted hover:text-status-declined" aria-label={`Void ${money(p.amount_cents)} payment`}>
                     <Ban size={12} /> Void
+                  </button>
+                )}
+                {manual && removing !== p.id && voiding !== p.id && (
+                  <button onClick={() => { setRemoving(p.id); setVoiding(null); setErr(null); }} className="flex items-center gap-1 text-xs text-muted hover:text-status-declined" aria-label={`Remove ${money(p.amount_cents)} payment`} data-tour="remove-payment">
+                    <Trash2 size={12} /> Remove
                   </button>
                 )}
               </div>
               {p.note && <p className="text-xs text-muted">{p.note}</p>}
               {voided && <p className="text-xs text-status-declined">Voided{p.voided_at ? ` ${new Date(p.voided_at).toLocaleDateString()}` : ""}{p.void_reason ? `: ${p.void_reason}` : ""}. Not counted.</p>}
+              {removing === p.id && (
+                <div className="mt-1 flex flex-col gap-2 rounded-[10px] border border-status-declined/30 bg-status-declined/5 p-3 sm:flex-row sm:items-center">
+                  <p className="flex-1 text-xs">
+                    {`Remove this ${money(p.amount_cents)} payment permanently? It disappears from the history and the balance, and can’t be undone (the activity log keeps a record). To keep it on file instead, use Void.`}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="primary" disabled={busy} onClick={() => void removePayment(p.id)}>
+                      Remove permanently
+                    </Button>
+                    <Button size="sm" variant="text" onClick={() => setRemoving(null)}>
+                      Keep
+                    </Button>
+                  </div>
+                </div>
+              )}
               {voiding === p.id && (
                 <div className="mt-1 flex flex-col gap-2 rounded-[10px] border border-status-declined/30 bg-status-declined/5 p-3 sm:flex-row sm:items-center">
                   <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Why? e.g. entered twice" className={cn(input, "flex-1")} aria-label="Reason for voiding" autoFocus />

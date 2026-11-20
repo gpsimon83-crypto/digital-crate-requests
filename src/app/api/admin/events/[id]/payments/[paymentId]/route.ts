@@ -45,3 +45,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }
 }
+
+/**
+ * Staff: permanently remove a hand-recorded payment (entered on the wrong
+ * project, a test entry...). Card payments stay, since Stripe has them; refund
+ * those in Stripe. The removal is written to the activity log with the amount.
+ */
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string; paymentId: string }> }) {
+  const staff = await requireStaffUser();
+  if (staff instanceof NextResponse) return staff;
+  const { id, paymentId } = await params;
+  const db = createAdminClient();
+  const { data: row } = await db.from("payments").select("*").eq("id", paymentId).eq("event_id", id).maybeSingle();
+  const pay = row as { id: string; status: string; stripe_payment_intent_id: string | null; amount_cents: number; kind: string; paid_at: string | null; method?: string | null; reference?: string | null } | null;
+  if (!pay) return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+  if (pay.stripe_payment_intent_id) return NextResponse.json({ error: "Card payments can't be removed here. Refund them in Stripe." }, { status: 400 });
+  try {
+    const { error } = await db.from("payments").delete().eq("id", paymentId).eq("event_id", id);
+    if (error) throw error;
+    await logActivity({
+      actorUserId: staff.userId,
+      action: "payment.removed",
+      entityType: "event",
+      entityId: id,
+      eventId: id,
+      metadata: { paymentId, kind: pay.kind, amountCents: pay.amount_cents, status: pay.status, paidAt: pay.paid_at, method: pay.method ?? null, reference: pay.reference ?? null }
+    });
+    await syncPlaybook(id).catch(() => {});
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
+  }
+}

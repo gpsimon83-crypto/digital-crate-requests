@@ -19,6 +19,7 @@ function query(table: string) {
     }
     const hit = rows.filter((r) => filters.every((f) => f(r)));
     if (op === "update") hit.forEach((r) => Object.assign(r, payload));
+    if (op === "delete") db[table] = rows.filter((r) => !hit.includes(r));
     return mode === "many" ? { data: hit, error: null } : { data: hit[0] ?? null, error: null };
   };
   const q: Record<string, unknown> = {
@@ -26,6 +27,7 @@ function query(table: string) {
     eq: (k: string, v: unknown) => (filters.push((r) => r[k] === v), q),
     insert: (p: Row) => ((op = "insert"), (payload = p), q),
     update: (p: Row) => ((op = "update"), (payload = p), q),
+    delete: () => ((op = "delete"), q),
     maybeSingle: () => Promise.resolve(run("maybe")),
     single: () => Promise.resolve(run("single")),
     then: (res: (v: unknown) => unknown) => Promise.resolve(run("many")).then(res)
@@ -41,7 +43,7 @@ vi.mock("@/lib/data/playbook", () => ({ syncPlaybook: async () => ({}) }));
 vi.mock("@/lib/activity", () => ({ logActivity: async () => {} }));
 
 import { POST } from "@/app/api/admin/events/[id]/payments/route";
-import { PATCH } from "@/app/api/admin/events/[id]/payments/[paymentId]/route";
+import { PATCH, DELETE } from "@/app/api/admin/events/[id]/payments/[paymentId]/route";
 import { computeBalance } from "@/lib/data/payments";
 
 const post = (b: Row) => POST(new NextRequest("http://x", { method: "POST", body: JSON.stringify(b) }), { params: Promise.resolve({ id: "e1" }) });
@@ -98,5 +100,23 @@ describe("recording a payment", () => {
     db.payments.push({ id: "card", event_id: "e1", status: "succeeded", stripe_payment_intent_id: "pi_1", amount_cents: 5000, kind: "balance" });
     expect((await voidIt("card", "oops")).status).toBe(400);
     expect((await voidIt("missing", "oops")).status).toBe(404);
+  });
+});
+
+describe("removing a payment", () => {
+  const del = (pid: string) => DELETE(new NextRequest("http://x", { method: "DELETE" }), { params: Promise.resolve({ id: "e1", paymentId: pid }) });
+  it("removes hand-entered payments (voided or not), never card payments, staff only", async () => {
+    await post(good);
+    await post({ ...good, kind: "balance" });
+    await voidIt("p2", "Entered twice");
+    db.payments.push({ id: "card", event_id: "e1", status: "succeeded", stripe_payment_intent_id: "pi_1", amount_cents: 5000, kind: "balance" });
+    staff = false;
+    expect((await del("p1")).status).toBe(403);
+    staff = true;
+    expect((await del("card")).status).toBe(400);
+    expect((await del("p1")).status).toBe(200);
+    expect((await del("p2")).status).toBe(200);
+    expect((await del("p1")).status).toBe(404);
+    expect(db.payments.map((p) => p.id)).toEqual(["card"]);
   });
 });

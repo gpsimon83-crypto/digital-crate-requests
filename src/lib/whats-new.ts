@@ -19,6 +19,20 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-20-remove-payments",
+    date: "2026-11-20",
+    area: "CRM",
+    title: "Remove a payment",
+    summary: "Payments you recorded by hand can now be removed for good from a project's Financials tab.",
+    bullets: [
+      "Click Remove on the payment, then Remove permanently. It leaves the history and the balance right away",
+      "Works on voided entries too, so a mistake doesn't have to stay on file",
+      "Can't be undone; the activity log keeps a record of what was removed and by whom",
+      "Card payments made in the portal can't be removed here; refund them in Stripe",
+      "Want to keep a record instead? Void still crosses it out and stops it counting"
+    ]
+  },
+  {
     id: "2026-11-19-record-payments",
     date: "2026-11-19",
     area: "CRM",

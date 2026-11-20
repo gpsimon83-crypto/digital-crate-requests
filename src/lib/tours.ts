@@ -18,6 +18,34 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-20-remove-payments": [
+    {
+      path: "/admin/events",
+      target: '[data-tour="project-link"]',
+      title: "Open a project",
+      body: "Click the project with the payment to remove."
+    },
+    {
+      path: "/admin/events/*",
+      target: 'a[href$="?tab=Financials"]',
+      title: "Financials tab",
+      body: "Click Next to open it.",
+      follow: 'a[href$="?tab=Financials"]',
+      waitHint: "Open any project to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Financials",
+      target: '[data-tour="remove-payment"]',
+      title: "Remove",
+      body: "On any payment you recorded by hand. You'll be asked to confirm; it's permanent, and the activity log keeps a record. Card payments are refunded in Stripe instead.",
+      waitHint: "Only payments recorded by hand have Remove. Record one first, or open a project that has one."
+    },
+    {
+      path: "/admin/events/*?tab=Financials",
+      title: "What the client sees",
+      body: "Their portal balance updates as soon as the payment is removed."
+    }
+  ],
   "2026-11-19-record-payments": [
     {
       path: "/admin/events",
