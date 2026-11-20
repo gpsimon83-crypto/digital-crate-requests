@@ -524,7 +524,8 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       {activeTab === "contracts" && (
         <div className="mt-6">
           {contract ? (
-            <GlassCard neon className="flex flex-col gap-3">
+            <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <GlassCard neon className="flex min-w-0 flex-col gap-3">
               <p className="text-sm font-semibold">{contract.title}</p>
 
               {contract.file_url && (
@@ -532,8 +533,15 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                   <FileText size={14} /> View contract document
                 </a>
               )}
-              {contract.body && <div className="max-h-64 overflow-y-auto whitespace-pre-wrap rounded-[10px] border border-black/10 bg-panel/60 p-3 text-sm">{contract.body}</div>}
+              {contract.body ? (
+                <div className="max-h-[32rem] overflow-y-auto whitespace-pre-wrap rounded-[10px] border border-black/10 bg-panel/60 p-4 text-sm leading-relaxed">{contract.body}</div>
+              ) : (
+                !contract.file_url && <p className="text-sm text-muted">The contract text will appear here.</p>
+              )}
+            </GlassCard>
 
+            <GlassCard className="flex flex-col gap-3 lg:sticky lg:top-6">
+              <p className="text-sm font-semibold">{contract.status === "signed" ? "Signed" : "Sign your contract"}</p>
               {contract.status === "signed" ? (
                 <p className="text-sm text-status-approved">
                   Signed {contract.esign_document_id ? "via SignWell" : `by ${contract.signed_by_name}`} on{" "}
@@ -559,8 +567,9 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                 </div>
               )}
             </GlassCard>
+            </div>
           ) : (
-            <GlassCard className="flex flex-col gap-1">
+            <GlassCard className="flex max-w-2xl flex-col gap-1">
               <p className="text-sm font-semibold">No contract yet</p>
               <p className="text-sm text-muted">Your contract will show up here once it&rsquo;s sent.</p>
             </GlassCard>
@@ -569,7 +578,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       )}
 
       {activeTab === "forms" && (
-        <div className="mt-6 flex flex-col gap-4">
+        <div className="mt-6 grid items-start gap-6 md:grid-cols-2">
           <GlassCard neon className="flex flex-col gap-2">
             <p className="text-sm font-semibold">Planning Questionnaire</p>
             <p className="text-sm text-muted">A quick, guided walkthrough to tell us everything about your event — songs, timeline, and all the details your DJ needs.</p>
@@ -809,6 +818,9 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
             </GlassCard>
           )}
 
+          {/* Songs and notes on the left, vendors and day-of logistics on the right. */}
+          <div className="grid items-start gap-6 lg:grid-cols-2" data-tour="portal-music-grid">
+            <div className="flex min-w-0 flex-col gap-6">
           <GlassCard neon className="flex flex-col gap-3">
             <p className="text-sm font-semibold">Must-Play List</p>
             <SongList items={mustPlay} onRemove={(i) => setMustPlay(mustPlay.filter((_, idx) => idx !== i))} />
@@ -877,18 +889,19 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
               value={specialRequests}
               onChange={(e) => setSpecialRequests(e.target.value)}
               placeholder="Timeline details, anything else your DJ should know..."
-              className="min-h-[100px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
+              className="min-h-[120px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
             />
           </GlassCard>
+            </div>
 
-          <GlassCard className="flex flex-col gap-3">
+          <GlassCard className="flex min-w-0 flex-col gap-3">
             <div>
               <p className="text-sm font-semibold">Vendor Contacts &amp; Day-of Logistics</p>
               <p className="text-xs text-muted">Photographer, planner, venue coordinator, and anything else your DJ needs to know before showing up.</p>
             </div>
             <div className="flex flex-col gap-2">
               {vendorContacts.map((v, i) => (
-                <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+                <div key={i} className="grid grid-cols-2 gap-2 rounded-[12px] border border-border p-2.5">
                   <input
                     value={v.role}
                     onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, role: e.target.value } : x)))}
@@ -916,7 +929,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                   <button
                     type="button"
                     onClick={() => setVendorContacts(vendorContacts.filter((_, idx) => idx !== i))}
-                    className="shrink-0 rounded-[10px] border border-black/10 px-2.5 text-xs text-muted hover:text-status-declined"
+                    className="col-span-2 justify-self-end rounded-[8px] px-2 py-0.5 text-xs text-muted hover:text-status-declined focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
                   >
                     Remove
                   </button>
@@ -965,6 +978,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
               {vendorsSaved && <span className="text-xs text-status-approved">Saved</span>}
             </div>
           </GlassCard>
+          </div>
 
           {error && <p className="text-sm text-status-declined">{error}</p>}
           {saved && <p className="text-sm text-status-approved">Saved.</p>}
@@ -976,7 +990,7 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       )}
 
       {activeTab === "payments" && (
-        <div className="mt-6">
+        <div className="mt-6 max-w-2xl">
           {balance && balance.totalDueCents > 0 ? (
             <GlassCard neon className="flex flex-col gap-3">
               <p className="text-sm font-semibold">Payment</p>

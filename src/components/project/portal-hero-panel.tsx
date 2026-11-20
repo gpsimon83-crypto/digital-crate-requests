@@ -144,6 +144,7 @@ export function PortalHeroPanel({ eventId, initial, eventCategory = null }: { ev
           href={`/portal/events/${eventId}`}
           target="_blank"
           rel="noreferrer"
+          data-tour="portal-view-link"
           className="flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-gold hover:underline"
         >
           View Client Portal ↗

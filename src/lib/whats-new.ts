@@ -19,6 +19,21 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-19-portal-tab-grids",
+    date: "2026-11-19",
+    area: "CRM",
+    title: "Client portal tabs: tidier side-by-side layout",
+    summary: "The client portal's tabs no longer stretch every card across the whole screen.",
+    bullets: [
+      "Music: Must-Play, Do-Not-Play and Notes on the left; Vendor contacts and day-of logistics on the right, with each vendor's fields in a compact 2 × 2",
+      "Contracts: the contract on the left, signing (or the signed date) on the right, staying in view while they read",
+      "Forms: Planning questionnaire and Your booking side by side",
+      "Documents: files as a grid of tiles",
+      "Payments and single-message cards keep a readable width",
+      "On phones everything stacks in one column, as before"
+    ]
+  },
+  {
     id: "2026-11-18-client-portal-redesign",
     date: "2026-11-18",
     area: "CRM",

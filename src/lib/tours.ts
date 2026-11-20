@@ -18,6 +18,29 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-19-portal-tab-grids": [
+    {
+      path: "/admin/events",
+      target: '[data-tour="project-link"]',
+      title: "Open a project",
+      body: "The tidier layout is in the client's portal. Click any project to continue."
+    },
+    {
+      path: "/admin/events/*",
+      target: 'a[href$="?tab=Details"]',
+      title: "Details tab",
+      body: "Click Next to open the Details tab, where Customize Portal lives.",
+      follow: 'a[href$="?tab=Details"]',
+      waitHint: "Open any project to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Details",
+      target: '[data-tour="portal-view-link"]',
+      title: "See it as the client does",
+      body: "View Client Portal opens their portal. Music now shows songs and notes beside vendors and logistics, Contracts puts signing beside the contract, Forms and Documents sit in a grid, and Payments keeps a readable width. On phones it all stacks.",
+      waitHint: "Open the Details tab to continue."
+    }
+  ],
   "2026-11-18-client-portal-redesign": [
     {
       path: "/admin/settings",
