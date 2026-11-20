@@ -18,6 +18,47 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-19-details-equipment-plan": [
+    {
+      path: "/admin/events",
+      target: '[data-tour="project-link"]',
+      title: "Open a project",
+      body: "Click any project to see the new Details tab."
+    },
+    {
+      path: "/admin/events/*",
+      target: 'a[href$="?tab=Details"]',
+      title: "Details tab",
+      body: "Click Next to open it.",
+      follow: 'a[href$="?tab=Details"]',
+      waitHint: "Open any project to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Details",
+      target: '[data-tour="event-details"]',
+      title: "Event Details",
+      body: "Event type, date, venue, guests, service and DJ at a glance; Edit works as before. Final amount is the agreed total from an approved proposal or signed contract, or “Not finalized”.",
+      waitHint: "Open the Details tab to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Details",
+      target: '[data-tour="equipment-plan"]',
+      title: "Equipment, recommended",
+      body: "What the proposal is based on, the setup per space (open a row for why each item and how many are free that date), anything missing, and what's actually assigned. Manual assigning is still at the bottom."
+    },
+    {
+      path: "/admin/events/*?tab=Details",
+      target: '[data-tour="equipment-review"]',
+      title: "Review recommendations",
+      body: "Adjust items and quantities, then confirm. Nothing is assigned until you do; confirming again updates the same assignments. If guests, venue, timing or setup change later, the card asks for a review and keeps your assignments."
+    },
+    {
+      path: "/admin/equipment",
+      target: '[data-tour="equipment-setup-rules"]',
+      title: "Setup rules",
+      body: "The rules behind the recommendations, per space: which gear (an item, or any in a category), how many, when it applies (guest count, indoors/outdoors, ceremony or cocktail space, microphones), and the reason staff see."
+    }
+  ],
   "2026-11-19-portal-tab-grids": [
     {
       path: "/admin/events",

@@ -1,5 +1,6 @@
 export type ConditionSource = "event" | "answer";
-export type ConditionOp = "eq" | "ne" | "gte" | "lte" | "gt" | "lt";
+/** in: actual is one of a comma list. includes / excludes: a comma list (multi-select answer) contains / doesn't contain the value. */
+export type ConditionOp = "eq" | "ne" | "gte" | "lte" | "gt" | "lt" | "in" | "includes" | "excludes";
 
 export interface GigCondition {
   source: ConditionSource;
@@ -41,7 +42,7 @@ function readAnswerValue(answers: Record<string, unknown>, key: string): string 
   return raw.value != null ? String(raw.value) : null;
 }
 
-function conditionMatches(condition: GigCondition, ctx: GigContext): boolean {
+export function conditionMatches(condition: GigCondition, ctx: GigContext): boolean {
   let actual: string | number | null;
   if (condition.source === "event") {
     if (condition.field === "guest_count") actual = ctx.guestCount;
@@ -52,7 +53,13 @@ function conditionMatches(condition: GigCondition, ctx: GigContext): boolean {
     actual = readAnswerValue(ctx.answers, condition.field);
   }
 
+  if (condition.op === "excludes") {
+    const list = actual == null ? [] : String(actual).toLowerCase().split(",").map((x) => x.trim());
+    return !list.includes(String(condition.value).toLowerCase());
+  }
   if (actual == null) return false;
+  if (condition.op === "includes") return String(actual).toLowerCase().split(",").map((x) => x.trim()).includes(String(condition.value).toLowerCase());
+  if (condition.op === "in") return String(condition.value).toLowerCase().split(",").map((x) => x.trim()).includes(String(actual).toLowerCase());
 
   const isNumericOp = ["gte", "lte", "gt", "lt"].includes(condition.op);
   if (isNumericOp) {

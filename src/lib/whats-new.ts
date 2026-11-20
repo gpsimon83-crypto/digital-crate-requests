@@ -19,6 +19,23 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-19-details-equipment-plan",
+    date: "2026-11-19",
+    area: "CRM",
+    title: "Project Details redesign and equipment recommendations",
+    summary: "The Details tab is a tidy grid, and the Equipment card proposes the gear an event needs from its guest count, spaces and questionnaire answers.",
+    bullets: [
+      "Layout: Event Details, then Equipment, then Contract and Client notes side by side; Customize Portal on the right with Delete Project below it",
+      "Event Details: event type, date, venue, guests, service and DJ at a glance. Budget range is no longer shown (still saved). Final amount shows the agreed total from an approved proposal or signed contract, otherwise “Not finalized”",
+      "Equipment: what it's based on (e.g. 150 guests · indoors · ceremony in a separate space), the proposed setup per space (Reception audio, Ceremony audio, Cocktail-hour audio, Microphones), why each item, and how many are free that date",
+      "Review recommendations: adjust items and quantities, then confirm. Nothing is assigned until you confirm; confirming again updates the same assignments; overbooking warns first (Assign anyway still works)",
+      "If guests, venue, timing or setup answers change later, the card says what changed and asks for a review; your assignments stay put. Manual assigning still works",
+      "Missing details are listed; the planning questionnaire now has a short Sound & Setup section (answers from Wedding Basics are pre-filled)",
+      "Rules are configurable in Admin → Equipment → Setup rules: gear (an item or any in a category), quantity, guest ranges and other conditions"
+    ],
+    action: "Run migration 0058_equipment_setup_plans.sql in Supabase"
+  },
+  {
     id: "2026-11-19-portal-tab-grids",
     date: "2026-11-19",
     area: "CRM",

@@ -10,6 +10,7 @@ import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { cn } from "@/lib/utils";
 import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
 import { BookingPanel } from "@/components/project/booking-panel";
+import { EquipmentPlanCard } from "@/components/project/equipment-plan-card";
 import { ProjectDayCards } from "@/components/project/project-day-cards";
 import { ThemeMenu } from "@/components/project/theme-menu";
 import { stageGuide } from "@/lib/pipeline-guide";
@@ -27,7 +28,6 @@ import { TasksPanel } from "@/components/project/tasks-panel";
 import { FilesPanel } from "@/components/project/files-panel";
 import { ContractsPanel, type ContractRow } from "@/components/project/contracts-panel";
 import { type ChangeOrderData } from "@/components/project/change-orders-panel";
-import { EquipmentAssignmentsPanel } from "@/components/project/equipment-assignments-panel";
 import { QuestionnaireSummary } from "@/components/project/questionnaire-summary";
 import { PackageTemplatePicker } from "@/components/project/package-template-picker";
 import { PackageSelectionPanel } from "@/components/project/package-selection-panel";
@@ -53,7 +53,6 @@ import {
   Camera,
   Music2,
   ExternalLink,
-  AlertTriangle,
   Trash2
 } from "lucide-react";
 
@@ -117,6 +116,7 @@ interface EventDetail {
   vendor_meal_count: number | null;
   venue_load_in_notes: string | null;
   quoted_amount: number | null;
+  package_selection_id?: string | null;
   final_amount: number | null;
   deposit_amount: number | null;
   internal_notes: string | null;
@@ -568,6 +568,22 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
     { label: "Service", value: event.service_type || "—" }
   ];
   const gala = theme === "gala";
+  // Final amount: staff-entered final, else the total agreed in an approved proposal or a signed contract.
+  const signedContract = contracts.some((c) => c.status === "signed");
+  const agreed: { amount: number; source: string } | null =
+    event.final_amount != null
+      ? { amount: event.final_amount, source: "final amount" }
+      : event.quoted_amount != null && (event.package_selection_id || signedContract)
+        ? { amount: event.quoted_amount, source: signedContract ? "signed contract" : "accepted proposal" }
+        : null;
+  const detailFacts: { label: string; value: string; muted?: boolean }[] = [
+    { label: "Event type", value: (event.event_category && EVENT_CATEGORY_LABELS[event.event_category]) || event.event_type || "—" },
+    { label: "Event date", value: event.starts_at ? new Date(event.starts_at).toLocaleDateString(undefined, { timeZone: event.timezone || undefined, month: "short", day: "numeric", year: "numeric" }) : "Not set", muted: !event.starts_at },
+    { label: "Expected guests", value: event.expected_guests != null ? String(event.expected_guests) : "Not set", muted: event.expected_guests == null },
+    { label: "Service", value: event.service_type || "—" },
+    { label: "Venue", value: event.venues?.name ?? (event.venue_name ? `${event.venue_name} (not linked)` : "No venue"), muted: !event.venues?.name && !event.venue_name },
+    { label: "DJ", value: event.djs?.display_name ?? "Unassigned", muted: !event.djs?.display_name }
+  ];
 
   return (
     <div data-project-theme={theme} data-project-theme-dark={themeDark ? "" : undefined} className="relative isolate min-h-dvh pb-16">
@@ -940,37 +956,16 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
           )}
 
           {activeTab === "Details" && (
-            <div className="mt-6 flex flex-col gap-4">
-              <div id="project-questionnaire" className="scroll-mt-6">
-                <QuestionnaireSummary eventId={id} />
-              </div>
+            <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+              <div className="flex min-w-0 flex-col gap-6 lg:col-span-8">
 
-              <div id="project-meetings" className="scroll-mt-6">
-                <MeetingsPanel eventId={id} />
-              </div>
 
-              <div id="project-packages" className="scroll-mt-6">
-                <PackageTemplatePicker eventId={id} />
-              </div>
 
-              <PackageSelectionPanel eventId={id} />
 
-              <PortalHeroPanel
-                eventId={id}
-                initial={{
-                  couple_display_name: event.couple_display_name,
-                  portal_hero_image_url: event.portal_hero_image_url,
-                  portal_hero_settings: event.portal_hero_settings,
-                  portal_hero_headline_override: event.portal_hero_headline_override,
-                  portal_hero_subheading_override: event.portal_hero_subheading_override,
-                  timezone: event.timezone
-                }}
-                eventCategory={event.event_category}
-              />
 
-              <GlassCard className="flex flex-col gap-3">
+              <GlassCard className="flex flex-col gap-3" data-tour="event-details">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold">Event Details</p>
+                  <p className="font-display text-xl">Event Details</p>
                   {!editingDetails && (
                     <Button
                       variant="secondary"
@@ -1094,20 +1089,32 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                   </div>
                 ) : (
                   <>
-                    <Row label="Event type" value={event.event_type ?? "—"} />
-                    <Row label="Service" value={event.service_type ?? "—"} />
-                    <Row label="Expected guests" value={event.expected_guests != null ? String(event.expected_guests) : "—"} />
-                    <Row label="DJ" value={event.djs?.display_name ?? "Unassigned"} />
-                    <Row label="Venue" value={event.venues?.name ?? (event.venue_name ? `${event.venue_name} (not linked yet)` : "No venue")} />
-                    <Row label="Budget range" value={event.budget_range ?? "—"} />
-                    {(event.clients?.partner_first_name || event.clients?.partner_last_name) && (
-                      <Row label="Partner" value={[event.clients.partner_first_name, event.clients.partner_last_name].filter(Boolean).join(" ") + (event.clients.partner_phone ? ` · ${event.clients.partner_phone}` : "")} />
+                    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border pt-4 sm:grid-cols-3" data-tour="event-details-grid">
+                      {detailFacts.map((f) => (
+                        <div key={f.label} className="min-w-0 sm:border-l sm:border-border sm:pl-4 sm:[&:nth-child(3n+1)]:border-l-0 sm:[&:nth-child(3n+1)]:pl-0">
+                          <dt className="text-xs text-muted">{f.label}</dt>
+                          <dd className={cn("mt-0.5 truncate text-[17px] font-medium leading-snug", f.muted && "text-muted")} title={f.value}>
+                            {f.value}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                    {(event.clients?.partner_first_name || event.clients?.partner_last_name || event.clients?.married_last_name || choiceLabels(event.clients?.contact_methods)) && (
+                      <div className="flex flex-col gap-1 border-t border-border pt-3">
+                        {(event.clients?.partner_first_name || event.clients?.partner_last_name) && (
+                          <Row label="Partner" value={[event.clients.partner_first_name, event.clients.partner_last_name].filter(Boolean).join(" ") + (event.clients.partner_phone ? ` · ${event.clients.partner_phone}` : "")} />
+                        )}
+                        {event.clients?.married_last_name && <Row label="Married last name" value={event.clients.married_last_name} />}
+                        {choiceLabels(event.clients?.contact_methods) && (
+                          <Row label="Best way to reach" value={[choiceLabels(event.clients?.contact_methods), choiceLabels(event.clients?.best_days), choiceLabels(event.clients?.best_times)].filter(Boolean).join(" · ")} />
+                        )}
+                      </div>
                     )}
-                    {event.clients?.married_last_name && <Row label="Married last name" value={event.clients.married_last_name} />}
-                    {choiceLabels(event.clients?.contact_methods) && (
-                      <Row label="Best way to reach" value={[choiceLabels(event.clients?.contact_methods), choiceLabels(event.clients?.best_days), choiceLabels(event.clients?.best_times)].filter(Boolean).join(" · ")} />
-                    )}
-                    <Row label="Final amount" value={event.final_amount != null ? `$${event.final_amount.toFixed(2)}` : "—"} />
+                    <p className="border-t border-border pt-3 text-sm">
+                      <span className="text-muted">Final amount: </span>
+                      <span className="font-semibold">{agreed ? `$${agreed.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Not finalized"}</span>
+                      {agreed && <span className="text-xs text-muted"> · {agreed.source}</span>}
+                    </p>
                   </>
                 )}
               </GlassCard>
@@ -1132,12 +1139,34 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 </GlassCard>
               )}
 
-              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+              <EquipmentPlanCard eventId={id} />
+
+              <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
                 <div id="project-contracts" className="scroll-mt-6">
                   <ContractsPanel eventId={id} contracts={contracts} onChange={load} />
                 </div>
+                <GlassCard className="flex flex-col gap-2">
+                  <p className="text-xs uppercase tracking-[1.5px] text-muted">Client notes</p>
+                  {event.special_requests ? <p className="whitespace-pre-wrap text-sm">{event.special_requests}</p> : <p className="text-sm text-muted">No notes from the client yet.</p>}
+                </GlassCard>
+              </div>
 
-                <EquipmentAssignmentsPanel eventId={id} />
+              <div id="project-questionnaire" className="scroll-mt-6">
+                <QuestionnaireSummary eventId={id} />
+              </div>
+
+              <div id="project-meetings" className="scroll-mt-6">
+                <MeetingsPanel eventId={id} />
+              </div>
+
+              <div id="project-packages" className="scroll-mt-6">
+                <PackageTemplatePicker eventId={id} />
+              </div>
+
+              <PackageSelectionPanel eventId={id} />
+
+              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+
 
                 {event.event_category !== "wedding" && <div data-tour="event-flyer"><EventFlyerPanel eventId={id} /></div>}
 
@@ -1207,12 +1236,30 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                   </GlassCard>
                 )}
 
-                {event.special_requests && (
-                  <GlassCard className="flex flex-col gap-1">
-                    <p className="text-xs uppercase tracking-[1.5px] text-muted">Client notes</p>
-                    <p className="text-sm">{event.special_requests}</p>
-                  </GlassCard>
-                )}
+              </div>
+              </div>
+
+              <div className="flex min-w-0 flex-col gap-6 lg:col-span-4">
+              <PortalHeroPanel
+                eventId={id}
+                initial={{
+                  couple_display_name: event.couple_display_name,
+                  portal_hero_image_url: event.portal_hero_image_url,
+                  portal_hero_settings: event.portal_hero_settings,
+                  portal_hero_headline_override: event.portal_hero_headline_override,
+                  portal_hero_subheading_override: event.portal_hero_subheading_override,
+                  timezone: event.timezone
+                }}
+                eventCategory={event.event_category}
+              />
+
+                <div className="flex items-center justify-between gap-3 rounded-[12px] border border-status-declined/25 bg-status-declined/5 px-4 py-3" data-tour="delete-project">
+                  <p className="text-[11px] text-muted">Permanently delete this project. This can&rsquo;t be undone.</p>
+                  <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(true)} className="shrink-0 gap-1.5">
+                    <Trash2 size={13} />
+                    Delete Project
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -1310,19 +1357,6 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
             </>
           )}
 
-          <div className="flex flex-col gap-2 rounded-[10px] border border-status-declined/25 bg-status-declined/5 p-4">
-            <div className="flex items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-status-declined/10 text-status-declined">
-                <AlertTriangle size={14} />
-              </span>
-              <p className="text-xs font-semibold uppercase tracking-[1.5px] text-status-declined">Danger Zone</p>
-            </div>
-            <p className="text-[11px] text-muted">Permanently delete this project. This cannot be undone.</p>
-            <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(true)} className="mt-1 w-fit gap-1.5">
-              <Trash2 size={13} />
-              Delete Project
-            </Button>
-          </div>
         </div>
       </div>
 

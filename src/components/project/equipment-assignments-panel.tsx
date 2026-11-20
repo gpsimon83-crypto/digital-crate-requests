@@ -29,7 +29,12 @@ interface ConflictCheck {
   conflictingEvents: { eventId: string; title: string | null; startsAt: string | null; quantity: number }[];
 }
 
-export function EquipmentAssignmentsPanel({ eventId }: { eventId: string }) {
+/**
+ * Gear assigned to an event, plus manual assigning (with the double-booking
+ * check). `bare` renders without its own card, inside the Equipment card;
+ * `refreshKey` reloads after a plan is confirmed; `onChange` reports edits.
+ */
+export function EquipmentAssignmentsPanel({ eventId, bare = false, refreshKey = 0, onChange }: { eventId: string; bare?: boolean; refreshKey?: number; onChange?: () => void }) {
   const [assignments, setAssignments] = useState<EquipmentAssignmentRow[] | null>(null);
   const [options, setOptions] = useState<EquipmentOption[] | null>(null);
   const [equipmentId, setEquipmentId] = useState("");
@@ -45,7 +50,7 @@ export function EquipmentAssignmentsPanel({ eventId }: { eventId: string }) {
       .catch(() => setAssignments([]));
   }
 
-  useEffect(load, [eventId]);
+  useEffect(load, [eventId, refreshKey]);
 
   useEffect(() => {
     fetch("/api/admin/equipment")
@@ -75,6 +80,7 @@ export function EquipmentAssignmentsPanel({ eventId }: { eventId: string }) {
       setQuantity("1");
       setConflict(null);
       load();
+      onChange?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -91,17 +97,21 @@ export function EquipmentAssignmentsPanel({ eventId }: { eventId: string }) {
         throw new Error(data.error || "Failed to remove");
       }
       load();
+      onChange?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     }
   }
 
+  const Wrap = bare ? "div" : GlassCard;
   return (
-    <GlassCard className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <Boxes size={16} className="text-gold" />
-        <p className="text-sm font-medium">Equipment</p>
-      </div>
+    <Wrap className="flex flex-col gap-4">
+      {!bare && (
+        <div className="flex items-center gap-2">
+          <Boxes size={16} className="text-gold" />
+          <p className="text-sm font-medium">Equipment</p>
+        </div>
+      )}
       {error && <p className="text-xs text-status-declined">{error}</p>}
 
       {assignments === null ? (
@@ -116,7 +126,7 @@ export function EquipmentAssignmentsPanel({ eventId }: { eventId: string }) {
                 <p className="text-sm">
                   {a.quantity}× {a.equipment?.name ?? "Unknown item"}
                 </p>
-                <p className="text-xs text-muted">{a.equipment?.category}</p>
+                <p className="text-xs text-muted">{a.notes || a.equipment?.category}</p>
               </div>
               <button onClick={() => handleRemove(a.id)} className="flex shrink-0 items-center gap-1 text-xs text-status-declined hover:underline">
                 <Trash2 size={12} /> Remove
@@ -180,6 +190,6 @@ export function EquipmentAssignmentsPanel({ eventId }: { eventId: string }) {
           </Button>
         </div>
       )}
-    </GlassCard>
+    </Wrap>
   );
 }

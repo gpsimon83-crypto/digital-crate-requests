@@ -7,6 +7,7 @@ import { Field } from "@/components/ui/field";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { Plus, X, Boxes } from "lucide-react";
+import { EquipmentSetupRules } from "@/components/admin/equipment-setup-rules";
 
 interface EquipmentRow {
   id: string;
@@ -162,6 +163,8 @@ export default function AdminEquipmentPage() {
           emptyTitle="No equipment yet"
           emptyBody="Add your first piece of gear."
         />
+
+        <EquipmentSetupRules inventory={(items ?? []).map((i) => ({ id: i.id, name: i.name, category: i.category }))} />
       </div>
 
       <ConfirmModal

@@ -4,7 +4,37 @@ import { createClient } from "@/lib/supabase/server";
 import { getClientForAuthUser, getClientEvent } from "@/lib/data/portal";
 import { requirePortalReadAccess } from "@/lib/require-portal-access";
 import { getTemplateForEventType, getResponse, upsertResponse } from "@/lib/data/questionnaires";
-import type { Answers } from "@/lib/questionnaire-engine";
+import type { Answers, Template } from "@/lib/questionnaire-engine";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { linkForEvent, weddingBasicsTemplate } from "@/lib/data/questionnaire-links";
+
+/** Planning "Sound & setup" answers that Wedding Basics already covers, for keys not answered yet. */
+async function setupPrefill(eventId: string, template: Template, answers: Answers): Promise<Answers> {
+  const keys = new Set(template.sections.flatMap((s) => s.questions.map((q) => q.key)));
+  if (!keys.has("setup_setting") && !keys.has("setup_ceremony_space")) return {};
+  try {
+    const wb = await weddingBasicsTemplate();
+    const basics = wb ? (await linkForEvent(createAdminClient(), eventId, wb.id))?.answers : null;
+    if (!basics) return {};
+    const val = (k: string) => {
+      const v = basics[k];
+      return v && !("unsure" in v) ? v.value : undefined;
+    };
+    const coverage = Array.isArray(val("coverage")) ? (val("coverage") as string[]) : null;
+    const out: Answers = {};
+    const set = (k: string, v: string | undefined) => {
+      if (v && keys.has(k) && !answers[k]) out[k] = { value: v };
+    };
+    const setting = val("indoor_outdoor");
+    set("setup_setting", typeof setting === "string" && setting !== "unsure" ? setting : undefined);
+    const ceremony = val("ceremony_location");
+    set("setup_ceremony_space", coverage && !coverage.includes("ceremony") ? "none" : typeof ceremony === "string" && ceremony !== "unsure" ? ceremony : undefined);
+    set("setup_cocktail_space", coverage && !coverage.includes("cocktail") ? "none" : undefined);
+    return out;
+  } catch {
+    return {};
+  }
+}
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -20,7 +50,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     if (!template) return NextResponse.json({ template: null, response: null });
 
     const response = await getResponse(id);
-    return NextResponse.json({ template, response });
+    // Sound & setup answers they already gave in Wedding Basics come pre-filled (not saved until they save).
+    const prefill = await setupPrefill(id, template, (response?.answers as Answers | undefined) ?? {});
+    if (!Object.keys(prefill).length) return NextResponse.json({ template, response });
+    return NextResponse.json({
+      template,
+      response: response ? { ...response, answers: { ...prefill, ...response.answers } } : { answers: prefill, current_question_key: null, completed_at: null }
+    });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }

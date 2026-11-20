@@ -458,6 +458,11 @@ body {
 [data-portal-theme-dark] .bg-white {
   background-color: var(--card);
 }
+/* Heavy black tints are dimming overlays behind dialogs: keep them dark (light tints above flip to white). */
+[data-project-theme-dark] :is(.bg-black\/30, .bg-black\/40, .bg-black\/45, .bg-black\/50, .bg-black\/60, .bg-black\/70),
+[data-portal-theme-dark] :is(.bg-black\/30, .bg-black\/40, .bg-black\/45, .bg-black\/50, .bg-black\/60, .bg-black\/70) {
+  background-color: rgba(0, 0, 0, 0.55);
+}
 
 [data-project-theme="charcoal"] {
   --background: #15120e;
