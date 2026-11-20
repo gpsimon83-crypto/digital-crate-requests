@@ -10,6 +10,14 @@ export interface PaymentRow {
   stripe_payment_intent_id: string | null;
   paid_at: string | null;
   created_at: string;
+  /** Migration 0060: hand-recorded payments. */
+  method?: string | null;
+  reference?: string | null;
+  note?: string | null;
+  recorded_by?: string | null;
+  voided_at?: string | null;
+  voided_by?: string | null;
+  void_reason?: string | null;
 }
 
 export async function listEventPayments(eventId: string): Promise<PaymentRow[]> {

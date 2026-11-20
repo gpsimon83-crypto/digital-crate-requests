@@ -25,6 +25,7 @@ import { type MergeContext } from "@/lib/merge-fields";
 import { clientName } from "@/lib/format";
 import { EmailThreadPanel } from "@/components/project/email-thread-panel";
 import { PlaybookPanel } from "@/components/project/playbook-panel";
+import { PaymentLedger, type LedgerPayment } from "@/components/project/payment-ledger";
 import { FilesPanel } from "@/components/project/files-panel";
 import { ContractsPanel, type ContractRow } from "@/components/project/contracts-panel";
 import { type ChangeOrderData } from "@/components/project/change-orders-panel";
@@ -75,14 +76,7 @@ interface ClientRow {
   best_times?: string[] | null;
 }
 
-interface PaymentRow {
-  id: string;
-  kind: string;
-  amount_cents: number;
-  status: string;
-  paid_at: string | null;
-  created_at: string;
-}
+type PaymentRow = LedgerPayment;
 
 interface EventDetail {
   id: string;
@@ -302,6 +296,15 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
       schedulerLink: `${origin}/schedule`,
       eventCode: event.event_code
     };
+  }
+
+  async function refreshPayments() {
+    const r = await fetch(`/api/admin/events/${id}`, { cache: "no-store" });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return;
+    setPayments(j.payments ?? []);
+    setBalance(j.balance);
+    setEvent(j.event);
   }
 
   async function load() {
@@ -921,19 +924,13 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                 )}
               </GlassCard>
 
-              <div>
-                <p className="mb-2 text-[10px] uppercase tracking-[1.5px] text-muted">Payment history</p>
-                <div className="flex flex-col divide-y divide-border border-y border-border">
-                  {payments.length === 0 && <p className="py-3 text-sm text-muted">No payments yet.</p>}
-                  {payments.map((p) => (
-                    <div key={p.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
-                      <span className="text-sm capitalize">{p.kind}</span>
-                      <span className="text-xs text-muted">{p.paid_at ? new Date(p.paid_at).toLocaleDateString() : "—"}</span>
-                      <span className="text-sm font-semibold">{money(p.amount_cents)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <PaymentLedger
+                eventId={id}
+                payments={payments}
+                balanceCents={balance?.balanceCents ?? null}
+                depositCents={event.deposit_amount != null ? Math.round(event.deposit_amount * 100) : null}
+                onChange={refreshPayments}
+              />
             </div>
           )}
 

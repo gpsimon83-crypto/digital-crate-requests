@@ -25,6 +25,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     try {
       payments = await listEventPayments(id);
       balance = computeBalance(event, payments);
+      // Clients see their own payments, not staff notes or voided entries.
+      payments = payments
+        .filter((p) => p.status !== "voided")
+        .map((p) => ({ ...p, note: null, recorded_by: null, void_reason: null, voided_by: null }));
     } catch {
       // leave payments/balance at their zeroed defaults
     }

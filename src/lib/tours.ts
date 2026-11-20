@@ -18,6 +18,39 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-19-record-payments": [
+    {
+      path: "/admin/events",
+      target: '[data-tour="project-link"]',
+      title: "Open a project",
+      body: "Click the project the client paid for."
+    },
+    {
+      path: "/admin/events/*",
+      target: 'a[href$="?tab=Financials"]',
+      title: "Financials tab",
+      body: "Payments live here. Click Next to open it.",
+      follow: 'a[href$="?tab=Financials"]',
+      waitHint: "Open any project to continue."
+    },
+    {
+      path: "/admin/events/*?tab=Financials",
+      target: '[data-tour="record-payment"]',
+      title: "Record a payment",
+      body: "For cash, check, Zelle, Venmo and the like: amount, date paid, deposit or balance, how they paid, and an optional check # or note. It counts toward the balance right away."
+    },
+    {
+      path: "/admin/events/*?tab=Financials",
+      target: '[data-tour="payment-ledger"]',
+      title: "Payment history",
+      body: "Every payment, with how it was paid. A hand-entered payment that was a mistake can be voided with a reason; it stays listed but stops counting."
+    },
+    {
+      path: "/admin/events/*?tab=Financials",
+      title: "What the client sees",
+      body: "The client portal's Payments tab and Overview show the new Paid so far and Balance due. Your notes and voided entries aren't shown to them. Use View client portal at the top to check."
+    }
+  ],
   "2026-11-19-wedding-playbook": [
     {
       path: "/admin/events",

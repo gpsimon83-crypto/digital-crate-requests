@@ -19,6 +19,21 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-19-record-payments",
+    date: "2026-11-19",
+    area: "CRM",
+    title: "Record payments clients made outside the portal",
+    summary: "On a project's Financials tab, Record a payment logs cash, check, Zelle, Venmo, Cash App, PayPal or bank transfer payments.",
+    bullets: [
+      "Enter the amount, date paid, what it was for (deposit, balance, other), how they paid, and an optional check number or confirmation and a team note",
+      "It counts toward Paid so far and Balance due right away, everywhere: the project, the client portal, invoices, reports and reminders",
+      "A deposit moves the project to Retainer Paid and ticks the Wedding Playbook's retainer task, just like a card payment",
+      "Entered something by mistake? Void it with a reason. It stays in the history, crossed out, and stops counting. Card payments are refunded in Stripe instead",
+      "The client sees the updated balance; your notes and voided entries stay internal"
+    ],
+    action: "Run migration 0060_manual_payments.sql in Supabase (payments already work without it; it adds the method, reference, note and void details)"
+  },
+  {
     id: "2026-11-19-wedding-playbook",
     date: "2026-11-19",
     area: "CRM",
