@@ -202,7 +202,7 @@ describe("equipment recommendations: availability, approval and no duplicates", 
     // 3 JBLs requested, 2 owned: blocked unless forced.
     const blocked = await confirmPlan(EV, items, { userId: "u1", force: false });
     expect(blocked.ok).toBe(false);
-    expect("conflicts" in blocked && blocked.conflicts.map((c) => [c.equipmentId, c.requested, c.available])).toEqual([[SPK_B, 3, 2]]);
+    expect("conflicts" in blocked && blocked.conflicts?.map((c) => [c.equipmentId, c.requested, c.available])).toEqual([[SPK_B, 3, 2]]);
     expect(db.event_equipment_assignments.filter((a) => a.event_id === EV)).toHaveLength(1);
 
     // Staff lower it to 2 and confirm.
