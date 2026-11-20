@@ -19,7 +19,7 @@ function query(table: string) {
   const run = (mode: "many" | "single" | "maybe") => {
     const rows = (db[table] ??= []);
     if (op === "insert") {
-      const list = (Array.isArray(payload) ? payload : [payload!]).map((p) => ({ id: randomUUID(), created_at: new Date().toISOString(), ...p }));
+      const list: Row[] = (Array.isArray(payload) ? payload : [payload!]).map((p) => ({ id: randomUUID(), created_at: new Date().toISOString(), ...p }));
       for (const r of list) {
         if (table === "event_equipment_assignments" && r.plan_item_key && rows.some((x) => x.event_id === r.event_id && x.plan_item_key === r.plan_item_key)) return { data: null, error: { code: "23505", message: "duplicate" } };
       }
