@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { imageLayout } from "@/lib/flyers/scene";
 import { processedImage } from "@/lib/flyers/feather";
 import { CONTROL_INFO, NEEDS_CUTOUT, PRESETS, cutoutShare, effectsOn, newEffects, presetById, resolveParams, type ControlKey, type Params, type PhotoEffects, type PresetId } from "@/lib/flyers/effects";
-import type { ImageNode } from "@/lib/flyers/types";
+import type { FlyerNode, ImageNode, Scene } from "@/lib/flyers/types";
 import { srcFor, useImage, type SrcContext } from "./loaders";
 import { runEffects } from "./fx-runner";
 import { fxStatusOf, subscribeFx } from "./fx-status";
@@ -349,6 +349,36 @@ function Editor({ n, api, canStyle, status }: { n: ImageNode; api: FxApi; canSty
           ) : null}
         </span>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The Effects tab in the editor's left panel: Photo Effects for the selected
+ * photo, or a list of the flyer's photos to pick one from.
+ */
+export function EffectsTab({ scene, selected, api, canStyle, onSelect }: { scene: Scene; selected: FlyerNode | null; api: FxApi; canStyle: (n: FlyerNode) => boolean; onSelect: (id: string) => void }) {
+  const photos = scene.nodes.filter((n): n is ImageNode => n.kind === "image" && isPhotoLayer(n)).reverse();
+  if (selected && selected.kind === "image" && isPhotoLayer(selected))
+    return (
+      <div className="flex flex-col gap-3" data-tour="fx-tab">
+        <p className="text-sm font-semibold">{selected.name}</p>
+        <PhotoEffectsSection n={selected} api={api} canStyle={canStyle(selected)} />
+      </div>
+    );
+  return (
+    <div className="flex flex-col gap-2" data-tour="fx-tab">
+      <p className="text-sm">{selected ? "Effects work on photos. Pick one:" : "Select a photo on the flyer, or pick one here:"}</p>
+      {photos.length ? (
+        photos.map((p) => (
+          <button key={p.id} className={cn(btn, "h-11 justify-start px-3 text-sm")} onClick={() => onSelect(p.id)}>
+            <Sparkles size={15} className="text-muted" /> {p.name}
+            {p.effects && effectsOn(p.effects) && <span className="ml-auto text-[11px] text-muted">{p.effects.custom ?? presetById(p.effects.preset)?.name}</span>}
+          </button>
+        ))
+      ) : (
+        <p className="text-[11px] text-muted">This flyer has no photos yet. Add one from the Photos tab.</p>
+      )}
     </div>
   );
 }

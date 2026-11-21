@@ -28,20 +28,20 @@ export const TOURS: Record<string, TourStep[]> = {
     },
     {
       path: "/dj-dashboard/flyers/*",
-      target: '[data-tour="fx-section"], [data-tour="flyer-layers"]',
-      title: "Select the photo",
-      body: "Click the DJ photo on the flyer (or pick it in Layers). Photo effects is at the top of its settings: click Add an effect.",
+      target: '[data-tour="flyer-tab-effects"]',
+      title: "Effects tab",
+      body: "Open Effects, then click the DJ photo on the flyer (or pick it from the list). Click Add an effect.",
       waitHint: "Open any flyer to continue."
     },
     {
       path: "/dj-dashboard/flyers/*",
-      target: '[data-tour="fx-presets"], [data-tour="fx-section"], [data-tour="flyer-layers"]',
+      target: '[data-tour="fx-presets"], [data-tour="fx-tab"], [data-tour="flyer-tab-effects"]',
       title: "Pick a look",
       body: "The thumbnails are made from your photo. Strength sets how much of the look you get, and each look shows only the controls that apply to it."
     },
     {
       path: "/dj-dashboard/flyers/*",
-      target: '[data-tour="fx-original"], [data-tour="fx-section"], [data-tour="flyer-layers"]',
+      target: '[data-tour="fx-original"], [data-tour="fx-tab"], [data-tour="flyer-tab-effects"]',
       title: "Compare, save, apply",
       body: "Hold View original to see the photo without the effect. Save as preset keeps a look for other flyers. Apply keeps it (one undo step); Cancel puts it back. The photo itself is never changed, and exports match what you see."
     }

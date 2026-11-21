@@ -66,6 +66,7 @@ import {
 } from "./editor-panels";
 import { loadSceneFonts, type SrcContext } from "./loaders";
 import type { PhotoEffects } from "@/lib/flyers/effects";
+import { EffectsTab, type FxApi } from "./photo-effects-panel";
 import { importSvg } from "./svg-import";
 
 export type Scenes = Partial<Record<FormatKey, Scene>>;
@@ -945,6 +946,26 @@ export function FlyerEditor(props: FlyerEditorProps) {
     </div>
   );
 
+  const fxApi: FxApi = {
+    ctx,
+    editing: !!activeFx,
+    draft: activeFx ? activeFx.fx : undefined,
+    start: (id) => {
+      const n = scene.nodes.find((x) => x.id === id);
+      setFxDraft({ id, fx: n && n.kind === "image" ? (n.effects ?? null) : null });
+    },
+    change: (fx) => activeFx && setFxDraft({ id: activeFx.id, fx }),
+    apply: () => {
+      if (!activeFx) return;
+      // One undo step for the whole adjustment, however many sliders moved.
+      update(activeFx.id, { effects: activeFx.fx }, `fx:${activeFx.id}:${Date.now()}`);
+      setFxDraft(null);
+    },
+    cancel: () => setFxDraft(null),
+    hold: setFxHold,
+    quick: (id, fx) => update(id, { effects: fx }, `fx:${id}:${Date.now()}`),
+  };
+
   const propsPanel = (
     <PropertiesPanel
       scene={scene}
@@ -973,24 +994,9 @@ export function FlyerEditor(props: FlyerEditorProps) {
           if (!desktop) setDrawer("add");
         },
         resetToEvent: props.link ? resetToEvent : undefined,
-        effects: {
-          ctx,
-          editing: !!activeFx,
-          draft: activeFx ? activeFx.fx : undefined,
-          start: (id) => {
-            const n = scene.nodes.find((x) => x.id === id);
-            setFxDraft({ id, fx: n && n.kind === "image" ? (n.effects ?? null) : null });
-          },
-          change: (fx) => activeFx && setFxDraft({ id: activeFx.id, fx }),
-          apply: () => {
-            if (!activeFx) return;
-            // One undo step for the whole adjustment, however many sliders moved.
-            update(activeFx.id, { effects: activeFx.fx }, `fx:${activeFx.id}:${Date.now()}`);
-            setFxDraft(null);
-          },
-          cancel: () => setFxDraft(null),
-          hold: setFxHold,
-          quick: (id, fx) => update(id, { effects: fx }, `fx:${id}:${Date.now()}`),
+        openEffects: () => {
+          setLeftTab("effects");
+          if (!desktop) setDrawer("add");
         },
       }}
       textRef={textRef}
@@ -1021,6 +1027,15 @@ export function FlyerEditor(props: FlyerEditorProps) {
       shared={shared}
       venues={props.venues}
       templatesSlot={props.templatesSlot}
+      effectsSlot={
+        <EffectsTab
+          scene={scene}
+          selected={single}
+          api={fxApi}
+          canStyle={(n) => can(n, "style")}
+          onSelect={(id) => setSelected([id])}
+        />
+      }
       eventSlot={
         props.link && linkData ? (
           <EventPanel link={props.link} data={linkData} busy={linkBusy} staff={staff} slotsUsed={slotsUsed} onChange={(b) => void changeLink(b)} onRefresh={() => void refreshLink()} />

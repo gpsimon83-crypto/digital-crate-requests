@@ -30,12 +30,13 @@ import {
   Ungroup,
   Unlock,
   Upload,
-  UserSquare2
+  UserSquare2,
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FLYER_FONTS, fontByKey, nearestWeight } from "@/lib/flyers/fonts";
 import { featherOn } from "@/lib/flyers/feather";
-import { PhotoEffectsSection, isPhotoLayer, type FxApi } from "./photo-effects-panel";
+import { isPhotoLayer } from "./photo-effects-panel";
 import { isLinked, isOverridden } from "@/lib/flyers/links";
 import { BADGES, type BadgePreset } from "@/lib/flyers/badges";
 import { BLEND_MODES, FIELD_TOKENS, ROLES, type BlendMode, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type ShapeNode, type TextNode } from "@/lib/flyers/types";
@@ -165,8 +166,8 @@ export type PropsApi = {
   selectionLocked?: boolean;
   /** Grouped selection: true when it's exactly one group (e.g. a date badge). */
   selectionIsGroup?: boolean;
-  /** Photo Effects on the selected photo (editor only). */
-  effects?: FxApi;
+  /** Open the Effects tab (photo layers). */
+  openEffects?: () => void;
 };
 
 export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRef }: { scene: Scene; node: FlyerNode | null; multi: number; api: PropsApi; sceneControls: React.ReactNode; textRef: React.RefObject<HTMLTextAreaElement | null> }) {
@@ -633,10 +634,10 @@ function ShadowSection({ value, onChange, disabled }: { value: TextNode["shadow"
 function ImageProps({ n, set, canEdit, canStyle, api }: { n: ImageNode; set: (p: Partial<ImageNode>, k?: string) => void; canEdit: boolean; canStyle: boolean; api: PropsApi }) {
   return (
     <>
-      {api.effects && isPhotoLayer(n) && (
-        <Section title="Photo effects" defaultOpen>
-          <PhotoEffectsSection n={n} api={api.effects} canStyle={canStyle} />
-        </Section>
+      {api.openEffects && isPhotoLayer(n) && (
+        <button className={cn(iconBtn, "my-3 w-full justify-center")} onClick={api.openEffects} data-tour="fx-open-tab">
+          <Sparkles size={15} /> {n.effects && n.effects.strength > 0 ? "Edit photo effects" : "Photo effects"}
+        </button>
       )}
       <Section title="Image">
         <button className={cn(iconBtn, "w-full justify-center")} disabled={!canEdit} onClick={() => api.openReplace(n.id)}>
@@ -892,7 +893,8 @@ export function LibraryPanel({
   shared,
   venues,
   templatesSlot,
-  eventSlot
+  eventSlot,
+  effectsSlot
 }: {
   tab: string;
   setTab: (t: string) => void;
@@ -904,6 +906,8 @@ export function LibraryPanel({
   templatesSlot?: React.ReactNode;
   /** Flyers: the Event tab (event, DJs, specials, template). */
   eventSlot?: React.ReactNode;
+  /** The Effects tab (Photo Effects for the selected photo). */
+  effectsSlot?: React.ReactNode;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState(api.mode === "template" ? "background" : "photo");
@@ -926,7 +930,7 @@ export function LibraryPanel({
       <FolderOpen size={13} /> Organise or delete images
     </a>
   ) : null;
-  const tabs = [...(eventSlot ? [["event", "Event"]] : []), ...(templatesSlot ? [["templates", "Templates"]] : []), ["text", "Text"], ...(api.addShape ? [["shapes", "Shapes"]] : []), ...(api.addBadge ? [["badges", "Badges"]] : []), ["photos", "Photos"], ["logos", "Logos"], ["assets", api.mode === "template" ? "Assets" : "Art"]] as [string, string][];
+  const tabs = [...(eventSlot ? [["event", "Event"]] : []), ...(templatesSlot ? [["templates", "Templates"]] : []), ["text", "Text"], ...(api.addShape ? [["shapes", "Shapes"]] : []), ...(api.addBadge ? [["badges", "Badges"]] : []), ["photos", "Photos"], ...(effectsSlot ? [["effects", "Effects"]] : []), ["logos", "Logos"], ["assets", api.mode === "template" ? "Assets" : "Art"]] as [string, string][];
 
   async function onFile(f: File | undefined) {
     if (!f) return;
@@ -972,6 +976,7 @@ export function LibraryPanel({
       <div className="flex-1 overflow-y-auto p-3">
         {tab === "event" && eventSlot}
         {tab === "templates" && templatesSlot}
+        {tab === "effects" && effectsSlot}
         {tab === "text" && (
           <div className="flex flex-col gap-2">
             {(["title", "dj_name", "date", "time", "venue", "address", "details", "text"] as Role[]).map((r) => (

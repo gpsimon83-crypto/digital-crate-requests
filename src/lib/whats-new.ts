@@ -23,7 +23,7 @@ export const UPDATES: UpdateEntry[] = [
     date: "2026-11-20",
     area: "CRM",
     title: "Photo Effects for DJ photos",
-    summary: "Select a photo on a flyer and open Photo effects: 11 looks, previewed on your own photo, with a strength slider and controls for each look.",
+    summary: "A new Effects tab in the flyer editor: pick a photo and choose from 11 looks, previewed on your own photo, with a strength slider and controls for each look.",
     bullets: [
       "Looks: Emerald Editorial, Neon Duotone, Silver Noir, Golden Hour, Xerox Grit, Halftone Pop, VHS Afterhours, Direct Flash, Midnight Blue, Vintage Print and Red Strobe",
       "Each look shows only its own controls (light, color, texture, cutout and fade). Hold View original to compare, Reset to remove, then Apply or Cancel; one Apply is one undo step",
