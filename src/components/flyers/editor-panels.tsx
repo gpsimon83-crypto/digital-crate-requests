@@ -946,9 +946,17 @@ export function LibraryPanel({
 
   return (
     <div className="flex h-full flex-col">
-      <div role="tablist" aria-label="Add to flyer" className="flex gap-1 overflow-x-auto border-b border-black/8 px-2 pt-2">
+      <div
+        role="tablist"
+        aria-label="Add to flyer"
+        // Scrolls sideways without a visible scrollbar (it covered the tab names); a mouse wheel scrolls it too.
+        onWheel={(e) => {
+          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft += e.deltaY;
+        }}
+        className="flex gap-1 overflow-x-auto border-b border-black/8 px-2 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         {tabs.map(([k, l]) => (
-          <button key={k} role="tab" data-tour={`flyer-tab-${k}`} aria-selected={tab === k} className={cn("shrink-0 rounded-t-[8px] px-3 py-2 text-xs font-semibold", FOCUS, tab === k ? "bg-gold-soft text-foreground" : "text-muted hover:text-foreground")} onClick={() => setTab(k)}>
+          <button key={k} role="tab" data-tour={`flyer-tab-${k}`} aria-selected={tab === k} className={cn("shrink-0 rounded-t-[8px] px-3 py-2 text-xs font-semibold", FOCUS, tab === k ? "bg-gold-soft text-foreground" : "text-muted hover:text-foreground")} onClick={(e) => { setTab(k); e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); }}>
             {l}
           </button>
         ))}

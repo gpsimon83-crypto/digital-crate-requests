@@ -91,7 +91,7 @@ function Thumbs({ base, scale, seed, value, onPick }: { base: HTMLCanvasElement 
   const map = urls?.base === base ? urls.map : {};
   const tiles: { id: PresetId | null; name: string }[] = [{ id: null, name: "Original" }, ...PRESETS.map((p) => ({ id: p.id, name: p.name }))];
   return (
-    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:thin] lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0" role="radiogroup" aria-label="Effect presets" data-tour="fx-presets">
+    <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0" role="radiogroup" aria-label="Effect presets" data-tour="fx-presets">
       {tiles.map((t) => {
         const url = map[t.id ?? "none"];
         const on = value === t.id;
