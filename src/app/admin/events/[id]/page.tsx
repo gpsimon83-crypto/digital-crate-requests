@@ -26,6 +26,8 @@ import { clientName } from "@/lib/format";
 import { EmailThreadPanel } from "@/components/project/email-thread-panel";
 import { PlaybookPanel } from "@/components/project/playbook-panel";
 import { PaymentLedger, type LedgerPayment } from "@/components/project/payment-ledger";
+import { CLASSIC_TABS, MakeRecurringCard, RESIDENCY_TABS, ResidencyBody, ResidencyTop, type Drawer } from "@/components/residency/residency-view";
+import type { ResidencyData } from "@/components/residency/types";
 import { FilesPanel } from "@/components/project/files-panel";
 import { ContractsPanel, type ContractRow } from "@/components/project/contracts-panel";
 import { type ChangeOrderData } from "@/components/project/change-orders-panel";
@@ -198,9 +200,13 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
   const { id } = usePromise(params);
   const searchParams = useSearchParams();
   const router = useRouter();
-  const activeTab = (searchParams.get("tab") as Tab | null) ?? "Activity";
-
   const [event, setEvent] = useState<EventDetail | null>(null);
+  // Recurring Bar / Club booking: undefined while loading, null when this project isn't one.
+  const [residency, setResidency] = useState<ResidencyData | null | undefined>(undefined);
+  const [resDrawer, setResDrawer] = useState<Drawer>(null);
+  const tabParam = searchParams.get("tab");
+  const activeTab = (tabParam ?? (residency ? "Coverage" : "Activity")) as Tab;
+  const resTab = !!residency && ((RESIDENCY_TABS as readonly string[]).includes(activeTab) || !(CLASSIC_TABS as readonly string[]).includes(activeTab));
   // Page look: picked in the Theme menu (remembered per project in this browser), else the event type's default.
   const [themePick, setThemePick] = useState<ProjectThemeId | null>(null);
   const themeKey = `dcdj-project-theme:${id}`;
@@ -306,6 +312,30 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
     setBalance(j.balance);
     setEvent(j.event);
   }
+
+  const isBar = event?.event_category === "bar_nightclub";
+  async function loadResidency() {
+    try {
+      const r = await fetch(`/api/admin/events/${id}/residency`, { cache: "no-store" });
+      const j = await r.json();
+      setResidency(r.ok && j.residency ? (j as ResidencyData) : null);
+    } catch {
+      setResidency(null);
+    }
+  }
+  useEffect(() => {
+    if (!event) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- only Bar / Club projects can be recurring
+    if (!isBar) setResidency(null);
+    else void loadResidency();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.id, isBar]);
+  // Open a gig from a link (?gig=<id>), e.g. from a notification.
+  const gigParam = searchParams.get("gig");
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- follow the link once the gigs are in
+    if (gigParam && residency) setResDrawer({ kind: "gig", id: gigParam });
+  }, [gigParam, residency?.residency.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function load() {
     try {
@@ -541,6 +571,11 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
     return <div className="p-8 text-sm text-muted">Loading...</div>;
   }
 
+  // Bar / Club: wait to know whether it's a recurring booking so the page doesn't swap layouts.
+  if (event.event_category === "bar_nightclub" && residency === undefined) {
+    return <div className="p-8 text-sm text-muted">Loading...</div>;
+  }
+
   const activity: { label: string; at: string }[] = [
     { label: "Project created", at: event.created_at },
     ...contracts.filter((c) => c.sent_at).map((c) => ({ label: `Contract sent — ${c.title}`, at: c.sent_at as string })),
@@ -571,6 +606,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
     { label: "Service", value: event.service_type || "—" }
   ];
   const gala = theme === "gala";
+  const washPhoto = (residency ? residency.venue?.cover_url : null) ?? event.hero_image_url;
   // Final amount: staff-entered final, else the total agreed in an approved proposal or a signed contract.
   const signedContract = contracts.some((c) => c.status === "signed");
   const agreed: { amount: number; source: string } | null =
@@ -592,8 +628,8 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
     <div data-project-theme={theme} data-project-theme-dark={themeDark ? "" : undefined} className="relative isolate min-h-dvh pb-16">
       {/* Muted wash of the banner photo behind the page; it shows in the gaps between sections. */}
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[1200px] overflow-hidden">
-        {event.hero_image_url ? (
-          <div className="absolute inset-0 scale-110 bg-cover bg-center blur-[56px] saturate-[0.85]" style={{ backgroundImage: `url(${event.hero_image_url})`, opacity: "var(--wash-opacity)" }} />
+        {washPhoto ? (
+          <div className="absolute inset-0 scale-110 bg-cover bg-center blur-[56px] saturate-[0.85]" style={{ backgroundImage: `url(${washPhoto})`, opacity: "var(--wash-opacity)" }} />
         ) : (
           <div className="absolute inset-0 bg-[radial-gradient(70%_60%_at_25%_10%,var(--gold-soft),transparent_70%)]" />
         )}
@@ -622,740 +658,798 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
         </div>
       </div>
 
-      {/* Split header: banner photo, then the project's title and key facts. */}
-      <header data-tour="project-header" className="mx-6 mt-4 grid gap-6 sm:mx-8 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)] lg:items-stretch">
-        <div>
-          <div
-            className={cn("relative aspect-[16/8] w-full overflow-hidden rounded-[16px] border border-border bg-cover bg-center shadow-[var(--shadow-card)] lg:aspect-auto lg:h-full lg:min-h-[280px]", !event.hero_image_url && "bg-panel")}
-            style={event.hero_image_url ? { backgroundImage: `url(${event.hero_image_url})` } : { backgroundImage: "radial-gradient(120% 90% at 30% 20%, var(--gold-soft), transparent 70%)" }}
-          >
-            <input
-              ref={heroFileInput}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleHeroPhotoSelected(file);
-              }}
-            />
-            {!event.hero_image_url && (
-              <button onClick={() => heroFileInput.current?.click()} disabled={uploadingHero} className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-muted hover:text-foreground">
-                <ImagePlus size={28} strokeWidth={1.4} className="text-gold" /> Add a banner photo
-              </button>
-            )}
-            <div className="absolute right-3 top-3 flex gap-1.5">
-              {event.hero_image_url && (
-                <button
-                  onClick={handleRemoveHeroPhoto}
-                  disabled={uploadingHero}
-                  title="Remove banner photo"
-                  className="rounded-[10px] bg-[rgba(0,0,0,0.38)] p-2 text-white backdrop-blur-sm hover:bg-[rgba(0,0,0,0.55)]"
-                >
-                  <X size={14} />
-                </button>
-              )}
-              <button
-                onClick={() => heroFileInput.current?.click()}
-                disabled={uploadingHero}
-                title={event.hero_image_url ? "Change banner photo" : "Add a banner photo"}
-                className="rounded-[10px] bg-[rgba(0,0,0,0.38)] p-2 text-white backdrop-blur-sm hover:bg-[rgba(0,0,0,0.55)]"
-              >
-                <Camera size={14} />
-              </button>
-            </div>
-          </div>
-          <p className="mt-2 text-[11px] text-muted">This banner photo also becomes the hero image guests see on the event&rsquo;s Crate Request page.</p>
-        </div>
-
-        <div className={cn("flex flex-col justify-center rounded-[16px] bg-[var(--header-panel)] text-[var(--header-fg)]", gala ? "px-7 py-7" : "lg:px-2")}>
-          <p className="text-[11px] font-semibold uppercase tracking-[3px] text-gold" style={gala ? { color: "var(--gold-light)" } : undefined}>
-            Project detail
-          </p>
-          <h1 className="mt-2 font-display text-4xl leading-[1.08] sm:text-[44px]">{event.title}</h1>
-          <p className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-[15px]">
-            <span className="flex items-center gap-2">
-              <CalendarDays size={17} strokeWidth={1.6} className="opacity-80" />
-              {event.starts_at ? new Date(event.starts_at).toLocaleDateString(undefined, { timeZone: tz, weekday: "short", month: "short", day: "numeric", year: "numeric" }) : "Date TBD"}
-            </span>
-            {event.starts_at && (
-              <span className="flex items-center gap-2">
-                <Clock size={17} strokeWidth={1.6} className="opacity-80" />
-                {timeOf(event.starts_at)}
-                {event.ends_at ? ` – ${timeOf(event.ends_at)}` : ""}
-              </span>
-            )}
-            {venueLabel && (
-              <span className="flex items-center gap-2">
-                <MapPin size={17} strokeWidth={1.6} className="opacity-80" /> {venueLabel}
-              </span>
-            )}
-          </p>
-          <div className="mt-5 h-px bg-[color-mix(in_srgb,var(--header-fg)_14%,transparent)]" aria-hidden />
-          <dl className="mt-4 grid grid-cols-3">
-            {stats.map((st, i) => (
-              <div key={st.label} className={cn("min-w-0 px-4 first:pl-0", i > 0 && "border-l border-[color-mix(in_srgb,var(--header-fg)_14%,transparent)]")}>
-                <dt className="text-[10px] font-semibold uppercase tracking-[2.5px] text-[var(--header-muted)]">{st.label}</dt>
-                <dd className="mt-1 truncate font-display text-xl capitalize">{st.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      </header>
-
-      <div className="mx-6 mt-6 sm:mx-8">
-        <BookingPanel
-          stages={FORWARD_PIPELINE_STAGES}
-          current={stage}
-          onSelect={handlePipelineStageChange}
-          disabled={savingPipelineStage}
-          guide={guide}
-          actionHref={(a) => `/admin/events/${id}?tab=${a.tab ?? "Activity"}${a.anchor ? `#${a.anchor}` : ""}`}
-          onMove={handlePipelineStageChange}
+      {residency && (
+        <input
+          ref={heroFileInput}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleHeroPhotoSelected(file);
+          }}
         />
-      </div>
-
-      <div className="mx-6 mt-6 sm:mx-8" data-tour="project-tabs">
-        <Tabs items={TAB_ITEMS} active={activeTab} hrefFor={(key) => `/admin/events/${id}?tab=${key}`} emphasis />
-      </div>
-
-      <div className="mx-6 mt-6 sm:mx-8">
-        <ProjectDayCards
+      )}
+      {residency ? (
+        <ResidencyTop
           eventId={id}
-          isWedding={isWedding}
-          venueName={venueLabel}
-          venueId={event.venue_id ?? null}
-          heroUrl={event.hero_image_url}
-          startsAt={event.starts_at}
-          endsAt={event.ends_at}
-          timezone={event.timezone}
-          serviceType={event.service_type}
-          guests={event.expected_guests}
+          data={residency}
+          activeTab={activeTab}
+          projectPhoto={event.hero_image_url}
+          onAddPhoto={() => heroFileInput.current?.click()}
+          onOpenGig={(g, focus) => {
+            if (!resTab) router.push(`/admin/events/${id}?tab=Coverage`);
+            setResDrawer({ kind: "gig", id: g.id, focus });
+          }}
+          onSchedule={() => {
+            if (!resTab) router.push(`/admin/events/${id}?tab=Coverage`);
+            setResDrawer({ kind: "add" });
+          }}
         />
-      </div>
-
-      <div className="mx-6 mt-6 flex flex-col gap-8 sm:mx-8 lg:flex-row">
-        <div className="flex-1">
-          <p className="mb-2 text-[10px] uppercase tracking-[1.5px] text-muted">Contact</p>
-          {!changingContact ? (
-            <div className="flex items-center gap-3">
-              {name ? (
-                <>
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--gold-light)] to-[var(--gold-dim)] text-xs font-bold text-black">
-                    {initials(name)}
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold">{name}</p>
-                    <p className="flex flex-wrap gap-x-3 text-xs text-muted">
-                      {event.clients?.email && <span>{event.clients.email}</span>}
-                      {event.clients?.phone && <span>{event.clients.phone}</span>}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <p className="text-sm text-muted">No contact linked</p>
-              )}
-              <button onClick={() => setChangingContact(true)} className="ml-2 text-xs text-gold hover:underline">
-                {name ? "Change" : "Link a client"}
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <select
-                defaultValue={event.clients?.id ?? ""}
-                onChange={(e) => handleContactChange(e.target.value)}
-                className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+      ) : (
+        <>
+          {/* Split header: banner photo, then the project's title and key facts. */}
+          <header data-tour="project-header" className="mx-6 mt-4 grid gap-6 sm:mx-8 lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)] lg:items-stretch">
+            <div>
+              <div
+                className={cn("relative aspect-[16/8] w-full overflow-hidden rounded-[16px] border border-border bg-cover bg-center shadow-[var(--shadow-card)] lg:aspect-auto lg:h-full lg:min-h-[280px]", !event.hero_image_url && "bg-panel")}
+                style={event.hero_image_url ? { backgroundImage: `url(${event.hero_image_url})` } : { backgroundImage: "radial-gradient(120% 90% at 30% 20%, var(--gold-soft), transparent 70%)" }}
               >
-                <option value="">No client linked</option>
-                {clientOptions.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-              <button onClick={() => setChangingContact(false)} className="text-xs text-muted hover:text-foreground">
-                Cancel
-              </button>
-            </div>
-          )}
-
-
-          {error && <p className="mt-3 text-sm text-status-declined">{error}</p>}
-
-          {activeTab === "Activity" && (
-            <div className="mt-6 flex flex-col gap-8">
-              <EmailThreadPanel
-                eventId={id}
-                hasClient={!!event.clients}
-                clientDisplayName={clientName(event.clients)}
-                clientEmail={event.clients?.email ?? null}
-                mergeContext={buildMergeContext()}
-              />
-
-              <section className="flex flex-col divide-y divide-border border-y border-border">
-                <p className="pb-2 text-xs font-semibold uppercase tracking-[1.5px] text-muted">Timeline</p>
-                {activity.map((a, i) => (
-                  <div key={i} className="flex items-center justify-between py-3 last:pb-0">
-                    <span className="text-sm">{a.label}</span>
-                    <span className="text-xs text-muted">{new Date(a.at).toLocaleString()}</span>
-                  </div>
-                ))}
-              </section>
-            </div>
-          )}
-
-          {activeTab === "Files" && (
-            <div className="mt-6 flex flex-col gap-4">
-              <GlassCard className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  <FileText size={16} className="text-gold" />
-                  <div>
-                    <p className="text-sm font-medium">Invoice</p>
-                    <p className="text-xs text-muted">Auto-built from the booking price and payments on file.</p>
-                  </div>
-                </div>
-                <a href={`/admin/events/${id}/invoice`} target="_blank" rel="noreferrer">
-                  <Button variant="secondary" size="sm">
-                    View Invoice
-                  </Button>
-                </a>
-              </GlassCard>
-
-              <FilesPanel eventId={id} />
-
-              {(event.event_category === "wedding" || !event.event_category) && (
-                <div data-tour="wb-panel" id="wedding-basics" className="scroll-mt-6"><WeddingBasicsPanel eventId={id} clientPhone={event.clients?.phone ?? null} clientFirstName={event.clients?.first_name ?? null} /></div>
-              )}
-
-              {event.event_category === "wedding" && (
-                <GlassCard className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <Music2 size={16} className="text-gold" />
-                    <div>
-                      <p className="text-sm font-medium">Wedding Music Plan</p>
-                      <p className="text-xs text-muted">
-                        {event.wedding_music_plan_sent_at
-                          ? `Sent ${new Date(event.wedding_music_plan_sent_at).toLocaleDateString()}`
-                          : "Not sent yet — the client won't see this form until you send it."}
-                      </p>
-                    </div>
-                  </div>
-                  {!event.wedding_music_plan_sent_at && (
-                    <Button variant="primary" size="sm" onClick={handleSendMusicPlan} disabled={sendingMusicPlan}>
-                      {sendingMusicPlan ? "Sending…" : "Send"}
-                    </Button>
+                <input
+                  ref={heroFileInput}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleHeroPhotoSelected(file);
+                  }}
+                />
+                {!event.hero_image_url && (
+                  <button onClick={() => heroFileInput.current?.click()} disabled={uploadingHero} className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-muted hover:text-foreground">
+                    <ImagePlus size={28} strokeWidth={1.4} className="text-gold" /> Add a banner photo
+                  </button>
+                )}
+                <div className="absolute right-3 top-3 flex gap-1.5">
+                  {event.hero_image_url && (
+                    <button
+                      onClick={handleRemoveHeroPhoto}
+                      disabled={uploadingHero}
+                      title="Remove banner photo"
+                      className="rounded-[10px] bg-[rgba(0,0,0,0.38)] p-2 text-white backdrop-blur-sm hover:bg-[rgba(0,0,0,0.55)]"
+                    >
+                      <X size={14} />
+                    </button>
                   )}
-                </GlassCard>
+                  <button
+                    onClick={() => heroFileInput.current?.click()}
+                    disabled={uploadingHero}
+                    title={event.hero_image_url ? "Change banner photo" : "Add a banner photo"}
+                    className="rounded-[10px] bg-[rgba(0,0,0,0.38)] p-2 text-white backdrop-blur-sm hover:bg-[rgba(0,0,0,0.55)]"
+                  >
+                    <Camera size={14} />
+                  </button>
+                </div>
+              </div>
+              <p className="mt-2 text-[11px] text-muted">This banner photo also becomes the hero image guests see on the event&rsquo;s Crate Request page.</p>
+            </div>
+
+            <div className={cn("flex flex-col justify-center rounded-[16px] bg-[var(--header-panel)] text-[var(--header-fg)]", gala ? "px-7 py-7" : "lg:px-2")}>
+              <p className="text-[11px] font-semibold uppercase tracking-[3px] text-gold" style={gala ? { color: "var(--gold-light)" } : undefined}>
+                Project detail
+              </p>
+              <h1 className="mt-2 font-display text-4xl leading-[1.08] sm:text-[44px]">{event.title}</h1>
+              <p className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-[15px]">
+                <span className="flex items-center gap-2">
+                  <CalendarDays size={17} strokeWidth={1.6} className="opacity-80" />
+                  {event.starts_at ? new Date(event.starts_at).toLocaleDateString(undefined, { timeZone: tz, weekday: "short", month: "short", day: "numeric", year: "numeric" }) : "Date TBD"}
+                </span>
+                {event.starts_at && (
+                  <span className="flex items-center gap-2">
+                    <Clock size={17} strokeWidth={1.6} className="opacity-80" />
+                    {timeOf(event.starts_at)}
+                    {event.ends_at ? ` – ${timeOf(event.ends_at)}` : ""}
+                  </span>
+                )}
+                {venueLabel && (
+                  <span className="flex items-center gap-2">
+                    <MapPin size={17} strokeWidth={1.6} className="opacity-80" /> {venueLabel}
+                  </span>
+                )}
+              </p>
+              <div className="mt-5 h-px bg-[color-mix(in_srgb,var(--header-fg)_14%,transparent)]" aria-hidden />
+              <dl className="mt-4 grid grid-cols-3">
+                {stats.map((st, i) => (
+                  <div key={st.label} className={cn("min-w-0 px-4 first:pl-0", i > 0 && "border-l border-[color-mix(in_srgb,var(--header-fg)_14%,transparent)]")}>
+                    <dt className="text-[10px] font-semibold uppercase tracking-[2.5px] text-[var(--header-muted)]">{st.label}</dt>
+                    <dd className="mt-1 truncate font-display text-xl capitalize">{st.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </header>
+
+          <div className="mx-6 mt-6 sm:mx-8">
+            <BookingPanel
+              stages={FORWARD_PIPELINE_STAGES}
+              current={stage}
+              onSelect={handlePipelineStageChange}
+              disabled={savingPipelineStage}
+              guide={guide}
+              actionHref={(a) => `/admin/events/${id}?tab=${a.tab ?? "Activity"}${a.anchor ? `#${a.anchor}` : ""}`}
+              onMove={handlePipelineStageChange}
+            />
+          </div>
+
+          {isBar && residency === null && (
+            <div className="mx-6 mt-6 sm:mx-8">
+              <MakeRecurringCard eventId={id} venueLinked={!!event.venue_id} startsAt={event.starts_at} endsAt={event.ends_at} timezone={event.timezone} onCreated={() => void loadResidency()} />
+            </div>
+          )}
+
+          <div className="mx-6 mt-6 sm:mx-8" data-tour="project-tabs">
+            <Tabs items={TAB_ITEMS} active={activeTab} hrefFor={(key) => `/admin/events/${id}?tab=${key}`} emphasis />
+          </div>
+
+          <div className="mx-6 mt-6 sm:mx-8">
+            <ProjectDayCards
+              eventId={id}
+              isWedding={isWedding}
+              venueName={venueLabel}
+              venueId={event.venue_id ?? null}
+              heroUrl={event.hero_image_url}
+              startsAt={event.starts_at}
+              endsAt={event.ends_at}
+              timezone={event.timezone}
+              serviceType={event.service_type}
+              guests={event.expected_guests}
+            />
+          </div>
+        </>
+      )}
+
+      {residency && resTab ? (
+        <ResidencyBody
+          eventId={id}
+          data={residency}
+          activeTab={activeTab}
+          reload={() => void loadResidency()}
+          drawer={resDrawer}
+          setDrawer={setResDrawer}
+          ledger={
+            <PaymentLedger
+              eventId={id}
+              payments={payments}
+              balanceCents={balance?.balanceCents ?? null}
+              depositCents={event.deposit_amount != null ? Math.round(event.deposit_amount * 100) : null}
+              onChange={refreshPayments}
+            />
+          }
+        />
+      ) : (
+          <div className="mx-6 mt-6 flex flex-col gap-8 sm:mx-8 lg:flex-row">
+            <div className="flex-1">
+              <p className="mb-2 text-[10px] uppercase tracking-[1.5px] text-muted">Contact</p>
+              {!changingContact ? (
+                <div className="flex items-center gap-3">
+                  {name ? (
+                    <>
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--gold-light)] to-[var(--gold-dim)] text-xs font-bold text-black">
+                        {initials(name)}
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold">{name}</p>
+                        <p className="flex flex-wrap gap-x-3 text-xs text-muted">
+                          {event.clients?.email && <span>{event.clients.email}</span>}
+                          {event.clients?.phone && <span>{event.clients.phone}</span>}
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted">No contact linked</p>
+                  )}
+                  <button onClick={() => setChangingContact(true)} className="ml-2 text-xs text-gold hover:underline">
+                    {name ? "Change" : "Link a client"}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <select
+                    defaultValue={event.clients?.id ?? ""}
+                    onChange={(e) => handleContactChange(e.target.value)}
+                    className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                  >
+                    <option value="">No client linked</option>
+                    {clientOptions.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button onClick={() => setChangingContact(false)} className="text-xs text-muted hover:text-foreground">
+                    Cancel
+                  </button>
+                </div>
               )}
 
-              {event.event_category === "wedding" && event.wedding_music_plan_sent_at && (() => {
-                const plan = event.wedding_music_plan ?? {};
-                const spotifyIds = plan.spotify_ids ?? {};
-                const rows = WEDDING_SONG_FIELDS.map(({ key, label }) => ({
-                  key,
-                  label,
-                  text: plan[key] as string | undefined,
-                  spotifyId: spotifyIds[key]
-                })).filter((row) => row.text);
-                const linkCount = rows.filter((row) => row.spotifyId).length;
 
-                return (
-                  <GlassCard className="flex flex-col gap-3">
-                    <div className="flex items-center justify-between gap-3">
+              {error && <p className="mt-3 text-sm text-status-declined">{error}</p>}
+
+              {activeTab === "Activity" && (
+                <div className="mt-6 flex flex-col gap-8">
+                  <EmailThreadPanel
+                    eventId={id}
+                    hasClient={!!event.clients}
+                    clientDisplayName={clientName(event.clients)}
+                    clientEmail={event.clients?.email ?? null}
+                    mergeContext={buildMergeContext()}
+                  />
+
+                  <section className="flex flex-col divide-y divide-border border-y border-border">
+                    <p className="pb-2 text-xs font-semibold uppercase tracking-[1.5px] text-muted">Timeline</p>
+                    {activity.map((a, i) => (
+                      <div key={i} className="flex items-center justify-between py-3 last:pb-0">
+                        <span className="text-sm">{a.label}</span>
+                        <span className="text-xs text-muted">{new Date(a.at).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </section>
+                </div>
+              )}
+
+              {activeTab === "Files" && (
+                <div className="mt-6 flex flex-col gap-4">
+                  <GlassCard className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <FileText size={16} className="text-gold" />
+                      <div>
+                        <p className="text-sm font-medium">Invoice</p>
+                        <p className="text-xs text-muted">Auto-built from the booking price and payments on file.</p>
+                      </div>
+                    </div>
+                    <a href={`/admin/events/${id}/invoice`} target="_blank" rel="noreferrer">
+                      <Button variant="secondary" size="sm">
+                        View Invoice
+                      </Button>
+                    </a>
+                  </GlassCard>
+
+                  <FilesPanel eventId={id} />
+
+                  {(event.event_category === "wedding" || !event.event_category) && (
+                    <div data-tour="wb-panel" id="wedding-basics" className="scroll-mt-6"><WeddingBasicsPanel eventId={id} clientPhone={event.clients?.phone ?? null} clientFirstName={event.clients?.first_name ?? null} /></div>
+                  )}
+
+                  {event.event_category === "wedding" && (
+                    <GlassCard className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2">
                         <Music2 size={16} className="text-gold" />
-                        <p className="text-sm font-medium">Wedding Playlist</p>
+                        <div>
+                          <p className="text-sm font-medium">Wedding Music Plan</p>
+                          <p className="text-xs text-muted">
+                            {event.wedding_music_plan_sent_at
+                              ? `Sent ${new Date(event.wedding_music_plan_sent_at).toLocaleDateString()}`
+                              : "Not sent yet — the client won't see this form until you send it."}
+                          </p>
+                        </div>
                       </div>
-                      {linkCount > 0 && (
-                        <Button variant="secondary" size="sm" onClick={copySpotifyLinks}>
-                          {copiedLinks ? "Copied!" : `Copy ${linkCount} Spotify link${linkCount === 1 ? "" : "s"}`}
+                      {!event.wedding_music_plan_sent_at && (
+                        <Button variant="primary" size="sm" onClick={handleSendMusicPlan} disabled={sendingMusicPlan}>
+                          {sendingMusicPlan ? "Sending…" : "Send"}
+                        </Button>
+                      )}
+                    </GlassCard>
+                  )}
+
+                  {event.event_category === "wedding" && event.wedding_music_plan_sent_at && (() => {
+                    const plan = event.wedding_music_plan ?? {};
+                    const spotifyIds = plan.spotify_ids ?? {};
+                    const rows = WEDDING_SONG_FIELDS.map(({ key, label }) => ({
+                      key,
+                      label,
+                      text: plan[key] as string | undefined,
+                      spotifyId: spotifyIds[key]
+                    })).filter((row) => row.text);
+                    const linkCount = rows.filter((row) => row.spotifyId).length;
+
+                    return (
+                      <GlassCard className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <Music2 size={16} className="text-gold" />
+                            <p className="text-sm font-medium">Wedding Playlist</p>
+                          </div>
+                          {linkCount > 0 && (
+                            <Button variant="secondary" size="sm" onClick={copySpotifyLinks}>
+                              {copiedLinks ? "Copied!" : `Copy ${linkCount} Spotify link${linkCount === 1 ? "" : "s"}`}
+                            </Button>
+                          )}
+                        </div>
+                        {rows.length === 0 ? (
+                          <p className="text-xs text-muted">The couple hasn&rsquo;t added any songs yet.</p>
+                        ) : (
+                          <div className="flex flex-col divide-y divide-border">
+                            {rows.map((row) => (
+                              <div key={row.key} className="flex items-center justify-between gap-3 py-2">
+                                <div className="min-w-0">
+                                  <p className="text-[10px] uppercase tracking-wide text-muted">{row.label}</p>
+                                  <p className="truncate text-sm">{row.text}</p>
+                                </div>
+                                {row.spotifyId && (
+                                  <a
+                                    href={`https://open.spotify.com/track/${row.spotifyId}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex shrink-0 items-center gap-1 text-xs text-gold hover:underline"
+                                  >
+                                    Open <ExternalLink size={11} />
+                                  </a>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </GlassCard>
+                    );
+                  })()}
+
+                </div>
+              )}
+
+              {activeTab === "Tasks" && (
+                <div className="mt-6">
+                  <PlaybookPanel eventId={id} />
+                </div>
+              )}
+
+              {activeTab === "Financials" && (
+                <div className="mt-6 flex flex-col gap-4">
+                  <GlassCard className="flex flex-col gap-1">
+                    <Row label="Quoted amount" value={event.quoted_amount != null ? `$${event.quoted_amount.toFixed(2)}` : "—"} />
+                    <Row label="Final amount" value={event.final_amount != null ? `$${event.final_amount.toFixed(2)}` : "—"} />
+                    <Row label="Deposit" value={event.deposit_amount != null ? `$${event.deposit_amount.toFixed(2)}` : "—"} />
+                    {balance && (
+                      <>
+                        <div className="my-1 h-px bg-border" />
+                        <Row label="Paid so far" value={money(balance.paidCents)} />
+                        <Row label="Balance due" value={money(balance.balanceCents)} bold />
+                      </>
+                    )}
+                  </GlassCard>
+
+                  <PaymentLedger
+                    eventId={id}
+                    payments={payments}
+                    balanceCents={balance?.balanceCents ?? null}
+                    depositCents={event.deposit_amount != null ? Math.round(event.deposit_amount * 100) : null}
+                    onChange={refreshPayments}
+                  />
+                </div>
+              )}
+
+              {activeTab === "Notes" && (
+                <div className="mt-6 flex flex-col gap-2">
+                  <p className="text-xs text-muted">Internal only — never visible to the client.</p>
+                  <textarea
+                    value={notesDraft}
+                    onChange={(e) => setNotesDraft(e.target.value)}
+                    placeholder="Anything your team should know about this project..."
+                    className="min-h-[160px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-3 text-sm focus:border-gold focus:outline-none"
+                  />
+                  <div className="flex items-center gap-3">
+                    <Button variant="cta" onClick={handleSaveNotes} disabled={savingNotes} className="w-fit">
+                      {savingNotes ? "Saving..." : "Save notes"}
+                    </Button>
+                    {notesSaved && <span className="text-xs text-status-approved">Saved.</span>}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "Details" && (
+                <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+                  <div className="flex min-w-0 flex-col gap-6 lg:col-span-8">
+
+
+
+
+
+                  <GlassCard className="flex flex-col gap-3" data-tour="event-details">
+                    <div className="flex items-center justify-between">
+                      <p className="font-display text-xl">Event Details</p>
+                      {!editingDetails && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setDetailsDraft({
+                              startsAt: event.starts_at ? event.starts_at.slice(0, 16) : "",
+                              endsAt: event.ends_at ? event.ends_at.slice(0, 16) : "",
+                              venueId: event.venues ? (venueOptions.find((v) => v.label === event.venues?.name)?.id ?? "") : "",
+                              finalAmount: event.final_amount != null ? String(event.final_amount) : "",
+                              djId: event.dj_id ?? ""
+                            });
+                            setEditingDetails(true);
+                          }}
+                        >
+                          Edit
                         </Button>
                       )}
                     </div>
-                    {rows.length === 0 ? (
-                      <p className="text-xs text-muted">The couple hasn&rsquo;t added any songs yet.</p>
+
+                    {editingDetails ? (
+                      <div className="flex flex-col gap-3">
+                        <p className="text-xs text-status-declined">
+                          If this contract is already signed, changing these creates a change order both the client and DJ must acknowledge — nothing is silently altered.
+                        </p>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <label className="block">
+                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Start time</span>
+                            <input
+                              type="datetime-local"
+                              value={detailsDraft.startsAt}
+                              onChange={(e) => setDetailsDraft((d) => ({ ...d, startsAt: e.target.value }))}
+                              className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">End time</span>
+                            <input
+                              type="datetime-local"
+                              value={detailsDraft.endsAt}
+                              onChange={(e) => setDetailsDraft((d) => ({ ...d, endsAt: e.target.value }))}
+                              className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">DJ</span>
+                            <select
+                              value={detailsDraft.djId}
+                              onChange={(e) => setDetailsDraft((d) => ({ ...d, djId: e.target.value }))}
+                              className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                            >
+                              <option value="">Unassigned</option>
+                              {djOptions.map((d) => (
+                                <option key={d.id} value={d.id}>
+                                  {d.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block">
+                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Venue</span>
+                            <select
+                              value={detailsDraft.venueId}
+                              onChange={(e) => setDetailsDraft((d) => ({ ...d, venueId: e.target.value }))}
+                              className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                            >
+                              <option value="">No venue</option>
+                              {venueOptions.map((v) => (
+                                <option key={v.id} value={v.id}>
+                                  {v.label}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block">
+                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Final amount ($)</span>
+                            <input
+                              type="number"
+                              value={detailsDraft.finalAmount}
+                              onChange={(e) => setDetailsDraft((d) => ({ ...d, finalAmount: e.target.value }))}
+                              className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                            />
+                          </label>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            disabled={savingDetails}
+                            onClick={async () => {
+                              setSavingDetails(true);
+                              try {
+                                const res = await fetch(`/api/admin/events/${id}`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({
+                                    startsAt: detailsDraft.startsAt ? new Date(detailsDraft.startsAt).toISOString() : null,
+                                    endsAt: detailsDraft.endsAt ? new Date(detailsDraft.endsAt).toISOString() : null,
+                                    venueId: detailsDraft.venueId || null,
+                                    finalAmount: detailsDraft.finalAmount ? Number(detailsDraft.finalAmount) : null,
+                                    djId: detailsDraft.djId || null
+                                  })
+                                });
+                                const data = await res.json();
+                                if (!res.ok) throw new Error(data.error || "Failed to save");
+                                setEditingDetails(false);
+                                await load();
+                              } catch (err) {
+                                setError(err instanceof Error ? err.message : "Something went wrong.");
+                              } finally {
+                                setSavingDetails(false);
+                              }
+                            }}
+                          >
+                            {savingDetails ? "Saving..." : "Save"}
+                          </Button>
+                          <Button variant="text" size="sm" onClick={() => setEditingDetails(false)}>
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
                     ) : (
-                      <div className="flex flex-col divide-y divide-border">
-                        {rows.map((row) => (
-                          <div key={row.key} className="flex items-center justify-between gap-3 py-2">
-                            <div className="min-w-0">
-                              <p className="text-[10px] uppercase tracking-wide text-muted">{row.label}</p>
-                              <p className="truncate text-sm">{row.text}</p>
+                      <>
+                        <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border pt-4 sm:grid-cols-3" data-tour="event-details-grid">
+                          {detailFacts.map((f) => (
+                            <div key={f.label} className="min-w-0 sm:border-l sm:border-border sm:pl-4 sm:[&:nth-child(3n+1)]:border-l-0 sm:[&:nth-child(3n+1)]:pl-0">
+                              <dt className="text-xs text-muted">{f.label}</dt>
+                              <dd className={cn("mt-0.5 truncate text-[17px] font-medium leading-snug", f.muted && "text-muted")} title={f.value}>
+                                {f.value}
+                              </dd>
                             </div>
-                            {row.spotifyId && (
-                              <a
-                                href={`https://open.spotify.com/track/${row.spotifyId}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex shrink-0 items-center gap-1 text-xs text-gold hover:underline"
-                              >
-                                Open <ExternalLink size={11} />
-                              </a>
+                          ))}
+                        </dl>
+                        {(event.clients?.partner_first_name || event.clients?.partner_last_name || event.clients?.married_last_name || choiceLabels(event.clients?.contact_methods)) && (
+                          <div className="flex flex-col gap-1 border-t border-border pt-3">
+                            {(event.clients?.partner_first_name || event.clients?.partner_last_name) && (
+                              <Row label="Partner" value={[event.clients.partner_first_name, event.clients.partner_last_name].filter(Boolean).join(" ") + (event.clients.partner_phone ? ` · ${event.clients.partner_phone}` : "")} />
+                            )}
+                            {event.clients?.married_last_name && <Row label="Married last name" value={event.clients.married_last_name} />}
+                            {choiceLabels(event.clients?.contact_methods) && (
+                              <Row label="Best way to reach" value={[choiceLabels(event.clients?.contact_methods), choiceLabels(event.clients?.best_days), choiceLabels(event.clients?.best_times)].filter(Boolean).join(" · ")} />
                             )}
                           </div>
-                        ))}
-                      </div>
+                        )}
+                        <p className="border-t border-border pt-3 text-sm">
+                          <span className="text-muted">Final amount: </span>
+                          <span className="font-semibold">{agreed ? `$${agreed.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Not finalized"}</span>
+                          {agreed && <span className="text-xs text-muted"> · {agreed.source}</span>}
+                        </p>
+                      </>
                     )}
                   </GlassCard>
-                );
-              })()}
 
-            </div>
-          )}
-
-          {activeTab === "Tasks" && (
-            <div className="mt-6">
-              <PlaybookPanel eventId={id} />
-            </div>
-          )}
-
-          {activeTab === "Financials" && (
-            <div className="mt-6 flex flex-col gap-4">
-              <GlassCard className="flex flex-col gap-1">
-                <Row label="Quoted amount" value={event.quoted_amount != null ? `$${event.quoted_amount.toFixed(2)}` : "—"} />
-                <Row label="Final amount" value={event.final_amount != null ? `$${event.final_amount.toFixed(2)}` : "—"} />
-                <Row label="Deposit" value={event.deposit_amount != null ? `$${event.deposit_amount.toFixed(2)}` : "—"} />
-                {balance && (
-                  <>
-                    <div className="my-1 h-px bg-border" />
-                    <Row label="Paid so far" value={money(balance.paidCents)} />
-                    <Row label="Balance due" value={money(balance.balanceCents)} bold />
-                  </>
-                )}
-              </GlassCard>
-
-              <PaymentLedger
-                eventId={id}
-                payments={payments}
-                balanceCents={balance?.balanceCents ?? null}
-                depositCents={event.deposit_amount != null ? Math.round(event.deposit_amount * 100) : null}
-                onChange={refreshPayments}
-              />
-            </div>
-          )}
-
-          {activeTab === "Notes" && (
-            <div className="mt-6 flex flex-col gap-2">
-              <p className="text-xs text-muted">Internal only — never visible to the client.</p>
-              <textarea
-                value={notesDraft}
-                onChange={(e) => setNotesDraft(e.target.value)}
-                placeholder="Anything your team should know about this project..."
-                className="min-h-[160px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-3 text-sm focus:border-gold focus:outline-none"
-              />
-              <div className="flex items-center gap-3">
-                <Button variant="cta" onClick={handleSaveNotes} disabled={savingNotes} className="w-fit">
-                  {savingNotes ? "Saving..." : "Save notes"}
-                </Button>
-                {notesSaved && <span className="text-xs text-status-approved">Saved.</span>}
-              </div>
-            </div>
-          )}
-
-          {activeTab === "Details" && (
-            <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-              <div className="flex min-w-0 flex-col gap-6 lg:col-span-8">
-
-
-
-
-
-              <GlassCard className="flex flex-col gap-3" data-tour="event-details">
-                <div className="flex items-center justify-between">
-                  <p className="font-display text-xl">Event Details</p>
-                  {!editingDetails && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => {
-                        setDetailsDraft({
-                          startsAt: event.starts_at ? event.starts_at.slice(0, 16) : "",
-                          endsAt: event.ends_at ? event.ends_at.slice(0, 16) : "",
-                          venueId: event.venues ? (venueOptions.find((v) => v.label === event.venues?.name)?.id ?? "") : "",
-                          finalAmount: event.final_amount != null ? String(event.final_amount) : "",
-                          djId: event.dj_id ?? ""
-                        });
-                        setEditingDetails(true);
-                      }}
-                    >
-                      Edit
-                    </Button>
+                  {changeOrders.length > 0 && (
+                    <GlassCard className="flex flex-col gap-2">
+                      <p className="text-xs uppercase tracking-[1.5px] text-muted">Change orders</p>
+                      {changeOrders.map((c) => (
+                        <div key={c.id} className="flex flex-col gap-1 border-b border-border pb-2 text-sm last:border-0 last:pb-0">
+                          <p className="text-xs text-muted">{new Date(c.created_at).toLocaleString()}</p>
+                          {c.changes.map((change, i) => (
+                            <p key={i}>
+                              <span className="font-medium">{change.label}:</span> {change.oldValue} → {change.newValue}
+                            </p>
+                          ))}
+                          <p className="text-xs">
+                            Client: {c.client_acknowledged_at ? `Acknowledged by ${c.client_acknowledged_by}` : "Pending"} · DJ:{" "}
+                            {c.dj_acknowledged_at ? "Acknowledged" : "Pending"}
+                          </p>
+                        </div>
+                      ))}
+                    </GlassCard>
                   )}
-                </div>
 
-                {editingDetails ? (
-                  <div className="flex flex-col gap-3">
-                    <p className="text-xs text-status-declined">
-                      If this contract is already signed, changing these creates a change order both the client and DJ must acknowledge — nothing is silently altered.
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="block">
-                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Start time</span>
-                        <input
-                          type="datetime-local"
-                          value={detailsDraft.startsAt}
-                          onChange={(e) => setDetailsDraft((d) => ({ ...d, startsAt: e.target.value }))}
-                          className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">End time</span>
-                        <input
-                          type="datetime-local"
-                          value={detailsDraft.endsAt}
-                          onChange={(e) => setDetailsDraft((d) => ({ ...d, endsAt: e.target.value }))}
-                          className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">DJ</span>
-                        <select
-                          value={detailsDraft.djId}
-                          onChange={(e) => setDetailsDraft((d) => ({ ...d, djId: e.target.value }))}
-                          className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-                        >
-                          <option value="">Unassigned</option>
-                          {djOptions.map((d) => (
-                            <option key={d.id} value={d.id}>
-                              {d.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="block">
-                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Venue</span>
-                        <select
-                          value={detailsDraft.venueId}
-                          onChange={(e) => setDetailsDraft((d) => ({ ...d, venueId: e.target.value }))}
-                          className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-                        >
-                          <option value="">No venue</option>
-                          {venueOptions.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.label}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="block">
-                        <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Final amount ($)</span>
-                        <input
-                          type="number"
-                          value={detailsDraft.finalAmount}
-                          onChange={(e) => setDetailsDraft((d) => ({ ...d, finalAmount: e.target.value }))}
-                          className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-                        />
-                      </label>
+                  <EquipmentPlanCard eventId={id} />
+
+                  <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
+                    <div id="project-contracts" className="scroll-mt-6">
+                      <ContractsPanel eventId={id} contracts={contracts} onChange={load} />
                     </div>
-                    <div className="flex items-center gap-3">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        disabled={savingDetails}
-                        onClick={async () => {
-                          setSavingDetails(true);
-                          try {
-                            const res = await fetch(`/api/admin/events/${id}`, {
-                              method: "PATCH",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                startsAt: detailsDraft.startsAt ? new Date(detailsDraft.startsAt).toISOString() : null,
-                                endsAt: detailsDraft.endsAt ? new Date(detailsDraft.endsAt).toISOString() : null,
-                                venueId: detailsDraft.venueId || null,
-                                finalAmount: detailsDraft.finalAmount ? Number(detailsDraft.finalAmount) : null,
-                                djId: detailsDraft.djId || null
-                              })
-                            });
-                            const data = await res.json();
-                            if (!res.ok) throw new Error(data.error || "Failed to save");
-                            setEditingDetails(false);
-                            await load();
-                          } catch (err) {
-                            setError(err instanceof Error ? err.message : "Something went wrong.");
-                          } finally {
-                            setSavingDetails(false);
-                          }
-                        }}
-                      >
-                        {savingDetails ? "Saving..." : "Save"}
-                      </Button>
-                      <Button variant="text" size="sm" onClick={() => setEditingDetails(false)}>
-                        Cancel
+                    <GlassCard className="flex flex-col gap-2">
+                      <p className="text-xs uppercase tracking-[1.5px] text-muted">Client notes</p>
+                      {event.special_requests ? <p className="whitespace-pre-wrap text-sm">{event.special_requests}</p> : <p className="text-sm text-muted">No notes from the client yet.</p>}
+                    </GlassCard>
+                  </div>
+
+                  <div id="project-questionnaire" className="scroll-mt-6">
+                    <QuestionnaireSummary eventId={id} />
+                  </div>
+
+                  <div id="project-meetings" className="scroll-mt-6">
+                    <MeetingsPanel eventId={id} />
+                  </div>
+
+                  <div id="project-packages" className="scroll-mt-6">
+                    <PackageTemplatePicker eventId={id} />
+                  </div>
+
+                  <PackageSelectionPanel eventId={id} />
+
+                  <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
+
+
+                    {event.event_category !== "wedding" && <div data-tour="event-flyer"><EventFlyerPanel eventId={id} /></div>}
+
+                    {(event.must_play?.length || event.do_not_play?.length) ? (
+                      <GlassCard className="flex flex-col gap-3">
+                        {event.must_play && event.must_play.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Must-play songs</p>
+                            <p className="text-sm">{event.must_play.join(", ")}</p>
+                          </div>
+                        )}
+                        {event.do_not_play && event.do_not_play.length > 0 && (
+                          <div>
+                            <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Do-not-play songs</p>
+                            <p className="text-sm">{event.do_not_play.join(", ")}</p>
+                          </div>
+                        )}
+                      </GlassCard>
+                    ) : null}
+
+                    {event.wedding_music_plan && Object.keys(event.wedding_music_plan).length > 0 && (
+                      <GlassCard className="flex flex-col gap-1">
+                        <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Wedding music plan</p>
+                        {(event.wedding_music_plan.wedding_party ?? []).length > 0 && (
+                          <div className="pb-1">
+                            <p className="text-xs font-medium text-muted">Wedding party order of entry</p>
+                            {event.wedding_music_plan.wedding_party!.map((p, i) => (
+                              <p key={i} className="text-sm">
+                                {i + 1}. {p.name}
+                                {p.pronunciation ? ` (${p.pronunciation})` : ""}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                        {WEDDING_PLAN_FIELDS.map(({ key, label }) => {
+                          const value = event.wedding_music_plan?.[key];
+                          if (!value || (Array.isArray(value) && value.length === 0)) return null;
+                          return <Row key={key} label={label} value={Array.isArray(value) ? value.join(", ") : value} />;
+                        })}
+                      </GlassCard>
+                    )}
+
+                    {event.day_timeline && event.day_timeline.length > 0 && (
+                      <GlassCard className="flex flex-col gap-1">
+                        <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Day-of timeline</p>
+                        {event.day_timeline.map((entry, i) => (
+                          <Row key={i} label={entry.time || "—"} value={entry.label + (entry.note ? ` — ${entry.note}` : "")} />
+                        ))}
+                      </GlassCard>
+                    )}
+
+                    {event.vendor_contacts && event.vendor_contacts.length > 0 && (
+                      <GlassCard className="flex flex-col gap-1">
+                        <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Vendor contacts</p>
+                        {event.vendor_contacts.map((v, i) => (
+                          <Row key={i} label={v.role || "Vendor"} value={[v.name, v.phone, v.email].filter(Boolean).join(" · ") || "—"} />
+                        ))}
+                      </GlassCard>
+                    )}
+
+                    {(event.vendor_meal_count != null || event.venue_load_in_notes || event.weather_backup_plan) && (
+                      <GlassCard className="flex flex-col gap-1">
+                        <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Day-of logistics</p>
+                        {event.vendor_meal_count != null && <Row label="Vendor meal count" value={String(event.vendor_meal_count)} />}
+                        {event.venue_load_in_notes && <Row label="Load-in / parking" value={event.venue_load_in_notes} />}
+                        {event.weather_backup_plan && <Row label="Weather backup plan" value={event.weather_backup_plan} />}
+                      </GlassCard>
+                    )}
+
+                  </div>
+                  </div>
+
+                  <div className="flex min-w-0 flex-col gap-6 lg:col-span-4">
+                  <PortalHeroPanel
+                    eventId={id}
+                    initial={{
+                      couple_display_name: event.couple_display_name,
+                      portal_hero_image_url: event.portal_hero_image_url,
+                      portal_hero_settings: event.portal_hero_settings,
+                      portal_hero_headline_override: event.portal_hero_headline_override,
+                      portal_hero_subheading_override: event.portal_hero_subheading_override,
+                      timezone: event.timezone
+                    }}
+                    eventCategory={event.event_category}
+                  />
+
+                    <div className="flex items-center justify-between gap-3 rounded-[12px] border border-status-declined/25 bg-status-declined/5 px-4 py-3" data-tour="delete-project">
+                      <p className="text-[11px] text-muted">Permanently delete this project. This can&rsquo;t be undone.</p>
+                      <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(true)} className="shrink-0 gap-1.5">
+                        <Trash2 size={13} />
+                        Delete Project
                       </Button>
                     </div>
                   </div>
-                ) : (
-                  <>
-                    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border pt-4 sm:grid-cols-3" data-tour="event-details-grid">
-                      {detailFacts.map((f) => (
-                        <div key={f.label} className="min-w-0 sm:border-l sm:border-border sm:pl-4 sm:[&:nth-child(3n+1)]:border-l-0 sm:[&:nth-child(3n+1)]:pl-0">
-                          <dt className="text-xs text-muted">{f.label}</dt>
-                          <dd className={cn("mt-0.5 truncate text-[17px] font-medium leading-snug", f.muted && "text-muted")} title={f.value}>
-                            {f.value}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                    {(event.clients?.partner_first_name || event.clients?.partner_last_name || event.clients?.married_last_name || choiceLabels(event.clients?.contact_methods)) && (
-                      <div className="flex flex-col gap-1 border-t border-border pt-3">
-                        {(event.clients?.partner_first_name || event.clients?.partner_last_name) && (
-                          <Row label="Partner" value={[event.clients.partner_first_name, event.clients.partner_last_name].filter(Boolean).join(" ") + (event.clients.partner_phone ? ` · ${event.clients.partner_phone}` : "")} />
-                        )}
-                        {event.clients?.married_last_name && <Row label="Married last name" value={event.clients.married_last_name} />}
-                        {choiceLabels(event.clients?.contact_methods) && (
-                          <Row label="Best way to reach" value={[choiceLabels(event.clients?.contact_methods), choiceLabels(event.clients?.best_days), choiceLabels(event.clients?.best_times)].filter(Boolean).join(" · ")} />
-                        )}
-                      </div>
-                    )}
-                    <p className="border-t border-border pt-3 text-sm">
-                      <span className="text-muted">Final amount: </span>
-                      <span className="font-semibold">{agreed ? `$${agreed.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "Not finalized"}</span>
-                      {agreed && <span className="text-xs text-muted"> · {agreed.source}</span>}
-                    </p>
-                  </>
-                )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex w-full flex-col gap-4 lg:w-64 lg:shrink-0">
+              <GlassCard className="flex flex-col gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Client portal</p>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    readOnly
+                    value={`${typeof window !== "undefined" ? window.location.origin : ""}/portal`}
+                    className="flex-1 truncate rounded-[10px] border border-black/10 bg-panel px-2.5 py-2 text-xs text-muted"
+                  />
+                  <button onClick={copyPortalLink} className="shrink-0 rounded-[10px] border border-black/10 p-2 hover:border-gold">
+                    {copied ? <Check size={13} className="text-status-approved" /> : <Copy size={13} />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted">Your client signs in here with the email on file.</p>
               </GlassCard>
 
-              {changeOrders.length > 0 && (
-                <GlassCard className="flex flex-col gap-2">
-                  <p className="text-xs uppercase tracking-[1.5px] text-muted">Change orders</p>
-                  {changeOrders.map((c) => (
-                    <div key={c.id} className="flex flex-col gap-1 border-b border-border pb-2 text-sm last:border-0 last:pb-0">
-                      <p className="text-xs text-muted">{new Date(c.created_at).toLocaleString()}</p>
-                      {c.changes.map((change, i) => (
-                        <p key={i}>
-                          <span className="font-medium">{change.label}:</span> {change.oldValue} → {change.newValue}
-                        </p>
-                      ))}
-                      <p className="text-xs">
-                        Client: {c.client_acknowledged_at ? `Acknowledged by ${c.client_acknowledged_by}` : "Pending"} · DJ:{" "}
-                        {c.dj_acknowledged_at ? "Acknowledged" : "Pending"}
-                      </p>
-                    </div>
+              <GlassCard className="flex flex-col gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Status</p>
+                <select
+                  value={event.status}
+                  onChange={(e) => handleStageChange(e.target.value)}
+                  disabled={savingStage}
+                  className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                >
+                  {STAGE_OPTIONS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
                   ))}
-                </GlassCard>
+                </select>
+                <p className="text-[11px] text-muted">Whether a DJ has accepted this booking.</p>
+              </GlassCard>
+
+              <GlassCard className="flex flex-col gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Pipeline Stage</p>
+                <select
+                  value={event.pipeline_stage ?? "Inquiry"}
+                  onChange={(e) => handlePipelineStageChange(e.target.value)}
+                  disabled={savingPipelineStage}
+                  className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                >
+                  {PIPELINE_STAGES.map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-muted">Where this project sits in the sales &amp; planning funnel.</p>
+              </GlassCard>
+
+              {event.clients && (
+                <>
+                  <GlassCard className="flex flex-col gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Lead Source</p>
+                    <input
+                      value={leadSourceDraft}
+                      onChange={(e) => setLeadSourceDraft(e.target.value)}
+                      onBlur={handleSaveLeadSource}
+                      placeholder="Instagram, referral, website..."
+                      className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                    />
+                  </GlassCard>
+
+                  <GlassCard className="flex flex-col gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Tags</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(event.clients.tags ?? []).map((tag) => (
+                        <span key={tag} className="flex items-center gap-1 rounded-[10px] bg-gold-soft px-2 py-1 text-[11px] text-gold-dim">
+                          {tag}
+                          <button onClick={() => handleRemoveTag(tag)} className="hover:text-status-declined">
+                            <X size={10} />
+                          </button>
+                        </span>
+                      ))}
+                      {(event.clients.tags ?? []).length === 0 && <span className="text-xs text-muted">No tags yet.</span>}
+                    </div>
+                    <input
+                      value={newTag}
+                      onChange={(e) => setNewTag(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddTag();
+                        }
+                      }}
+                      placeholder="Add a tag and press Enter"
+                      className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-xs focus:border-gold focus:outline-none"
+                    />
+                  </GlassCard>
+                </>
               )}
 
-              <EquipmentPlanCard eventId={id} />
-
-              <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2">
-                <div id="project-contracts" className="scroll-mt-6">
-                  <ContractsPanel eventId={id} contracts={contracts} onChange={load} />
-                </div>
-                <GlassCard className="flex flex-col gap-2">
-                  <p className="text-xs uppercase tracking-[1.5px] text-muted">Client notes</p>
-                  {event.special_requests ? <p className="whitespace-pre-wrap text-sm">{event.special_requests}</p> : <p className="text-sm text-muted">No notes from the client yet.</p>}
-                </GlassCard>
-              </div>
-
-              <div id="project-questionnaire" className="scroll-mt-6">
-                <QuestionnaireSummary eventId={id} />
-              </div>
-
-              <div id="project-meetings" className="scroll-mt-6">
-                <MeetingsPanel eventId={id} />
-              </div>
-
-              <div id="project-packages" className="scroll-mt-6">
-                <PackageTemplatePicker eventId={id} />
-              </div>
-
-              <PackageSelectionPanel eventId={id} />
-
-              <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">
-
-
-                {event.event_category !== "wedding" && <div data-tour="event-flyer"><EventFlyerPanel eventId={id} /></div>}
-
-                {(event.must_play?.length || event.do_not_play?.length) ? (
-                  <GlassCard className="flex flex-col gap-3">
-                    {event.must_play && event.must_play.length > 0 && (
-                      <div>
-                        <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Must-play songs</p>
-                        <p className="text-sm">{event.must_play.join(", ")}</p>
-                      </div>
-                    )}
-                    {event.do_not_play && event.do_not_play.length > 0 && (
-                      <div>
-                        <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Do-not-play songs</p>
-                        <p className="text-sm">{event.do_not_play.join(", ")}</p>
-                      </div>
-                    )}
-                  </GlassCard>
-                ) : null}
-
-                {event.wedding_music_plan && Object.keys(event.wedding_music_plan).length > 0 && (
-                  <GlassCard className="flex flex-col gap-1">
-                    <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Wedding music plan</p>
-                    {(event.wedding_music_plan.wedding_party ?? []).length > 0 && (
-                      <div className="pb-1">
-                        <p className="text-xs font-medium text-muted">Wedding party order of entry</p>
-                        {event.wedding_music_plan.wedding_party!.map((p, i) => (
-                          <p key={i} className="text-sm">
-                            {i + 1}. {p.name}
-                            {p.pronunciation ? ` (${p.pronunciation})` : ""}
-                          </p>
-                        ))}
-                      </div>
-                    )}
-                    {WEDDING_PLAN_FIELDS.map(({ key, label }) => {
-                      const value = event.wedding_music_plan?.[key];
-                      if (!value || (Array.isArray(value) && value.length === 0)) return null;
-                      return <Row key={key} label={label} value={Array.isArray(value) ? value.join(", ") : value} />;
-                    })}
-                  </GlassCard>
-                )}
-
-                {event.day_timeline && event.day_timeline.length > 0 && (
-                  <GlassCard className="flex flex-col gap-1">
-                    <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Day-of timeline</p>
-                    {event.day_timeline.map((entry, i) => (
-                      <Row key={i} label={entry.time || "—"} value={entry.label + (entry.note ? ` — ${entry.note}` : "")} />
-                    ))}
-                  </GlassCard>
-                )}
-
-                {event.vendor_contacts && event.vendor_contacts.length > 0 && (
-                  <GlassCard className="flex flex-col gap-1">
-                    <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Vendor contacts</p>
-                    {event.vendor_contacts.map((v, i) => (
-                      <Row key={i} label={v.role || "Vendor"} value={[v.name, v.phone, v.email].filter(Boolean).join(" · ") || "—"} />
-                    ))}
-                  </GlassCard>
-                )}
-
-                {(event.vendor_meal_count != null || event.venue_load_in_notes || event.weather_backup_plan) && (
-                  <GlassCard className="flex flex-col gap-1">
-                    <p className="mb-1 text-xs uppercase tracking-[1.5px] text-muted">Day-of logistics</p>
-                    {event.vendor_meal_count != null && <Row label="Vendor meal count" value={String(event.vendor_meal_count)} />}
-                    {event.venue_load_in_notes && <Row label="Load-in / parking" value={event.venue_load_in_notes} />}
-                    {event.weather_backup_plan && <Row label="Weather backup plan" value={event.weather_backup_plan} />}
-                  </GlassCard>
-                )}
-
-              </div>
-              </div>
-
-              <div className="flex min-w-0 flex-col gap-6 lg:col-span-4">
-              <PortalHeroPanel
-                eventId={id}
-                initial={{
-                  couple_display_name: event.couple_display_name,
-                  portal_hero_image_url: event.portal_hero_image_url,
-                  portal_hero_settings: event.portal_hero_settings,
-                  portal_hero_headline_override: event.portal_hero_headline_override,
-                  portal_hero_subheading_override: event.portal_hero_subheading_override,
-                  timezone: event.timezone
-                }}
-                eventCategory={event.event_category}
-              />
-
-                <div className="flex items-center justify-between gap-3 rounded-[12px] border border-status-declined/25 bg-status-declined/5 px-4 py-3" data-tour="delete-project">
-                  <p className="text-[11px] text-muted">Permanently delete this project. This can&rsquo;t be undone.</p>
-                  <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(true)} className="shrink-0 gap-1.5">
-                    <Trash2 size={13} />
-                    Delete Project
-                  </Button>
-                </div>
-              </div>
             </div>
-          )}
-        </div>
-
-        <div className="flex w-full flex-col gap-4 lg:w-64 lg:shrink-0">
-          <GlassCard className="flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Client portal</p>
-            <div className="flex items-center gap-1.5">
-              <input
-                readOnly
-                value={`${typeof window !== "undefined" ? window.location.origin : ""}/portal`}
-                className="flex-1 truncate rounded-[10px] border border-black/10 bg-panel px-2.5 py-2 text-xs text-muted"
-              />
-              <button onClick={copyPortalLink} className="shrink-0 rounded-[10px] border border-black/10 p-2 hover:border-gold">
-                {copied ? <Check size={13} className="text-status-approved" /> : <Copy size={13} />}
-              </button>
-            </div>
-            <p className="text-[11px] text-muted">Your client signs in here with the email on file.</p>
-          </GlassCard>
-
-          <GlassCard className="flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Status</p>
-            <select
-              value={event.status}
-              onChange={(e) => handleStageChange(e.target.value)}
-              disabled={savingStage}
-              className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-            >
-              {STAGE_OPTIONS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-[11px] text-muted">Whether a DJ has accepted this booking.</p>
-          </GlassCard>
-
-          <GlassCard className="flex flex-col gap-2">
-            <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Pipeline Stage</p>
-            <select
-              value={event.pipeline_stage ?? "Inquiry"}
-              onChange={(e) => handlePipelineStageChange(e.target.value)}
-              disabled={savingPipelineStage}
-              className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-            >
-              {PIPELINE_STAGES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-            <p className="text-[11px] text-muted">Where this project sits in the sales &amp; planning funnel.</p>
-          </GlassCard>
-
-          {event.clients && (
-            <>
-              <GlassCard className="flex flex-col gap-2">
-                <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Lead Source</p>
-                <input
-                  value={leadSourceDraft}
-                  onChange={(e) => setLeadSourceDraft(e.target.value)}
-                  onBlur={handleSaveLeadSource}
-                  placeholder="Instagram, referral, website..."
-                  className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-                />
-              </GlassCard>
-
-              <GlassCard className="flex flex-col gap-2">
-                <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Tags</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {(event.clients.tags ?? []).map((tag) => (
-                    <span key={tag} className="flex items-center gap-1 rounded-[10px] bg-gold-soft px-2 py-1 text-[11px] text-gold-dim">
-                      {tag}
-                      <button onClick={() => handleRemoveTag(tag)} className="hover:text-status-declined">
-                        <X size={10} />
-                      </button>
-                    </span>
-                  ))}
-                  {(event.clients.tags ?? []).length === 0 && <span className="text-xs text-muted">No tags yet.</span>}
-                </div>
-                <input
-                  value={newTag}
-                  onChange={(e) => setNewTag(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleAddTag();
-                    }
-                  }}
-                  placeholder="Add a tag and press Enter"
-                  className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-xs focus:border-gold focus:outline-none"
-                />
-              </GlassCard>
-            </>
-          )}
-
-        </div>
-      </div>
+          </div>
+      )}
 
       <ConfirmModal
         open={showDeleteConfirm}

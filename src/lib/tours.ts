@@ -18,6 +18,56 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-20-recurring-bar-nights": [
+    {
+      path: "/admin/events",
+      target: '[data-tour="project-link"]',
+      title: "Open a Bar / Club project",
+      body: "A one-off project shows Make it recurring; a recurring one opens in the new layout."
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="make-recurring"], [data-tour="residency-header"]',
+      title: "Recurring nights",
+      body: "On a one-off Bar / Club project, Make it recurring sets the schedule: weekly, some weeks of the month (like 1st & 3rd Saturday), or dates you pick. Weddings and one-off bookings keep the usual layout.",
+      waitHint: "Open a Bar / Club project to continue."
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="next-gig"]',
+      title: "Next gig",
+      body: "The earliest upcoming date that isn't canceled, its hours and DJ coverage. The button changes: Assign DJ, View assignment, or Open gig."
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="upcoming-gigs"]',
+      title: "Upcoming gigs",
+      body: "Date, set time, DJ and status; the next gig is highlighted. Click a row to assign a DJ, change the hours, add notes for that night, cancel it or mark it played. Each change asks: This gig only, or This and future gigs."
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="edit-schedule"]',
+      title: "Edit the schedule",
+      body: "Changes apply from a date you choose. Past gigs, one-night swaps and dates a DJ confirmed are kept; saving again never adds duplicate dates."
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="residency-tabs"]',
+      title: "Brief, recaps, money",
+      body: "Venue Brief holds load-in, house gear, music direction and expectations on the venue record. Recaps lists every DJ recap (pin advice to the brief from any of them). Financials shows the month for staff with finance access."
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="residency-more"]',
+      title: "Project records",
+      body: "Activity, Files, Tasks, Notes and Details are all still here."
+    },
+    {
+      path: "/admin/events/*",
+      title: "What the DJ sees",
+      body: "The assigned DJ confirms or declines each date in My Bookings → Venue nights, opens the venue brief with that night's notes, and gets three recap questions after the gig. Nothing about rates shows to the DJ, the venue or the client."
+    }
+  ],
   "2026-11-20-remove-payments": [
     {
       path: "/admin/events",

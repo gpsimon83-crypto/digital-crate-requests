@@ -9,7 +9,7 @@ function opsEmailList(): string[] {
     .filter(Boolean);
 }
 
-async function notifyStaff(input: { type: string; title: string; body: string; eventId: string }) {
+export async function notifyStaff(input: { type: string; title: string; body: string; eventId: string }) {
   const db = createAdminClient();
   const { data } = await db.auth.admin.listUsers({ perPage: 200 });
   const staffIds = (data?.users ?? []).filter((u) => isStaffRole(accountRole(u))).map((u) => u.id);

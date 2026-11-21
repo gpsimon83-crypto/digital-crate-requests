@@ -19,6 +19,23 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-20-recurring-bar-nights",
+    date: "2026-11-20",
+    area: "CRM",
+    title: "Recurring Bar / Club bookings",
+    summary: "A Bar / Club project can now be a recurring night (weekly, some weeks of the month, or picked dates), with every date's DJ, recap and money on one page.",
+    bullets: [
+      "On a Bar / Club project, click Make it recurring: name the night, pick the schedule and hours, and dates are created four months ahead (and keep rolling)",
+      "New page layout: the venue photo, venue name and night, a Next gig strip with Assign DJ / View assignment / Open gig, and Coverage, Venue Brief, Recaps and Financials tabs. Project records (Activity, Files, Tasks, Notes, Details) are under Project records",
+      "Click any date to assign a DJ, change hours, add notes for that night, cancel it or mark it played. Changes ask: This gig only, or This and future gigs. Past gigs, one-night swaps and confirmed DJs are never overwritten",
+      "DJs confirm or decline each date in My Bookings, see the venue brief plus that night's notes, and after the gig answer three quick recap questions (and can flag an issue for staff)",
+      "Pin advice from a recap to the venue brief; the dated recap stays as written",
+      "Financials (finance staff only): each month's gigs scheduled, played and canceled, DJ coverage, what the venue still owes and the payouts still owed. Rates and negotiation notes never reach the venue or client portal",
+      "New look: Slate & Electric Lime (the Bars & clubs theme in the Theme menu)"
+    ],
+    action: "Run migration 0061_recurring_venue_gigs.sql in Supabase"
+  },
+  {
     id: "2026-11-20-remove-payments",
     date: "2026-11-20",
     area: "CRM",

@@ -9,7 +9,7 @@ export type ProjectThemeId = "charcoal" | "nightclub" | "school" | "gala" | "bir
 
 export const PROJECT_THEMES: { id: ProjectThemeId; name: string; hint: string; swatch: [string, string]; dark: boolean }[] = [
   { id: "charcoal", name: "Charcoal & Brass", hint: "Weddings", swatch: ["#1E1A15", "#C9934A"], dark: true },
-  { id: "nightclub", name: "Nightclub", hint: "Bars & clubs", swatch: ["#151A21", "#C8F03C"], dark: true },
+  { id: "nightclub", name: "Slate & Electric Lime", hint: "Bars & clubs", swatch: ["#16191D", "#D4F23C"], dark: true },
   { id: "school", name: "School Dance", hint: "Schools", swatch: ["#2E2580", "#F7C6A6"], dark: false },
   { id: "gala", name: "Ink & Brass Gala", hint: "Corporate", swatch: ["#1B1D22", "#8A5A1C"], dark: false },
   { id: "birthday", name: "Plum & Champagne", hint: "Parties", swatch: ["#5E1A3D", "#EBD3BD"], dark: false },

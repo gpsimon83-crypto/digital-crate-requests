@@ -14,6 +14,7 @@ import type { EventCategory } from "@/lib/event-category";
 import { PIPELINE_STAGE_DOT } from "@/lib/pipeline-stage";
 import { cn } from "@/lib/utils";
 import { StatusChip, type StatusTone } from "@/components/ui/status-chip";
+import { DjGigsSections } from "@/components/residency/dj-gigs-sections";
 
 interface VenueOption {
   id: string;
@@ -322,6 +323,8 @@ export default function DjBookingsPage() {
             )}
           </section>
         )}
+
+        <DjGigsSections />
 
         <section>
           <SectionHeading label="Awaiting Your Confirmation" count={pending.length} />

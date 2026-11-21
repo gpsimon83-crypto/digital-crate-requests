@@ -479,19 +479,20 @@ body {
   --disabled: #8a8072;
 }
 [data-project-theme="nightclub"] {
-  --background: #0d1117;
-  --panel: #161c25;
-  --card: #131922;
-  --foreground: #eef2f6;
-  --muted: #a1abb8;
-  --border: rgba(255, 255, 255, 0.11);
-  --gold: #c8f03c;
-  --gold-light: #dcff6a;
-  --gold-dim: #c8f03c;
-  --gold-soft: rgba(200, 240, 60, 0.14);
-  --taupe: #4b5563;
-  --on-gold: #10140a;
-  --disabled: #77808c;
+  /* Slate & Electric Lime: neutral slate panels; lime only for the primary action and active states. */
+  --background: #111316;
+  --panel: #1a1d21;
+  --card: #16191d;
+  --foreground: #eef0f2;
+  --muted: #a3a9b1;
+  --border: rgba(255, 255, 255, 0.12);
+  --gold: #d4f23c;
+  --gold-light: #e2ff6a;
+  --gold-dim: #d4f23c;
+  --gold-soft: rgba(212, 242, 60, 0.13);
+  --taupe: #4b5058;
+  --on-gold: #11140a;
+  --disabled: #767c85;
 }
 [data-project-theme="school"] {
   --background: #f3f2fa;
