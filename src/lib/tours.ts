@@ -18,6 +18,40 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-21-flyer-mask": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "The Mask tool is in the flyer editor. Click Next to open your first flyer, or click any flyer with a photo.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="mask-open"], [data-tour="flyer-layers"]',
+      title: "Mask",
+      body: "Select a photo or PNG layer (on the flyer or in Layers). Mask is next to Photo effects in its settings. Click it to start.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="mask-tools"], [data-tour="mask-open"], [data-tour="flyer-layers"]',
+      title: "Hide, Restore, Fade",
+      body: "Hide paints parts away, Restore paints them back (only what's in the photo). Fade: drag across the picture, then move the solid dot (shown) and hollow dot (hidden). Ctrl/⌘ Z steps back one stroke."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="mask-overlay"], [data-tour="mask-more"], [data-tour="mask-open"], [data-tour="flyer-layers"]',
+      title: "See what's hidden",
+      body: "Show hidden tints the hidden parts; hold Hold: original to compare with the full photo. Edge feather softens every edge. On a phone these are under More."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="mask-apply"], [data-tour="mask-open"], [data-tour="flyer-layers"]',
+      title: "Apply or Cancel",
+      body: "Apply keeps the mask as one undo step; Cancel goes back to how it was. The mask follows the layer when you move, turn, flip, crop or duplicate it, and exports match the editor."
+    }
+  ],
   "2026-11-20-dj-night-template": [
     {
       path: "/dj-dashboard/flyers",

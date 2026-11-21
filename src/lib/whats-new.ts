@@ -19,6 +19,21 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-21-flyer-mask",
+    date: "2026-11-21",
+    area: "CRM",
+    title: "Mask tool for flyer photos",
+    summary: "Select a photo or PNG layer and click Mask (next to Photo effects) to hide parts of it, bring them back, or fade it into the artwork. Nothing is cut from the photo, so you can change it any time.",
+    bullets: [
+      "Hide and Restore brushes with size, hardness and opacity ([ and ] change the size). Restore only brings back what's in the file, so a PNG cut-out stays cut out",
+      "Fade: linear or radial, with handles to drag and Reverse. Add it before or after brushing; one never undoes the other",
+      "Edge feather, Show hidden (tints what's hidden) and Hold: original to compare",
+      "Each stroke is its own undo step while masking; Apply makes the whole mask one undo step, Cancel goes back to how it was, Reset clears the mask",
+      "The mask moves, turns, flips, crops and resizes with the layer, saves with the flyer, copies with Duplicate and templates, and exports exactly as shown",
+      "Works with mouse, touch and pen; on a phone the mask controls sit under the canvas and two fingers still zoom"
+    ]
+  },
+  {
     id: "2026-11-20-dj-night-template",
     date: "2026-11-20",
     area: "CRM",

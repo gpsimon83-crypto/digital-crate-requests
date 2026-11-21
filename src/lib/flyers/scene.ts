@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { sanitizeEffects, type PhotoEffects } from "./effects";
+import { sanitizeMask, type ImageMask } from "./mask";
 import { DEFAULT_FONT, FLYER_FONTS } from "./fonts";
 import { linkScene, resolveScene } from "./links";
 import {
@@ -231,6 +232,8 @@ const imageSchema = z.object({
     (v) => (v && typeof v === "object" ? v : {}),
     z.object({ mode: z.preprocess((v) => (v === "solid" || v === "tint" ? v : "none"), z.enum(["none", "solid", "tint"])), color: color("#ffffff"), knockoutWhite: bool(false) })
   ),
+  // Layer mask; "no mask" is stored as nothing at all (older flyers have none).
+  mask: z.preprocess((v) => sanitizeMask(v) ?? undefined, z.custom<ImageMask>().optional()),
   shadow: shadowSchema,
   override: z.preprocess((v) => (typeof v === "boolean" ? v : undefined), z.boolean().optional()),
   linked: z.preprocess((v) => (v && typeof v === "object" ? cleanSource(v) : null), z.custom<ImageSource>().nullable()),
@@ -510,7 +513,7 @@ export function withGroup(nodes: FlyerNode[], id: string): string[] {
 
 const MOVE_KEYS = ["x", "y", "width", "height", "rotation"] as const;
 const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend", "fitBox", "minFontSize", "panel", "valign", "padding", "trackingEm", "stretch", "effects"] as const;
-const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "shadow", "opacity", "blend", "effects"] as const;
+const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "mask", "shadow", "opacity", "blend", "effects"] as const;
 const STYLE_KEYS_SHAPE = ["shape", "fillEnabled", "fill", "stroke", "radius", "keepRatio", "shadow", "opacity", "blend", "effects"] as const;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 

@@ -59,6 +59,8 @@ export type SrcContext = {
   previewVenueId?: string | null;
   /** Photo Effects: output pixels per flyer pixel (editor preview < 1, high-res export 2). */
   fxScale?: number;
+  /** Editor only, while a layer's mask is being edited: tint what's hidden, or show it without the mask while held. */
+  maskView?: { id: string; overlay: boolean; hold: boolean; color: string } | null;
 };
 
 /** The DJ an image slot shows: its own DJ, else (template preview) the DJ previewed in that slot. */

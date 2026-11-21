@@ -31,11 +31,13 @@ import {
   Unlock,
   Upload,
   UserSquare2,
-  Sparkles
+  Sparkles,
+  SquareDashedMousePointer
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FLYER_FONTS, fontByKey, nearestWeight } from "@/lib/flyers/fonts";
 import { featherOn } from "@/lib/flyers/feather";
+import { maskOn } from "@/lib/flyers/mask";
 import { isLinked, isOverridden } from "@/lib/flyers/links";
 import { BADGES, type BadgePreset } from "@/lib/flyers/badges";
 import { BLEND_MODES, FIELD_TOKENS, ROLES, type BlendMode, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type ShapeNode, type TextNode } from "@/lib/flyers/types";
@@ -45,7 +47,7 @@ export type VenueOpt = { id: string; name: string; has_logo: boolean };
 
 export const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-1";
 export const inputCls = cn("w-full rounded-[8px] border border-black/12 bg-white px-2.5 py-1.5 text-sm text-foreground disabled:opacity-50", FOCUS);
-const labelCls = "mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted";
+export const labelCls = "mb-1 block text-[11px] font-semibold uppercase tracking-wide text-muted";
 export const iconBtn = cn("inline-flex h-9 min-w-9 items-center justify-center gap-1.5 rounded-[8px] border border-black/10 bg-white px-2 text-xs text-foreground hover:border-gold disabled:pointer-events-none disabled:opacity-40", FOCUS);
 
 /* ---------------- small controls ---------------- */
@@ -79,7 +81,7 @@ function Num({ label, value, onChange, min, max, step = 1, disabled, suffix }: {
   );
 }
 
-function Slider({ label, value, onChange, min, max, step, disabled, display }: { label: string; value: number; onChange: (v: number) => void; min: number; max: number; step: number; disabled?: boolean; display?: string }) {
+export function Slider({ label, value, onChange, min, max, step, disabled, display }: { label: string; value: number; onChange: (v: number) => void; min: number; max: number; step: number; disabled?: boolean; display?: string }) {
   const id = useId();
   return (
     <div>
@@ -167,6 +169,8 @@ export type PropsApi = {
   selectionIsGroup?: boolean;
   /** Open the Effects tab (photo layers). */
   openEffects?: () => void;
+  /** Start editing a picture layer's mask. */
+  openMask?: (id: string) => void;
 };
 
 export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRef }: { scene: Scene; node: FlyerNode | null; multi: number; api: PropsApi; sceneControls: React.ReactNode; textRef: React.RefObject<HTMLTextAreaElement | null> }) {
@@ -634,11 +638,24 @@ function ShadowSection({ value, onChange, disabled }: { value: TextNode["shadow"
 function ImageProps({ n, set, canEdit, canStyle, api }: { n: ImageNode; set: (p: Partial<ImageNode>, k?: string) => void; canEdit: boolean; canStyle: boolean; api: PropsApi }) {
   return (
     <>
-      {api.openEffects && (
-        <button className={cn(iconBtn, "my-3 w-full justify-center")} onClick={api.openEffects} data-tour="fx-open-tab">
-          <Sparkles size={15} /> {n.effects && n.effects.strength > 0 ? "Edit photo effects" : "Photo effects"}
-        </button>
-      )}
+      <div className="my-3 grid grid-cols-2 gap-1.5">
+        {api.openEffects && (
+          <button className={cn(iconBtn, "justify-center")} onClick={api.openEffects} data-tour="fx-open-tab">
+            <Sparkles size={15} /> {n.effects && n.effects.strength > 0 ? "Edit effects" : "Photo effects"}
+          </button>
+        )}
+        {api.openMask && (
+          <button
+            className={cn(iconBtn, "justify-center", !api.openEffects && "col-span-2")}
+            onClick={() => api.openMask?.(n.id)}
+            disabled={!canStyle || n.source.type === "none"}
+            title={!canStyle ? "The template fixes this picture's style" : "Hide or bring back parts of this picture"}
+            data-tour="mask-open"
+          >
+            <SquareDashedMousePointer size={15} /> {maskOn(n.mask) ? "Edit mask" : "Mask"}
+          </button>
+        )}
+      </div>
       <Section title="Image">
         <button className={cn(iconBtn, "w-full justify-center")} disabled={!canEdit} onClick={() => api.openReplace(n.id)}>
           <ImagePlus size={15} /> Replace image (keeps the frame)

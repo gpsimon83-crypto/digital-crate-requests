@@ -6,7 +6,9 @@ import type Konva from "konva";
 import { Ellipse, Group, Image as KImage, Layer, Line, Rect, Stage, Text as KText, Transformer } from "react-konva";
 import { imageLayout } from "@/lib/flyers/scene";
 import { boundsOf, snapBox, type Guide } from "@/lib/flyers/snap";
-import { applyFeather, needsProcessing, processedImage } from "@/lib/flyers/feather";
+import { applyFeather, hiddenOverlay, needsProcessing, processedImage } from "@/lib/flyers/feather";
+import { maskOn } from "@/lib/flyers/mask";
+import { MaskTools, type MaskEdit } from "./mask-tools";
 import { applyEffects, effectsOn, resolveParams, type PhotoEffects } from "@/lib/flyers/effects";
 import { runEffects, keyFor } from "./fx-runner";
 import { setFxStatus } from "./fx-status";
@@ -123,10 +125,23 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
   const fxOn = !!fx;
   const fxScale = Math.min(3, Math.max(0.1, ctx.fxScale ?? 1));
   const featherKey = `${feather.amount}|${feather.shape}|${feather.curve}|${feather.sides?.top}|${feather.sides?.right}|${feather.sides?.bottom}|${feather.sides?.left}`;
+  // Layer mask (editor: "hold to see original" leaves it off while held).
+  const mv = !exporting && ctx.maskView?.id === node.id ? ctx.maskView : null;
+  const mask = mv?.hold ? null : maskOn(node.mask) ? node.mask : null;
+  const natural = img ? { width: img.naturalWidth, height: img.naturalHeight } : null;
   const soft = useMemo(
-    () => (img && lay && (fx || needsProcessing(feather, recolor)) ? processedImage(img, node, lay, node.flipX, node.flipY, feather, recolor, fx ? { scale: fxScale, withFeather: false } : {}) : null),
+    () =>
+      img && lay && natural && (fx || needsProcessing(feather, recolor, mask))
+        ? processedImage(img, node, lay, node.flipX, node.flipY, feather, recolor, { scale: fxScale, withFeather: !fx, mask: { mask, natural, owner: node.id } })
+        : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [img, lay?.x, lay?.y, lay?.width, lay?.height, node.width, node.height, node.flipX, node.flipY, featherKey, recolor.mode, recolor.color, recolor.knockoutWhite, fxOn, fxScale]
+    [img, lay?.x, lay?.y, lay?.width, lay?.height, node.width, node.height, node.flipX, node.flipY, featherKey, recolor.mode, recolor.color, recolor.knockoutWhite, fxOn, fxScale, mask]
+  );
+  // Mask editing: what's hidden, tinted, so it's easy to see (editor only).
+  const overlay = useMemo(
+    () => (mv?.overlay && !mv.hold && mask && img && lay && natural ? hiddenOverlay(img, node, lay, node.flipX, node.flipY, mask, natural, `${node.id}~o`, mv.color, fxScale) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mv?.overlay, mv?.hold, mv?.color, mask, img, lay?.x, lay?.y, lay?.width, lay?.height, node.width, node.height, node.flipX, node.flipY, fxScale]
   );
   const fxKey = fx && soft ? `${keyFor(soft)}|${JSON.stringify(fx)}|${featherKey}|${fxScale}` : null;
   const [fxOut, setFxOut] = useState<{ key: string; canvas: HTMLCanvasElement } | null>(null);
@@ -165,7 +180,8 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
   // Without a finished effects image yet, show the photo as it was (never a blank frame).
   const fxPending = !!fx && fxOut?.key !== fxKey && fxFailed !== fxKey;
   const plainSoft = useMemo(() => (fx && soft ? applyFeather(cloneCanvas(soft), feather, fxScale) : null), [soft, fxOn]); // eslint-disable-line react-hooks/exhaustive-deps
-  const shown = fx ? (fxOut?.key === fxKey ? fxOut.canvas : (fxOut?.canvas ?? plainSoft)) : soft;
+  // While a mask is being brushed, the picture follows the brush straight away (effects catch up when it stops).
+  const shown = fx ? (fxOut?.key === fxKey ? fxOut.canvas : mv ? plainSoft : (fxOut?.canvas ?? plainSoft)) : soft;
   // An export waits until the effects at full resolution are done.
   useEffect(() => {
     onStatus?.(node.id, status !== "loading" && !fxPending);
@@ -204,6 +220,7 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
             {...(node.frame.enabled && node.frame.width > 0 ? { shadowEnabled: false } : shadowProps(node.shadow))}
           />
         )}
+        {overlay && <KImage image={overlay} x={0} y={0} width={node.width} height={node.height} opacity={0.5} listening={false} />}
       </Group>
       {!img && status !== "loading" && node.source.type === "dj_logo" && slotDjId(node.source, ctx) && (
         // No name logo uploaded/approved: the DJ's display name as styled text (this is real content, so it exports).
@@ -511,7 +528,8 @@ export function FlyerStage({
   onClear,
   onChange,
   onEditText,
-  coarse
+  coarse,
+  maskEdit
 }: {
   scene: Scene;
   zoom: number;
@@ -525,13 +543,15 @@ export function FlyerStage({
   onChange: (patches: NodePatch[], key: string) => void;
   onEditText: (id: string) => void;
   coarse: boolean;
+  /** Mask mode: brushing and fade handles on this picture layer; nothing else can be picked or moved. */
+  maskEdit?: MaskEdit | null;
 }) {
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
 
   const byId = useMemo(() => new Map(scene.nodes.map((n) => [n.id, n])), [scene.nodes]);
-  const selNodes = selected.map((id) => byId.get(id)).filter((n): n is FlyerNode => !!n && n.visible);
+  const selNodes = maskEdit ? [] : selected.map((id) => byId.get(id)).filter((n): n is FlyerNode => !!n && n.visible);
   const allMovable = selNodes.length > 0 && selNodes.every((n) => !n.locked && canMove(n));
   const single = selNodes.length === 1 ? selNodes[0] : null;
 
@@ -544,7 +564,7 @@ export function FlyerStage({
     tr.getLayer()?.batchDraw();
   });
 
-  const act: Interact = { interactive: true, canMove, onSelect, onEditText };
+  const act: Interact = { interactive: !maskEdit, canMove, onSelect, onEditText };
 
   function readPatches(): NodePatch[] {
     const stage = stageRef.current;
@@ -633,12 +653,12 @@ export function FlyerStage({
       height={Math.round(scene.height * zoom)}
       scaleX={zoom}
       scaleY={zoom}
-      onMouseDown={(e) => e.target === e.target.getStage() && onClear()}
+      onMouseDown={(e) => !maskEdit && e.target === e.target.getStage() && onClear()}
       onTouchStart={(e) => {
-        if (e.evt.touches.length === 1 && e.target === e.target.getStage()) onClear();
+        if (!maskEdit && e.evt.touches.length === 1 && e.target === e.target.getStage()) onClear();
       }}
       onTouchMove={onTouchMove}
-      style={{ touchAction: "none" }}
+      style={{ touchAction: "none", cursor: maskEdit ? (maskEdit.tool === "fade" ? "crosshair" : "none") : undefined }}
     >
       <Layer
         onDragMove={onDragMove}
@@ -709,6 +729,7 @@ export function FlyerStage({
           )
         )}
       </Layer>
+      {maskEdit && <MaskTools stageRef={stageRef} edit={maskEdit} ctx={ctx} zoom={zoom} />}
     </Stage>
   );
 }

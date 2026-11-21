@@ -81,9 +81,9 @@ function useThumbBase(layer: FlyerNode, ctx: SrcContext) {
     if (!isImg || !img) return null;
     const lay = imageLayout(n, { width: img.naturalWidth, height: img.naturalHeight }, n.fit, n.crop);
     const scale = 132 / Math.max(n.width, n.height);
-    return processedImage(img, n, lay, n.flipX, n.flipY, n.feather ?? { amount: 0, shape: "edges" }, n.recolor, { scale, withFeather: false });
+    return processedImage(img, n, lay, n.flipX, n.flipY, n.feather ?? { amount: 0, shape: "edges" }, n.recolor, { scale, withFeather: false, mask: { mask: n.mask, natural: { width: img.naturalWidth, height: img.naturalHeight }, owner: `${n.id}~thumb` } });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [img, isImg, n.width, n.height, n.fit, n.crop?.zoom, n.crop?.x, n.crop?.y, n.flipX, n.flipY, n.recolor?.mode, n.recolor?.color, n.recolor?.knockoutWhite]);
+  }, [img, isImg, n.width, n.height, n.fit, n.crop?.zoom, n.crop?.x, n.crop?.y, n.flipX, n.flipY, n.recolor?.mode, n.recolor?.color, n.recolor?.knockoutWhite, n.mask]);
   const base = isImg ? imgBase : drawn?.id === layer.id ? drawn.c : null;
   const cutout = useMemo(() => {
     if (!base) return false;

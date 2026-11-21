@@ -43,6 +43,7 @@ import {
   FORMATS,
   FORMAT_KEYS,
   type FlyerNode,
+  type ImageNode,
   type FormatKey,
   type ImageSource,
   type Perms,
@@ -67,6 +68,9 @@ import {
 import { loadSceneFonts, type SrcContext } from "./loaders";
 import type { PhotoEffects } from "@/lib/flyers/effects";
 import { EffectsTab, type FxApi } from "./photo-effects-panel";
+import { countNumbers, emptyMask, MAX_MASK_NUMBERS, MAX_MASK_STROKES, sanitizeMask, type ImageMask, type MaskFade, type MaskStroke } from "@/lib/flyers/mask";
+import type { MaskEdit, MaskTool } from "./mask-tools";
+import { MaskPanel, type MaskApi } from "./mask-panel";
 import { importSvg } from "./svg-import";
 
 export type Scenes = Partial<Record<FormatKey, Scene>>;
@@ -218,6 +222,14 @@ export function FlyerEditor(props: FlyerEditorProps) {
   const [fxDraft, setFxDraft] = useState<{ fx: PhotoEffects | null } | null>(null);
   const [fxTargets, setFxTargets] = useState<string[] | null>(null);
   const [fxHold, setFxHold] = useState(false);
+  // Mask editing: its own step-by-step history until Apply (one undo step in the flyer), Cancel drops it.
+  const [maskS, setMaskS] = useState<{ id: string; saved: ImageMask | null; draft: ImageMask | null; past: (ImageMask | null)[]; future: (ImageMask | null)[]; key: string | null; at: number } | null>(null);
+  const [maskLive, setMaskLive] = useState<{ stroke?: MaskStroke | null; fade?: MaskFade | null } | null>(null);
+  const [maskTool, setMaskTool] = useState<MaskTool>("hide");
+  const [maskBrush, setMaskBrush] = useState({ size: 60, hardness: 0.6, opacity: 1 });
+  const [maskFadeType, setMaskFadeType] = useState<"linear" | "radial">("linear");
+  const [maskOverlay, setMaskOverlay] = useState(false);
+  const [maskHold, setMaskHold] = useState(false);
   const [uploads, setUploads] = useState<Asset[]>(props.uploads);
   const [shared, setShared] = useState<Asset[]>(props.shared);
   const [exportJob, setExportJob] = useState<{
@@ -419,6 +431,12 @@ export function FlyerEditor(props: FlyerEditorProps) {
 
   const selNodes = scene.nodes.filter((n) => selected.includes(n.id));
   const single = selNodes.length === 1 ? selNodes[0] : null;
+  // The layer whose mask is being edited (if it went away — undone or deleted — mask mode simply ends).
+  const maskNode = maskS ? (scene.nodes.find((n): n is ImageNode => n.id === maskS.id && n.kind === "image") ?? null) : null;
+  const maskUndo = () =>
+    setMaskS((st) => (st && st.past.length ? { ...st, draft: st.past[st.past.length - 1], past: st.past.slice(0, -1), future: [st.draft, ...st.future], key: null } : st));
+  const maskRedo = () =>
+    setMaskS((st) => (st && st.future.length ? { ...st, draft: st.future[0], past: [...st.past, st.draft], future: st.future.slice(1), key: null } : st));
 
   function addNode(n: FlyerNode) {
     setScene(
@@ -643,6 +661,25 @@ export function FlyerEditor(props: FlyerEditorProps) {
       if (mod && e.key.toLowerCase() === "s") {
         e.preventDefault();
         void doSave();
+        return;
+      }
+      if (maskNode) {
+        // Sliders and buttons don't take Ctrl+Z, so mask undo works right after moving one.
+        const el = e.target as HTMLInputElement | null;
+        const control = el?.tagName === "INPUT" && ["range", "checkbox", "radio", "button", "color"].includes(el.type);
+        if (isTyping(e.target) && !control) return;
+        if (control && !mod) return;
+        // Mask mode: undo/redo step through brush strokes; other shortcuts wait until Apply or Cancel.
+        if (mod && e.key.toLowerCase() === "z") {
+          e.preventDefault();
+          if (e.shiftKey) maskRedo();
+          else maskUndo();
+        } else if (mod && e.key.toLowerCase() === "y") {
+          e.preventDefault();
+          maskRedo();
+        } else if (!mod && (e.key === "[" || e.key === "]")) {
+          setMaskBrush((b) => ({ ...b, size: Math.max(2, Math.min(800, Math.round(b.size * (e.key === "]" ? 1.15 : 1 / 1.15)))) }));
+        } else if (e.key === "Delete" || e.key === "Backspace" || e.key.startsWith("Arrow") || (mod && e.key.toLowerCase() === "d")) e.preventDefault();
         return;
       }
       if (isTyping(e.target)) return;
@@ -975,7 +1012,125 @@ export function FlyerEditor(props: FlyerEditorProps) {
     quick: (ids, fx) => applyPatches(ids.map((id) => ({ id, patch: { effects: fx } })), `fx:${Date.now()}`),
   };
 
-  const propsPanel = (
+  /* ---- mask ---- */
+  /** One step in the mask's own history; slider moves in a row (same key) merge into one. */
+  const maskStep = (fn: (m: ImageMask | null) => ImageMask | null, key: string | null = null) =>
+    setMaskS((st) => {
+      if (!st) return st;
+      const next = fn(st.draft);
+      if (next === st.draft) return st;
+      const merge = key && st.key === key && Date.now() - st.at < 900;
+      return { ...st, draft: next, past: merge ? st.past : [...st.past, st.draft].slice(-200), future: [], key, at: Date.now() };
+    });
+  const withMask = (m: ImageMask | null, patch: Partial<ImageMask>): ImageMask | null => {
+    const next = { ...(m ?? emptyMask()), ...patch };
+    return next.strokes.length || next.fade || next.feather > 0 ? next : null;
+  };
+  const openMask = (id: string) => {
+    const n = scene.nodes.find((x) => x.id === id);
+    if (!n || n.kind !== "image") return;
+    setFxDraft(null);
+    setFxTargets(null);
+    setSelected([id]);
+    setMaskS({ id, saved: n.mask ?? null, draft: n.mask ?? null, past: [], future: [], key: null, at: 0 });
+    setMaskLive(null);
+    setMaskHold(false);
+    // A brush about a twelfth of the layer to start with.
+    setMaskBrush((b) => ({ ...b, size: Math.max(6, Math.min(400, Math.round(Math.min(n.width, n.height) / 12))) }));
+    if (!desktop) setDrawer(null);
+  };
+  const closeMask = () => {
+    setMaskS(null);
+    setMaskLive(null);
+    setMaskHold(false);
+  };
+  const maskShown: ImageMask | null = useMemo(() => {
+    if (!maskS) return null;
+    const d = maskS.draft;
+    if (!maskLive) return d;
+    const base = d ?? emptyMask();
+    return {
+      ...base,
+      strokes: maskLive.stroke ? [...base.strokes, maskLive.stroke] : base.strokes,
+      fade: maskLive.fade !== undefined ? maskLive.fade : base.fade,
+    };
+  }, [maskS, maskLive]);
+  const maskEdit: MaskEdit | null =
+    maskS && maskNode
+      ? {
+          node: { ...maskNode, mask: maskShown },
+          tool: maskTool,
+          brush: maskBrush,
+          fadeType: maskFadeType,
+          fade: maskShown?.fade ?? null,
+          onStroke: (st, phase) => {
+            if (phase === "move") return setMaskLive({ stroke: st });
+            setMaskLive(null);
+            if (phase === "end" && st) {
+              if (countNumbers(maskS.draft) + st.points.length > MAX_MASK_NUMBERS || (maskS.draft?.strokes.length ?? 0) >= MAX_MASK_STROKES) {
+                setNotice("This mask has as much brush work as it can hold. Apply it, or Reset and use fewer, longer strokes.");
+                return;
+              }
+              maskStep((m) => withMask(m, { strokes: [...(m?.strokes ?? []), st] }));
+            }
+          },
+          onFade: (f, phase) => {
+            if (phase === "move") return setMaskLive({ fade: f });
+            setMaskLive(null);
+            maskStep((m) => withMask(m, { fade: f }));
+          },
+        }
+      : null;
+  const maskApi: MaskApi | null =
+    maskS && maskNode
+      ? {
+          name: maskNode.name,
+          tool: maskTool,
+          setTool: setMaskTool,
+          brush: maskBrush,
+          setBrush: (b) => setMaskBrush((o) => ({ ...o, ...b })),
+          maxSize: Math.max(40, Math.round(Math.max(maskNode.width, maskNode.height) / 2)),
+          fadeType: maskFadeType,
+          setFadeType: setMaskFadeType,
+          fade: maskS.draft?.fade ?? null,
+          addFade: (t) =>
+            // Linear: shown at 65% down the picture, gone at the bottom. Radial: shown in the middle, gone at the edge.
+            maskStep((m) => withMask(m, { fade: t === "linear" ? { type: "linear", a: [0.5, 0.65], b: [0.5, 1], reverse: false } : { type: "radial", a: [0.5, 0.5], b: [0.5, 1], reverse: false } })),
+          setFade: (f) => maskStep((m) => withMask(m, { fade: f })),
+          feather: maskS.draft?.feather ?? 0,
+          setFeather: (v) => maskStep((m) => withMask(m, { feather: v }), "feather"),
+          overlay: maskOverlay,
+          setOverlay: setMaskOverlay,
+          hold: setMaskHold,
+          canUndo: maskS.past.length > 0,
+          canRedo: maskS.future.length > 0,
+          undo: maskUndo,
+          redo: maskRedo,
+          // Clears every stroke and fade; the picture's own transparency (a PNG cut-out) is untouched.
+          reset: () => maskStep(() => null),
+          cancel: closeMask,
+          apply: () => {
+            const m = sanitizeMask(maskS.draft);
+            if (JSON.stringify(m) !== JSON.stringify(sanitizeMask(maskS.saved))) update(maskS.id, { mask: m }, `mask:${maskS.id}:${maskS.at}`);
+            closeMask();
+          },
+          dirty: JSON.stringify(maskS.draft) !== JSON.stringify(maskS.saved),
+          hasEdits: !!maskS.draft,
+        }
+      : null;
+  const maskCtx: SrcContext = useMemo(
+    () => (maskS && maskNode ? { ...ctx, maskView: { id: maskS.id, overlay: maskOverlay, hold: maskHold, color: "#ff2d6f" } } : ctx),
+    [ctx, maskS, maskNode, maskOverlay, maskHold],
+  );
+  // The canvas shows the mask being edited; exports and saves only ever see applied masks.
+  const stageScene = useMemo(
+    () => (maskS && maskNode ? { ...displayScene, nodes: displayScene.nodes.map((n) => (n.id === maskS.id && n.kind === "image" ? { ...n, mask: maskShown } : n)) } : displayScene),
+    [displayScene, maskS, maskNode, maskShown],
+  );
+
+  const propsPanel = maskApi ? (
+    <MaskPanel api={maskApi} />
+  ) : (
     <PropertiesPanel
       scene={scene}
       node={single}
@@ -1008,6 +1163,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
           setLeftTab("effects");
           if (!desktop) setDrawer("add");
         },
+        openMask,
       }}
       textRef={textRef}
     />
@@ -1220,8 +1376,8 @@ export function FlyerEditor(props: FlyerEditorProps) {
         <div className="flex items-center gap-1.5">
           <button
             className={iconBtn}
-            onClick={undo}
-            disabled={!hist.past.length}
+            onClick={maskNode ? maskUndo : undo}
+            disabled={maskNode ? !maskS?.past.length : !hist.past.length}
             aria-label="Undo"
             title="Undo (Ctrl/⌘ Z)"
           >
@@ -1229,8 +1385,8 @@ export function FlyerEditor(props: FlyerEditorProps) {
           </button>
           <button
             className={iconBtn}
-            onClick={redo}
-            disabled={!hist.future.length}
+            onClick={maskNode ? maskRedo : redo}
+            disabled={maskNode ? !maskS?.future.length : !hist.future.length}
             aria-label="Redo"
             title="Redo (Ctrl/⌘ Shift Z)"
           >
@@ -1371,10 +1527,11 @@ export function FlyerEditor(props: FlyerEditorProps) {
                   }}
                 >
                   <FlyerStage
-                    scene={displayScene}
+                    scene={stageScene}
                     zoom={zoom}
                     selected={selected}
-                    ctx={ctx}
+                    ctx={maskCtx}
+                    maskEdit={maskEdit}
                     fontsKey={fontsKey}
                     showGuides={showGuides}
                     canMove={canMove}
@@ -1454,8 +1611,10 @@ export function FlyerEditor(props: FlyerEditorProps) {
             )}
           </div>
 
+          {/* Mobile: mask controls take the place of the bottom bar while masking. */}
+          {!desktop && maskApi && <MaskPanel api={maskApi} compact />}
           {/* Mobile bottom bar */}
-          {!desktop && (
+          {!desktop && !maskApi && (
             <nav
               className="grid grid-cols-5 border-t border-black/10 bg-[var(--card)] pb-[env(safe-area-inset-bottom)]"
               aria-label="Editor tools"
@@ -1499,7 +1658,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
       </div>
 
       {/* Mobile drawer */}
-      {!desktop && drawer && (
+      {!desktop && drawer && !maskApi && (
         <div
           className="fixed inset-x-0 bottom-0 z-40 flex max-h-[62dvh] flex-col rounded-t-[18px] border-t border-black/10 bg-[var(--card)] shadow-[0_-12px_40px_rgba(0,0,0,0.25)]"
           role="dialog"

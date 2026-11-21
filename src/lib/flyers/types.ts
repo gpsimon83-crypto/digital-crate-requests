@@ -1,4 +1,5 @@
 import type { PhotoEffects } from "./effects";
+import type { ImageMask } from "./mask";
 
 /**
  * Flyer Creator scene format. A flyer is a list of independent layers
@@ -185,6 +186,12 @@ export type ImageNode = Base & {
    * light and shade. knockoutWhite makes a white background see-through.
    */
   recolor: { mode: "none" | "solid" | "tint"; color: string; knockoutWhite: boolean };
+  /**
+   * Layer mask (non-destructive): hide/restore brush strokes, a linear or
+   * radial fade and edge feather, in the picture's own coordinates. Missing
+   * on older flyers = the picture shows as it is.
+   */
+  mask?: ImageMask | null;
   shadow: Shadow;
   /**
    * Overridden for this flyer: the picture was replaced by hand, so event

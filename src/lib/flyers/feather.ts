@@ -4,6 +4,8 @@
  * ramp) or an oval (radial fade). Gradients only, so every browser draws it
  * the same way in the editor and in exports. The original image isn't changed.
  */
+import { maskCanvas, maskOn, maskRasterSize, type ImageMask } from "./mask";
+
 export type Sides = { top: number; right: number; bottom: number; left: number };
 export type Feather = { amount: number; shape: "edges" | "oval"; sides?: Sides | null; curve?: "smooth" | "linear" };
 
@@ -79,7 +81,8 @@ export function featherMask(w: number, h: number, f: Feather): HTMLCanvasElement
 export type Recolor = { mode: "none" | "solid" | "tint"; color: string; knockoutWhite: boolean };
 
 /** True when the picture needs drawing through processedImage (feather or recolor). */
-export const needsProcessing = (f: Feather | undefined, c: Recolor | undefined) => featherOn(f) || (!!c && (c.mode !== "none" || c.knockoutWhite));
+export const needsProcessing = (f: Feather | undefined, c: Recolor | undefined, m?: ImageMask | null) =>
+  featherOn(f) || (!!c && (c.mode !== "none" || c.knockoutWhite)) || maskOn(m);
 
 /**
  * The picture as it sits in its frame (crop, zoom, flip), with optional
@@ -95,7 +98,7 @@ export function processedImage(
   f: Feather,
   rc: Recolor = { mode: "none", color: "#ffffff", knockoutWhite: false },
   /** scale: output pixels per flyer pixel (exports, previews); withFeather: false leaves the fade for later (Photo Effects run first). */
-  opts: { scale?: number; withFeather?: boolean } = {}
+  opts: { scale?: number; withFeather?: boolean; mask?: { mask: ImageMask | null | undefined; natural: { width: number; height: number }; owner: string } } = {}
 ): HTMLCanvasElement {
   const scale = opts.scale ?? 1;
   const c = document.createElement("canvas");
@@ -107,6 +110,14 @@ export function processedImage(
   ctx.translate(flipX ? lay.x + lay.width : lay.x, flipY ? lay.y + lay.height : lay.y);
   ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
   ctx.drawImage(img, 0, 0, lay.width, lay.height);
+  // Layer mask: an alpha map over the whole image (its own coordinates), multiplied into the picture's own transparency.
+  const mk = opts.mask;
+  if (mk && maskOn(mk.mask)) {
+    const size = maskRasterSize(mk.natural, lay, c.width / Math.max(1, frame.width));
+    ctx.globalCompositeOperation = "destination-in";
+    ctx.drawImage(maskCanvas(mk.mask, size.width, size.height, mk.owner), 0, 0, lay.width, lay.height);
+    ctx.globalCompositeOperation = "source-over";
+  }
   ctx.restore();
 
   if (rc.knockoutWhite) {
@@ -157,3 +168,38 @@ export function applyFeather(c: HTMLCanvasElement, f: Feather, scale = 1) {
 /** Kept for existing callers. */
 export const featheredImage = (img: HTMLImageElement, frame: { width: number; height: number }, lay: { x: number; y: number; width: number; height: number }, flipX: boolean, flipY: boolean, f: Feather) =>
   processedImage(img, frame, lay, flipX, flipY, f);
+
+/**
+ * Editor-only view of what a mask hides: the hidden parts of the picture as a
+ * flat color (shown semi-transparent over the canvas). Never part of an export.
+ */
+export function hiddenOverlay(
+  img: HTMLImageElement,
+  frame: { width: number; height: number },
+  lay: { x: number; y: number; width: number; height: number },
+  flipX: boolean,
+  flipY: boolean,
+  mask: ImageMask,
+  natural: { width: number; height: number },
+  owner: string,
+  color = "#ff2d6f",
+  scale = 1
+): HTMLCanvasElement {
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(frame.width * scale));
+  c.height = Math.max(1, Math.round(frame.height * scale));
+  const ctx = c.getContext("2d")!;
+  ctx.save();
+  ctx.scale(c.width / Math.max(1, frame.width), c.height / Math.max(1, frame.height));
+  ctx.translate(flipX ? lay.x + lay.width : lay.x, flipY ? lay.y + lay.height : lay.y);
+  ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
+  ctx.drawImage(img, 0, 0, lay.width, lay.height);
+  const size = maskRasterSize(natural, lay, scale);
+  ctx.globalCompositeOperation = "destination-out";
+  ctx.drawImage(maskCanvas(mask, size.width, size.height, owner), 0, 0, lay.width, lay.height);
+  ctx.restore();
+  ctx.globalCompositeOperation = "source-in";
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, c.width, c.height);
+  return c;
+}
