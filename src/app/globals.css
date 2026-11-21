@@ -636,3 +636,13 @@ body {
   --header-fg: #fbefe8;
   --header-muted: #e7c9cf;
 }
+
+/* Admin home in the Midnight Command layout: its own top menu replaces the side rail (the phone tab bar stays). */
+@media (min-width: 768px) {
+  html[data-dash-layout="command"] .admin-rail {
+    display: none;
+  }
+  html[data-dash-layout="command"] .admin-main {
+    padding-left: 0;
+  }
+}

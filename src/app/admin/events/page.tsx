@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { isNeed, matchesNeed, NEED_LABELS, type DashEvent } from "@/lib/dashboard/overview";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -69,6 +70,9 @@ function AdminEventsPageContent() {
   const searchParams = useSearchParams();
   const stage = searchParams.get("stage") === "inquiries" ? "inquiries" : "active";
   const category = searchParams.get("category") ?? "all";
+  // "Needs" filters from the dashboard's Action hub (?need=dj|contract|balance|music); same rules as the dashboard.
+  const needParam = searchParams.get("need");
+  const need = isNeed(needParam) ? needParam : null;
 
   const [events, setEvents] = useState<EventRow[] | null>(null);
   const [djs, setDjs] = useState<Option[]>([]);
@@ -240,7 +244,9 @@ function AdminEventsPageContent() {
   const inquiryCount = (events ?? []).filter((e) => e.status === "inquiry").length;
   const stageFiltered = (events ?? []).filter((e) => (stage === "inquiries" ? e.status === "inquiry" : e.status !== "inquiry"));
   const categoryGroup = EVENT_CATEGORY_GROUPS.find((g) => g.key === category);
-  const visibleEvents = categoryGroup ? stageFiltered.filter((e) => categoryGroup.match(e.event_category)) : stageFiltered;
+  const needNow = new Date();
+  const needFiltered = need ? (events ?? []).filter((e) => matchesNeed(e as unknown as DashEvent, need, needNow)) : null;
+  const visibleEvents = needFiltered ?? (categoryGroup ? stageFiltered.filter((e) => categoryGroup.match(e.event_category)) : stageFiltered);
 
   function stageHref(key: string) {
     const params = new URLSearchParams();
@@ -323,7 +329,21 @@ function AdminEventsPageContent() {
           </div>
         )}
 
-        <div className="flex flex-col gap-3">
+        {need && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[12px] border border-gold/40 bg-gold-soft px-4 py-3" role="status" data-tour="projects-need">
+            <div>
+              <p className="text-sm font-semibold">
+                {NEED_LABELS[need].title} {events !== null && <span className="font-normal text-muted">({visibleEvents.length})</span>}
+              </p>
+              <p className="text-xs text-muted">{NEED_LABELS[need].list}</p>
+            </div>
+            <Link href="/admin/events" className="text-xs font-semibold text-gold hover:underline">
+              Show all projects
+            </Link>
+          </div>
+        )}
+
+        {!need && <div className="flex flex-col gap-3">
           <Tabs
             items={STAGE_TABS.map((t) => ({ key: t.key, label: t.key === "inquiries" && inquiryCount > 0 ? `${t.label} (${inquiryCount})` : t.label }))}
             active={stage}
@@ -335,11 +355,11 @@ function AdminEventsPageContent() {
             hrefFor={categoryHref}
             className="border-b-0"
           />
-        </div>
+        </div>}
 
         {events === null && <p className="text-sm text-muted">Loading projects…</p>}
 
-        {stage === "active" && events !== null && (
+        {(stage === "active" || need) && events !== null && (
           <DataTable
             columns={eventColumns(handleStageChange)}
             rows={visibleEvents}
@@ -357,11 +377,11 @@ function AdminEventsPageContent() {
           />
         )}
 
-        {events !== null && stage === "inquiries" && visibleEvents.length === 0 && (
+        {!need && events !== null && stage === "inquiries" && visibleEvents.length === 0 && (
           <EmptyState icon={Magnet} title="No inquiries waiting" body="New booking requests from the website will show up here." />
         )}
 
-        {stage === "inquiries" && visibleEvents.length > 0 && (
+        {!need && stage === "inquiries" && visibleEvents.length > 0 && (
           <div className="flex flex-col divide-y divide-border border-y border-border">
             {visibleEvents.map((e) => (
               <div key={e.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">

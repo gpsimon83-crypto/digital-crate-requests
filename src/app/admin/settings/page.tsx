@@ -1,7 +1,7 @@
 "use client";
 
 import { PortalThemeSettings } from "@/components/admin/portal-theme-settings";
-import { SiteThemeList } from "@/components/admin/site-theme";
+import { DashLayoutList, SiteThemeList } from "@/components/admin/site-theme";
 import { PlaybookTimingSettings } from "@/components/admin/playbook-timing-settings";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -110,6 +110,9 @@ interface Settings {
   admin_hero_heading: string | null;
   admin_hero_subheading: string | null;
   review_url: string | null;
+  /** Migration 0063: undefined until it's run. */
+  admin_club_image_url?: string | null;
+  admin_dashboard_banners?: Partial<Record<"wedding" | "club", Partial<HeroSettings>>> | null;
 }
 
 interface CalendarConnection {
@@ -269,19 +272,22 @@ function AdminSettingsPageInner() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [uploading, setUploading] = useState<"portal" | "admin" | null>(null);
+  const [uploading, setUploading] = useState<"portal" | "admin" | "club" | null>(null);
+  const [bannersDirty, setBannersDirty] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
 
-  async function uploadHeroImage(surface: "portal" | "admin", file: File) {
+  const HERO_FIELD = { portal: ["portalHeroPhoto", "portal_hero_image_url"], admin: ["adminHeroPhoto", "admin_hero_image_url"], club: ["adminClubPhoto", "admin_club_image_url"] } as const;
+  async function uploadHeroImage(surface: "portal" | "admin" | "club", file: File) {
     setUploading(surface);
     setError(null);
     try {
+      const [field, column] = HERO_FIELD[surface];
       const form = new FormData();
-      form.append(surface === "portal" ? "portalHeroPhoto" : "adminHeroPhoto", file);
+      form.append(field, file);
       const res = await fetch("/api/admin/settings", { method: "PATCH", body: form });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "Failed to upload image");
-      setSettings((s) => s && { ...s, [surface === "portal" ? "portal_hero_image_url" : "admin_hero_image_url"]: json.settings[surface === "portal" ? "portal_hero_image_url" : "admin_hero_image_url"] });
+      if (!res.ok) throw new Error(surface === "club" && /admin_club_image_url/.test(json.error ?? "") ? "Run migration 0063 in Supabase first to add the club photo." : json.error || "Failed to upload image");
+      setSettings((s) => s && { ...s, [column]: json.settings[column] });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -289,11 +295,11 @@ function AdminSettingsPageInner() {
     }
   }
 
-  async function clearHeroImage(surface: "portal" | "admin") {
+  async function clearHeroImage(surface: "portal" | "admin" | "club") {
     setUploading(surface);
     setError(null);
     try {
-      const column = surface === "portal" ? "portal_hero_image_url" : "admin_hero_image_url";
+      const column = HERO_FIELD[surface][1];
       const form = new FormData();
       form.append(`clear_${column}`, "true");
       const res = await fetch("/api/admin/settings", { method: "PATCH", body: form });
@@ -363,11 +369,14 @@ function AdminSettingsPageInner() {
           adminHeroImageUrl: settings.admin_hero_image_url,
           adminHeroHeading: settings.admin_hero_heading,
           adminHeroSubheading: settings.admin_hero_subheading,
-          reviewUrl: settings.review_url
+          reviewUrl: settings.review_url,
+          // Only sent once changed, so saving works before migration 0063 is run.
+          ...(bannersDirty ? { adminDashboardBanners: settings.admin_dashboard_banners ?? null } : {})
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save settings");
+      if (!res.ok) throw new Error(/admin_dashboard_banners/.test(data.error ?? "") ? "Run migration 0063 in Supabase to save banner crops." : data.error || "Failed to save settings");
+      setBannersDirty(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -402,6 +411,11 @@ function AdminSettingsPageInner() {
             </p>
           </div>
           <SiteThemeList />
+          <div className="mt-1 border-t border-border pt-3" data-tour="dash-layout-settings">
+            <p className="text-sm font-semibold">Dashboard layout</p>
+            <p className="mb-2 text-xs text-muted">How the admin home is arranged. Colors come from the site theme above. Saved in this browser.</p>
+            <DashLayoutList />
+          </div>
         </GlassCard>
 
         <NotificationHealthCard />
@@ -516,6 +530,47 @@ function AdminSettingsPageInner() {
                     generating={generating === "admin-subheading"}
                   />
                   <HeroBanner imageUrl={settings.admin_hero_image_url} heading={settings.admin_hero_heading} subheading={settings.admin_hero_subheading} />
+                  <p className="text-[11px] text-muted">
+                    This photo is the Weddings banner in the Modern Studio layout and the hero in Midnight Command. With no photo, both use a built-in wedding photo.
+                  </p>
+                  {settings.admin_hero_image_url && (
+                    <HeroCropControls
+                      photoUrl={settings.admin_hero_image_url}
+                      settings={mergeHeroSettings({ xPosition: 50, yPosition: 50, ...settings.admin_dashboard_banners?.wedding, zoom: 100, overlayDarkness: 0 })}
+                      onChange={(v) => {
+                        setBannersDirty(true);
+                        setSettings((s) => s && { ...s, admin_dashboard_banners: { ...s.admin_dashboard_banners, wedding: { xPosition: v.xPosition, yPosition: v.yPosition } } });
+                      }}
+                      previewLabel="Dashboard banner focus"
+                      previewHeightClass="h-[120px]"
+                      positionOnly
+                    />
+                  )}
+                  <div className="mt-2 border-t border-border pt-3" data-tour="dash-club-photo">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">Club &amp; Bar Nights photo</p>
+                    <p className="mb-2 text-[11px] text-muted">The second banner in Modern Studio. With no photo it uses a built-in club photo.</p>
+                    <HeroImageUpload
+                      imageUrl={settings.admin_club_image_url ?? null}
+                      uploading={uploading === "club"}
+                      onUpload={(f) => uploadHeroImage("club", f)}
+                      onClear={() => clearHeroImage("club")}
+                    />
+                    {settings.admin_club_image_url && (
+                      <div className="mt-3">
+                        <HeroCropControls
+                          photoUrl={settings.admin_club_image_url}
+                          settings={mergeHeroSettings({ xPosition: 50, yPosition: 50, ...settings.admin_dashboard_banners?.club, zoom: 100, overlayDarkness: 0 })}
+                          onChange={(v) => {
+                            setBannersDirty(true);
+                            setSettings((s) => s && { ...s, admin_dashboard_banners: { ...s.admin_dashboard_banners, club: { xPosition: v.xPosition, yPosition: v.yPosition } } });
+                          }}
+                          previewLabel="Dashboard banner focus"
+                          previewHeightClass="h-[120px]"
+                          positionOnly
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </GlassCard>

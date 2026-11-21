@@ -10,25 +10,33 @@ import { ADMIN_NAV_GROUPS } from "@/lib/admin-nav";
 import { useWhatsNewCount } from "@/lib/use-whats-new";
 import { SiteThemeButton } from "@/components/admin/site-theme";
 
-export function AdminSidebarNav() {
+/** Unread notifications, refreshed on each page change (shared with the dashboard's top menu). */
+export function useUnreadNotifications() {
   const pathname = usePathname();
-  const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
-  const whatsNew = useWhatsNewCount();
-
   useEffect(() => {
     fetch("/api/notifications")
       .then((r) => r.json())
       .then((data) => setUnreadCount((data.notifications ?? []).filter((n: { read_at: string | null }) => !n.read_at).length))
       .catch(() => {});
   }, [pathname]);
+  return unreadCount;
+}
 
-  async function handleLogout() {
+export function useAdminSignOut() {
+  const router = useRouter();
+  return async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push("/dj-dashboard/login");
     router.refresh();
-  }
+  };
+}
+
+export function AdminSidebarNav() {
+  const unreadCount = useUnreadNotifications();
+  const whatsNew = useWhatsNewCount();
+  const handleLogout = useAdminSignOut();
 
   const groups: SidebarNavGroup[] = ADMIN_NAV_GROUPS.map((group) => ({
     label: group.label,
@@ -49,6 +57,7 @@ export function AdminSidebarNav() {
       groups={groups}
       onSignOut={handleLogout}
       variant="rail"
+      className="admin-rail"
       footerExtra={(labelClass) => <SiteThemeButton labelClass={labelClass} />}
       headerExtra={
         <>

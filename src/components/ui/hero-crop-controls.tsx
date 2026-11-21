@@ -18,7 +18,8 @@ export function HeroCropControls({
   previewLabel = "Sample Event",
   previewName,
   previewHeightClass = "h-[180px]",
-  previewTextColor = "#ffffff"
+  previewTextColor = "#ffffff",
+  positionOnly = false
 }: {
   photoUrl: string | null;
   settings: HeroSettings;
@@ -29,6 +30,8 @@ export function HeroCropControls({
   previewHeightClass?: string;
   /** Same idea, for a caller-owned text-color setting. */
   previewTextColor?: string;
+  /** Just the focal point (for banners that crop but don't zoom or darken). */
+  positionOnly?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -66,10 +69,14 @@ export function HeroCropControls({
 
       <SliderRow label="Horizontal Position" value={settings.xPosition} min={0} max={100} onChange={(v) => onChange({ ...settings, xPosition: v })} />
       <SliderRow label="Vertical Position" value={settings.yPosition} min={0} max={100} onChange={(v) => onChange({ ...settings, yPosition: v })} />
-      <SliderRow label="Zoom" value={settings.zoom} min={100} max={180} suffix="%" onChange={(v) => onChange({ ...settings, zoom: v })} />
-      <SliderRow label="Overlay Darkness" value={settings.overlayDarkness} min={0} max={80} suffix="%" onChange={(v) => onChange({ ...settings, overlayDarkness: v })} />
+      {!positionOnly && (
+        <>
+          <SliderRow label="Zoom" value={settings.zoom} min={100} max={180} suffix="%" onChange={(v) => onChange({ ...settings, zoom: v })} />
+          <SliderRow label="Overlay Darkness" value={settings.overlayDarkness} min={0} max={80} suffix="%" onChange={(v) => onChange({ ...settings, overlayDarkness: v })} />
+        </>
+      )}
 
-      <Button variant="secondary" size="sm" onClick={() => onChange(DEFAULT_HERO_SETTINGS)} className="w-fit">
+      <Button variant="secondary" size="sm" onClick={() => onChange(positionOnly ? { ...settings, xPosition: 50, yPosition: 50 } : DEFAULT_HERO_SETTINGS)} className="w-fit">
         Restore Default
       </Button>
     </div>

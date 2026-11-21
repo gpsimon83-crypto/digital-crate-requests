@@ -39,6 +39,7 @@ interface SidebarProps {
   identityFooter?: ReactNode;
   /** Rendered just above Sign Out, styled like a nav row — e.g. the site Theme picker. Gets the label class that fades in with the rail. */
   footerExtra?: (labelClass: string) => ReactNode;
+  className?: string;
 }
 
 function NavLabel({ children, variant }: { children: ReactNode; variant: "rail" | "fixed" }) {
@@ -65,7 +66,8 @@ export function Sidebar({
   variant = "rail",
   headerExtra,
   identityFooter,
-  footerExtra
+  footerExtra,
+  className
 }: SidebarProps) {
   const pathname = usePathname();
   const { offsets: groupOffsets, total: totalItems } = groups.reduce<{ offsets: number[]; total: number }>(
@@ -82,7 +84,7 @@ export function Sidebar({
   const fixedClasses = "hidden w-64 shrink-0 flex-col border-r border-border bg-background p-4 md:flex";
 
   return (
-    <nav className={variant === "rail" ? railClasses : fixedClasses}>
+    <nav className={cn(variant === "rail" ? railClasses : fixedClasses, className)}>
       <Link href={brandHref} className="mb-4 flex items-center gap-2 px-1">
         <Logo variant="icon" brand="crates-djs" size={28} />
         <div>

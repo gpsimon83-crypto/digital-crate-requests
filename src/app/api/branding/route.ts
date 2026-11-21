@@ -25,7 +25,18 @@ export async function GET() {
       .maybeSingle();
     if (error) throw error;
 
+    // Dashboard banner extras (migration 0063). Optional: without them the dashboard uses its built-in photos.
+    let adminDashboard: { weddingFocal: { x: number; y: number } | null; clubUrl: string | null; clubFocal: { x: number; y: number } | null } | null = null;
+    const extra = await db.from("platform_settings").select("admin_club_image_url, admin_dashboard_banners").eq("id", true).maybeSingle();
+    if (!extra.error && extra.data) {
+      const b = (extra.data.admin_dashboard_banners ?? {}) as Record<string, { xPosition?: number; yPosition?: number } | undefined>;
+      const f = (v?: { xPosition?: number; yPosition?: number }) =>
+        v && Number.isFinite(v.xPosition) && Number.isFinite(v.yPosition) ? { x: Math.min(100, Math.max(0, Number(v.xPosition))), y: Math.min(100, Math.max(0, Number(v.yPosition))) } : null;
+      adminDashboard = { weddingFocal: f(b.wedding), clubUrl: extra.data.admin_club_image_url ?? null, clubFocal: f(b.club) };
+    }
+
     return NextResponse.json({
+      adminDashboard,
       portalHero: { imageUrl: data?.portal_hero_image_url ?? null, heading: data?.portal_hero_heading ?? null, subheading: data?.portal_hero_subheading ?? null },
       adminHero: { imageUrl: data?.admin_hero_image_url ?? null, heading: data?.admin_hero_heading ?? null, subheading: data?.admin_hero_subheading ?? null }
     });

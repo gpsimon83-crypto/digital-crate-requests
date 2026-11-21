@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Check, Palette } from "lucide-react";
 import { PROJECT_THEMES } from "@/lib/project-themes";
 import { applySiteTheme, setSiteTheme, useSiteTheme } from "@/lib/site-theme";
+import { DASH_LAYOUTS, setDashLayout, useDashLayout } from "@/lib/dashboard-layout";
 import { cn } from "@/lib/utils";
 
 /** Keeps the admin layout in the picked look; leaving the admin area puts the page back to the original look. */
@@ -103,6 +104,34 @@ export function SiteThemeButton({ labelClass }: { labelClass?: string }) {
           </div>,
           document.body
         )}
+    </div>
+  );
+}
+
+/** Dashboard layout choice (Settings): same switch as on the dashboard. */
+export function DashLayoutList() {
+  const layout = useDashLayout() ?? "studio";
+  return (
+    <div role="radiogroup" aria-label="Dashboard layout" className="grid gap-1.5 sm:grid-cols-2">
+      {DASH_LAYOUTS.map((l) => (
+        <button
+          key={l.id}
+          type="button"
+          role="radio"
+          aria-checked={layout === l.id}
+          onClick={() => setDashLayout(l.id)}
+          className={cn(
+            "flex items-start gap-3 rounded-[10px] border border-border px-3 py-2 text-left text-sm hover:bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
+            layout === l.id && "border-gold bg-black/5"
+          )}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium">{l.name}</span>
+            <span className="block text-[11px] text-muted">{l.hint}</span>
+          </span>
+          {layout === l.id && <Check size={15} className="mt-0.5 shrink-0 text-gold" />}
+        </button>
+      ))}
     </div>
   );
 }

@@ -19,6 +19,23 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-21-dashboard-layouts",
+    date: "2026-11-21",
+    area: "CRM",
+    title: "New admin home: Modern Studio and Midnight Command",
+    summary: "The admin home has two layouts to switch between. Modern Studio has the side menu, an action hub on the left and wedding and club photos with four metric cards. Midnight Command has a top menu, a photo hero with quick actions and a metric rail. Colors still come from your site theme.",
+    bullets: [
+      "Switch on the dashboard or in Settings → Site theme. Saved in this browser, and the period you picked stays when you switch",
+      "Four live numbers: New leads, Pending contracts, Upcoming this week and Booked this year (with collected and still owed listed separately). Each opens the matching list",
+      "Revenue: booked and collected side by side per month, every month in the period shown ($0 months included), with a period picker",
+      "By event type: one bar per type with amount and share, from the same basis; empty types left out",
+      "Action hub groups what needs you (assign DJs, reply to inquiries, contracts, balances, music plans) with counts that match the list each opens. Projects now has these filters too",
+      "Upcoming events as a table with DJ photos and venue pictures (cards on phones), a month calendar you can click for a day's events, and recent activity",
+      "Settings → Branding: the admin hero photo is the Weddings banner and hero; add a Club & Bar Nights photo and set where each photo is cropped"
+    ],
+    action: "Run migration 0063 (supabase/migrations/0063_admin_dashboard_banners.sql) in Supabase to add the club photo and banner crop settings. Until then the dashboard uses its built-in photos."
+  },
+  {
     id: "2026-11-21-site-themes",
     date: "2026-11-21",
     area: "CRM",

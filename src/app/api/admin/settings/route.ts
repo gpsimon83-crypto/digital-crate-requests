@@ -18,6 +18,19 @@ const DEFAULT_SETTINGS = {
   review_url: null,
 };
 
+/** Dashboard banner crop points: only x/y 0–100 for "wedding" and "club" are kept. */
+function cleanBanners(v: unknown) {
+  if (!v || typeof v !== "object") return null;
+  const out: Record<string, { xPosition: number; yPosition: number; zoom: number; overlayDarkness: number }> = {};
+  for (const k of ["wedding", "club"] as const) {
+    const o = (v as Record<string, Record<string, unknown> | undefined>)[k];
+    if (!o) continue;
+    const n = (x: unknown, d: number) => (typeof x === "number" && Number.isFinite(x) ? Math.min(100, Math.max(0, Math.round(x))) : d);
+    out[k] = { xPosition: n(o.xPosition, 50), yPosition: n(o.yPosition, 50), zoom: 100, overlayDarkness: 0 };
+  }
+  return out;
+}
+
 export async function GET() {
   const denied = await requireAdmin();
   if (denied) return denied;
@@ -48,6 +61,7 @@ export async function PATCH(req: NextRequest) {
       for (const [field, column] of [
         ["portalHeroPhoto", "portal_hero_image_url"],
         ["adminHeroPhoto", "admin_hero_image_url"],
+        ["adminClubPhoto", "admin_club_image_url"],
       ] as const) {
         const photo = form.get(field);
         const clear = form.get(`clear_${column}`);
@@ -94,7 +108,8 @@ export async function PATCH(req: NextRequest) {
         ...(body.adminHeroHeading !== undefined ? { admin_hero_heading: body.adminHeroHeading } : {}),
         ...(body.adminHeroSubheading !== undefined ? { admin_hero_subheading: body.adminHeroSubheading } : {}),
         ...(body.portalHeroSettings !== undefined ? { portal_hero_settings: body.portalHeroSettings } : {}),
-        ...(body.reviewUrl !== undefined ? { review_url: body.reviewUrl } : {})
+        ...(body.reviewUrl !== undefined ? { review_url: body.reviewUrl } : {}),
+        ...(body.adminDashboardBanners !== undefined ? { admin_dashboard_banners: cleanBanners(body.adminDashboardBanners) } : {})
       })
       .eq("id", true)
       .select()

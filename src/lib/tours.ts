@@ -18,6 +18,44 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-21-dashboard-layouts": [
+    {
+      path: "/admin",
+      target: '[data-tour="dash-layout"]',
+      title: "Two layouts",
+      body: "Modern Studio or Midnight Command: same numbers, arranged differently. Colors follow your site theme. Your pick is saved in this browser."
+    },
+    {
+      path: "/admin",
+      target: '[data-tour="dash-metrics"]',
+      title: "Live numbers",
+      body: "New leads, pending contracts, events this week and the value booked this year (collected and still owed listed separately). Click any of them to open the list behind it."
+    },
+    {
+      path: "/admin",
+      target: '[data-tour="dash-actions"]',
+      title: "Action hub",
+      body: "What needs you, by workflow, with a count and the next step. Each opens Projects filtered to exactly those events. One event can be in more than one group."
+    },
+    {
+      path: "/admin",
+      target: '[data-tour="dash-revenue"]',
+      title: "Revenue",
+      body: "Booked versus collected per month for the period you pick. Booked follows Reports (event value by event month); Collected is payments received."
+    },
+    {
+      path: "/admin",
+      target: '[data-tour="dash-upcoming"]',
+      title: "Upcoming events",
+      body: "The next six events with their DJ, or Unassigned. The calendar beside it shows dots on event days; click a day for its events."
+    },
+    {
+      path: "/admin/settings",
+      target: '[data-tour="dash-club-photo"]',
+      title: "Banner photos",
+      body: "The Admin Dashboard hero photo is the Weddings banner. Add a Club & Bar Nights photo here and drag the position sliders to set the crop. Then Save Settings."
+    }
+  ],
   "2026-11-21-site-themes": [
     {
       path: "/admin/settings",
