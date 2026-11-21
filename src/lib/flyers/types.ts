@@ -144,6 +144,12 @@ type Base = {
   groupId: string | null;
   perms: Perms;
   link?: LinkOpts;
+  /**
+   * Effects (versioned settings; the layer's own content is untouched):
+   * preset, strength, changed parameters, texture seed and bottom fade.
+   * Any layer can have them. Missing on older flyers = no effects.
+   */
+  effects?: PhotoEffects | null;
 };
 
 export type ImageNode = Base & {
@@ -172,12 +178,6 @@ export type ImageNode = Base & {
    */
   recolor: { mode: "none" | "solid" | "tint"; color: string; knockoutWhite: boolean };
   shadow: Shadow;
-  /**
-   * Photo Effects (versioned settings, the photo itself is untouched):
-   * preset, strength, changed parameters, texture seed and bottom fade.
-   * Missing on older flyers = no effects.
-   */
-  effects?: PhotoEffects | null;
   /**
    * Overridden for this flyer: the picture was replaced by hand, so event
    * changes don't swap it. `linked` keeps the template's linked source for

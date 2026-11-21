@@ -19,6 +19,19 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-20-effects-any-layers",
+    date: "2026-11-20",
+    area: "CRM",
+    title: "Effects on any layers, or all of them",
+    summary: "The flyer editor's Effects tab now starts with Apply to: tick the layers you want (photos, text, shapes, logos, backgrounds) or Include all layers.",
+    bullets: [
+      "One look on several layers at once, applied together: one Apply, one undo step",
+      "Text and shapes take effects too (a Red Strobe title gets echoes, a Halftone box gets dots)",
+      "Each layer shows its current look in the list; Remove clears it from the ticked layers",
+      "Layers the template keeps styled are greyed out"
+    ]
+  },
+  {
     id: "2026-11-20-flyer-photo-effects",
     date: "2026-11-20",
     area: "CRM",

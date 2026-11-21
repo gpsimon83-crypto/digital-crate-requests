@@ -18,6 +18,28 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-20-effects-any-layers": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "Effects are in the flyer editor. Click Next to open your first flyer, or click any flyer.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-tab-effects"]',
+      title: "Effects tab",
+      body: "Open Effects to choose a look.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="fx-layers"], [data-tour="flyer-tab-effects"]',
+      title: "Apply to",
+      body: "Tick the layers that get the look (photos, text, shapes, logos, the background), or Include all layers. Then Add an effect, adjust it and Apply: it goes on every ticked layer as one undo step."
+    }
+  ],
   "2026-11-20-flyer-photo-effects": [
     {
       path: "/dj-dashboard/flyers",

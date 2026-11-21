@@ -214,7 +214,9 @@ export function FlyerEditor(props: FlyerEditorProps) {
   );
   const [replacing, setReplacing] = useState<string | null>(null);
   // Photo Effects being adjusted (not in the history until Apply), and "View original" while held.
-  const [fxDraft, setFxDraft] = useState<{ id: string; fx: PhotoEffects | null } | null>(null);
+  // Effects being adjusted (not in the history until Apply), the layers they go on, and "View original" while held.
+  const [fxDraft, setFxDraft] = useState<{ fx: PhotoEffects | null } | null>(null);
+  const [fxTargets, setFxTargets] = useState<string[] | null>(null);
   const [fxHold, setFxHold] = useState(false);
   const [uploads, setUploads] = useState<Asset[]>(props.uploads);
   const [shared, setShared] = useState<Asset[]>(props.shared);
@@ -804,7 +806,10 @@ export function FlyerEditor(props: FlyerEditorProps) {
   }
 
   // Template mode shows sample wording in place of placeholders (display only).
-  const activeFx = fxDraft && selected.length === 1 && selected[0] === fxDraft.id ? fxDraft : null;
+  // The layers Effects applies to: the ones ticked in the Effects tab, else the selection.
+  const fxIds = (fxTargets ?? selected).filter((id) => scene.nodes.some((n) => n.id === id));
+  const fxIdsKey = fxIds.join(",");
+  const activeFx = fxDraft && fxIds.length ? { ...fxDraft, ids: fxIds } : null;
   const displayScene = useMemo(() => {
     const base =
       mode !== "template" || !previewValues
@@ -818,15 +823,16 @@ export function FlyerEditor(props: FlyerEditorProps) {
             ),
           };
     // The effects being adjusted show on the canvas; "View original" shows the photo without them.
-    const holdId = fxHold ? (activeFx?.id ?? selected[0]) : null;
-    if (!activeFx && !holdId) return base;
+    const holdIds = fxHold ? fxIds : [];
+    if (!activeFx && !holdIds.length) return base;
     return {
       ...base,
       nodes: base.nodes.map((n) =>
-        n.kind !== "image" ? n : n.id === holdId ? { ...n, effects: null } : n.id === activeFx?.id ? { ...n, effects: activeFx.fx } : n,
+        holdIds.includes(n.id) ? { ...n, effects: null } : activeFx?.ids.includes(n.id) ? { ...n, effects: activeFx.fx } : n,
       ),
     };
-  }, [scene, mode, previewValues, activeFx, fxHold, selected]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene, mode, previewValues, fxDraft, fxHold, fxIdsKey]);
 
   /* ---- template sizes ---- */
   function addFormat(f: FormatKey, copyFrom: FormatKey | null) {
@@ -950,20 +956,23 @@ export function FlyerEditor(props: FlyerEditorProps) {
     ctx,
     editing: !!activeFx,
     draft: activeFx ? activeFx.fx : undefined,
-    start: (id) => {
-      const n = scene.nodes.find((x) => x.id === id);
-      setFxDraft({ id, fx: n && n.kind === "image" ? (n.effects ?? null) : null });
+    targets: fxIds,
+    setTargets: (ids) => setFxTargets(ids),
+    start: () => {
+      // Start from the first chosen layer's current look.
+      const n = scene.nodes.find((x) => x.id === fxIds[0]);
+      setFxDraft({ fx: n?.effects ?? null });
     },
-    change: (fx) => activeFx && setFxDraft({ id: activeFx.id, fx }),
+    change: (fx) => setFxDraft({ fx }),
     apply: () => {
       if (!activeFx) return;
-      // One undo step for the whole adjustment, however many sliders moved.
-      update(activeFx.id, { effects: activeFx.fx }, `fx:${activeFx.id}:${Date.now()}`);
+      // One undo step for the whole adjustment, on every chosen layer, however many sliders moved.
+      applyPatches(activeFx.ids.map((id) => ({ id, patch: { effects: activeFx.fx } })), `fx:${Date.now()}`);
       setFxDraft(null);
     },
     cancel: () => setFxDraft(null),
     hold: setFxHold,
-    quick: (id, fx) => update(id, { effects: fx }, `fx:${id}:${Date.now()}`),
+    quick: (ids, fx) => applyPatches(ids.map((id) => ({ id, patch: { effects: fx } })), `fx:${Date.now()}`),
   };
 
   const propsPanel = (
@@ -995,6 +1004,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
         },
         resetToEvent: props.link ? resetToEvent : undefined,
         openEffects: () => {
+          setFxTargets(null);
           setLeftTab("effects");
           if (!desktop) setDrawer("add");
         },
@@ -1021,20 +1031,21 @@ export function FlyerEditor(props: FlyerEditorProps) {
   const library = (
     <LibraryPanel
       tab={leftTab}
-      setTab={setLeftTab}
+      setTab={(t) => {
+        // Leaving Effects drops an unapplied adjustment and the layer choice.
+        if (t !== "effects") {
+          setFxDraft(null);
+          setFxTargets(null);
+        }
+        setLeftTab(t);
+      }}
       owner={props.owner}
       uploads={uploads}
       shared={shared}
       venues={props.venues}
       templatesSlot={props.templatesSlot}
       effectsSlot={
-        <EffectsTab
-          scene={scene}
-          selected={single}
-          api={fxApi}
-          canStyle={(n) => can(n, "style")}
-          onSelect={(id) => setSelected([id])}
-        />
+        <EffectsTab scene={scene} api={fxApi} canStyle={(n) => can(n, "style")} />
       }
       eventSlot={
         props.link && linkData ? (

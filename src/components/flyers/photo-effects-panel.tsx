@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
+import KonvaLib from "konva";
 import { Eye, Loader2, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { imageLayout } from "@/lib/flyers/scene";
@@ -16,13 +17,16 @@ export type FxApi = {
   editing: boolean;
   /** The settings being adjusted (null = no effect); undefined when not editing. */
   draft: PhotoEffects | null | undefined;
-  start: (id: string) => void;
+  /** The layers the effect goes on (ticked in the Effects tab, else the selection). */
+  targets: string[];
+  setTargets: (ids: string[] | null) => void;
+  start: () => void;
   change: (fx: PhotoEffects | null) => void;
   apply: () => void;
   cancel: () => void;
   hold: (on: boolean) => void;
   /** Commit right away (Remove effects outside the editor). */
-  quick: (id: string, fx: PhotoEffects | null) => void;
+  quick: (ids: string[], fx: PhotoEffects | null) => void;
 };
 
 const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-1";
@@ -46,22 +50,47 @@ function useFxStatus(id: string) {
   );
 }
 
-/** A small copy of the selected photo (as framed) for the preset thumbnails. */
-function useThumbBase(n: ImageNode, ctx: SrcContext) {
-  const { img, status } = useImage(srcFor(n.source, ctx));
-  const base = useMemo(() => {
-    if (!img) return null;
+/** A small copy of the first chosen layer (a photo as framed, or text / a shape as drawn) for the preset thumbnails. */
+function useThumbBase(layer: FlyerNode, ctx: SrcContext) {
+  const n = layer as ImageNode;
+  const isImg = layer.kind === "image";
+  const { img, status } = useImage(isImg ? srcFor(n.source, ctx) : null);
+  const [drawn, setDrawn] = useState<{ id: string; c: HTMLCanvasElement } | null>(null);
+  useEffect(() => {
+    if (isImg) return;
+    // Text and shapes: copy the layer off the canvas without its effects.
+    const raf = requestAnimationFrame(() => {
+      const k = KonvaLib.stages.map((st) => st.findOne(`#${layer.id}`)).find(Boolean);
+      if (!k) return;
+      const copy = k.clone({ x: 0, y: 0, rotation: 0, opacity: 1 });
+      copy.clearCache();
+      copy.filters([]);
+      const r = copy.getClientRect({ skipTransform: false });
+      const scale = 132 / Math.max(1, Math.max(r.width, r.height));
+      try {
+        setDrawn({ id: layer.id, c: copy.toCanvas({ pixelRatio: scale, x: r.x, y: r.y, width: r.width, height: r.height }) });
+      } catch {
+        // nothing to draw
+      }
+      copy.destroy();
+    });
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layer.id, isImg, (layer as { text?: string }).text]);
+  const imgBase = useMemo(() => {
+    if (!isImg || !img) return null;
     const lay = imageLayout(n, { width: img.naturalWidth, height: img.naturalHeight }, n.fit, n.crop);
     const scale = 132 / Math.max(n.width, n.height);
     return processedImage(img, n, lay, n.flipX, n.flipY, n.feather ?? { amount: 0, shape: "edges" }, n.recolor, { scale, withFeather: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [img, n.width, n.height, n.fit, n.crop.zoom, n.crop.x, n.crop.y, n.flipX, n.flipY, n.recolor?.mode, n.recolor?.color, n.recolor?.knockoutWhite]);
+  }, [img, isImg, n.width, n.height, n.fit, n.crop?.zoom, n.crop?.x, n.crop?.y, n.flipX, n.flipY, n.recolor?.mode, n.recolor?.color, n.recolor?.knockoutWhite]);
+  const base = isImg ? imgBase : drawn?.id === layer.id ? drawn.c : null;
   const cutout = useMemo(() => {
     if (!base) return false;
     const d = base.getContext("2d", { willReadFrequently: true })!.getImageData(0, 0, base.width, base.height);
     return cutoutShare({ data: d.data, width: d.width, height: d.height }) > 0.02;
   }, [base]);
-  return { base, status, cutout, scale: 132 / Math.max(n.width, n.height) };
+  return { base, status: isImg ? status : base ? "ready" : "loading", cutout, scale: 132 / Math.max(layer.width, layer.height) };
 }
 
 function Thumbs({ base, scale, seed, value, onPick }: { base: HTMLCanvasElement | null; scale: number; seed: number; value: PresetId | null; onPick: (p: PresetId | null) => void }) {
@@ -155,26 +184,27 @@ type Saved = { id: string; name: string; effects: PhotoEffects };
  * the photo, overall strength, the preset's own controls, press-and-hold
  * View original, Reset, saved presets, and Apply / Cancel (one undo step).
  */
-export function PhotoEffectsSection({ n, api, canStyle }: { n: ImageNode; api: FxApi; canStyle: boolean }) {
+export function PhotoEffectsSection({ nodes, api, canStyle }: { nodes: FlyerNode[]; api: FxApi; canStyle: boolean }) {
+  const n = nodes[0];
   const status = useFxStatus(n.id);
+  const looks = new Set(nodes.map((x) => (x.effects && effectsOn(x.effects) ? `${x.effects.custom ?? presetById(x.effects.preset)?.name} · ${Math.round(x.effects.strength * 100)}%` : "")));
   const current = n.effects && effectsOn(n.effects) ? n.effects : null;
+  const anyOn = nodes.some((x) => x.effects && effectsOn(x.effects));
 
   if (!api.editing)
     return (
       <div className="flex flex-col gap-2" data-tour="fx-section">
-        {current ? (
-          <p className="text-sm">
-            <span className="font-semibold">{current.custom ?? presetById(current.preset)?.name}</span> · {Math.round(current.strength * 100)}%
-          </p>
+        {anyOn ? (
+          <p className="text-sm">{looks.size > 1 ? "These layers have different looks; adjusting gives them all the same one." : <span className="font-semibold">{[...looks][0] || "No effect"}</span>}</p>
         ) : (
-          <p className="text-[11px] text-muted">Color grades, duotones, print and VHS looks for this photo. The original photo stays as uploaded.</p>
+          <p className="text-[11px] text-muted">Color grades, duotones, print and VHS looks. The layers themselves stay as they are; the look is a setting you can change or remove.</p>
         )}
         <div className="flex flex-wrap gap-1.5">
-          <button className={cn(btn, "flex-1")} disabled={!canStyle} onClick={() => api.start(n.id)} data-tour="fx-open">
+          <button className={cn(btn, "flex-1")} disabled={!canStyle} onClick={() => api.start()} data-tour="fx-open">
             <Sparkles size={14} /> {current ? "Adjust effects" : "Add an effect"}
           </button>
-          {current && (
-            <button className={btn} disabled={!canStyle} onClick={() => api.quick(n.id, null)}>
+          {anyOn && (
+            <button className={btn} disabled={!canStyle} onClick={() => api.quick(nodes.map((x) => x.id), null)}>
               <RotateCcw size={14} /> Remove
             </button>
           )}
@@ -182,10 +212,11 @@ export function PhotoEffectsSection({ n, api, canStyle }: { n: ImageNode; api: F
         {status === "error" && <p className="text-[11px] text-[#b42318]">The effect couldn&rsquo;t be drawn; the photo shows without it.</p>}
       </div>
     );
-  return <Editor n={n} api={api} canStyle={canStyle} status={status} />;
+  // Thumbnails come from a picture when one is chosen (they show the looks best), else the first layer.
+  return <Editor n={nodes.find((x) => x.kind === "image") ?? n} api={api} canStyle={canStyle} status={status} />;
 }
 
-function Editor({ n, api, canStyle, status }: { n: ImageNode; api: FxApi; canStyle: boolean; status: string | null }) {
+function Editor({ n, api, canStyle, status }: { n: FlyerNode; api: FxApi; canStyle: boolean; status: string | null }) {
   const fx = api.draft ?? null;
   const { base, status: imgStatus, cutout, scale } = useThumbBase(n, api.ctx);
   const [seed] = useState(() => fx?.seed ?? Math.floor(Math.random() * 2 ** 31));
@@ -353,31 +384,59 @@ function Editor({ n, api, canStyle, status }: { n: ImageNode; api: FxApi; canSty
   );
 }
 
+const KIND_LABEL: Record<string, string> = { image: "Picture", text: "Text", shape: "Shape" };
+
 /**
- * The Effects tab in the editor's left panel: Photo Effects for the selected
- * photo, or a list of the flyer's photos to pick one from.
+ * The Effects tab in the editor's left panel: choose which layers get the
+ * look (any layers, or Include all), then the look itself.
  */
-export function EffectsTab({ scene, selected, api, canStyle, onSelect }: { scene: Scene; selected: FlyerNode | null; api: FxApi; canStyle: (n: FlyerNode) => boolean; onSelect: (id: string) => void }) {
-  const photos = scene.nodes.filter((n): n is ImageNode => n.kind === "image" && isPhotoLayer(n)).reverse();
-  if (selected && selected.kind === "image" && isPhotoLayer(selected))
-    return (
-      <div className="flex flex-col gap-3" data-tour="fx-tab">
-        <p className="text-sm font-semibold">{selected.name}</p>
-        <PhotoEffectsSection n={selected} api={api} canStyle={canStyle(selected)} />
-      </div>
-    );
+export function EffectsTab({ scene, api, canStyle }: { scene: Scene; api: FxApi; canStyle: (n: FlyerNode) => boolean }) {
+  const layers = [...scene.nodes].reverse(); // top of the list = front, like Layers
+  const allowed = layers.filter((n) => canStyle(n));
+  const chosen = layers.filter((n) => api.targets.includes(n.id));
+  const all = allowed.length > 0 && allowed.every((n) => api.targets.includes(n.id));
+  const toggle = (id: string, on: boolean) => api.setTargets(on ? [...api.targets.filter((x) => x !== id), id] : api.targets.filter((x) => x !== id));
   return (
-    <div className="flex flex-col gap-2" data-tour="fx-tab">
-      <p className="text-sm">{selected ? "Effects work on photos. Pick one:" : "Select a photo on the flyer, or pick one here:"}</p>
-      {photos.length ? (
-        photos.map((p) => (
-          <button key={p.id} className={cn(btn, "h-11 justify-start px-3 text-sm")} onClick={() => onSelect(p.id)}>
-            <Sparkles size={15} className="text-muted" /> {p.name}
-            {p.effects && effectsOn(p.effects) && <span className="ml-auto text-[11px] text-muted">{p.effects.custom ?? presetById(p.effects.preset)?.name}</span>}
-          </button>
-        ))
+    <div className="flex flex-col gap-3" data-tour="fx-tab">
+      <fieldset className="rounded-[8px] border border-black/8 px-2.5 py-2" data-tour="fx-layers">
+        <legend className="px-1 text-[11px] font-semibold uppercase tracking-wide">Apply to</legend>
+        <label className="flex min-h-8 cursor-pointer items-center gap-2 border-b border-black/8 pb-1.5 text-sm font-semibold">
+          <input
+            type="checkbox"
+            className={cn("h-4 w-4 accent-[#c99428]", FOCUS)}
+            checked={all}
+            ref={(el) => {
+              if (el) el.indeterminate = !all && chosen.length > 0;
+            }}
+            disabled={!allowed.length}
+            onChange={(e) => api.setTargets(e.target.checked ? allowed.map((n) => n.id) : [])}
+          />
+          Include all layers
+        </label>
+        <ul className="mt-1 flex max-h-56 flex-col overflow-y-auto">
+          {layers.map((n) => {
+            const on = api.targets.includes(n.id);
+            const fx = n.effects && effectsOn(n.effects) ? n.effects : null;
+            return (
+              <li key={n.id}>
+                <label className={cn("flex min-h-8 cursor-pointer items-center gap-2 text-sm", !canStyle(n) && "cursor-not-allowed opacity-50")}>
+                  <input type="checkbox" className={cn("h-4 w-4 accent-[#c99428]", FOCUS)} checked={on} disabled={!canStyle(n)} onChange={(e) => toggle(n.id, e.target.checked)} />
+                  <span className="min-w-0 flex-1 truncate">{n.name}</span>
+                  <span className="shrink-0 text-[10.5px] text-muted">{fx ? (fx.custom ?? presetById(fx.preset)?.name) : KIND_LABEL[n.kind]}</span>
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+        {allowed.length < layers.length && <p className="mt-1 text-[11px] text-muted">Greyed-out layers are styled by the template.</p>}
+      </fieldset>
+      {chosen.length ? (
+        <>
+          <p className="text-sm font-semibold">{chosen.length === 1 ? chosen[0].name : `${chosen.length} layers`}</p>
+          <PhotoEffectsSection nodes={chosen} api={api} canStyle={chosen.every((n) => canStyle(n))} />
+        </>
       ) : (
-        <p className="text-[11px] text-muted">This flyer has no photos yet. Add one from the Photos tab.</p>
+        <p className="text-[11px] text-muted">Tick the layers you want the effect on (or Include all), or select one on the flyer.</p>
       )}
     </div>
   );

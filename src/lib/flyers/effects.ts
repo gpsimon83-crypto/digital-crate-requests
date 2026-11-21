@@ -512,11 +512,14 @@ export function applyEffects(src: Pixels, fx: PhotoEffects, scale = 1): Pixels {
         return 1;
       };
       const lo = at(0.02);
-      const hi = Math.max(lo + 0.08, at(0.995));
-      const mid = clamp((at(0.5) - lo) / (hi - lo), 0.05, 0.95);
-      const gamma = clamp(Math.log(0.5) / Math.log(mid), 0.55, 1.8);
-      // half way: enough to rescue very dark or very light subjects without flattening the rest
-      for (let i = 0; i < n; i++) L[i] = L[i] * 0.45 + Math.pow(clamp((L[i] - lo) / (hi - lo), 0, 1), gamma) * 0.55;
+      const hi = at(0.995);
+      // A one-tone layer (white text, a flat shape) has no range to spread: leave it as it is.
+      if (hi - lo > 0.15) {
+        const mid = clamp((at(0.5) - lo) / (hi - lo), 0.05, 0.95);
+        const gamma = clamp(Math.log(0.5) / Math.log(mid), 0.55, 1.8);
+        // half way: enough to rescue very dark or very light subjects without flattening the rest
+        for (let i = 0; i < n; i++) L[i] = L[i] * 0.45 + Math.pow(clamp((L[i] - lo) / (hi - lo), 0, 1), gamma) * 0.55;
+      }
     }
     // Then put skin (warm, moderately saturated pixels) in the midtones, light or deep,
     // so a face keeps its features in black-and-white, photocopy and halftone looks.

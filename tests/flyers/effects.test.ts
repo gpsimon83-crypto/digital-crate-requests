@@ -203,6 +203,14 @@ describe("saved settings", () => {
     expect(Buffer.from(applyEffects(src, again).data).equals(Buffer.from(applyEffects(src, fx).data))).toBe(true);
   });
 
+  it("text and shape layers keep their effects too", () => {
+    const text = { id: "t1", kind: "text", name: "Title", role: "title", x: 0, y: 0, width: 900, height: 140, text: "SATURDAY", effects: fxOf("red_strobe") };
+    const shape = { id: "s1", kind: "shape", name: "Box", role: "shape", x: 0, y: 0, width: 300, height: 200, effects: fxOf("halftone") };
+    const r = parseScene({ format: "portrait", nodes: [text, shape] });
+    if (!r.ok) throw new Error(r.error);
+    expect(r.value.nodes.map((n) => n.effects?.preset)).toEqual(["red_strobe", "halftone"]);
+  });
+
   it("a template's locked style covers effects too", () => {
     const locked = { move: true, edit: true, style: false, remove: true };
     const prev = parseScene(scene(node({ perms: locked })));
@@ -210,5 +218,17 @@ describe("saved settings", () => {
     if (!prev.ok || !next.ok) throw new Error("parse");
     expect(checkDjChanges(prev.value, next.value)).toMatch(/style/);
     expect(checkDjChanges(prev.value, prev.value)).toBeNull();
+  });
+});
+
+describe("effects on text and shapes", () => {
+  it("one-tone layers (white text) keep their brightness in graphic looks", () => {
+    const w = 80, h = 30, d = new Uint8ClampedArray(w * h * 4);
+    for (let i = 0; i < w * h; i++) if ((i % w) % 10 < 6) { d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = 255; d[i * 4 + 3] = 255; }
+    for (const id of ["red_strobe", "neon_duotone", "silver_noir"] as const) {
+      const o = applyEffects({ data: d, width: w, height: h }, fxOf(id));
+      const i = (15 * w + 2) * 4;
+      expect(L(o.data[i], o.data[i + 1], o.data[i + 2]), id).toBeGreaterThan(0.2);
+    }
   });
 });

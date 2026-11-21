@@ -36,7 +36,6 @@ import {
 import { cn } from "@/lib/utils";
 import { FLYER_FONTS, fontByKey, nearestWeight } from "@/lib/flyers/fonts";
 import { featherOn } from "@/lib/flyers/feather";
-import { isPhotoLayer } from "./photo-effects-panel";
 import { isLinked, isOverridden } from "@/lib/flyers/links";
 import { BADGES, type BadgePreset } from "@/lib/flyers/badges";
 import { BLEND_MODES, FIELD_TOKENS, ROLES, type BlendMode, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type ShapeNode, type TextNode } from "@/lib/flyers/types";
@@ -634,7 +633,7 @@ function ShadowSection({ value, onChange, disabled }: { value: TextNode["shadow"
 function ImageProps({ n, set, canEdit, canStyle, api }: { n: ImageNode; set: (p: Partial<ImageNode>, k?: string) => void; canEdit: boolean; canStyle: boolean; api: PropsApi }) {
   return (
     <>
-      {api.openEffects && isPhotoLayer(n) && (
+      {api.openEffects && (
         <button className={cn(iconBtn, "my-3 w-full justify-center")} onClick={api.openEffects} data-tour="fx-open-tab">
           <Sparkles size={15} /> {n.effects && n.effects.strength > 0 ? "Edit photo effects" : "Photo effects"}
         </button>

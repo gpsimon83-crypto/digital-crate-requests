@@ -7,7 +7,7 @@ import { Ellipse, Group, Image as KImage, Layer, Line, Rect, Stage, Text as KTex
 import { imageLayout } from "@/lib/flyers/scene";
 import { boundsOf, snapBox, type Guide } from "@/lib/flyers/snap";
 import { applyFeather, needsProcessing, processedImage } from "@/lib/flyers/feather";
-import { effectsOn } from "@/lib/flyers/effects";
+import { applyEffects, effectsOn, resolveParams, type PhotoEffects } from "@/lib/flyers/effects";
 import { runEffects, keyFor } from "./fx-runner";
 import { setFxStatus } from "./fx-status";
 import { shownByData } from "@/lib/flyers/links";
@@ -42,6 +42,62 @@ function roundedClip(w: number, h: number, r: number) {
     ctx.arcTo(0, 0, rr, 0, rr);
     ctx.closePath();
   };
+}
+
+/** Room around a layer for effects that reach past its edges (echoes, shadow, edge light, wobble). */
+function fxPad(fx: PhotoEffects) {
+  const P = resolveParams(fx);
+  return Math.ceil(Math.max(P.echoCount > 0 ? Math.ceil(P.echoCount / 2) * P.echoOffset : 0, P.shadowOn ? P.shadowOffset * 1.6 : 0, P.edgeOn ? P.edgeWidth : 0, P.distortion > 0 ? 10 : 0, P.rgbShift)) + 2;
+}
+
+/**
+ * Effects on text and shape layers: the layer is cached as a bitmap (at the
+ * preview or export resolution) and the same effects engine runs on it as
+ * a Konva filter. Photos use the worker path in ImageLayer instead.
+ */
+function useLayerEffects(ref: React.RefObject<Konva.Node | null>, node: FlyerNode, scale: number, exporting: boolean, extraKey: string | number) {
+  const fx = effectsOn(node.effects) ? node.effects : null;
+  // Moving the layer doesn't change its pixels, so position isn't part of the key.
+  const { x: _x, y: _y, ...look } = node;
+  void _x;
+  void _y;
+  const key = fx ? `${JSON.stringify(look)}|${scale}|${extraKey}` : "";
+  useEffect(() => {
+    const n = ref.current;
+    if (!n) return;
+    if (!fx) {
+      if (n.isCached()) {
+        n.clearCache();
+        n.filters([]);
+        n.getLayer()?.batchDraw();
+      }
+      return;
+    }
+    const run = () => {
+      try {
+        n.clearCache();
+        n.filters([]);
+        n.cache({ pixelRatio: scale, offset: fxPad(fx) });
+        n.filters([
+          (img: ImageData) => {
+            const out = applyEffects({ data: img.data, width: img.width, height: img.height }, fx, scale);
+            img.data.set(out.data);
+          }
+        ]);
+        n.getLayer()?.batchDraw();
+      } catch {
+        // an empty layer can't be cached; draw it as it is
+        n.clearCache();
+      }
+    };
+    if (exporting) {
+      run();
+      return;
+    }
+    const t = setTimeout(run, 60);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, exporting]);
 }
 
 function cloneCanvas(c: HTMLCanvasElement) {
@@ -282,8 +338,9 @@ export function textGeometry(node: TextNode, lay: TextLay) {
   return { pad, bw, bh, px, py, x: node.x + px, y: node.y + py, offsetX: px - pad, offsetY: py - pad - dy };
 }
 
-function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | null; fontsKey: number }) {
+function TextLayer({ node, act, fontsKey, ctx, exporting }: { node: TextNode; act: Interact | null; fontsKey: number; ctx: SrcContext; exporting: boolean }) {
   const f = fontString(node);
+  const textRef = useRef<Konva.Text>(null);
   const movable = !!act && act.interactive && !node.locked && act.canMove(node);
   const shown = node.uppercase ? node.text.toUpperCase() : node.text;
   // fontsKey changes once the font file has loaded, so the measurement is redone with the real letters.
@@ -295,6 +352,7 @@ function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | nu
   const extra = lay.oneLine && lay.lineWidth && lay.lineWidth > inner ? Math.ceil(lay.lineWidth - inner) + 2 : 0;
   const shiftX = node.align === "center" ? extra / 2 : node.align === "right" ? extra : 0;
   const panel = node.panel?.enabled ? node.panel : null;
+  useLayerEffects(textRef, node, Math.min(3, Math.max(0.1, ctx.fxScale ?? 1)), exporting, fontsKey);
   return (
     <>
       {panel && (
@@ -321,6 +379,7 @@ function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | nu
       )}
       <KText
         key={fontsKey}
+        ref={textRef}
         id={node.id}
         name="flyer-node"
         x={g.x}
@@ -360,7 +419,9 @@ function TextLayer({ node, act, fontsKey }: { node: TextNode; act: Interact | nu
 
 /** A DJ name-logo slot without a logo: the DJ's display name, fitted on one line in the frame. */
 /** Box / rectangle / oval / circle. The outline sits inside the shape's edges, so the size you set is the size you get. */
-function ShapeLayer({ node, act }: { node: ShapeNode; act: Interact | null }) {
+function ShapeLayer({ node, act, ctx, exporting }: { node: ShapeNode; act: Interact | null; ctx: SrcContext; exporting: boolean }) {
+  const groupRef = useRef<Konva.Group>(null);
+  useLayerEffects(groupRef, node, Math.min(3, Math.max(0.1, ctx.fxScale ?? 1)), exporting, 0);
   const movable = !!act && act.interactive && !node.locked && act.canMove(node);
   const sw = node.stroke.enabled ? Math.min(node.stroke.width, Math.min(node.width, node.height) / 2) : 0;
   const common = {
@@ -373,6 +434,7 @@ function ShapeLayer({ node, act }: { node: ShapeNode; act: Interact | null }) {
   };
   return (
     <Group
+      ref={groupRef}
       id={node.id}
       name="flyer-node"
       x={node.x}
@@ -420,9 +482,9 @@ export function SceneNodes({ scene, ctx, exporting, act, fontsKey, onStatus }: {
         !shownByData(n, ctx.values) ? null : n.kind === "image" ? (
           <ImageLayer key={n.id} node={n} ctx={ctx} exporting={exporting} act={act} onStatus={onStatus} />
         ) : n.kind === "shape" ? (
-          <ShapeLayer key={n.id} node={n} act={act} />
+          <ShapeLayer key={n.id} node={n} act={act} ctx={ctx} exporting={exporting} />
         ) : (
-          <TextLayer key={n.id} node={n} act={act} fontsKey={fontsKey} />
+          <TextLayer key={n.id} node={n} act={act} fontsKey={fontsKey} ctx={ctx} exporting={exporting} />
         )
       )}
     </>
