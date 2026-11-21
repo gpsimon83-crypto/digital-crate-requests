@@ -1,6 +1,7 @@
 "use client";
 
 import { PortalThemeSettings } from "@/components/admin/portal-theme-settings";
+import { SiteThemeList } from "@/components/admin/site-theme";
 import { PlaybookTimingSettings } from "@/components/admin/playbook-timing-settings";
 import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -392,6 +393,16 @@ function AdminSettingsPageInner() {
             <ChevronRight size={16} className="shrink-0 text-muted" />
           </GlassCard>
         </Link>
+
+        <GlassCard className="flex flex-col gap-3" data-tour="site-theme-settings">
+          <div>
+            <p className="text-sm font-semibold">Site theme</p>
+            <p className="text-xs text-muted">
+              The look for the whole admin area: sidebar, pages and pop-ups. Saved in this browser. Project pages still open in their event type&apos;s look (change it there with Theme).
+            </p>
+          </div>
+          <SiteThemeList />
+        </GlassCard>
 
         <NotificationHealthCard />
 

@@ -8,6 +8,7 @@ import { QuickCreateMenu } from "@/components/admin/quick-create-menu";
 import { Sidebar, type SidebarNavGroup } from "@/components/ui/sidebar";
 import { ADMIN_NAV_GROUPS } from "@/lib/admin-nav";
 import { useWhatsNewCount } from "@/lib/use-whats-new";
+import { SiteThemeButton } from "@/components/admin/site-theme";
 
 export function AdminSidebarNav() {
   const pathname = usePathname();
@@ -48,6 +49,7 @@ export function AdminSidebarNav() {
       groups={groups}
       onSignOut={handleLogout}
       variant="rail"
+      footerExtra={(labelClass) => <SiteThemeButton labelClass={labelClass} />}
       headerExtra={
         <>
           <QuickCreateMenu />

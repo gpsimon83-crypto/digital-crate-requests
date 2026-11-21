@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { SideDrawer } from "@/components/ui/side-drawer";
 import { ADMIN_NAV_GROUPS } from "@/lib/admin-nav";
 import { useWhatsNewCount } from "@/lib/use-whats-new";
+import { SiteThemeList } from "@/components/admin/site-theme";
 import { LayoutDashboard, Briefcase, Users, CalendarDays, Menu } from "lucide-react";
 
 const PRIMARY_ITEMS = [
@@ -43,6 +44,7 @@ export function AdminMobileTabBar() {
         })}
         <button
           onClick={() => setMoreOpen(true)}
+          data-tour="mobile-more"
           className="menu-fade-item flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium min-h-[56px] justify-center text-muted"
           style={{ "--menu-fade-delay": `${PRIMARY_ITEMS.length * 40}ms` } as React.CSSProperties}
         >
@@ -82,6 +84,9 @@ export function AdminMobileTabBar() {
               ))}
             </div>
           ))}
+          <div className="my-2 h-px bg-border" />
+          <p className="px-1 pb-1 text-[10px] uppercase tracking-[2px] text-muted" data-tour="site-theme-mobile">Site theme</p>
+          <SiteThemeList compact />
         </div>
       </SideDrawer>
     </>

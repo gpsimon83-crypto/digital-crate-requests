@@ -19,6 +19,19 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-21-site-themes",
+    date: "2026-11-21",
+    area: "CRM",
+    title: "Site themes for the whole admin area",
+    summary: "The project page looks (Charcoal & Brass, Slate & Electric Lime, School Dance, Ink & Brass Gala, Plum & Champagne, Classic Cream) now work across the main layout: sidebar, every admin page and pop-ups.",
+    bullets: [
+      "Pick one from Theme in the sidebar (above Sign Out), from Site theme in Settings, or from the bottom of the More menu on a phone",
+      "Saved in this browser, and on before the page draws, so a dark look doesn't flash cream first",
+      "Project pages still open in their event type's look while you're on them; the site look comes back when you leave",
+      "Classic Cream is the original look"
+    ]
+  },
+  {
     id: "2026-11-21-flyer-mask",
     date: "2026-11-21",
     area: "CRM",

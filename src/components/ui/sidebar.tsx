@@ -37,6 +37,8 @@ interface SidebarProps {
   headerExtra?: ReactNode;
   /** Rendered above Sign Out — e.g. a DJ identity card. */
   identityFooter?: ReactNode;
+  /** Rendered just above Sign Out, styled like a nav row — e.g. the site Theme picker. Gets the label class that fades in with the rail. */
+  footerExtra?: (labelClass: string) => ReactNode;
 }
 
 function NavLabel({ children, variant }: { children: ReactNode; variant: "rail" | "fixed" }) {
@@ -62,7 +64,8 @@ export function Sidebar({
   onSignOut,
   variant = "rail",
   headerExtra,
-  identityFooter
+  identityFooter,
+  footerExtra
 }: SidebarProps) {
   const pathname = usePathname();
   const { offsets: groupOffsets, total: totalItems } = groups.reduce<{ offsets: number[]; total: number }>(
@@ -144,6 +147,8 @@ export function Sidebar({
       </div>
 
       {identityFooter}
+
+      {footerExtra?.(variant === "rail" ? "whitespace-nowrap opacity-0 transition-opacity delay-75 duration-150 group-hover:opacity-100 group-focus-within:opacity-100" : "whitespace-nowrap")}
 
       <button
         onClick={onSignOut}

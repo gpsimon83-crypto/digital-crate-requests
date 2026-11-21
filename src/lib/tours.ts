@@ -18,6 +18,20 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-21-site-themes": [
+    {
+      path: "/admin/settings",
+      target: '[data-tour="site-theme-settings"]',
+      title: "Site theme",
+      body: "Pick a look for the whole admin area: the sidebar, every page and pop-ups. It's saved in this browser. Classic Cream is the original look."
+    },
+    {
+      path: "/admin/settings",
+      target: '[data-tour="site-theme"], [data-tour="mobile-more"], [data-tour="site-theme-settings"]',
+      title: "Switch any time",
+      body: "Theme in the sidebar (above Sign Out) changes it from any page; on a phone it's at the bottom of More. Project pages still open in their event type's look."
+    }
+  ],
   "2026-11-21-flyer-mask": [
     {
       path: "/dj-dashboard/flyers",

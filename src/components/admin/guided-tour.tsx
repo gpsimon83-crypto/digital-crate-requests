@@ -81,7 +81,12 @@ export function GuidedTour() {
     let scrolled = false;
     const started = performance.now();
     const tick = () => {
-      const el = document.querySelector(targetSel) as HTMLElement | null;
+      // First match that's actually on the page (a desktop-only sidebar item is skipped on a phone, and the other way round).
+      const el =
+        Array.from(document.querySelectorAll<HTMLElement>(targetSel)).find((e) => {
+          const b = e.getBoundingClientRect();
+          return b.width > 0 || b.height > 0;
+        }) ?? null;
       if (el) {
         if (!scrolled) {
           el.scrollIntoView({ block: "center", behavior: "smooth" });
