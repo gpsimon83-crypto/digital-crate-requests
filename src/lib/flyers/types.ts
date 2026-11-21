@@ -47,6 +47,10 @@ export const PLACEHOLDERS = {
   event_day_number: "Day number (25)",
   event_month_day: "Month and day (NOV 25)",
   event_time_range: "Start–end time",
+  event_year: "Year",
+  dj_lineup: "DJ lineup (every DJ)",
+  venue_street: "Venue street",
+  venue_city: "Venue city, state, ZIP",
   start_time: "Start time",
   end_time: "End time",
   venue_name: "Venue name",
@@ -73,6 +77,10 @@ export const FIELD_TOKENS = {
   "event.dayNumber": { key: "event_day_number", label: "Day number (25)" },
   "event.monthDay": { key: "event_month_day", label: "Month and day (NOV 25)" },
   "event.timeRange": { key: "event_time_range", label: "Start–end time (9 PM–1 AM)" },
+  "event.year": { key: "event_year", label: "Year (2026)" },
+  "dj.lineup": { key: "dj_lineup", label: "DJ lineup (DJ ONE • DJ TWO)" },
+  "venue.street": { key: "venue_street", label: "Venue street" },
+  "venue.cityLine": { key: "venue_city", label: "Venue city, state, ZIP" },
   "event.startTime": { key: "start_time", label: "Start time" },
   "event.endTime": { key: "end_time", label: "End time" },
   "event.drinkSpecials": { key: "drink_specials", label: "Drink specials" },
@@ -226,6 +234,8 @@ export type TextNode = Base & {
   pivot?: "center" | "topLeft";
   /** Letter spacing as a share of the font size (0.12 = 0.12em); follows auto-fit. Overrides letterSpacing. */
   trackingEm?: number | null;
+  /** Horizontal stretch of the letters (1 = as designed; 1.6 = 60% wider), like an extended font. */
+  stretch?: number;
   /** Optional box behind the text. */
   panel?: { enabled: boolean; color: string; opacity: number; padding: number; radius: number } | null;
 };

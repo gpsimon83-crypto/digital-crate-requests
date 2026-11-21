@@ -307,7 +307,7 @@ describe("templates", () => {
     expect(pub.body.version.version).toBe(2);
     expect(db.flyer_templates[0].current_version_id).not.toBe(v1);
     expect(d.template_version_id).toBe(v1);
-    expect(db.flyer_template_versions).toHaveLength(2);
+    expect(db.flyer_template_versions.filter((v) => v.template_id === t.id)).toHaveLength(2);
   });
 });
 

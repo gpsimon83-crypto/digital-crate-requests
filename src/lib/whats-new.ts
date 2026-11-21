@@ -19,6 +19,19 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-20-dj-night-template",
+    date: "2026-11-20",
+    area: "CRM",
+    title: "New flyer template: DJ Night Party",
+    summary: "Red and yellow on deep green, a big DJ NIGHT title, script Party and a concert photo with a soft fade. Portrait (1080×1350) and story (1080×1920).",
+    bullets: [
+      "Every piece is its own layer: 16 text fields, the background, border and panels as shapes, and the concert photo as a picture you can replace",
+      "Fills itself from the flyer's event: venue name (top line and venue panel), street and city, day, month, year, start time, and the DJ lineup",
+      "Text keeps the designer's wide, stretched look and shrinks to fit when a venue or DJ name runs long",
+      "New text controls for any template: Stretch (wider or narrower letters), plus placeholders for Year, DJ lineup, Venue street and Venue city, state, ZIP"
+    ]
+  },
+  {
     id: "2026-11-20-effects-any-layers",
     date: "2026-11-20",
     area: "CRM",

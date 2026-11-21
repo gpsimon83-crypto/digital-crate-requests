@@ -269,7 +269,9 @@ export function textLayout(node: TextNode, fontsReady = true): TextLay {
   const f = fontString(node);
   const lines = Math.max(1, text.split("\n").length);
   const pad = node.padding ?? 0;
-  const innerW = Math.max(4, node.width - pad * 2);
+  // Stretched letters take `stretch` times their width: measure against the box at that ratio.
+  const stretch = node.stretch ?? 1;
+  const innerW = Math.max(4, node.width - pad * 2) / stretch;
   const innerH = Math.max(4, node.height - pad * 2);
   // Tracking in em follows the fitted size, so shrunk text keeps its look.
   const sp = (size: number) => (node.trackingEm != null ? node.trackingEm * size : node.letterSpacing);
@@ -291,7 +293,7 @@ export function textLayout(node: TextNode, fontsReady = true): TextLay {
     const overflow = size < min - 0.01;
     size = Math.max(size, min);
     const lineWidth = widthAt(size);
-    return { ...box(size, probeText({ ...base, size, spacing: sp(size) }).height, overflow || lineWidth > innerW + 0.5), lineWidth };
+    return { ...box(size, probeText({ ...base, size, spacing: sp(size) }).height, overflow || lineWidth > innerW + 0.5), lineWidth: lineWidth * stretch };
   }
   if (node.fitBox) {
     const fits = (size: number) => probeText({ ...base, size, spacing: sp(size), width: innerW }).height <= innerH + 0.5;
@@ -352,6 +354,7 @@ function TextLayer({ node, act, fontsKey, ctx, exporting }: { node: TextNode; ac
   const extra = lay.oneLine && lay.lineWidth && lay.lineWidth > inner ? Math.ceil(lay.lineWidth - inner) + 2 : 0;
   const shiftX = node.align === "center" ? extra / 2 : node.align === "right" ? extra : 0;
   const panel = node.panel?.enabled ? node.panel : null;
+  const stretch = node.stretch ?? 1;
   useLayerEffects(textRef, node, Math.min(3, Math.max(0.1, ctx.fxScale ?? 1)), exporting, fontsKey);
   return (
     <>
@@ -384,9 +387,10 @@ function TextLayer({ node, act, fontsKey, ctx, exporting }: { node: TextNode; ac
         name="flyer-node"
         x={g.x}
         y={g.y}
-        offsetX={g.offsetX + shiftX}
+        offsetX={(g.offsetX + shiftX) / stretch}
         offsetY={g.offsetY}
-        width={inner + extra}
+        scaleX={stretch}
+        width={(inner + extra) / stretch}
         rotation={node.rotation}
         opacity={node.opacity}
         text={shown}
@@ -556,7 +560,9 @@ export function FlyerStage({
         patch.height = Math.max(8, Math.round(n.height * sy));
       } else {
         const pad = n.padding ?? 0;
-        const w = Math.max(20, Math.round(((k as Konva.Text).width() + pad * 2) * sx));
+        // Stretched text carries its stretch as scaleX: only the change beyond it is a resize.
+        const st = n.stretch ?? 1;
+        const w = Math.max(20, Math.round((k as Konva.Text).width() * sx + pad * 2 * (sx / st)));
         patch.width = w;
         const tp = patch as Partial<TextNode>;
         if (Math.abs(sy - 1) > 0.001) {
@@ -571,7 +577,7 @@ export function FlyerStage({
           patch.y = Math.round((k.y() - bh / 2) * 10) / 10;
         }
       }
-      k.scaleX(1);
+      k.scaleX(n.kind === "text" ? (n.stretch ?? 1) : 1);
       k.scaleY(1);
       return [{ id: n.id, patch }];
     });

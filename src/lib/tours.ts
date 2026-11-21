@@ -18,6 +18,19 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-20-dj-night-template": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-new"]',
+      title: "New flyer",
+      body: "Click New flyer and pick DJ Night Party from the templates (portrait or story)."
+    },
+    {
+      path: "/dj-dashboard/flyers",
+      title: "It fills itself in",
+      body: "Choose the event and the venue, date, year, start time and DJ lineup fill in. Replace the concert photo with Replace image; the soft fade stays."
+    }
+  ],
   "2026-11-20-effects-any-layers": [
     {
       path: "/dj-dashboard/flyers",

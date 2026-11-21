@@ -5,7 +5,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { staffSessionMeetsMfa } from "@/lib/security/mfa";
 import { accountRole, isStaffRole } from "@/lib/roles";
 import { SAMPLE_TEMPLATE_SLUG, sampleTemplateContent } from "./sample-template";
-import type { Scene } from "./types";
+import type { Scene, TemplateContent } from "./types";
+import { DJ_NIGHT_SLUG, djNightTemplateContent } from "./templates/dj-night";
 
 export const FLYER_BUCKET = "flyer-assets";
 type Db = ReturnType<typeof createAdminClient>;
@@ -82,24 +83,37 @@ export async function checkSceneSources(db: Db, scene: Scene, djId: string, allo
   return null;
 }
 
-/** Puts the built-in sample template in place (published, version 1) the first time it's needed. */
-export async function ensureSampleTemplate(db: Db, userId: string | null): Promise<void> {
-  const { data: existing, error } = await db.from("flyer_templates").select("id").eq("slug", SAMPLE_TEMPLATE_SLUG).maybeSingle();
-  if (error) throw error;
-  if (existing) return;
-  const content = sampleTemplateContent();
-  const { data: t, error: tErr } = await db
-    .from("flyer_templates")
-    .insert({ slug: SAMPLE_TEMPLATE_SLUG, name: "Club Night (sample)", description: "Club lights, gold halo portrait, live text for every booking detail.", status: "published", draft: content, created_by: userId })
-    .select("id")
-    .single();
-  if (tErr) {
-    if ((tErr as { code?: string }).code === "23505") return; // someone else just made it
-    throw tErr;
+const BUILT_IN: { slug: string; name: string; description: string; content: () => TemplateContent }[] = [
+  { slug: SAMPLE_TEMPLATE_SLUG, name: "Club Night (sample)", description: "Club lights, gold halo portrait, live text for every booking detail.", content: sampleTemplateContent },
+  {
+    slug: DJ_NIGHT_SLUG,
+    name: "DJ Night Party",
+    description: "Red and yellow on deep green: big DJ NIGHT title, script Party, concert photo with a soft fade, lineup and venue panels. Portrait and story.",
+    content: djNightTemplateContent
   }
-  const { data: v, error: vErr } = await db.from("flyer_template_versions").insert({ template_id: t.id, version: 1, content, published_by: userId }).select("id").single();
-  if (vErr) throw vErr;
-  await db.from("flyer_templates").update({ current_version_id: v.id }).eq("id", t.id);
+];
+
+/** Puts the built-in templates in place (published, version 1) the first time they're needed. Never changes one that exists. */
+export async function ensureSampleTemplate(db: Db, userId: string | null): Promise<void> {
+  const { data: rows, error } = await db.from("flyer_templates").select("slug").in("slug", BUILT_IN.map((b) => b.slug));
+  if (error) throw error;
+  const have = new Set(((rows ?? []) as { slug: string }[]).map((r) => r.slug));
+  for (const b of BUILT_IN) {
+    if (have.has(b.slug)) continue;
+    const content = b.content();
+    const { data: t, error: tErr } = await db
+      .from("flyer_templates")
+      .insert({ slug: b.slug, name: b.name, description: b.description, status: "published", draft: content, created_by: userId })
+      .select("id")
+      .single();
+    if (tErr) {
+      if ((tErr as { code?: string }).code === "23505") continue; // someone else just made it
+      throw tErr;
+    }
+    const { data: v, error: vErr } = await db.from("flyer_template_versions").insert({ template_id: t.id, version: 1, content, published_by: userId }).select("id").single();
+    if (vErr) throw vErr;
+    await db.from("flyer_templates").update({ current_version_id: v.id }).eq("id", t.id);
+  }
 }
 
 /** Fetches an image from this project's own Supabase storage (never an arbitrary URL) for same-origin serving. */

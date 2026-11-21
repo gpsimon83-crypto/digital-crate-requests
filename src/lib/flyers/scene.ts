@@ -265,6 +265,7 @@ const textSchema = z.object({
   padding: z.preprocess((v) => (typeof v === "number" && Number.isFinite(v) ? Math.min(400, Math.max(0, v)) : undefined), z.number().optional()),
   pivot: z.preprocess((v) => (v === "center" || v === "topLeft" ? v : undefined), z.enum(["center", "topLeft"]).optional()),
   trackingEm: z.preprocess((v) => (typeof v === "number" && Number.isFinite(v) ? Math.min(1, Math.max(-0.3, v)) : null), z.number().nullable().optional()),
+  stretch: z.preprocess((v) => (typeof v === "number" && Number.isFinite(v) && Math.abs(v - 1) > 0.001 ? Math.min(3, Math.max(0.4, v)) : undefined), z.number().optional()),
   panel: z.preprocess(
     (v) => (v && typeof v === "object" ? v : null),
     z.object({ enabled: bool(false), color: color("#000000"), opacity: num(0, 1, 0.6), padding: num(0, 200, 24), radius: num(0, 400, 12) }).nullable()
@@ -442,6 +443,7 @@ export function bookingValues(
     event_month_day: start ? `${monthShort(part({ month: "numeric" }))} ${part({ day: "numeric" })}` : null,
     // Start–end only from the event's own times: nothing is invented (no "CLOSE" unless a layer says so).
     event_time_range: time(e?.starts_at) ? [time(e?.starts_at), time(e?.ends_at)].filter(Boolean).join("–") : null,
+    event_year: part({ year: "numeric" }),
     start_time: time(e?.starts_at),
     end_time: time(e?.ends_at),
     venue_name: e?.venue_name?.trim() || null,
@@ -507,7 +509,7 @@ export function withGroup(nodes: FlyerNode[], id: string): string[] {
 /* ---------------- DJ permission check (server side) ---------------- */
 
 const MOVE_KEYS = ["x", "y", "width", "height", "rotation"] as const;
-const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend", "fitBox", "minFontSize", "panel", "valign", "padding", "trackingEm", "effects"] as const;
+const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend", "fitBox", "minFontSize", "panel", "valign", "padding", "trackingEm", "stretch", "effects"] as const;
 const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "shadow", "opacity", "blend", "effects"] as const;
 const STYLE_KEYS_SHAPE = ["shape", "fillEnabled", "fill", "stroke", "radius", "keepRatio", "shadow", "opacity", "blend", "effects"] as const;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);

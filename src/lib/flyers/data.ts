@@ -10,6 +10,13 @@ export type EventRow = { id: string; title: string | null; starts_at: string | n
 
 export const EVENT_SELECT = "id, title, starts_at, ends_at, timezone, dj_id, venue_id, venue_name, status, venues(id, name, location, address_line1, city, state, postal_code, logo_url)";
 
+/** Street, and "City, ST ZIP", for flyers that show the address on two lines. */
+export function venueParts(v: VenueRow | null): { venue_street: string | null; venue_city: string | null } {
+  if (!v) return { venue_street: null, venue_city: null };
+  const cityLine = [v.city, [v.state, v.postal_code].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  return { venue_street: v.address_line1?.trim() || null, venue_city: cityLine || null };
+}
+
 export function venueAddress(v: VenueRow | null): string | null {
   if (!v) return null;
   const cityLine = [v.city, [v.state, v.postal_code].filter(Boolean).join(" ")].filter(Boolean).join(", ");
@@ -19,10 +26,14 @@ export function venueAddress(v: VenueRow | null): string | null {
 
 /** Placeholder values for a booking. Read only: making a flyer never changes the booking. */
 export function eventValues(e: EventRow | null, djName: string): PlaceholderValues {
-  return bookingValues(
-    e ? { title: e.title, starts_at: e.starts_at, ends_at: e.ends_at, timezone: e.timezone, venue_name: e.venues?.name ?? e.venue_name, venue_address: venueAddress(e.venues) } : null,
-    djName
-  );
+  return {
+    ...bookingValues(
+      e ? { title: e.title, starts_at: e.starts_at, ends_at: e.ends_at, timezone: e.timezone, venue_name: e.venues?.name ?? e.venue_name, venue_address: venueAddress(e.venues) } : null,
+      djName
+    ),
+    ...venueParts(e?.venues ?? null),
+    dj_lineup: djName || null
+  };
 }
 
 export async function loadEvent(db: Db, id: string): Promise<EventRow | null> {
@@ -137,6 +148,7 @@ export async function loadFlyerContext(db: Db, opts: { eventId: string | null; v
     ...base,
     venue_name: venue?.name ?? event?.venue_name ?? null,
     venue_address: venueAddress(venue),
+    ...venueParts(venue),
     drink_specials: drink.text,
     event_details: occasion
   };
@@ -145,6 +157,8 @@ export async function loadFlyerContext(db: Db, opts: { eventId: string | null; v
   });
   // The calendar names a DJ who has no CRM profile yet: their name still fills the text.
   if (!slotDjs[0]) values.dj_name = !opts.djSlots?.length && night?.dj_name && !night.dj_id ? night.dj_name : null;
+  // Every DJ on the flyer, in slot order: "DJ ONE • DJ TWO".
+  values.dj_lineup = [values.dj_name, ...slotDjs.slice(1).map((d) => d?.display_name ?? null)].filter(Boolean).join(" • ") || null;
 
   return {
     event: event ? { id: event.id, title: event.title, starts_at: event.starts_at, venue_id: event.venue_id, venue_name: venue?.name ?? event.venue_name } : null,

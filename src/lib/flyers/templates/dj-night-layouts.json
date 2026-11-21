@@ -1,0 +1,636 @@
+{
+ "portrait": {
+  "canvas": {
+   "width": 1080,
+   "height": 1350
+  },
+  "layers": [
+   {
+    "id": "background",
+    "type": "rect",
+    "x": 0,
+    "y": 0,
+    "width": 1080,
+    "height": 1350,
+    "fill": "#10271e",
+    "stroke": null
+   },
+   {
+    "id": "border",
+    "type": "rect",
+    "x": 8,
+    "y": 8,
+    "width": 1064,
+    "height": 1334,
+    "fill": "none",
+    "stroke": "#b5a311"
+   },
+   {
+    "id": "replaceable-concert-photo",
+    "type": "image",
+    "src": "assets/concert-photo.png",
+    "x": 20,
+    "y": 391,
+    "width": 1040,
+    "height": 540,
+    "fit": "cover",
+    "mask": "concert-mask",
+    "replaceable": true
+   },
+   {
+    "id": "top-left",
+    "type": "text",
+    "text": "SPECIAL PARTY",
+    "x": 175,
+    "y": 128,
+    "width": 150,
+    "fontSize": 17,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#ee252e",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "presenter",
+    "type": "text",
+    "text": "YOUR VENUE PRESENTS",
+    "x": 540,
+    "y": 128,
+    "width": 360,
+    "fontSize": 23,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "top-right",
+    "type": "text",
+    "text": "ONE SPECIAL NIGHT",
+    "x": 905,
+    "y": 128,
+    "width": 155,
+    "fontSize": 17,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#ee252e",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "title",
+    "type": "text",
+    "text": "DJ NIGHT",
+    "x": 540,
+    "y": 392,
+    "width": 920,
+    "fontSize": 250,
+    "fontFamily": "Anton",
+    "fill": "#ee252e",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "script",
+    "type": "text",
+    "text": "Party",
+    "x": 540,
+    "y": 574,
+    "width": 445,
+    "fontSize": 180,
+    "fontFamily": "Great Vibes",
+    "fill": "#f6e539",
+    "rotation": -8,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "date",
+    "type": "text",
+    "text": "DAY MON",
+    "x": 165,
+    "y": 722,
+    "width": 180,
+    "fontSize": 57,
+    "fontFamily": "Anton",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "year",
+    "type": "text",
+    "text": "YEAR",
+    "x": 165,
+    "y": 787,
+    "width": 155,
+    "fontSize": 57,
+    "fontFamily": "Anton",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "start-label",
+    "type": "text",
+    "text": "START",
+    "x": 900,
+    "y": 722,
+    "width": 160,
+    "fontSize": 57,
+    "fontFamily": "Anton",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "time",
+    "type": "text",
+    "text": "00 PM",
+    "x": 900,
+    "y": 787,
+    "width": 165,
+    "fontSize": 57,
+    "fontFamily": "Anton",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "lineup-panel",
+    "type": "rect",
+    "x": 95,
+    "y": 972,
+    "width": 890,
+    "height": 141,
+    "fill": "#10271e",
+    "stroke": "#ba2b2e"
+   },
+   {
+    "id": "lineup-label-box",
+    "type": "rect",
+    "x": 345,
+    "y": 947,
+    "width": 390,
+    "height": 41,
+    "fill": "#10271e",
+    "stroke": "#ba2b2e"
+   },
+   {
+    "id": "lineup-label",
+    "type": "text",
+    "text": "SPECIAL PERFORMANCE BY",
+    "x": 540,
+    "y": 979,
+    "width": 345,
+    "fontSize": 22,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#ee252e",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "lineup-1",
+    "type": "text",
+    "text": "DJ NAME \u2022 DJ NAME \u2022 DJ NAME",
+    "x": 540,
+    "y": 1042,
+    "width": 800,
+    "fontSize": 30,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "lineup-2",
+    "type": "text",
+    "text": "GUEST NAME \u2022 GUEST NAME",
+    "x": 540,
+    "y": 1089,
+    "width": 740,
+    "fontSize": 30,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "venue-panel",
+    "type": "rect",
+    "x": 95,
+    "y": 1113,
+    "width": 890,
+    "height": 141,
+    "fill": "#10271e",
+    "stroke": "#ba2b2e"
+   },
+   {
+    "id": "venue",
+    "type": "text",
+    "text": "YOUR PLACE HERE",
+    "x": 335,
+    "y": 1195,
+    "width": 420,
+    "fontSize": 59,
+    "fontFamily": "Anton",
+    "fill": "#ee252e",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "address",
+    "type": "text",
+    "text": "STREET ADDRESS",
+    "x": 805,
+    "y": 1161,
+    "width": 280,
+    "fontSize": 20,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "city",
+    "type": "text",
+    "text": "CITY, STATE \u2022 ZIP",
+    "x": 805,
+    "y": 1203,
+    "width": 280,
+    "fontSize": 20,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "contact",
+    "type": "text",
+    "text": "CONTACT \u2022 WEBSITE \u2022 PHONE",
+    "x": 540,
+    "y": 1300,
+    "width": 710,
+    "fontSize": 20,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   }
+  ],
+  "coordinates": "pixels; text x center and y alphabetic baseline; rotations clockwise",
+  "mask": {
+   "id": "concert-mask",
+   "type": "vertical-gradient",
+   "stops": [
+    [
+     0,
+     0
+    ],
+    [
+     0.22,
+     1
+    ],
+    [
+     0.75,
+     1
+    ],
+    [
+     1,
+     0
+    ]
+   ]
+  }
+ },
+ "story": {
+  "canvas": {
+   "width": 1080,
+   "height": 1920
+  },
+  "layers": [
+   {
+    "id": "background",
+    "type": "rect",
+    "x": 0,
+    "y": 0,
+    "width": 1080,
+    "height": 1920,
+    "fill": "#10271e",
+    "stroke": null
+   },
+   {
+    "id": "border",
+    "type": "rect",
+    "x": 8,
+    "y": 8,
+    "width": 1064,
+    "height": 1904,
+    "fill": "none",
+    "stroke": "#b5a311"
+   },
+   {
+    "id": "replaceable-concert-photo",
+    "type": "image",
+    "src": "assets/concert-photo.png",
+    "x": 20,
+    "y": 556,
+    "width": 1040,
+    "height": 768,
+    "fit": "cover",
+    "mask": "concert-mask",
+    "replaceable": true
+   },
+   {
+    "id": "top-left",
+    "type": "text",
+    "text": "SPECIAL PARTY",
+    "x": 175,
+    "y": 182,
+    "width": 150,
+    "fontSize": 17,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#ee252e",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "presenter",
+    "type": "text",
+    "text": "YOUR VENUE PRESENTS",
+    "x": 540,
+    "y": 182,
+    "width": 360,
+    "fontSize": 23,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "top-right",
+    "type": "text",
+    "text": "ONE SPECIAL NIGHT",
+    "x": 905,
+    "y": 182,
+    "width": 155,
+    "fontSize": 17,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#ee252e",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "title",
+    "type": "text",
+    "text": "DJ NIGHT",
+    "x": 540,
+    "y": 557,
+    "width": 920,
+    "fontSize": 250,
+    "fontFamily": "Anton",
+    "fill": "#ee252e",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "script",
+    "type": "text",
+    "text": "Party",
+    "x": 540,
+    "y": 816,
+    "width": 445,
+    "fontSize": 180,
+    "fontFamily": "Great Vibes",
+    "fill": "#f6e539",
+    "rotation": -8,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "date",
+    "type": "text",
+    "text": "DAY MON",
+    "x": 165,
+    "y": 1027,
+    "width": 180,
+    "fontSize": 57,
+    "fontFamily": "Anton",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "year",
+    "type": "text",
+    "text": "YEAR",
+    "x": 165,
+    "y": 1119,
+    "width": 155,
+    "fontSize": 57,
+    "fontFamily": "Anton",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "start-label",
+    "type": "text",
+    "text": "START",
+    "x": 900,
+    "y": 1027,
+    "width": 160,
+    "fontSize": 57,
+    "fontFamily": "Anton",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "time",
+    "type": "text",
+    "text": "00 PM",
+    "x": 900,
+    "y": 1119,
+    "width": 165,
+    "fontSize": 57,
+    "fontFamily": "Anton",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "lineup-panel",
+    "type": "rect",
+    "x": 95,
+    "y": 1382,
+    "width": 890,
+    "height": 201,
+    "fill": "#10271e",
+    "stroke": "#ba2b2e"
+   },
+   {
+    "id": "lineup-label-box",
+    "type": "rect",
+    "x": 345,
+    "y": 1347,
+    "width": 390,
+    "height": 59,
+    "fill": "#10271e",
+    "stroke": "#ba2b2e"
+   },
+   {
+    "id": "lineup-label",
+    "type": "text",
+    "text": "SPECIAL PERFORMANCE BY",
+    "x": 540,
+    "y": 1392,
+    "width": 345,
+    "fontSize": 22,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#ee252e",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "lineup-1",
+    "type": "text",
+    "text": "DJ NAME \u2022 DJ NAME \u2022 DJ NAME",
+    "x": 540,
+    "y": 1482,
+    "width": 800,
+    "fontSize": 30,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "lineup-2",
+    "type": "text",
+    "text": "GUEST NAME \u2022 GUEST NAME",
+    "x": 540,
+    "y": 1549,
+    "width": 740,
+    "fontSize": 30,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "venue-panel",
+    "type": "rect",
+    "x": 95,
+    "y": 1584,
+    "width": 890,
+    "height": 201,
+    "fill": "#10271e",
+    "stroke": "#ba2b2e"
+   },
+   {
+    "id": "venue",
+    "type": "text",
+    "text": "YOUR PLACE HERE",
+    "x": 335,
+    "y": 1699,
+    "width": 420,
+    "fontSize": 59,
+    "fontFamily": "Anton",
+    "fill": "#ee252e",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "address",
+    "type": "text",
+    "text": "STREET ADDRESS",
+    "x": 805,
+    "y": 1651,
+    "width": 280,
+    "fontSize": 20,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "city",
+    "type": "text",
+    "text": "CITY, STATE \u2022 ZIP",
+    "x": 805,
+    "y": 1711,
+    "width": 280,
+    "fontSize": 20,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   },
+   {
+    "id": "contact",
+    "type": "text",
+    "text": "CONTACT \u2022 WEBSITE \u2022 PHONE",
+    "x": 540,
+    "y": 1849,
+    "width": 710,
+    "fontSize": 20,
+    "fontFamily": "Barlow Condensed",
+    "fill": "#f6e539",
+    "rotation": 0,
+    "anchor": "middle",
+    "baseline": "alphabetic"
+   }
+  ],
+  "coordinates": "pixels; text x center and y alphabetic baseline; rotations clockwise",
+  "mask": {
+   "id": "concert-mask",
+   "type": "vertical-gradient",
+   "stops": [
+    [
+     0,
+     0
+    ],
+    [
+     0.22,
+     1
+    ],
+    [
+     0.75,
+     1
+    ],
+    [
+     1,
+     0
+    ]
+   ]
+  }
+ }
+}

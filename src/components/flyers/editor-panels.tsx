@@ -370,6 +370,7 @@ function TextProps({ n, set, canEdit, canStyle, mode, textRef }: { n: TextNode; 
           ) : (
             <Num label="Letter spacing" value={n.letterSpacing} min={-20} max={80} step={0.5} onChange={(v) => set({ letterSpacing: v }, "letterSpacing")} disabled={!canStyle} suffix="px" />
           )}
+          <Num label="Stretch" value={Math.round((n.stretch ?? 1) * 100)} min={40} max={300} step={5} onChange={(v) => set({ stretch: v / 100 }, "stretch")} disabled={!canStyle} suffix="%" />
         </div>
         <button
           className="self-start text-[11px] font-medium text-gold-dim underline disabled:opacity-40"
