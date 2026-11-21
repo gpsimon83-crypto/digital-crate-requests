@@ -19,6 +19,7 @@ import {
   type Pattern,
   type Schedule
 } from "@/lib/residency";
+import { djRowForUser } from "@/lib/view-as";
 
 type Db = ReturnType<typeof createAdminClient>;
 
@@ -187,8 +188,7 @@ export async function residencyView(eventId: string, opts: { finance: boolean })
 
 /** The DJ's login → DJ profile id. */
 export async function djIdForUser(db: Db, userId: string) {
-  const { data } = await db.from("djs").select("id, display_name").eq("auth_user_id", userId).maybeSingle();
-  return (data as { id: string; display_name: string } | null) ?? null;
+  return djRowForUser<{ id: string; display_name: string }>(db, userId, "id, display_name");
 }
 
 /** In-app notification to a DJ (bell). Never throws. */

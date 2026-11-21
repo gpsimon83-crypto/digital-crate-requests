@@ -7,6 +7,7 @@ import { accountRole, isStaffRole } from "@/lib/roles";
 import { SAMPLE_TEMPLATE_SLUG, sampleTemplateContent } from "./sample-template";
 import type { Scene, TemplateContent } from "./types";
 import { DJ_NIGHT_SLUG, djNightTemplateContent } from "./templates/dj-night";
+import { djRowForUser, viewAsDjIdFor } from "@/lib/view-as";
 
 export const FLYER_BUCKET = "flyer-assets";
 type Db = ReturnType<typeof createAdminClient>;
@@ -26,9 +27,11 @@ export async function flyerActor(): Promise<FlyerActor | NextResponse> {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   if (user.app_metadata?.role === "venue") return NextResponse.json({ error: "Not available for venue logins" }, { status: 403 });
-  const staff = isStaffRole(accountRole(user)) && (await staffSessionMeetsMfa(supabase));
   const db = createAdminClient();
-  const { data: dj } = await db.from("djs").select("id, display_name, photo_url").eq("auth_user_id", user.id).maybeSingle();
+  // View as DJ: exactly the DJ's own Flyer Creator, without staff extras.
+  const viewing = await viewAsDjIdFor(db, user.id);
+  const staff = !viewing && isStaffRole(accountRole(user)) && (await staffSessionMeetsMfa(supabase));
+  const dj = await djRowForUser<FlyerActor["dj"]>(db, user.id, "id, display_name, photo_url");
   if (!staff && !dj) return NextResponse.json({ error: "The Flyer Creator is for DJs and staff." }, { status: 403 });
   return { user, staff, dj: (dj as FlyerActor["dj"]) ?? null };
 }

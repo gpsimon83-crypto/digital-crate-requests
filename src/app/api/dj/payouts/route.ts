@@ -3,6 +3,7 @@ import { errorMessage } from "@/lib/error-message";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { listPayoutsForDj } from "@/lib/data/payouts";
+import { djRowForUser } from "@/lib/view-as";
 
 // Scoped by DJ-profile linkage, not a role check — same pattern as
 // /api/dj/profile and /api/dj/email-account. A staff account that's also
@@ -17,7 +18,7 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
   const db = createAdminClient();
-  const { data: dj } = await db.from("djs").select("id").eq("auth_user_id", user.id).maybeSingle();
+  const dj = await djRowForUser(db, user.id);
   if (!dj) return NextResponse.json({ error: "Your login isn't linked to a DJ profile." }, { status: 403 });
 
   try {

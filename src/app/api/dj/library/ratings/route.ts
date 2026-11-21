@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
+import { djRowForUser } from "@/lib/view-as";
 
 async function currentDjId(userId: string): Promise<string | null> {
   const db = createAdminClient();
-  const { data } = await db.from("djs").select("id").eq("auth_user_id", userId).maybeSingle();
+  const data = await djRowForUser(db, userId);
   return data?.id ?? null;
 }
 

@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getEmailAccountForDj, upsertEmailAccount, deleteEmailAccount } from "@/lib/data/email-accounts";
 import { verifyAccountConnection } from "@/lib/send-email";
 import { errorMessage } from "@/lib/error-message";
+import { djRowForUser } from "@/lib/view-as";
 
 async function currentDjId() {
   const supabase = await createClient();
@@ -12,7 +13,7 @@ async function currentDjId() {
   } = await supabase.auth.getUser();
   if (!user) return null;
   const db = createAdminClient();
-  const { data: dj } = await db.from("djs").select("id").eq("auth_user_id", user.id).maybeSingle();
+  const dj = await djRowForUser(db, user.id);
   return dj?.id ?? null;
 }
 

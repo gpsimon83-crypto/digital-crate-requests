@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createEvent } from "@/lib/data/events";
 import { errorMessage } from "@/lib/error-message";
+import { djRowForUser } from "@/lib/view-as";
 
 /**
  * DJs create their own events directly (auto-confirmed, since there's no
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const db = createAdminClient();
-    const { data: dj } = await db.from("djs").select("id").eq("auth_user_id", user.id).maybeSingle();
+    const dj = await djRowForUser(db, user.id);
 
     if (!dj) {
       return NextResponse.json({ error: "Your login isn't linked to a DJ profile." }, { status: 403 });

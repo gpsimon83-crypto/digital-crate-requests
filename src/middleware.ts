@@ -20,6 +20,11 @@ const PUBLIC_EXCEPTIONS = [LOGIN_PATH, SIGNUP_PATH, PORTAL_LOGIN_PATH, PORTAL_SI
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+/** "View as DJ" (see src/lib/view-as.ts): read-only while on, and switched off by opening any /admin page. */
+const VIEW_AS_COOKIE = "dcdj_view_as";
+const VIEW_AS_NAME_COOKIE = "dcdj_view_as_name";
+const VIEW_AS_WRITABLE = ["/api/admin/view-as", "/api/auth/logout"];
+
 /**
  * CSRF defence for cookie-authenticated API calls: a browser always sends
  * an Origin header on cross-site POST/PUT/PATCH/DELETE, so any mutation
@@ -47,11 +52,23 @@ function privateHeaders(res: NextResponse) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  const viewingAs = !!request.cookies.get(VIEW_AS_COOKIE)?.value;
+
   if (pathname.startsWith("/api/")) {
     if (MUTATING.has(request.method) && !originAllowed(request)) {
       return NextResponse.json({ error: "Cross-site request blocked" }, { status: 403 });
     }
+    if (viewingAs && MUTATING.has(request.method) && !VIEW_AS_WRITABLE.some((p) => pathname.startsWith(p))) {
+      return NextResponse.json({ error: "You're viewing as a DJ, which is read-only. Exit View as DJ to make changes.", viewAs: true }, { status: 403 });
+    }
     return NextResponse.next();
+  }
+
+  if (viewingAs && (pathname === "/admin" || pathname.startsWith("/admin/"))) {
+    const res = NextResponse.redirect(request.nextUrl.clone());
+    res.cookies.delete(VIEW_AS_COOKIE);
+    res.cookies.delete(VIEW_AS_NAME_COOKIE);
+    return res;
   }
 
   const needsDjAuth = pathname.startsWith(DJ_PREFIX);

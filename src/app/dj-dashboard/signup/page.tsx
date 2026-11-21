@@ -27,6 +27,19 @@ function SignupForm() {
     return /^[A-Za-z0-9-]{4,40}$/.test(c) ? c.toUpperCase() : "";
   });
   const [displayName, setDisplayName] = useState("");
+  // A setup link (code tied to an existing DJ profile): the account joins that profile, name included.
+  const [setupFor, setSetupFor] = useState<string | null>(null);
+  useEffect(() => {
+    const c = code.trim();
+    if (!/^[A-Za-z0-9-]{8,40}$/.test(c)) return;
+    const t = setTimeout(() => {
+      fetch(`/api/auth/invite-info?code=${encodeURIComponent(c)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => setSetupFor(d?.dj?.display_name ?? null))
+        .catch(() => setSetupFor(null));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [code]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -50,7 +63,7 @@ function SignupForm() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code, displayName, email, password }),
+        body: JSON.stringify({ code, displayName: setupFor ?? displayName, email, password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
@@ -76,7 +89,7 @@ function SignupForm() {
             <div>
               <h1 className="font-display text-3xl font-light text-foreground">DJ Sign Up</h1>
               <p className="mt-1 text-xs text-muted">
-                {checking ? "Checking availability..." : "Enter your invite code to create your account."}
+                {checking ? "Checking availability..." : setupFor ? `Setting up the account for ${setupFor}.` : "Enter your invite code to create your account."}
               </p>
             </div>
           </div>
@@ -106,6 +119,11 @@ function SignupForm() {
                 </div>
               </label>
 
+              {setupFor ? (
+                <p className="rounded-[10px] border border-gold/40 bg-gold-soft px-3 py-2 text-xs text-foreground">
+                  This link sets up <b>{setupFor}</b>. Add your email and a password to finish.
+                </p>
+              ) : (
               <label className="block">
                 <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">
                   DJ Name
@@ -122,6 +140,7 @@ function SignupForm() {
                   />
                 </div>
               </label>
+              )}
 
               <label className="block">
                 <span className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-muted">

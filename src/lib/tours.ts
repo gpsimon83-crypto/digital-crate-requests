@@ -18,6 +18,26 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-21-view-as-dj": [
+    {
+      path: "/admin/djs",
+      target: 'main',
+      title: "Open a DJ",
+      body: "Pick any DJ from this list. Their page has View as and, if they don't have a login yet, Send setup link."
+    },
+    {
+      path: "/admin/djs/*",
+      target: '[data-tour="dj-view-as"], main',
+      title: "View as DJ",
+      body: "Opens the DJ dashboard exactly as this DJ sees it. It's read-only; the green banner at the top has Exit."
+    },
+    {
+      path: "/admin/djs/*",
+      target: '[data-tour="dj-setup-link"], [data-tour="dj-view-as"], main',
+      title: "Send setup link",
+      body: "For a DJ with No Login: makes a one-time link that creates their account inside this profile. Copy it, or Email or Text it from your phone or computer."
+    }
+  ],
   "2026-11-21-my-gigs-invites": [
     {
       path: "/admin/djs",

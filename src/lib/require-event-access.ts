@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { staffSessionMeetsMfa } from "@/lib/security/mfa";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isStaffRole, accountRole } from "@/lib/roles";
+import { djRowForUser, viewAsDjIdFor } from "@/lib/view-as";
 
 /**
  * A project's email thread is visible to admin/staff (everyone) and to
@@ -17,14 +18,16 @@ export async function requireEventAccess(eventId: string) {
   if (!user) return { authorized: false as const, status: 401, error: "Not signed in" };
 
   // Staff powers need a session that passed two-factor (when set up / required).
-  const isAdmin = isStaffRole(accountRole(user)) && (await staffSessionMeetsMfa(supabase));
-
   const db = createAdminClient();
-  const { data: dj } = await db
-    .from("djs")
-    .select("id, display_name, signature_phone, signature_email")
-    .eq("auth_user_id", user.id)
-    .maybeSingle();
+  // View as DJ: only what that DJ could open, read-only.
+  const viewing = await viewAsDjIdFor(db, user.id);
+  const isAdmin = !viewing && isStaffRole(accountRole(user)) && (await staffSessionMeetsMfa(supabase));
+
+  const dj = await djRowForUser<{ id: string; display_name: string; signature_phone: string | null; signature_email: string | null }>(
+    db,
+    user.id,
+    "id, display_name, signature_phone, signature_email"
+  );
 
   if (!isAdmin && !dj) return { authorized: false as const, status: 403, error: "No access to this project" };
 

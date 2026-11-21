@@ -19,6 +19,18 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-21-view-as-dj",
+    date: "2026-11-21",
+    area: "CRM",
+    title: "View as DJ, and account setup links",
+    summary: "On any DJ's page: View as (name) opens the DJ dashboard exactly as that DJ sees it, read-only, with a green banner and an Exit button. Send setup link gives a DJ without a login a link that creates their account inside their existing profile.",
+    bullets: [
+      "View as DJ shows their bookings, payouts, profile, flyers and gigs. Nothing can be saved or changed while viewing; opening any admin page (or Exit) ends it. It lasts at most two hours",
+      "Send setup link (DJs with No Login): Copy, Email or Text. The sign-up page says whose account it is, skips the name, and joins the login to that profile, so no duplicate DJ is made",
+      "Sending again reuses the same unused link"
+    ]
+  },
+  {
     id: "2026-11-21-my-gigs-invites",
     date: "2026-11-21",
     area: "CRM",

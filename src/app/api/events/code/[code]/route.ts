@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { accountRole, isStaffRole } from "@/lib/roles";
 import { staffSessionMeetsMfa } from "@/lib/security/mfa";
+import { djRowForUser, viewAsDjIdFor } from "@/lib/view-as";
 
 /** What a guest page may see. Event codes are short and printed on QR signs, so they're not secrets. */
 const PUBLIC_EVENT = "id, event_code, title, status, starts_at, ends_at, event_type, hero_image_url, guest_request_settings, dj_id, venue_id, djs(id, display_name, photo_url, hero_settings), venues(id, name)";
@@ -25,11 +26,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ cod
     } = await supabase.auth.getUser();
 
     if (user) {
-      const isStaff = isStaffRole(accountRole(user)) && (await staffSessionMeetsMfa(supabase));
+      const viewing = await viewAsDjIdFor(createAdminClient(), user.id);
+      const isStaff = !viewing && isStaffRole(accountRole(user)) && (await staffSessionMeetsMfa(supabase));
       const event = await getEventByCode(code);
       if (!event) return NextResponse.json({ error: "Event not found" }, { status: 404 });
       if (isStaff) return NextResponse.json({ event });
-      const { data: dj } = await createAdminClient().from("djs").select("id").eq("auth_user_id", user.id).maybeSingle();
+      const dj = await djRowForUser(createAdminClient(), user.id);
       if (dj && event.dj_id === dj.id) return NextResponse.json({ event });
     }
 

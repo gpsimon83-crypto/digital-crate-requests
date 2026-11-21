@@ -5,6 +5,7 @@ import { requireAuth } from "@/lib/require-auth";
 import { requireAdmin } from "@/lib/require-admin";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { djRowForUser, viewAsDjIdFor } from "@/lib/view-as";
 import { isStaffRole, accountRole } from "@/lib/roles";
 
 /**
@@ -23,9 +24,10 @@ export async function GET() {
 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (user && !isStaffRole(accountRole(user))) {
+    const viewing = user ? await viewAsDjIdFor(createAdminClient(), user.id) : null;
+    if (user && (viewing || !isStaffRole(accountRole(user)))) {
       const db = createAdminClient();
-      const { data: dj } = await db.from("djs").select("id").eq("auth_user_id", user.id).maybeSingle();
+      const dj = await djRowForUser(db, user.id);
       const scoped = dj ? events.filter((e) => e.dj_id === dj.id) : [];
       return NextResponse.json({ events: scoped });
     }

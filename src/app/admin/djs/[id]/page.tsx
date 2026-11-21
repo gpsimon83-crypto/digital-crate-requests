@@ -12,7 +12,12 @@ import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { DjServicesEditor } from "@/components/services/dj-services-editor";
 import { money } from "@/lib/format";
 import type { HeroSettings } from "@/lib/hero-settings";
+import { Check, Copy, Eye, Mail, MessageSquare, Send } from "lucide-react";
 import { ArrowLeft, CalendarDays, ChevronRight, FolderOpen, TrendingUp, Wallet, ExternalLink, Briefcase, DollarSign } from "lucide-react";
+
+function setupMessage(s: { name: string; link: string }) {
+  return `Hi ${s.name}! Here's your link to set up your Digital Crate DJs account: ${s.link}\n\nOpen it, add your email and a password, and you're in. The link works once.`;
+}
 
 interface DjEvent {
   id: string;
@@ -86,6 +91,40 @@ function DjDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const [meLinkedTo, setMeLinkedTo] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [setup, setSetup] = useState<{ code: string; link: string; email: string | null; name: string } | null>(null);
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [viewing, setViewing] = useState(false);
+
+  async function makeSetupLink() {
+    setSetupBusy(true);
+    setLinkError(null);
+    try {
+      const res = await fetch(`/api/admin/djs/${id}/setup-link`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't make a setup link");
+      setSetup(data);
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSetupBusy(false);
+    }
+  }
+
+  // Read-only "View as DJ": the DJ dashboard exactly as this DJ sees it, until Exit (or opening any admin page).
+  async function viewAsThisDj() {
+    setViewing(true);
+    setLinkError(null);
+    try {
+      const res = await fetch("/api/admin/view-as", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ djId: id }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't switch views");
+      window.location.href = "/dj-dashboard";
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : "Something went wrong.");
+      setViewing(false);
+    }
+  }
 
   useEffect(() => {
     fetch("/api/me")
@@ -199,6 +238,64 @@ function DjDetailInner({ params }: { params: Promise<{ id: string }> }) {
             )}
           </div>
         </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={viewAsThisDj}
+            disabled={viewing}
+            data-tour="dj-view-as"
+            className="inline-flex items-center gap-1.5 rounded-[10px] border border-border px-3 py-2 text-sm font-semibold hover:border-gold disabled:opacity-60"
+            title="See the DJ dashboard exactly as this DJ sees it (read-only)"
+          >
+            <Eye size={15} /> {viewing ? "Opening…" : `View as ${dj.display_name}`}
+          </button>
+          {!dj.auth_user_id && (
+            <button
+              type="button"
+              onClick={makeSetupLink}
+              disabled={setupBusy}
+              data-tour="dj-setup-link"
+              className="inline-flex items-center gap-1.5 rounded-[10px] border border-gold px-3 py-2 text-sm font-semibold text-gold hover:bg-gold-soft disabled:opacity-60"
+            >
+              <Send size={15} /> {setupBusy ? "Making link…" : "Send setup link"}
+            </button>
+          )}
+        </div>
+        {setup && (
+          <GlassCard className="flex flex-col gap-2" data-tour="dj-setup-panel">
+            <p className="text-sm font-semibold">Account setup link for {setup.name}</p>
+            <p className="text-xs text-muted">
+              Send this to {setup.name}. It opens the sign-up page with their code filled in; they add their email and a password, and the login joins this profile. It works once.
+            </p>
+            <code className="block break-all rounded-[8px] border border-border bg-panel px-3 py-2 text-xs">{setup.link}</code>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 rounded-[8px] border border-border px-3 py-1.5 text-xs font-semibold hover:border-gold"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(setupMessage(setup));
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  } catch {
+                    setLinkError("Couldn't copy. Select the link and copy it by hand.");
+                  }
+                }}
+              >
+                {copied ? <Check size={13} /> : <Copy size={13} />} {copied ? "Copied" : "Copy message"}
+              </button>
+              <a
+                className="inline-flex items-center gap-1.5 rounded-[8px] border border-border px-3 py-1.5 text-xs font-semibold hover:border-gold"
+                href={`mailto:${setup.email ?? ""}?subject=${encodeURIComponent("Set up your Digital Crate DJs account")}&body=${encodeURIComponent(setupMessage(setup))}`}
+              >
+                <Mail size={13} /> Email
+              </a>
+              <a className="inline-flex items-center gap-1.5 rounded-[8px] border border-border px-3 py-1.5 text-xs font-semibold hover:border-gold" href={`sms:?&body=${encodeURIComponent(setupMessage(setup))}`}>
+                <MessageSquare size={13} /> Text
+              </a>
+            </div>
+          </GlassCard>
+        )}
         {linkError && <p className="text-xs text-status-declined">{linkError}</p>}
 
         <div className="flex flex-wrap border border-border">

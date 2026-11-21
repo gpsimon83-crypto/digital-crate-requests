@@ -77,11 +77,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (invite.assigned_dj_id) {
-      // Code was pre-assigned to a DJ record an admin already set up — link it.
+      // Code was pre-assigned to a DJ record an admin already set up (a setup link) — link it.
+      // The profile keeps the name it already has; the name typed here is only used for brand-new DJs.
       const { error: linkError } = await db
         .from("djs")
-        .update({ auth_user_id: authUser.user.id, display_name: displayName })
-        .eq("id", invite.assigned_dj_id);
+        .update({ auth_user_id: authUser.user.id })
+        .eq("id", invite.assigned_dj_id)
+        .is("auth_user_id", null);
       if (linkError) throw linkError;
     } else {
       // Generic code — create a fresh DJ record for this signup.

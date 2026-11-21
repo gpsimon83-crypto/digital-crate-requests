@@ -3,13 +3,13 @@ import { accountRole } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
+import { djRowForUser } from "@/lib/view-as";
 
 const STAFF_ROLES = ["owner", "admin", "manager"];
 
 async function currentDj(userId: string) {
   const db = createAdminClient();
-  const { data } = await db.from("djs").select("id, display_name").eq("auth_user_id", userId).maybeSingle();
-  return data;
+  return djRowForUser<{ id: string; display_name: string }>(db, userId, "id, display_name");
 }
 
 /**
