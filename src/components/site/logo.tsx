@@ -31,8 +31,8 @@ export function Logo({
     // The full signature mark (cursive script + laurel + "EST. 2013") only
     // reads at large sizes — used as-is for variant="full". At icon sizes
     // (sidebars, login headers) it rendered as an illegible gold smudge,
-    // so variant="icon" uses a tight crop of just the "CD" monogram
-    // instead, which holds up down to ~24px.
+    // so variant="icon" uses the "DC DJS" box badge (charcoal square,
+    // cream letters, copper bar), which holds up down to ~20px.
     const src = variant === "icon" ? "/brand/crates-djs-icon.png" : "/brand/crates-djs-signature.png";
     return (
       <Image
