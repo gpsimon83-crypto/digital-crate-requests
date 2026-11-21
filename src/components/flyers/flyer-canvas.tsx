@@ -6,7 +6,10 @@ import type Konva from "konva";
 import { Ellipse, Group, Image as KImage, Layer, Line, Rect, Stage, Text as KText, Transformer } from "react-konva";
 import { imageLayout } from "@/lib/flyers/scene";
 import { boundsOf, snapBox, type Guide } from "@/lib/flyers/snap";
-import { needsProcessing, processedImage } from "@/lib/flyers/feather";
+import { applyFeather, needsProcessing, processedImage } from "@/lib/flyers/feather";
+import { effectsOn } from "@/lib/flyers/effects";
+import { runEffects, keyFor } from "./fx-runner";
+import { setFxStatus } from "./fx-status";
 import { shownByData } from "@/lib/flyers/links";
 import type { FlyerNode, ImageNode, Scene, ShapeNode, TextNode } from "@/lib/flyers/types";
 import { fontString, loadSceneFonts, loadSceneImages, slotDjId, srcFor, useImage, type SrcContext } from "./loaders";
@@ -41,24 +44,76 @@ function roundedClip(w: number, h: number, r: number) {
   };
 }
 
+function cloneCanvas(c: HTMLCanvasElement) {
+  const o = document.createElement("canvas");
+  o.width = c.width;
+  o.height = c.height;
+  o.getContext("2d")!.drawImage(c, 0, 0);
+  return o;
+}
+
 const shadowProps = (s: { enabled: boolean; color: string; blur: number; offsetX: number; offsetY: number; opacity: number }) =>
   s.enabled ? { shadowEnabled: true, shadowColor: s.color, shadowBlur: s.blur, shadowOffsetX: s.offsetX, shadowOffsetY: s.offsetY, shadowOpacity: s.opacity } : { shadowEnabled: false };
 
 function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; ctx: SrcContext; exporting: boolean; act: Interact | null; onStatus?: (id: string, done: boolean) => void }) {
   const url = srcFor(node.source, ctx);
   const { img, status } = useImage(url);
-  useEffect(() => {
-    onStatus?.(node.id, status !== "loading");
-  }, [node.id, status, onStatus]);
   const lay = img ? imageLayout(node, { width: img.naturalWidth, height: img.naturalHeight }, node.fit, node.crop) : null;
   const r = Math.min(node.frame.radius, node.width / 2, node.height / 2);
   const feather = node.feather ?? { amount: 0, shape: "edges" as const };
   const recolor = node.recolor ?? { mode: "none" as const, color: "#ffffff", knockoutWhite: false };
+  // Photo Effects: run on the framed picture (before the soft-edge fade), at preview or export resolution.
+  const fx = effectsOn(node.effects) ? node.effects : null;
+  const fxOn = !!fx;
+  const fxScale = Math.min(3, Math.max(0.1, ctx.fxScale ?? 1));
+  const featherKey = `${feather.amount}|${feather.shape}|${feather.curve}|${feather.sides?.top}|${feather.sides?.right}|${feather.sides?.bottom}|${feather.sides?.left}`;
   const soft = useMemo(
-    () => (img && lay && needsProcessing(feather, recolor) ? processedImage(img, node, lay, node.flipX, node.flipY, feather, recolor) : null),
+    () => (img && lay && (fx || needsProcessing(feather, recolor)) ? processedImage(img, node, lay, node.flipX, node.flipY, feather, recolor, fx ? { scale: fxScale, withFeather: false } : {}) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [img, lay?.x, lay?.y, lay?.width, lay?.height, node.width, node.height, node.flipX, node.flipY, feather.amount, feather.shape, feather.curve, feather.sides?.top, feather.sides?.right, feather.sides?.bottom, feather.sides?.left, recolor.mode, recolor.color, recolor.knockoutWhite]
+    [img, lay?.x, lay?.y, lay?.width, lay?.height, node.width, node.height, node.flipX, node.flipY, featherKey, recolor.mode, recolor.color, recolor.knockoutWhite, fxOn, fxScale]
   );
+  const fxKey = fx && soft ? `${keyFor(soft)}|${JSON.stringify(fx)}|${featherKey}|${fxScale}` : null;
+  const [fxOut, setFxOut] = useState<{ key: string; canvas: HTMLCanvasElement } | null>(null);
+  const [fxFailed, setFxFailed] = useState<string | null>(null);
+  useEffect(() => {
+    if (!fx || !soft || !fxKey) {
+      setFxStatus(node.id, null);
+      return;
+    }
+    let live = true;
+    setFxStatus(node.id, "working");
+    // Quick slider moves wait a moment; exports run straight away.
+    const t = setTimeout(
+      () => {
+        runEffects(soft, fx, fxScale)
+          .then((c) => {
+            if (!live) return;
+            setFxOut({ key: fxKey, canvas: applyFeather(c, feather, fxScale) });
+            setFxFailed(null);
+            setFxStatus(node.id, "ready");
+          })
+          .catch(() => {
+            if (!live) return;
+            setFxFailed(fxKey);
+            setFxStatus(node.id, "error");
+          });
+      },
+      exporting ? 0 : 70
+    );
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fxKey, exporting]);
+  // Without a finished effects image yet, show the photo as it was (never a blank frame).
+  const fxPending = !!fx && fxOut?.key !== fxKey && fxFailed !== fxKey;
+  const plainSoft = useMemo(() => (fx && soft ? applyFeather(cloneCanvas(soft), feather, fxScale) : null), [soft, fxOn]); // eslint-disable-line react-hooks/exhaustive-deps
+  const shown = fx ? (fxOut?.key === fxKey ? fxOut.canvas : (fxOut?.canvas ?? plainSoft)) : soft;
+  // An export waits until the effects at full resolution are done.
+  useEffect(() => {
+    onStatus?.(node.id, status !== "loading" && !fxPending);
+  }, [node.id, status, onStatus, fxPending]);
   const movable = !!act && act.interactive && !node.locked && act.canMove(node);
   const label = node.source.type === "dj_photo" ? "DJ photo" : node.source.type === "dj_logo" ? "DJ name logo" : node.source.type === "venue_logo" ? "Venue logo" : "Image";
   return (
@@ -79,8 +134,8 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
       {/* Full-size hit area so empty or transparent frames are still easy to grab. */}
       <Rect width={node.width} height={node.height} fill="rgba(0,0,0,0)" />
       <Group clipFunc={roundedClip(node.width, node.height, r)} listening={false}>
-        {soft ? (
-          <KImage image={soft} x={0} y={0} width={node.width} height={node.height} {...(node.frame.enabled && node.frame.width > 0 ? { shadowEnabled: false } : shadowProps(node.shadow))} />
+        {shown ? (
+          <KImage image={shown} x={0} y={0} width={node.width} height={node.height} {...(node.frame.enabled && node.frame.width > 0 ? { shadowEnabled: false } : shadowProps(node.shadow))} />
         ) : img && lay && (
           <KImage
             image={img}
@@ -597,7 +652,9 @@ export function FlyerStage({
  * and image has loaded, then hands back the PNG/JPEG. Uses the same layer
  * drawing as the editor, so the export matches what's on screen.
  */
-export function ExportStage({ scene, ctx, mime, quality, onDone, pixelRatio = 1 }: { scene: Scene; ctx: SrcContext; mime: "image/png" | "image/jpeg"; quality: number; onDone: (blob: Blob | null, error?: string) => void; pixelRatio?: number }) {
+export function ExportStage({ scene, ctx: ctxIn, mime, quality, onDone, pixelRatio = 1 }: { scene: Scene; ctx: SrcContext; mime: "image/png" | "image/jpeg"; quality: number; onDone: (blob: Blob | null, error?: string) => void; pixelRatio?: number }) {
+  // Photo Effects render at the export's full resolution (textures and sizes scale with it).
+  const ctx = useMemo(() => ({ ...ctxIn, fxScale: pixelRatio }), [ctxIn, pixelRatio]);
   const stageRef = useRef<Konva.Stage>(null);
   const [ready, setReady] = useState(false);
   const pending = useRef(new Map<string, boolean>());
@@ -680,10 +737,11 @@ export function ScenePreview({ scene, width, ctx }: { scene: Scene; width: numbe
     };
   }, [scene]);
   const z = width / scene.width;
+  const small = useMemo(() => ({ ...(ctx ?? {}), fxScale: Math.max(0.1, z * 2) }), [ctx, z]);
   return (
     <Stage width={Math.round(scene.width * z)} height={Math.round(scene.height * z)} scaleX={z} scaleY={z} listening={false}>
       <Layer listening={false}>
-        <SceneNodes scene={scene} ctx={ctx ?? {}} exporting={false} act={null} fontsKey={fontsKey} />
+        <SceneNodes scene={scene} ctx={small} exporting={false} act={null} fontsKey={fontsKey} />
       </Layer>
     </Stage>
   );

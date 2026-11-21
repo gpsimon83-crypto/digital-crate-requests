@@ -18,6 +18,34 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-20-flyer-photo-effects": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "Photo Effects are in the flyer editor. Click Next to open your first flyer, or click any flyer with a DJ photo.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="fx-section"], [data-tour="flyer-layers"]',
+      title: "Select the photo",
+      body: "Click the DJ photo on the flyer (or pick it in Layers). Photo effects is at the top of its settings: click Add an effect.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="fx-presets"], [data-tour="fx-section"], [data-tour="flyer-layers"]',
+      title: "Pick a look",
+      body: "The thumbnails are made from your photo. Strength sets how much of the look you get, and each look shows only the controls that apply to it."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="fx-original"], [data-tour="fx-section"], [data-tour="flyer-layers"]',
+      title: "Compare, save, apply",
+      body: "Hold View original to see the photo without the effect. Save as preset keeps a look for other flyers. Apply keeps it (one undo step); Cancel puts it back. The photo itself is never changed, and exports match what you see."
+    }
+  ],
   "2026-11-20-recurring-bar-nights": [
     {
       path: "/admin/events",

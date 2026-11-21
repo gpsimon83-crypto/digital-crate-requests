@@ -19,6 +19,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-20-flyer-photo-effects",
+    date: "2026-11-20",
+    area: "CRM",
+    title: "Photo Effects for DJ photos",
+    summary: "Select a photo on a flyer and open Photo effects: 11 looks, previewed on your own photo, with a strength slider and controls for each look.",
+    bullets: [
+      "Looks: Emerald Editorial, Neon Duotone, Silver Noir, Golden Hour, Xerox Grit, Halftone Pop, VHS Afterhours, Direct Flash, Midnight Blue, Vintage Print and Red Strobe",
+      "Each look shows only its own controls (light, color, texture, cutout and fade). Hold View original to compare, Reset to remove, then Apply or Cancel; one Apply is one undo step",
+      "Effects touch only that photo. Cutouts stay cut out: edge light, subject shadow and echoes follow the subject's outline (and are skipped on photos without a transparent background)",
+      "Edge light is drawn from the cutout's outline; it imitates a rim light rather than relighting the photo",
+      "Save a look as your own preset and use it on any flyer",
+      "The photo itself is never changed. Replacing the photo keeps its place, size and effect; PNG and JPEG exports (and PNG 2×) match the editor, with transparency kept in PNGs"
+    ],
+    action: "Run migration 0062_flyer_effect_presets.sql in Supabase to save custom presets (effects work without it)"
+  },
+  {
     id: "2026-11-20-recurring-bar-nights",
     date: "2026-11-20",
     area: "CRM",

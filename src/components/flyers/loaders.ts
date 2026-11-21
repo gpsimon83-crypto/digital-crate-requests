@@ -57,6 +57,8 @@ export type SrcContext = {
   /** Template preview: which DJ shows in DJ slot 1, 2, … and which venue's logo shows. */
   previewSlots?: (string | null)[];
   previewVenueId?: string | null;
+  /** Photo Effects: output pixels per flyer pixel (editor preview < 1, high-res export 2). */
+  fxScale?: number;
 };
 
 /** The DJ an image slot shows: its own DJ, else (template preview) the DJ previewed in that slot. */

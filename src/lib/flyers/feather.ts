@@ -93,13 +93,17 @@ export function processedImage(
   flipX: boolean,
   flipY: boolean,
   f: Feather,
-  rc: Recolor = { mode: "none", color: "#ffffff", knockoutWhite: false }
+  rc: Recolor = { mode: "none", color: "#ffffff", knockoutWhite: false },
+  /** scale: output pixels per flyer pixel (exports, previews); withFeather: false leaves the fade for later (Photo Effects run first). */
+  opts: { scale?: number; withFeather?: boolean } = {}
 ): HTMLCanvasElement {
+  const scale = opts.scale ?? 1;
   const c = document.createElement("canvas");
-  c.width = Math.max(1, Math.round(frame.width));
-  c.height = Math.max(1, Math.round(frame.height));
-  const ctx = c.getContext("2d", { willReadFrequently: rc.knockoutWhite })!;
+  c.width = Math.max(1, Math.round(frame.width * scale));
+  c.height = Math.max(1, Math.round(frame.height * scale));
+  const ctx = c.getContext("2d", { willReadFrequently: rc.knockoutWhite || opts.withFeather === false })!;
   ctx.save();
+  ctx.scale(c.width / Math.max(1, frame.width), c.height / Math.max(1, frame.height));
   ctx.translate(flipX ? lay.x + lay.width : lay.x, flipY ? lay.y + lay.height : lay.y);
   ctx.scale(flipX ? -1 : 1, flipY ? -1 : 1);
   ctx.drawImage(img, 0, 0, lay.width, lay.height);
@@ -134,10 +138,19 @@ export function processedImage(
     ctx.drawImage(shape, 0, 0);
     ctx.globalCompositeOperation = "source-over";
   }
-  if (featherOn(f)) {
-    ctx.globalCompositeOperation = "destination-in";
-    ctx.drawImage(featherMask(c.width, c.height, f), 0, 0);
-  }
+  if (featherOn(f) && opts.withFeather !== false) applyFeather(c, f, scale);
+  return c;
+}
+
+/** Fades a canvas's edges in place (feather amounts are flyer pixels, times `scale`). */
+export function applyFeather(c: HTMLCanvasElement, f: Feather, scale = 1) {
+  if (!featherOn(f)) return c;
+  const sf: Feather = { ...f, amount: f.amount * scale, sides: f.sides ? { top: f.sides.top * scale, right: f.sides.right * scale, bottom: f.sides.bottom * scale, left: f.sides.left * scale } : f.sides };
+  const ctx = c.getContext("2d")!;
+  ctx.save();
+  ctx.globalCompositeOperation = "destination-in";
+  ctx.drawImage(featherMask(c.width, c.height, sf), 0, 0);
+  ctx.restore();
   return c;
 }
 

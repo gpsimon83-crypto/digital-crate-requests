@@ -65,6 +65,7 @@ import {
   type VenueOpt,
 } from "./editor-panels";
 import { loadSceneFonts, type SrcContext } from "./loaders";
+import type { PhotoEffects } from "@/lib/flyers/effects";
 import { importSvg } from "./svg-import";
 
 export type Scenes = Partial<Record<FormatKey, Scene>>;
@@ -211,6 +212,9 @@ export function FlyerEditor(props: FlyerEditorProps) {
         : "photos",
   );
   const [replacing, setReplacing] = useState<string | null>(null);
+  // Photo Effects being adjusted (not in the history until Apply), and "View original" while held.
+  const [fxDraft, setFxDraft] = useState<{ id: string; fx: PhotoEffects | null } | null>(null);
+  const [fxHold, setFxHold] = useState(false);
   const [uploads, setUploads] = useState<Asset[]>(props.uploads);
   const [shared, setShared] = useState<Asset[]>(props.shared);
   const [exportJob, setExportJob] = useState<{
@@ -251,9 +255,11 @@ export function FlyerEditor(props: FlyerEditorProps) {
       previewSlots: mode === "template" && props.preview ? props.preview.slots : undefined,
       previewVenueId: mode === "template" ? (props.preview?.venueId ?? null) : null,
       values: mode === "template" ? previewValues : linkData?.values,
-      djNames: names
+      djNames: names,
+      // Effects preview at about screen resolution (never more than the flyer's own size).
+      fxScale: Math.min(1, Math.ceil(Math.max(0.35, zoom * (typeof window === "undefined" ? 1 : window.devicePixelRatio || 1)) * 4) / 4)
     };
-  }, [mode, previewDjId, linkData, previewValues, props.previewDjs, props.preview]);
+  }, [mode, previewDjId, linkData, previewValues, props.previewDjs, props.preview, zoom]);
 
   /* ---- permissions ---- */
   const can = useCallback(
@@ -575,8 +581,14 @@ export function FlyerEditor(props: FlyerEditorProps) {
     );
   }
 
-  const undo = useCallback(() => setHist((h) => undoH(h)), []);
-  const redo = useCallback(() => setHist((h) => redoH(h)), []);
+  const undo = useCallback(() => {
+    setFxDraft(null);
+    setHist((h) => undoH(h));
+  }, []);
+  const redo = useCallback(() => {
+    setFxDraft(null);
+    setHist((h) => redoH(h));
+  }, []);
 
   /* ---- saving: autosave a moment after each change ---- */
   const currentKey = useMemo(
@@ -791,17 +803,29 @@ export function FlyerEditor(props: FlyerEditorProps) {
   }
 
   // Template mode shows sample wording in place of placeholders (display only).
+  const activeFx = fxDraft && selected.length === 1 && selected[0] === fxDraft.id ? fxDraft : null;
   const displayScene = useMemo(() => {
-    if (mode !== "template" || !previewValues) return scene;
+    const base =
+      mode !== "template" || !previewValues
+        ? scene
+        : {
+            ...scene,
+            nodes: scene.nodes.map((n) =>
+              n.kind === "text"
+                ? { ...n, text: linkedText(n.text, { values: previewValues, slots: [], venueId: null, hasEvent: false }) }
+                : n,
+            ),
+          };
+    // The effects being adjusted show on the canvas; "View original" shows the photo without them.
+    const holdId = fxHold ? (activeFx?.id ?? selected[0]) : null;
+    if (!activeFx && !holdId) return base;
     return {
-      ...scene,
-      nodes: scene.nodes.map((n) =>
-        n.kind === "text"
-          ? { ...n, text: linkedText(n.text, { values: previewValues, slots: [], venueId: null, hasEvent: false }) }
-          : n,
+      ...base,
+      nodes: base.nodes.map((n) =>
+        n.kind !== "image" ? n : n.id === holdId ? { ...n, effects: null } : n.id === activeFx?.id ? { ...n, effects: activeFx.fx } : n,
       ),
     };
-  }, [scene, mode, previewValues]);
+  }, [scene, mode, previewValues, activeFx, fxHold, selected]);
 
   /* ---- template sizes ---- */
   function addFormat(f: FormatKey, copyFrom: FormatKey | null) {
@@ -949,6 +973,25 @@ export function FlyerEditor(props: FlyerEditorProps) {
           if (!desktop) setDrawer("add");
         },
         resetToEvent: props.link ? resetToEvent : undefined,
+        effects: {
+          ctx,
+          editing: !!activeFx,
+          draft: activeFx ? activeFx.fx : undefined,
+          start: (id) => {
+            const n = scene.nodes.find((x) => x.id === id);
+            setFxDraft({ id, fx: n && n.kind === "image" ? (n.effects ?? null) : null });
+          },
+          change: (fx) => activeFx && setFxDraft({ id: activeFx.id, fx }),
+          apply: () => {
+            if (!activeFx) return;
+            // One undo step for the whole adjustment, however many sliders moved.
+            update(activeFx.id, { effects: activeFx.fx }, `fx:${activeFx.id}:${Date.now()}`);
+            setFxDraft(null);
+          },
+          cancel: () => setFxDraft(null),
+          hold: setFxHold,
+          quick: (id, fx) => update(id, { effects: fx }, `fx:${id}:${Date.now()}`),
+        },
       }}
       textRef={textRef}
     />

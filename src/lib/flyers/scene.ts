@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sanitizeEffects, type PhotoEffects } from "./effects";
 import { DEFAULT_FONT, FLYER_FONTS } from "./fonts";
 import { linkScene, resolveScene } from "./links";
 import {
@@ -229,6 +230,8 @@ const imageSchema = z.object({
     z.object({ mode: z.preprocess((v) => (v === "solid" || v === "tint" ? v : "none"), z.enum(["none", "solid", "tint"])), color: color("#ffffff"), knockoutWhite: bool(false) })
   ),
   shadow: shadowSchema,
+  // Photo Effects; older flyers have none. "No effects" is stored as nothing at all (so permission checks compare equal).
+  effects: z.preprocess((v) => sanitizeEffects(v) ?? undefined, z.custom<PhotoEffects>().optional()),
   override: z.preprocess((v) => (typeof v === "boolean" ? v : undefined), z.boolean().optional()),
   linked: z.preprocess((v) => (v && typeof v === "object" ? cleanSource(v) : null), z.custom<ImageSource>().nullable()),
   fallback: z.preprocess(
@@ -505,7 +508,7 @@ export function withGroup(nodes: FlyerNode[], id: string): string[] {
 
 const MOVE_KEYS = ["x", "y", "width", "height", "rotation"] as const;
 const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend", "fitBox", "minFontSize", "panel", "valign", "padding", "trackingEm"] as const;
-const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "shadow", "opacity", "blend"] as const;
+const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "shadow", "opacity", "blend", "effects"] as const;
 const STYLE_KEYS_SHAPE = ["shape", "fillEnabled", "fill", "stroke", "radius", "keepRatio", "shadow", "opacity", "blend"] as const;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 

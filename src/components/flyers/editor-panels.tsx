@@ -35,6 +35,7 @@ import {
 import { cn } from "@/lib/utils";
 import { FLYER_FONTS, fontByKey, nearestWeight } from "@/lib/flyers/fonts";
 import { featherOn } from "@/lib/flyers/feather";
+import { PhotoEffectsSection, isPhotoLayer, type FxApi } from "./photo-effects-panel";
 import { isLinked, isOverridden } from "@/lib/flyers/links";
 import { BADGES, type BadgePreset } from "@/lib/flyers/badges";
 import { BLEND_MODES, FIELD_TOKENS, ROLES, type BlendMode, type FlyerNode, type ImageNode, type ImageSource, type Perms, type Role, type Scene, type ShapeNode, type TextNode } from "@/lib/flyers/types";
@@ -164,6 +165,8 @@ export type PropsApi = {
   selectionLocked?: boolean;
   /** Grouped selection: true when it's exactly one group (e.g. a date badge). */
   selectionIsGroup?: boolean;
+  /** Photo Effects on the selected photo (editor only). */
+  effects?: FxApi;
 };
 
 export function PropertiesPanel({ scene, node, multi, api, sceneControls, textRef }: { scene: Scene; node: FlyerNode | null; multi: number; api: PropsApi; sceneControls: React.ReactNode; textRef: React.RefObject<HTMLTextAreaElement | null> }) {
@@ -630,6 +633,11 @@ function ShadowSection({ value, onChange, disabled }: { value: TextNode["shadow"
 function ImageProps({ n, set, canEdit, canStyle, api }: { n: ImageNode; set: (p: Partial<ImageNode>, k?: string) => void; canEdit: boolean; canStyle: boolean; api: PropsApi }) {
   return (
     <>
+      {api.effects && isPhotoLayer(n) && (
+        <Section title="Photo effects" defaultOpen>
+          <PhotoEffectsSection n={n} api={api.effects} canStyle={canStyle} />
+        </Section>
+      )}
       <Section title="Image">
         <button className={cn(iconBtn, "w-full justify-center")} disabled={!canEdit} onClick={() => api.openReplace(n.id)}>
           <ImagePlus size={15} /> Replace image (keeps the frame)
