@@ -82,6 +82,37 @@ function DjDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const [files, setFiles] = useState<FileRow[] | null>(null);
   const [payouts, setPayouts] = useState<PayoutRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [meId, setMeId] = useState<string | null>(null);
+  const [meLinkedTo, setMeLinkedTo] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        setMeId(d?.user?.id ?? null);
+        setMeLinkedTo(d?.dj?.id ?? null);
+      })
+      .catch(() => {});
+  }, []);
+
+  // "This DJ is me": a staff member who also DJs links their own login here to see their own gigs.
+  async function setLinkMe(on: boolean) {
+    setLinking(true);
+    setLinkError(null);
+    try {
+      const res = await fetch(`/api/admin/djs/${id}/link-me`, { method: on ? "POST" : "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't update the link");
+      setDj((d) => d && { ...d, auth_user_id: on ? meId : null });
+      setMeLinkedTo(on ? id : null);
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLinking(false);
+    }
+  }
 
   useEffect(() => {
     fetch(`/api/admin/djs/${id}`)
@@ -140,12 +171,35 @@ function DjDetailInner({ params }: { params: Promise<{ id: string }> }) {
             <DjAvatar name={dj.display_name} photoUrl={dj.photo_url} size={48} />
             <h1 className="font-display text-2xl font-light">{dj.display_name}</h1>
           </div>
-          {dj.auth_user_id ? (
-            <StatusChip tone="approved">Has Login</StatusChip>
-          ) : (
-            <StatusChip tone="pending">No Login</StatusChip>
-          )}
+          <div className="flex flex-wrap items-center gap-2" data-tour="dj-link-me">
+            {dj.auth_user_id && meId && dj.auth_user_id === meId ? (
+              <>
+                <StatusChip tone="approved">You (your login)</StatusChip>
+                <button type="button" onClick={() => setLinkMe(false)} disabled={linking} className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline">
+                  Unlink
+                </button>
+              </>
+            ) : dj.auth_user_id ? (
+              <StatusChip tone="approved">Has Login</StatusChip>
+            ) : (
+              <>
+                <StatusChip tone="pending">No Login</StatusChip>
+                {meId && !meLinkedTo && (
+                  <button
+                    type="button"
+                    onClick={() => setLinkMe(true)}
+                    disabled={linking}
+                    title="Link your own admin login to this DJ, so your dashboard shows this DJ's gigs (projects and Google Calendar)"
+                    className="rounded-[10px] border border-gold px-3 py-1.5 text-xs font-semibold text-gold hover:bg-gold-soft disabled:opacity-60"
+                  >
+                    {linking ? "Linking…" : "This DJ is me"}
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
+        {linkError && <p className="text-xs text-status-declined">{linkError}</p>}
 
         <div className="flex flex-wrap border border-border">
           <StatTile icon={Briefcase} label="Total Gigs" value={playedEvents.length} />

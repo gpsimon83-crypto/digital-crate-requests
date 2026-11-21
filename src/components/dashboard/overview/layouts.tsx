@@ -26,6 +26,7 @@ import {
   UpcomingEvents,
   type BannerPhotos
 } from "./widgets";
+import { MyGigs, type MyGigsState } from "./my-gigs";
 import type { ActionGroup, ActivityItem, DashEvent, Metrics, Period, TrendRow, TypeRow } from "@/lib/dashboard/overview";
 
 /** Everything both layouts show: the same data, worked out once by the page. */
@@ -48,6 +49,8 @@ export interface DashboardData {
   reportLoading: boolean;
   reportError: boolean;
   now: Date;
+  /** Only when the signed-in admin's login is linked to a DJ profile. */
+  myGigs: MyGigsState | null;
 }
 
 /** Modern Studio / Midnight Command switch (arrangement only; colors follow the site theme). */
@@ -90,6 +93,11 @@ export function StudioLayout({ d }: { d: DashboardData }) {
           <QuickActions layout="studio" className="mt-4" />
         </Panel>
         <ActionHub layout="studio" groups={d.groups} loading={d.loading} error={d.error} className="order-4 lg:order-none" />
+        {d.myGigs && (
+          <div className="order-4 lg:order-none">
+            <MyGigs layout="studio" s={d.myGigs} />
+          </div>
+        )}
       </div>
       <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5">
         <div className="order-2 lg:order-none">
@@ -285,6 +293,11 @@ export function CommandLayout({ d }: { d: DashboardData }) {
             <UpcomingEvents layout="command" events={d.upcoming} loading={d.loading} error={d.error} />
           </div>
           <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5">
+            {d.myGigs && (
+              <div className="order-2 min-w-0 lg:order-none">
+                <MyGigs layout="command" s={d.myGigs} />
+              </div>
+            )}
             <div className="order-3 min-w-0 lg:order-none">
               <MiniCalendar layout="command" events={d.calendarEvents} loading={d.loading} error={d.error} now={d.now} />
             </div>

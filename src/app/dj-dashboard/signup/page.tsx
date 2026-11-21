@@ -1,18 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, User, Ticket, Eye, EyeOff, ArrowRight, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/site/logo";
 import { createClient } from "@/lib/supabase/client";
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
+  );
+}
+
+function SignupForm() {
   const router = useRouter();
+  const params = useSearchParams();
   const [checking, setChecking] = useState(true);
   const [enabled, setEnabled] = useState(true);
 
-  const [code, setCode] = useState("");
+  // Invite links carry the code (?code=DCDJ-XXXXXX), so the DJ doesn't have to type it.
+  const [code, setCode] = useState(() => {
+    const c = params.get("code") ?? "";
+    return /^[A-Za-z0-9-]{4,40}$/.test(c) ? c.toUpperCase() : "";
+  });
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

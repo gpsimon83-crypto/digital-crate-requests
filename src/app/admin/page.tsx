@@ -19,10 +19,11 @@ import {
 } from "@/lib/dashboard/overview";
 import { CommandLayout, StudioLayout, type DashboardData } from "@/components/dashboard/overview/layouts";
 import type { BannerPhotos, Focal } from "@/components/dashboard/overview/widgets";
+import type { MyGigsState } from "@/components/dashboard/overview/my-gigs";
 
 interface Me {
   user: { email: string | null };
-  dj: { display_name: string } | null;
+  dj: { id: string; display_name: string } | null;
 }
 
 interface Branding {
@@ -68,6 +69,7 @@ function AdminOverview() {
   const [reportError, setReportError] = useState<Period | null>(null);
   const [branding, setBranding] = useState<Branding | null>(null);
   const [now] = useState(() => new Date());
+  const [gigs, setGigs] = useState<Omit<MyGigsState, "djName"> | null>(null);
 
   useEffect(() => {
     fetch("/api/branding")
@@ -76,7 +78,20 @@ function AdminOverview() {
       .catch(() => {});
     fetch("/api/me")
       .then((r) => (r.ok ? r.json() : null))
-      .then((data) => data && setMe(data))
+      .then((data) => {
+        if (!data) return;
+        setMe(data);
+        // An admin who also DJs (login linked to their DJ profile) sees their own gigs too.
+        if (!data.dj) return;
+        setGigs({ gigs: [], calendarConnected: true, loading: true, error: false });
+        fetch("/api/me/gigs")
+          .then(async (r) => {
+            const g = await r.json().catch(() => null);
+            if (!r.ok || !g) throw new Error("gigs");
+            setGigs({ gigs: g.gigs ?? [], calendarConnected: !!g.calendarConnected, loading: false, error: false });
+          })
+          .catch(() => setGigs({ gigs: [], calendarConnected: true, loading: false, error: true }));
+      })
       .catch(() => {});
     Promise.all([fetch("/api/admin/events"), fetch("/api/admin/payments")])
       .then(async ([e, p]) => {
@@ -157,10 +172,11 @@ function AdminOverview() {
       error: loadError,
       reportLoading: !reportReady && reportError !== period,
       reportError: reportError === period,
-      now
+      now,
+      myGigs: me?.dj && gigs ? { djName: me.dj.display_name, ...gigs } : null
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, payments, loadError, report, reportError, period, branding, me, now, loading]);
+  }, [events, payments, loadError, report, reportError, period, branding, me, now, loading, gigs]);
 
   // Until the browser says which layout was picked, show a quiet placeholder (never the wrong layout).
   if (!layout) return <div className="min-h-[60vh]" aria-busy="true" />;

@@ -19,6 +19,18 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-21-my-gigs-invites",
+    date: "2026-11-21",
+    area: "CRM",
+    title: "Your own gigs on the dashboard, and easier DJ invites",
+    summary: "If you're an admin who also DJs, link your login to your DJ profile with \"This DJ is me\" on the DJ's page. Your dashboard then greets you by your DJ name and shows My gigs: your projects plus everything the shared Google Calendar has for you. Invite codes now have Copy, Email and Text buttons.",
+    bullets: [
+      "DJs → your profile → This DJ is me. Only works on a profile without its own login; Unlink undoes it",
+      "My gigs (next four months): projects you lead or crew on, venue nights that name you, and other Google Calendar entries with your DJ name (or a calendar nickname from Venue Portals) in the title",
+      "Invite Codes: Copy puts a ready message on your clipboard; Email and Text open your own mail or messages app with it written. The link fills in the code on the sign-up page"
+    ]
+  },
+  {
     id: "2026-11-21-dashboard-layouts",
     date: "2026-11-21",
     area: "CRM",

@@ -18,6 +18,26 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-21-my-gigs-invites": [
+    {
+      path: "/admin/djs",
+      target: '[data-tour="dj-link-me"], main',
+      title: "This DJ is me",
+      body: "Open your own DJ profile from this list. Next to its name, click This DJ is me to link your admin login to it. Then your dashboard shows My gigs."
+    },
+    {
+      path: "/admin",
+      target: '[data-tour="dash-mygigs"], [data-tour="dash-actions"]',
+      title: "My gigs",
+      body: "Your projects and your Google Calendar entries for the next four months, in date order. It appears once your login is linked to your DJ profile."
+    },
+    {
+      path: "/admin/invite-codes",
+      target: '[data-tour="invite-send"], main',
+      title: "Send an invite code",
+      body: "Generate Code, then Copy, Email or Text on its row. The DJ gets a sign-up link with the code already filled in. Each code works once."
+    }
+  ],
   "2026-11-21-dashboard-layouts": [
     {
       path: "/admin",

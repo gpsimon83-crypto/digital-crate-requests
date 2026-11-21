@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/ui/status-chip";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
-import { KeyRound } from "lucide-react";
+import { Check, Copy, KeyRound, Mail, MessageSquare } from "lucide-react";
 
 interface InviteCodeRow {
   id: string;
@@ -20,6 +20,17 @@ export default function InviteCodesPage() {
   const [error, setError] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  async function copyInvite(c: InviteCodeRow) {
+    try {
+      await navigator.clipboard.writeText(inviteMessage(c.code));
+      setCopied(c.id);
+      setTimeout(() => setCopied((v) => (v === c.id ? null : v)), 2000);
+    } catch {
+      setError("Couldn't copy. Select the code and copy it by hand.");
+    }
+  }
 
   async function load() {
     try {
@@ -68,7 +79,7 @@ export default function InviteCodesPage() {
     <>
       <PageHeader
         title="Invite Codes"
-        subtitle="One-time codes for new DJs to register into the platform."
+        subtitle="One-time codes for new DJs to register. Generate a code, then use Copy, Email or Text on its row to send the DJ a sign-up link with the code already filled in."
         action={
           <Button variant="primary" onClick={handleGenerate} disabled={generating}>
             {generating ? "Generating…" : "Generate Code"}
@@ -79,7 +90,7 @@ export default function InviteCodesPage() {
         {error && <p className="text-xs text-status-declined">{error}</p>}
 
         <DataTable
-          columns={columns(setPendingDeleteId)}
+          columns={columns(setPendingDeleteId, copied, copyInvite)}
           rows={codes ?? []}
           rowKey={(c) => c.id}
           loading={codes === null}
@@ -100,7 +111,19 @@ export default function InviteCodesPage() {
   );
 }
 
-function columns(onDelete: (id: string) => void): DataTableColumn<InviteCodeRow>[] {
+/** Sign-up link with the code filled in, on this site. */
+function signupLink(code: string) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://cratesdjs.com";
+  return `${origin}/dj-dashboard/signup?code=${encodeURIComponent(code)}`;
+}
+
+function inviteMessage(code: string) {
+  return `You're invited to join Digital Crate DJs! Create your DJ account here: ${signupLink(code)}\n\nYour invite code is ${code} (it's already filled in on that page). It works once.`;
+}
+
+const sendBtn = "inline-flex items-center gap-1 rounded-[8px] border border-border px-2 py-1 text-xs font-medium hover:border-gold";
+
+function columns(onDelete: (id: string) => void, copied: string | null, onCopy: (c: InviteCodeRow) => void): DataTableColumn<InviteCodeRow>[] {
   return [
     { key: "code", header: "Code", sortValue: (c) => c.code, render: (c) => <span className="font-mono font-medium">{c.code}</span> },
     {
@@ -118,6 +141,27 @@ function columns(onDelete: (id: string) => void): DataTableColumn<InviteCodeRow>
           {c.used ? "Used" : "Available"}
         </StatusChip>
       )
+    },
+    {
+      key: "send",
+      header: "Send to a DJ",
+      render: (c) =>
+        c.used ? (
+          <span className="text-xs text-muted">Already used</span>
+        ) : (
+          <div className="flex flex-wrap gap-1.5" data-tour="invite-send">
+            <button type="button" onClick={() => onCopy(c)} className={sendBtn} aria-label={`Copy invite message for ${c.code}`}>
+              {copied === c.id ? <Check size={13} /> : <Copy size={13} />} {copied === c.id ? "Copied" : "Copy"}
+            </button>
+            {/* Opens your own mail or messages app with the invite written; you pick the DJ and send it. */}
+            <a href={`mailto:?subject=${encodeURIComponent("Your Digital Crate DJs invite")}&body=${encodeURIComponent(inviteMessage(c.code))}`} className={sendBtn}>
+              <Mail size={13} /> Email
+            </a>
+            <a href={`sms:?&body=${encodeURIComponent(inviteMessage(c.code))}`} className={sendBtn}>
+              <MessageSquare size={13} /> Text
+            </a>
+          </div>
+        )
     },
     {
       key: "actions",
