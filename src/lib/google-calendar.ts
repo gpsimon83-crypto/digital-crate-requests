@@ -191,6 +191,24 @@ export async function listGoogleEvents(accessToken: string, calendarId: string, 
   return { events, nextSyncToken, needsFullResync: false };
 }
 
+/** The calendars the connected account can see (needs the full calendar scope we already ask for). */
+export async function listGoogleCalendars(accessToken: string): Promise<{ id: string; name: string; primary: boolean; canEdit: boolean }[]> {
+  const out: { id: string; name: string; primary: boolean; canEdit: boolean }[] = [];
+  let pageToken: string | undefined;
+  for (;;) {
+    const url = new URL(`${CALENDAR_BASE}/users/me/calendarList`);
+    url.searchParams.set("maxResults", "250");
+    if (pageToken) url.searchParams.set("pageToken", pageToken);
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) throw new Error(`Google Calendar list failed: ${res.status}`);
+    const data = (await res.json()) as { items?: { id: string; summary?: string; summaryOverride?: string; primary?: boolean; accessRole?: string }[]; nextPageToken?: string };
+    for (const c of data.items ?? []) out.push({ id: c.id, name: c.summaryOverride || c.summary || c.id, primary: !!c.primary, canEdit: c.accessRole === "owner" || c.accessRole === "writer" });
+    if (!data.nextPageToken) break;
+    pageToken = data.nextPageToken;
+  }
+  return out;
+}
+
 export function isOwnEvent(event: GoogleEventListResult["events"][number]) {
   return event.extendedProperties?.private?.source === SOURCE_TAG;
 }

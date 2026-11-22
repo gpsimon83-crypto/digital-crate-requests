@@ -33,7 +33,7 @@ const gigTime = (g: MyGig) => Date.parse(g.starts_at ?? `${g.date}T12:00:00`);
 
 export function djMetrics(gigs: MyGig[], events: DashEvent[], payouts: DjPayout[], now: Date) {
   const t = now.getTime();
-  const soon = (days: number) => gigs.filter((g) => g.status !== "inquiry" && gigTime(g) >= t - 6 * 3600000 && gigTime(g) <= t + days * DAY).length;
+  const soon = (days: number) => gigs.filter((g) => g.status !== "inquiry" && !g.away && gigTime(g) >= t - 6 * 3600000 && gigTime(g) <= t + days * DAY).length;
   const year = now.getFullYear();
   return {
     next30: soon(30),
@@ -89,7 +89,7 @@ export function calendarItems(gigs: MyGig[], events: DashEvent[]): DashEvent[] {
     .map((g) => ({
       id: g.key,
       title: g.venue ? `${g.title} · ${g.venue}` : g.title,
-      status: "confirmed",
+      status: g.away ? "away" : "confirmed",
       event_type: null,
       event_category: null,
       starts_at: g.starts_at ?? new Date(`${g.date}T12:00:00`).toISOString(),

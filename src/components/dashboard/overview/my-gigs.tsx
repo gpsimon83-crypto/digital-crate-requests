@@ -50,7 +50,7 @@ export function MyGigs({ s, layout }: { s: MyGigsState; layout: DashLayout }) {
               const src = SOURCE[g.source];
               const body = (
                 <>
-                  <src.Icon size={16} className="mt-0.5 shrink-0 text-gold" aria-hidden />
+                  <src.Icon size={16} className={cn("mt-0.5 shrink-0", g.away ? "text-muted" : "text-gold")} aria-hidden />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-medium">{g.title}</span>
                     <span className="block truncate text-xs text-muted">
@@ -58,7 +58,7 @@ export function MyGigs({ s, layout }: { s: MyGigsState; layout: DashLayout }) {
                       {g.venue ? ` · ${g.venue}` : ""}
                     </span>
                     <span className="block text-[11px] text-muted">
-                      {src.label}
+                      {g.away ? "Away · Google Calendar" : src.label}
                       {g.status === "inquiry" ? " · inquiry" : ""}
                     </span>
                   </span>

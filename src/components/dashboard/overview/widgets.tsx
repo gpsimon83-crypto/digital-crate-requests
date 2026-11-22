@@ -717,7 +717,7 @@ export function MiniCalendar({
               {evs.length > 0 && (
                 <span className="absolute bottom-0.5 flex gap-0.5" aria-hidden>
                   {evs.slice(0, 3).map((e) => (
-                    <span key={e.id} className={cn("h-1.5 w-1.5 rounded-full", e.status === "inquiry" ? "border border-gold" : "bg-gold")} />
+                    <span key={e.id} className={cn("h-1.5 w-1.5 rounded-full", e.status === "away" ? "bg-muted/60" : e.status === "inquiry" ? "border border-gold" : "bg-gold")} />
                   ))}
                 </span>
               )}
@@ -729,6 +729,9 @@ export function MiniCalendar({
         <span className="flex items-center gap-3">
           <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden />Booked</span>
           <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full border border-gold" aria-hidden />Inquiry</span>
+          {events.some((e) => e.status === "away") && (
+            <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-muted/60" aria-hidden />Away</span>
+          )}
         </span>
         <Link href={links.calendar} className={cn("font-semibold text-gold hover:underline", FOCUS)}>Full calendar</Link>
       </div>

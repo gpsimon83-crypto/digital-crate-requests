@@ -8,6 +8,9 @@ export interface CalendarConnectionPublic {
   lastSyncedAt: string | null;
   lastSyncStatus: string | null;
   lastSyncError: string | null;
+  /** The calendar the DJs write their gigs on, if chosen (migration 0065). */
+  scheduleCalendarId: string | null;
+  scheduleCalendarName: string | null;
 }
 
 export interface CalendarConnectionInternal extends CalendarConnectionPublic {
@@ -15,6 +18,7 @@ export interface CalendarConnectionInternal extends CalendarConnectionPublic {
   refreshToken: string;
   accessTokenExpiresAt: string;
   syncToken: string | null;
+  scheduleSyncToken: string | null;
 }
 
 function toPublic(row: {
@@ -24,6 +28,8 @@ function toPublic(row: {
   last_synced_at: string | null;
   last_sync_status: string | null;
   last_sync_error: string | null;
+  schedule_calendar_id?: string | null;
+  schedule_calendar_name?: string | null;
 }): CalendarConnectionPublic {
   return {
     googleCalendarId: row.google_calendar_id,
@@ -31,7 +37,9 @@ function toPublic(row: {
     connectedAt: row.connected_at,
     lastSyncedAt: row.last_synced_at,
     lastSyncStatus: row.last_sync_status,
-    lastSyncError: row.last_sync_error
+    lastSyncError: row.last_sync_error,
+    scheduleCalendarId: row.schedule_calendar_id ?? null,
+    scheduleCalendarName: row.schedule_calendar_name ?? null
   };
 }
 
@@ -53,7 +61,8 @@ export async function getConnectionWithSecrets(): Promise<CalendarConnectionInte
     accessToken: decryptSecret(data.encrypted_access_token),
     refreshToken: decryptSecret(data.encrypted_refresh_token),
     accessTokenExpiresAt: data.access_token_expires_at,
-    syncToken: data.sync_token
+    syncToken: data.sync_token,
+    scheduleSyncToken: data.schedule_sync_token ?? null
   };
 }
 
@@ -107,6 +116,21 @@ export async function updateSyncToken(syncToken: string | null) {
   const db = createAdminClient();
   const { error } = await db.from("calendar_connection").update({ sync_token: syncToken }).eq("id", true);
   if (error) throw error;
+}
+
+export async function updateScheduleSyncToken(syncToken: string | null) {
+  const db = createAdminClient();
+  const { error } = await db.from("calendar_connection").update({ schedule_sync_token: syncToken }).eq("id", true);
+  if (error) throw error;
+}
+
+/** Choose (or clear) the DJ schedule calendar. Starts its pull over. */
+export async function setScheduleCalendar(id: string | null, name: string | null) {
+  const db = createAdminClient();
+  const { error } = await db.from("calendar_connection").update({ schedule_calendar_id: id, schedule_calendar_name: name, schedule_sync_token: null }).eq("id", true);
+  if (error) throw error;
+  const { error: e2 } = await db.from("dj_schedule_entries").delete().neq("google_event_id", "");
+  if (e2) throw e2;
 }
 
 export async function recordSyncResult(status: "ok" | "error", errorMessage?: string) {

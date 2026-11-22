@@ -124,6 +124,8 @@ interface CalendarConnection {
   lastSyncedAt: string | null;
   lastSyncStatus: string | null;
   lastSyncError: string | null;
+  scheduleCalendarId?: string | null;
+  scheduleCalendarName?: string | null;
 }
 
 function NotificationHealthCard() {
@@ -205,6 +207,37 @@ function GoogleCalendarCard() {
   const [connection, setConnection] = useState<CalendarConnection | null | undefined>(undefined);
   const [disconnecting, setDisconnecting] = useState(false);
   const [pulling, setPulling] = useState(false);
+  const [calendars, setCalendars] = useState<{ id: string; name: string; primary: boolean }[] | null>(null);
+  const [calError, setCalError] = useState<string | null>(null);
+  const [pick, setPick] = useState<string | null>(null);
+  const [savingPick, setSavingPick] = useState(false);
+
+  function loadCalendars() {
+    fetch("/api/admin/calendar/calendars")
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!ok) throw new Error(d.error || "Couldn't list your calendars.");
+        setCalendars(d.calendars ?? []);
+      })
+      .catch((e) => setCalError(e instanceof Error ? e.message : "Couldn't list your calendars."));
+  }
+
+  async function saveSchedule() {
+    setSavingPick(true);
+    setPullNote(null);
+    try {
+      const res = await fetch("/api/admin/calendar", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scheduleCalendarId: pick || null }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || "Couldn't save that.");
+      setPullNote({ ok: true, text: pick ? `Saved. ${d.pulled ?? 0} calendar entries read. Each DJ now sees the ones with their name.` : "Saved. No DJ schedule calendar is read now." });
+      setPick(null);
+      load();
+    } catch (e) {
+      setPullNote({ ok: false, text: e instanceof Error ? e.message : "Couldn't save that." });
+    } finally {
+      setSavingPick(false);
+    }
+  }
   const [pullNote, setPullNote] = useState<{ ok: boolean; text: string } | null>(null);
 
   async function handleFullPull() {
@@ -231,6 +264,9 @@ function GoogleCalendarCard() {
   }
 
   useEffect(load, []);
+  useEffect(() => {
+    if (connection && calendars === null && !calError) loadCalendars();
+  }, [connection, calendars, calError]);
 
   async function handleDisconnect() {
     setDisconnecting(true);
@@ -279,8 +315,44 @@ function GoogleCalendarCard() {
             <p className="text-status-declined">{connection.lastSyncError}</p>
           )}
           <p>
-            Calendar: <span className="text-foreground">{connection.googleCalendarId === "primary" ? `the main calendar of ${connection.connectedEmail ?? "this account"}` : connection.googleCalendarId}</span>. Every DJ sees the entries on it that name them, on their own Calendar page.
+            Bookings go to: <span className="text-foreground">{connection.googleCalendarId === "primary" ? `the main calendar of ${connection.connectedEmail ?? "this account"}` : connection.googleCalendarId}</span>.
           </p>
+          <div className="flex flex-col gap-1.5 rounded-[10px] border border-border p-3" data-tour="calendar-schedule-pick">
+            <label htmlFor="schedule-cal" className="font-semibold text-foreground">
+              DJ schedule calendar
+            </label>
+            <span>
+              The calendar your DJs write their gigs on (like &ldquo;Young Wedding - Penny&rdquo;). Each DJ sees the entries with their name on their own Calendar page. It&apos;s only read, never changed, and doesn&apos;t block booking times.
+            </span>
+            {calError ? (
+              <span role="alert" className="text-status-declined">{calError}</span>
+            ) : calendars === null ? (
+              <span>Loading your calendars…</span>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  id="schedule-cal"
+                  value={pick ?? connection.scheduleCalendarId ?? ""}
+                  onChange={(e) => setPick(e.target.value)}
+                  className="min-w-0 max-w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm text-foreground focus:border-gold focus:outline-none"
+                >
+                  <option value="">None (only the main calendar)</option>
+                  {calendars.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                      {c.primary ? " (main)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <Button variant="primary" size="sm" onClick={saveSchedule} disabled={savingPick || pick === null || pick === (connection.scheduleCalendarId ?? "")}>
+                  {savingPick ? "Reading the calendar…" : "Use this calendar"}
+                </Button>
+              </div>
+            )}
+            {!calError && calendars !== null && !connection.scheduleCalendarId && (
+              <span className="text-status-declined">Not chosen yet, so DJs only see dates from the main calendar.</span>
+            )}
+          </div>
           <div className="flex flex-col gap-1" data-tour="calendar-full-pull">
             <Button variant="secondary" size="sm" onClick={handleFullPull} disabled={pulling} className="w-fit">
               {pulling ? "Pulling the calendar…" : "Pull the whole calendar again"}

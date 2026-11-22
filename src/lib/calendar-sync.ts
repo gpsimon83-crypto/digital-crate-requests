@@ -1,7 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getConnectionWithSecrets, updateAccessToken, updateSyncToken, recordSyncResult } from "@/lib/data/calendar-connection";
+import { getConnectionWithSecrets, updateAccessToken, updateSyncToken, updateScheduleSyncToken, recordSyncResult } from "@/lib/data/calendar-connection";
 import { upsertBusyBlock, removeBusyBlock, clearAllBusyBlocks } from "@/lib/data/external-busy-blocks";
-import { refreshAccessToken, upsertGoogleEvent, deleteGoogleEvent, listGoogleEvents, isOwnEvent } from "@/lib/google-calendar";
+import { refreshAccessToken, upsertGoogleEvent, deleteGoogleEvent, listGoogleEvents, listGoogleCalendars, isOwnEvent } from "@/lib/google-calendar";
 
 const DEFAULT_DURATION_MS = 6 * 60 * 60 * 1000;
 // Events further in the past than this aren't worth pushing/updating on Google.
@@ -20,6 +20,13 @@ async function getValidAccessToken(): Promise<{ accessToken: string; calendarId:
   const newExpiresAt = new Date(Date.now() + refreshed.expires_in * 1000).toISOString();
   await updateAccessToken(refreshed.access_token, newExpiresAt);
   return { accessToken: refreshed.access_token, calendarId: conn.googleCalendarId };
+}
+
+/** The calendars the connected Google account can see, for the Settings picker. Null when not connected. */
+export async function listConnectedCalendars() {
+  const auth = await getValidAccessToken();
+  if (!auth) return null;
+  return listGoogleCalendars(auth.accessToken);
 }
 
 interface SyncEventRow {
@@ -111,6 +118,51 @@ async function pullExternalEvents(accessToken: string, calendarId: string, syncT
 
   await updateSyncToken(result.nextSyncToken);
   return count;
+}
+
+/**
+ * The DJ schedule calendar (where the DJs write "Young Wedding - Penny"),
+ * read into dj_schedule_entries. Read only: nothing is written to it, and
+ * its entries don't block public booking slots.
+ */
+async function pullScheduleCalendar(accessToken: string, calendarId: string, syncToken: string | null): Promise<number> {
+  const db = createAdminClient();
+  const clear = async () => {
+    await updateScheduleSyncToken(null);
+    const { error } = await db.from("dj_schedule_entries").delete().neq("google_event_id", "");
+    if (error) throw error;
+  };
+  if (!syncToken) await clear();
+  let result = await listGoogleEvents(accessToken, calendarId, syncToken);
+  if (result.needsFullResync) {
+    await clear();
+    result = await listGoogleEvents(accessToken, calendarId, null);
+  }
+  const gone: string[] = [];
+  const rows: { google_event_id: string; summary: string | null; starts_at: string; ends_at: string; all_day: boolean; updated_at: string }[] = [];
+  const now = new Date().toISOString();
+  for (const e of result.events) {
+    if (e.status === "cancelled") {
+      gone.push(e.id);
+      continue;
+    }
+    const start = e.start?.dateTime ?? e.start?.date;
+    const end = e.end?.dateTime ?? e.end?.date;
+    if (!start || !end) continue;
+    const allDay = !e.start?.dateTime;
+    // All-day dates are stored at midnight UTC so the date reads back unchanged.
+    rows.push({ google_event_id: e.id, summary: e.summary ?? null, starts_at: allDay ? `${start}T00:00:00Z` : start, ends_at: allDay ? `${end}T00:00:00Z` : end, all_day: allDay, updated_at: now });
+  }
+  for (let i = 0; i < gone.length; i += 200) {
+    const { error } = await db.from("dj_schedule_entries").delete().in("google_event_id", gone.slice(i, i + 200));
+    if (error) throw error;
+  }
+  for (let i = 0; i < rows.length; i += 200) {
+    const { error } = await db.from("dj_schedule_entries").upsert(rows.slice(i, i + 200), { onConflict: "google_event_id" });
+    if (error) throw error;
+  }
+  await updateScheduleSyncToken(result.nextSyncToken);
+  return rows.length + gone.length;
 }
 
 interface SyncMeetingRow {
@@ -211,7 +263,10 @@ export async function runCalendarSync(opts: { full?: boolean } = {}): Promise<{ 
     const conn = await getConnectionWithSecrets();
     const pushed =
       (await pushEventsToGoogle(auth.accessToken, auth.calendarId)) + (await pushMeetingsToGoogle(auth.accessToken, auth.calendarId));
-    const pulled = await pullExternalEvents(auth.accessToken, auth.calendarId, opts.full ? null : (conn?.syncToken ?? null));
+    let pulled = await pullExternalEvents(auth.accessToken, auth.calendarId, opts.full ? null : (conn?.syncToken ?? null));
+    if (conn?.scheduleCalendarId) {
+      pulled += await pullScheduleCalendar(auth.accessToken, conn.scheduleCalendarId, opts.full ? null : conn.scheduleSyncToken);
+    }
     await recordSyncResult("ok");
     return { connected: true, pushed, pulled };
   } catch (err) {

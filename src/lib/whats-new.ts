@@ -25,12 +25,13 @@ export const UPDATES: UpdateEntry[] = [
     title: "DJs see all their dates from the DCDJ Google Calendar",
     summary: "A DJ's Calendar page now loads each month as they page to it, with every entry on the shared Digital Crate DJs Google Calendar that names them, plus their bookings and venue nights. It reaches back a year and as far ahead as the calendar goes.",
     bullets: [
-      "An entry counts as the DJ's when its title names them (\"DJ Penny\", \"Penny\", or a calendar nickname you've mapped to them)",
-      "Settings → Google Calendar now shows which calendar is connected and has a \"Pull the whole calendar again\" button that reads every entry from a year ago onward",
-      "The regular sync keeps it up to date after that"
+      "Settings → Google Calendar → DJ schedule calendar: pick the calendar the DJs write on (the DCDJ Calender). It's only read, and its entries don't block booking times",
+      "An entry counts as the DJ's when its title names them, the way DJs write it: \"Young Wedding - Penny\", \"Penny out of town\", \"Gmo and penny shadow…\"",
+      "\"Out of town\" notes show as Away (grey dot), not as gigs, and don't count toward gigs coming up",
+      "\"Pull the whole calendar again\" re-reads every entry from a year ago onward; the regular sync keeps it current"
     ],
     link: { href: "/admin/settings", label: "Open Settings" },
-    action: "Press \"Pull the whole calendar again\" once in Settings → Google Calendar, so past months fill in. Check that the connected calendar is the DCDJ calendar."
+    action: "Run migration 0065 in Supabase, then in Settings → Google Calendar choose the DCDJ Calender as the DJ schedule calendar and press Use this calendar."
   },
   {
     id: "2026-11-21-office-email-copies",

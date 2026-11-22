@@ -21,9 +21,15 @@ export const TOURS: Record<string, TourStep[]> = {
   "2026-11-21-dj-calendar-dates": [
     {
       path: "/admin/settings",
+      target: '[data-tour="calendar-schedule-pick"], main',
+      title: "Pick the DJ schedule calendar",
+      body: "Choose the calendar your DJs write their gigs on (the DCDJ Calender) and press Use this calendar. Each DJ then sees every entry with their name, like \"Young Wedding - Penny\"."
+    },
+    {
+      path: "/admin/settings",
       target: '[data-tour="calendar-full-pull"], main',
-      title: "Pull the whole calendar",
-      body: "This shows which Google Calendar is connected. Press Pull the whole calendar again once so DJs get their dates from the past year onward. The regular sync keeps it current after that."
+      title: "Pull it again any time",
+      body: "If a DJ says a date is missing, press this to re-read everything from a year ago onward. The regular sync keeps it current otherwise."
     },
     {
       path: "/admin/djs",

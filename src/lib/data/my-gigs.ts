@@ -22,7 +22,14 @@ export type MyGig = {
   status: string | null;
   /** Where to open it (projects only; calendar entries live on Google). */
   href: string | null;
+  /** A calendar note that the DJ is unavailable ("Out of town - Penny"), not a gig. */
+  away?: boolean;
 };
+
+/** "Out of town - Penny", "Penny out of town", "Penny unavailable", "Penny off", "Penny vacation". */
+export function isAwayNote(summary: string | null | undefined): boolean {
+  return /\b(out of town|unavailable|not available|vacation|day off|off work|blocked off)/i.test(summary ?? "");
+}
 
 const TZ = "America/Chicago";
 const localDate = (iso: string) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(iso));
@@ -110,24 +117,30 @@ export async function myGigs(db: Db, dj: { id: string; display_name: string }, o
   const terms = names.map((t) => t.replace(/[,()*%\\"'.:]/g, " ").replace(/\s+/g, " ").trim()).filter((t) => t.length >= 3);
   let google: MyGig[] = [];
   if (terms.length) {
-    const { data: blocks } = await db
-      .from("external_calendar_busy_blocks")
-      .select("google_event_id, summary, starts_at, ends_at")
-      .or(terms.map((t) => `summary.ilike.*${t}*`).join(","))
-      .gte("ends_at", since)
-      .lt("starts_at", until)
-      .order("starts_at")
-      .limit(400);
-    google = ((blocks ?? []) as { google_event_id: string; summary: string | null; starts_at: string; ends_at: string }[])
+    // The connected calendar's entries, plus the DJ schedule calendar's (Settings → Google Calendar, migration 0065).
+    const search = (table: "external_calendar_busy_blocks" | "dj_schedule_entries") =>
+      db
+        .from(table)
+        .select("google_event_id, summary, starts_at, ends_at")
+        .or(terms.map((t) => `summary.ilike.*${t}*`).join(","))
+        .gte("ends_at", since)
+        .lt("starts_at", until)
+        .order("starts_at")
+        .limit(400);
+    const [{ data: blocks }, { data: sched }] = await Promise.all([search("external_calendar_busy_blocks"), search("dj_schedule_entries")]);
+    type Block = { google_event_id: string; summary: string | null; starts_at: string; ends_at: string };
+    const byId = new Map<string, Block>();
+    for (const b of [...((blocks ?? []) as Block[]), ...((sched ?? []) as Block[])]) byId.set(b.google_event_id, b);
+    google = [...byId.values()]
       .filter((b) => mentionsDj(b.summary, names))
       .map((b): MyGig => {
         const span = Date.parse(b.ends_at) - Date.parse(b.starts_at);
         const allDay = /T00:00:00(\.0+)?(Z|\+00:?00)$/.test(b.starts_at) && span > 0 && span % 86400000 === 0;
         const id = `g${createHash("sha256").update(b.google_event_id).digest("hex").slice(0, 20)}`;
-        return { key: id, source: "google", title: (b.summary ?? "Calendar entry").slice(0, 120), venue: null, date: allDay ? b.starts_at.slice(0, 10) : localDate(b.starts_at), starts_at: allDay ? null : b.starts_at, ends_at: allDay ? null : b.ends_at, status: null, href: null };
+        return { key: id, source: "google", title: (b.summary ?? "Calendar entry").slice(0, 120), venue: null, date: allDay ? b.starts_at.slice(0, 10) : localDate(b.starts_at), starts_at: allDay ? null : b.starts_at, ends_at: allDay ? null : b.ends_at, status: null, href: null, ...(isAwayNote(b.summary) ? { away: true } : {}) };
       })
       // Already shown as a venue night (same entry) or as a project on that day.
-      .filter((g) => !nightIds.has(g.key) && !nightDates.has(g.date) && !projectDates.has(g.date));
+      .filter((g) => !nightIds.has(g.key) && (g.away || (!nightDates.has(g.date) && !projectDates.has(g.date))));
   }
 
   const { data: conn } = await db.from("calendar_connection").select("id").eq("id", true).maybeSingle();
