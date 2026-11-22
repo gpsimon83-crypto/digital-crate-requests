@@ -3,6 +3,9 @@
 // rather than pulling in the full googleapis SDK for a handful of calls.
 
 const OAUTH_BASE = "https://oauth2.googleapis.com";
+/** Shown when Google refuses the saved sign-in; Settings offers Reconnect when it sees this. */
+export const GOOGLE_RECONNECT_MESSAGE = "Google signed the CRM out of this calendar. Press Reconnect Google Calendar and sign in again.";
+
 const CALENDAR_BASE = "https://www.googleapis.com/calendar/v3";
 const SCOPE = "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email";
 
@@ -56,7 +59,12 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenRes
       grant_type: "refresh_token"
     })
   });
-  if (!res.ok) throw new Error(`Google token refresh failed: ${res.status} ${await res.text()}`);
+  if (!res.ok) {
+    const text = await res.text();
+    // invalid_grant: the saved sign-in was revoked or expired (Google expires them after 7 days while the OAuth app is in Testing).
+    if (/invalid_grant/.test(text)) throw new Error(GOOGLE_RECONNECT_MESSAGE);
+    throw new Error(`Google token refresh failed: ${res.status} ${text}`);
+  }
   return res.json();
 }
 

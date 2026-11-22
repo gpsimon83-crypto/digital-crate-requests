@@ -325,7 +325,7 @@ function GoogleCalendarCard() {
               The calendar your DJs write their gigs on (like &ldquo;Young Wedding - Penny&rdquo;). Each DJ sees the entries with their name on their own Calendar page. It&apos;s only read, never changed, and doesn&apos;t block booking times.
             </span>
             {calError ? (
-              <span role="alert" className="text-status-declined">{calError}</span>
+              <span role="alert" className="text-status-declined">{/invalid_grant|signed the CRM out/.test(calError) ? "Google signed the CRM out of this calendar, so the list of calendars can't load. Press Reconnect Google Calendar below and sign in again." : calError}</span>
             ) : calendars === null ? (
               <span>Loading your calendars…</span>
             ) : (
@@ -364,6 +364,11 @@ function GoogleCalendarCard() {
               </span>
             )}
           </div>
+          {(/invalid_grant|signed the CRM out/.test(`${calError ?? ""} ${connection.lastSyncError ?? ""}`)) && (
+            <a href="/api/admin/calendar/oauth/start" className="w-fit">
+              <Button variant="primary" size="sm">Reconnect Google Calendar</Button>
+            </a>
+          )}
           <Button variant="destructive" size="sm" onClick={handleDisconnect} disabled={disconnecting} className="w-fit">
             {disconnecting ? "Disconnecting…" : "Disconnect"}
           </Button>
