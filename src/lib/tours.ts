@@ -18,6 +18,48 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-21-dj-calendar-dates": [
+    {
+      path: "/admin/settings",
+      target: '[data-tour="calendar-full-pull"], main',
+      title: "Pull the whole calendar",
+      body: "This shows which Google Calendar is connected. Press Pull the whole calendar again once so DJs get their dates from the past year onward. The regular sync keeps it current after that."
+    },
+    {
+      path: "/admin/djs",
+      target: "main",
+      title: "See a DJ's calendar",
+      body: "Open a DJ, click View as, then open Calendar in their menu. The walkthrough carries on there."
+    },
+    {
+      path: "/dj-dashboard/calendar",
+      target: '[data-tour="dj-calendar-month"], main',
+      title: "Every date with their name",
+      body: "Each month loads as the DJ pages to it: their bookings plus every entry on the DCDJ calendar that names them.",
+      waitHint: "Open a DJ's Calendar page (View as) to continue."
+    }
+  ],
+  "2026-11-21-office-email-copies": [
+    {
+      path: "/admin/settings",
+      target: '[data-tour="office-copy"], main',
+      title: "Where office copies go",
+      body: "Put one office address here. When a DJ emails a Digital Crate DJs client, a hidden copy comes to this address. Clients the DJ added through their own Leads get no copy."
+    },
+    {
+      path: "/admin/djs",
+      target: "main",
+      title: "What DJs see",
+      body: "Open a DJ, click View as, then open one of their bookings. The email box on its Activity tab says when a copy goes to the office."
+    },
+    {
+      path: "/dj-dashboard/projects/*",
+      target: '[data-tour="office-copy-note"], [data-tour="project-email"], main',
+      title: "The DJ's email box",
+      body: "DJs write to clients from their own mailbox here. For Digital Crate DJs clients, a line under the box says a hidden copy goes to the office.",
+      waitHint: "Open a booking while viewing as a DJ to continue."
+    }
+  ],
   "2026-11-21-dj-portal": [
     {
       path: "/admin/djs",

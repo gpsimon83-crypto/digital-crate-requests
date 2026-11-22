@@ -148,10 +148,14 @@ export interface GoogleEventListResult {
   needsFullResync: boolean;
 }
 
+/** How far back a full pull reaches, so DJs can look back at past months on their calendar. */
+export const FULL_SYNC_HISTORY_DAYS = 365;
+
 /**
- * Incremental pull via Google's syncToken when we have one; otherwise an
- * initial full sync bounded to future events only (past history isn't
- * useful as a "busy" signal). Paginates until nextSyncToken appears.
+ * Incremental pull via Google's syncToken when we have one; otherwise a full
+ * sync from a year ago onward (the booking-slot checks only look at future
+ * entries; the past year is for the DJ portal calendar). Paginates until
+ * nextSyncToken appears.
  */
 export async function listGoogleEvents(accessToken: string, calendarId: string, syncToken: string | null): Promise<GoogleEventListResult> {
   const events: GoogleEventListResult["events"] = [];
@@ -165,7 +169,7 @@ export async function listGoogleEvents(accessToken: string, calendarId: string, 
     if (syncToken) {
       url.searchParams.set("syncToken", syncToken);
     } else {
-      url.searchParams.set("timeMin", new Date().toISOString());
+      url.searchParams.set("timeMin", new Date(Date.now() - FULL_SYNC_HISTORY_DAYS * 86400000).toISOString());
     }
     if (pageToken) url.searchParams.set("pageToken", pageToken);
 

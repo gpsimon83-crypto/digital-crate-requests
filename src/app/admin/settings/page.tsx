@@ -113,6 +113,8 @@ interface Settings {
   /** Migration 0063: undefined until it's run. */
   admin_club_image_url?: string | null;
   admin_dashboard_banners?: Partial<Record<"wedding" | "club", Partial<HeroSettings>>> | null;
+  /** Migration 0064. */
+  office_copy_email?: string | null;
 }
 
 interface CalendarConnection {
@@ -202,6 +204,24 @@ function GoogleCalendarCard() {
 
   const [connection, setConnection] = useState<CalendarConnection | null | undefined>(undefined);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [pullNote, setPullNote] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function handleFullPull() {
+    setPulling(true);
+    setPullNote(null);
+    try {
+      const res = await fetch("/api/admin/calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ full: true }) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || "The pull didn't finish.");
+      setPullNote({ ok: true, text: `Done: ${d.pulled} calendar entries read. DJs now see their dates from the past year onward.` });
+      load();
+    } catch (e) {
+      setPullNote({ ok: false, text: e instanceof Error ? e.message : "The pull didn't finish." });
+    } finally {
+      setPulling(false);
+    }
+  }
 
   function load() {
     fetch("/api/admin/calendar")
@@ -258,6 +278,20 @@ function GoogleCalendarCard() {
           {connection.lastSyncStatus === "error" && connection.lastSyncError && (
             <p className="text-status-declined">{connection.lastSyncError}</p>
           )}
+          <p>
+            Calendar: <span className="text-foreground">{connection.googleCalendarId === "primary" ? `the main calendar of ${connection.connectedEmail ?? "this account"}` : connection.googleCalendarId}</span>. Every DJ sees the entries on it that name them, on their own Calendar page.
+          </p>
+          <div className="flex flex-col gap-1" data-tour="calendar-full-pull">
+            <Button variant="secondary" size="sm" onClick={handleFullPull} disabled={pulling} className="w-fit">
+              {pulling ? "Pulling the calendar…" : "Pull the whole calendar again"}
+            </Button>
+            <span>Reads every entry from a year ago onward. Use it once after connecting, or if a DJ says a date is missing.</span>
+            {pullNote && (
+              <span role="status" className={pullNote.ok ? "text-status-approved" : "text-status-declined"}>
+                {pullNote.text}
+              </span>
+            )}
+          </div>
           <Button variant="destructive" size="sm" onClick={handleDisconnect} disabled={disconnecting} className="w-fit">
             {disconnecting ? "Disconnecting…" : "Disconnect"}
           </Button>
@@ -274,6 +308,7 @@ function AdminSettingsPageInner() {
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState<"portal" | "admin" | "club" | null>(null);
   const [bannersDirty, setBannersDirty] = useState(false);
+  const [copyDirty, setCopyDirty] = useState(false);
   const [generating, setGenerating] = useState<string | null>(null);
 
   const HERO_FIELD = { portal: ["portalHeroPhoto", "portal_hero_image_url"], admin: ["adminHeroPhoto", "admin_hero_image_url"], club: ["adminClubPhoto", "admin_club_image_url"] } as const;
@@ -371,12 +406,21 @@ function AdminSettingsPageInner() {
           adminHeroSubheading: settings.admin_hero_subheading,
           reviewUrl: settings.review_url,
           // Only sent once changed, so saving works before migration 0063 is run.
-          ...(bannersDirty ? { adminDashboardBanners: settings.admin_dashboard_banners ?? null } : {})
+          ...(bannersDirty ? { adminDashboardBanners: settings.admin_dashboard_banners ?? null } : {}),
+          ...(copyDirty ? { officeCopyEmail: settings.office_copy_email ?? "" } : {})
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(/admin_dashboard_banners/.test(data.error ?? "") ? "Run migration 0063 in Supabase to save banner crops." : data.error || "Failed to save settings");
+      if (!res.ok)
+        throw new Error(
+          /office_copy_email/.test(data.error ?? "")
+            ? "Run migration 0064 in Supabase to save the office copy address."
+            : /admin_dashboard_banners/.test(data.error ?? "")
+              ? "Run migration 0063 in Supabase to save banner crops."
+              : data.error || "Failed to save settings"
+        );
       setBannersDirty(false);
+      setCopyDirty(false);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -445,6 +489,24 @@ function AdminSettingsPageInner() {
                 label="Enable Crowd Vote boosts platform-wide"
                 checked={settings.crowd_vote_boosts_enabled}
                 onChange={(v) => setSettings((s) => s && { ...s, crowd_vote_boosts_enabled: v })}
+              />
+            </GlassCard>
+
+            <GlassCard className="flex flex-col gap-3" data-tour="office-copy">
+              <div>
+                <p className="text-sm font-semibold">Email copies</p>
+                <p className="text-xs text-muted">
+                  DJs email clients from their own mailbox. When the client is a Digital Crate DJs client (a website inquiry, or anyone the office added), a hidden copy goes to this address. Clients a DJ brought in through their own Leads aren&rsquo;t copied. Leave blank for no copies.
+                </p>
+              </div>
+              <Field
+                label="Office copy address"
+                value={settings.office_copy_email ?? ""}
+                onChange={(v) => {
+                  setCopyDirty(true);
+                  setSettings((s) => s && { ...s, office_copy_email: v || null });
+                }}
+                placeholder="bookings@digitalcratedjs.com"
               />
             </GlassCard>
 

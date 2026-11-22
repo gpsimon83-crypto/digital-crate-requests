@@ -50,17 +50,39 @@ export function mentionsDj(summary: string | null | undefined, names: string[]):
   });
 }
 
-export async function myGigs(db: Db, dj: { id: string; display_name: string }, opts: { days?: number } = {}): Promise<{ gigs: MyGig[]; calendarConnected: boolean }> {
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+/** Longest range one request may ask for (a calendar month view is ~6 weeks). */
+export const MAX_RANGE_DAYS = 100;
+
+/**
+ * A requested `from`/`to` (YYYY-MM-DD, inclusive), checked and capped, or
+ * null for the default "from now, the next `days`". Past dates are allowed:
+ * the DJ calendar pages back through earlier months.
+ */
+export function gigRange(from: string | null | undefined, to: string | null | undefined): { from: string; to: string } | null {
+  if (!from || !to || !YMD.test(from) || !YMD.test(to)) return null;
+  const a = Date.parse(`${from}T00:00:00Z`);
+  const b = Date.parse(`${to}T00:00:00Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b < a) return null;
+  const capped = Math.min(b, a + (MAX_RANGE_DAYS - 1) * 86400000);
+  return { from, to: new Date(capped).toISOString().slice(0, 10) };
+}
+
+export async function myGigs(db: Db, dj: { id: string; display_name: string }, opts: { days?: number; from?: string; to?: string } = {}): Promise<{ gigs: MyGig[]; calendarConnected: boolean }> {
   const now = Date.now();
+  const range = gigRange(opts.from, opts.to);
   const days = opts.days ?? 120;
-  const since = new Date(now - 12 * 3600000).toISOString();
-  const until = new Date(now + days * 86400000).toISOString();
+  // A day of slack each side for time zones; the exact dates are filtered at the end.
+  const since = range ? new Date(Date.parse(`${range.from}T00:00:00Z`) - 86400000).toISOString() : new Date(now - 12 * 3600000).toISOString();
+  const until = range ? new Date(Date.parse(`${range.to}T00:00:00Z`) + 2 * 86400000).toISOString() : new Date(now + days * 86400000).toISOString();
   const today = localDate(new Date(now).toISOString());
+  const fromDate = range?.from ?? today;
+  const spanDays = range ? (Date.parse(range.to) - Date.parse(range.from)) / 86400000 + 1 : days;
 
   // 1. Projects: lead DJ or on the crew.
   const { data: crew } = await db.from("event_staff_assignments").select("event_id, status").eq("dj_id", dj.id);
   const crewIds = ((crew ?? []) as { event_id: string; status: string }[]).filter((r) => r.status !== "declined").map((r) => r.event_id);
-  let q = db.from("events").select("id, title, starts_at, ends_at, status, venue_id, venue_name, venues(name)").gte("starts_at", since).lte("starts_at", until).order("starts_at").limit(200);
+  let q = db.from("events").select("id, title, starts_at, ends_at, status, venue_id, venue_name, venues(name)").gte("starts_at", since).lte("starts_at", until).order("starts_at").limit(400);
   q = crewIds.length ? q.or(`dj_id.eq.${dj.id},id.in.(${crewIds.join(",")})`) : q.eq("dj_id", dj.id);
   const { data: evRows } = await q;
   type Ev = { id: string; title: string | null; starts_at: string; ends_at: string | null; status: string; venue_id: string | null; venue_name: string | null; venues: { name: string } | { name: string }[] | null };
@@ -75,7 +97,7 @@ export async function myGigs(db: Db, dj: { id: string; display_name: string }, o
   const projectDates = new Set(projects.map((p) => p.date));
 
   // 2. Venue nights on the shared calendar that name this DJ.
-  const nights = await calendarNights(db, { fromDate: today, months: Math.min(3, Math.ceil(days / 31)) }).catch(() => []);
+  const nights = await calendarNights(db, { fromDate, months: Math.min(3, Math.ceil(spanDays / 31) + (range ? 1 : 0)) }).catch(() => []);
   const venueNights: MyGig[] = nights
     .filter((n) => n.dj_id === dj.id && !covered.has(`${n.venue_id}|${n.date}`))
     .map((n) => ({ key: n.id, source: "venue_night", title: n.title, venue: n.venue_name, date: n.date, starts_at: n.starts_at, ends_at: n.ends_at, status: null, href: null }));
@@ -95,7 +117,7 @@ export async function myGigs(db: Db, dj: { id: string; display_name: string }, o
       .gte("ends_at", since)
       .lt("starts_at", until)
       .order("starts_at")
-      .limit(200);
+      .limit(400);
     google = ((blocks ?? []) as { google_event_id: string; summary: string | null; starts_at: string; ends_at: string }[])
       .filter((b) => mentionsDj(b.summary, names))
       .map((b): MyGig => {
@@ -109,6 +131,7 @@ export async function myGigs(db: Db, dj: { id: string; display_name: string }, o
   }
 
   const { data: conn } = await db.from("calendar_connection").select("id").eq("id", true).maybeSingle();
-  const gigs = [...projects, ...venueNights, ...google].sort((a, b) => (a.starts_at ?? `${a.date}T12:00:00Z`).localeCompare(b.starts_at ?? `${b.date}T12:00:00Z`));
+  const inRange = (g: MyGig) => !range || (g.date >= range.from && g.date <= range.to);
+  const gigs = [...projects, ...venueNights, ...google].filter(inRange).sort((a, b) => (a.starts_at ?? `${a.date}T12:00:00Z`).localeCompare(b.starts_at ?? `${b.date}T12:00:00Z`));
   return { gigs, calendarConnected: !!conn };
 }

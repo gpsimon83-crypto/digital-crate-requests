@@ -11,6 +11,8 @@ import { EVENT_CATEGORY_LABELS, type EventCategory } from "@/lib/event-category"
 
 export interface DashEvent {
   id: string;
+  /** A calendar entry with no start time (shown as "All day"). */
+  all_day?: boolean;
   title: string;
   status: string;
   event_type: string | null;

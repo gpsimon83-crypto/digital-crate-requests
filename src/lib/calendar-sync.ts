@@ -79,6 +79,12 @@ async function pushEventsToGoogle(accessToken: string, calendarId: string): Prom
 }
 
 async function pullExternalEvents(accessToken: string, calendarId: string, syncToken: string | null): Promise<number> {
+  // A full pull (no syncToken) replaces everything, so entries deleted on Google don't linger.
+  // Forget the old token first: if this run fails part way, the next run starts a full pull again.
+  if (!syncToken) {
+    await updateSyncToken(null);
+    await clearAllBusyBlocks();
+  }
   let result = await listGoogleEvents(accessToken, calendarId, syncToken);
   if (result.needsFullResync) {
     await clearAllBusyBlocks();
@@ -192,7 +198,12 @@ async function pushMeetingsToGoogle(accessToken: string, calendarId: string): Pr
   return count;
 }
 
-export async function runCalendarSync(): Promise<{ connected: boolean; pushed: number; pulled: number }> {
+/**
+ * One sync run. `full` re-reads the whole calendar (the past year onward)
+ * instead of only the changes since last time: the "Pull the whole calendar
+ * again" button in Settings.
+ */
+export async function runCalendarSync(opts: { full?: boolean } = {}): Promise<{ connected: boolean; pushed: number; pulled: number }> {
   const auth = await getValidAccessToken();
   if (!auth) return { connected: false, pushed: 0, pulled: 0 };
 
@@ -200,7 +211,7 @@ export async function runCalendarSync(): Promise<{ connected: boolean; pushed: n
     const conn = await getConnectionWithSecrets();
     const pushed =
       (await pushEventsToGoogle(auth.accessToken, auth.calendarId)) + (await pushMeetingsToGoogle(auth.accessToken, auth.calendarId));
-    const pulled = await pullExternalEvents(auth.accessToken, auth.calendarId, conn?.syncToken ?? null);
+    const pulled = await pullExternalEvents(auth.accessToken, auth.calendarId, opts.full ? null : (conn?.syncToken ?? null));
     await recordSyncResult("ok");
     return { connected: true, pushed, pulled };
   } catch (err) {

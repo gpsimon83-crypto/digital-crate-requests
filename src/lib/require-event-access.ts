@@ -31,7 +31,7 @@ export async function requireEventAccess(eventId: string) {
 
   if (!isAdmin && !dj) return { authorized: false as const, status: 403, error: "No access to this project" };
 
-  const { data: event } = await db.from("events").select("id, dj_id, client_id, title, event_code, clients(email, first_name, last_name)").eq("id", eventId).maybeSingle();
+  const { data: event } = await db.from("events").select("id, dj_id, client_id, title, event_code, clients(email, first_name, last_name, referral_source)").eq("id", eventId).maybeSingle();
   if (!event) return { authorized: false as const, status: 404, error: "Project not found" };
 
   if (!isAdmin && event.dj_id !== dj?.id) {

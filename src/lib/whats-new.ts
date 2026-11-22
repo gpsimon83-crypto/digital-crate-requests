@@ -19,6 +19,35 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-21-dj-calendar-dates",
+    date: "2026-11-21",
+    area: "Members area",
+    title: "DJs see all their dates from the DCDJ Google Calendar",
+    summary: "A DJ's Calendar page now loads each month as they page to it, with every entry on the shared Digital Crate DJs Google Calendar that names them, plus their bookings and venue nights. It reaches back a year and as far ahead as the calendar goes.",
+    bullets: [
+      "An entry counts as the DJ's when its title names them (\"DJ Penny\", \"Penny\", or a calendar nickname you've mapped to them)",
+      "Settings → Google Calendar now shows which calendar is connected and has a \"Pull the whole calendar again\" button that reads every entry from a year ago onward",
+      "The regular sync keeps it up to date after that"
+    ],
+    link: { href: "/admin/settings", label: "Open Settings" },
+    action: "Press \"Pull the whole calendar again\" once in Settings → Google Calendar, so past months fill in. Check that the connected calendar is the DCDJ calendar."
+  },
+  {
+    id: "2026-11-21-office-email-copies",
+    date: "2026-11-21",
+    area: "CRM",
+    title: "DJs email clients from their own mailbox, with a hidden copy to the office",
+    summary: "When a DJ emails a Digital Crate DJs client, a hidden copy (BCC) goes to one office address you set in Settings. Clients a DJ brought in through their own Leads page get no copy. Your own login can't be filled into a DJ's mailbox form any more.",
+    bullets: [
+      "Settings → Email copies: the address that gets the hidden copies. Leave it empty to send no copies",
+      "Covers emails from a project's Activity tab and automation emails sent from a DJ's mailbox",
+      "The DJ sees a line under the email box when a copy will go to the office",
+      "Mailbox forms on DJ profiles no longer let the browser fill in your saved login, and View as never shows the mailbox form. Mailbox passwords stay encrypted and are never shown to anyone"
+    ],
+    link: { href: "/admin/settings", label: "Set the address" },
+    action: "Run migration 0064 in Supabase, then add the office address in Settings → Email copies."
+  },
+  {
     id: "2026-11-21-dj-portal",
     date: "2026-11-21",
     area: "Members area",

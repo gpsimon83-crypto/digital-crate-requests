@@ -64,6 +64,7 @@ export default function DjProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [viewingAs, setViewingAs] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [hasDj, setHasDj] = useState(false);
   const [checkingRole, setCheckingRole] = useState(true);
@@ -172,6 +173,7 @@ export default function DjProfilePage() {
       .then((r) => r.json())
       .then((d) => {
         setIsAdmin(isStaffRole(d?.user?.role));
+        setViewingAs(d?.viewAs?.display_name ?? null);
         const djLinked = !!d?.dj;
         setHasDj(djLinked);
         // Staff and DJ aren't mutually exclusive — some staff accounts (the
@@ -322,7 +324,7 @@ export default function DjProfilePage() {
           </Button>
         </GlassCard>
 
-        <GlassCard className="flex flex-col gap-4">
+        <GlassCard className="flex flex-col gap-4" data-tour="dj-mailbox">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold/15 text-gold">
               <Mail size={18} />
@@ -350,10 +352,15 @@ export default function DjProfilePage() {
                 </button>
               </div>
             </div>
+          ) : viewingAs ? (
+            // View as DJ: never offer a mailbox form here (your browser could fill in your own login).
+            <p className="rounded-[10px] border border-border px-4 py-3 text-xs text-muted">
+              {viewingAs} hasn&apos;t connected a mailbox. Only {viewingAs} can connect one, from their own login.
+            </p>
           ) : (
-            <div className="flex flex-col gap-3">
-              <EmailField label="Email Address" value={emailForm.emailAddress} onChange={(v) => setEmailForm((f) => ({ ...f, emailAddress: v }))} placeholder="you@digitalcratedjs.com" />
-              <EmailField label="Password" type="password" value={emailForm.password} onChange={(v) => setEmailForm((f) => ({ ...f, password: v }))} />
+            <form autoComplete="off" onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-3">
+              <EmailField label="Email Address" autoComplete="off" name="dj-mailbox-address" value={emailForm.emailAddress} onChange={(v) => setEmailForm((f) => ({ ...f, emailAddress: v }))} placeholder="you@digitalcratedjs.com" />
+              <EmailField label="Password" type="password" autoComplete="new-password" name="dj-mailbox-password" value={emailForm.password} onChange={(v) => setEmailForm((f) => ({ ...f, password: v }))} />
               <div className="grid gap-3 sm:grid-cols-2">
                 <EmailField label="SMTP Server" value={emailForm.smtpHost} onChange={(v) => setEmailForm((f) => ({ ...f, smtpHost: v }))} />
                 <EmailField
@@ -380,7 +387,7 @@ export default function DjProfilePage() {
                   </button>
                 )}
               </div>
-            </div>
+            </form>
           )}
         </GlassCard>
 
@@ -511,19 +518,28 @@ function EmailField({
   value,
   onChange,
   type = "text",
-  placeholder
+  placeholder,
+  autoComplete,
+  name
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
   placeholder?: string;
+  autoComplete?: string;
+  name?: string;
 }) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">{label}</span>
       <input
         type={type}
+        autoComplete={autoComplete ?? "off"}
+        name={name}
+        // Password managers: don't fill a saved login into a DJ mailbox form.
+        data-1p-ignore
+        data-lpignore="true"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}

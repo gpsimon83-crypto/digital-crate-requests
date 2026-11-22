@@ -12,6 +12,7 @@ import { createTask } from "@/lib/data/tasks";
 import { getLibraryItem } from "@/lib/data/library";
 import { getEmailAccountWithSecretForDj } from "@/lib/data/email-accounts";
 import { sendEmailFromAccount } from "@/lib/send-email";
+import { officeCopyFor } from "@/lib/office-copy";
 import { fillMergeFields, type MergeContext } from "@/lib/merge-fields";
 import { isStaffRole, accountRole } from "@/lib/roles";
 import { TRIGGERS, parseDateTrigger } from "@/lib/automation-capabilities";
@@ -20,7 +21,7 @@ import type { EventCategory } from "@/lib/event-category";
 export { TRIGGERS };
 
 const EVENT_SELECT =
-  "id, event_code, title, event_type, event_category, service_type, status, event_status, starts_at, ends_at, created_at, contract_status, quoted_amount, final_amount, dj_id, djs(display_name), venues(name), clients(first_name, last_name, company_name, email)";
+  "id, event_code, title, event_type, event_category, service_type, status, event_status, starts_at, ends_at, created_at, contract_status, quoted_amount, final_amount, dj_id, djs(display_name), venues(name), clients(first_name, last_name, company_name, email, referral_source)";
 
 interface EventContext {
   id: string;
@@ -40,7 +41,7 @@ interface EventContext {
   dj_id: string | null;
   djs: { display_name: string } | null;
   venues: { name: string } | null;
-  clients: { first_name: string | null; last_name: string | null; company_name: string | null; email: string | null } | null;
+  clients: { first_name: string | null; last_name: string | null; company_name: string | null; email: string | null; referral_source?: string | null } | null;
   hasDepositPayment: boolean;
   balancePaid: boolean;
 }
@@ -155,7 +156,9 @@ async function runAction(action: AutomationAction, event: EventContext, origin: 
       const subject = fillMergeFields(template.subject || event.title || "Update from Digital Crate DJs", ctx);
       const body = fillMergeFields(template.body, ctx);
 
-      await sendEmailFromAccount(account, { to: clientEmail, subject, text: body, fromName: event.djs?.display_name });
+      // Same rule as a DJ's own emails: DCDJ clients copy the office.
+      const bcc = await officeCopyFor(createAdminClient(), event.clients, event.djs?.display_name);
+      await sendEmailFromAccount(account, { to: clientEmail, subject, text: body, fromName: event.djs?.display_name, bcc });
       return `Sent "${template.title}" to ${clientEmail}`;
     }
     case "unlock_music_plan": {

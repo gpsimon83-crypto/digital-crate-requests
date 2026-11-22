@@ -18,6 +18,12 @@ const DEFAULT_SETTINGS = {
   review_url: null,
 };
 
+/** Office copy address: a plain email or nothing. */
+function cleanEmail(v: unknown) {
+  const s = typeof v === "string" ? v.trim().toLowerCase().slice(0, 254) : "";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? s : null;
+}
+
 /** Dashboard banner crop points: only x/y 0–100 for "wedding" and "club" are kept. */
 function cleanBanners(v: unknown) {
   if (!v || typeof v !== "object") return null;
@@ -109,7 +115,8 @@ export async function PATCH(req: NextRequest) {
         ...(body.adminHeroSubheading !== undefined ? { admin_hero_subheading: body.adminHeroSubheading } : {}),
         ...(body.portalHeroSettings !== undefined ? { portal_hero_settings: body.portalHeroSettings } : {}),
         ...(body.reviewUrl !== undefined ? { review_url: body.reviewUrl } : {}),
-        ...(body.adminDashboardBanners !== undefined ? { admin_dashboard_banners: cleanBanners(body.adminDashboardBanners) } : {})
+        ...(body.adminDashboardBanners !== undefined ? { admin_dashboard_banners: cleanBanners(body.adminDashboardBanners) } : {}),
+        ...(body.officeCopyEmail !== undefined ? { office_copy_email: cleanEmail(body.officeCopyEmail) } : {})
       })
       .eq("id", true)
       .select()

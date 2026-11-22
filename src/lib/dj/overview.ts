@@ -100,7 +100,8 @@ export function calendarItems(gigs: MyGig[], events: DashEvent[]): DashEvent[] {
       contract_status: "none",
       djs: null,
       venues: g.venue ? { name: g.venue } : null,
-      clients: null
+      clients: null,
+      all_day: !g.starts_at
     }));
   return [...events, ...extra];
 }

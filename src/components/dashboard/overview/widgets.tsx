@@ -639,9 +639,31 @@ export function UpcomingEvents({ events, loading, error, layout, title = "Upcomi
 
 /* ---------------- calendar ---------------- */
 
-export function MiniCalendar({ events, loading, error, layout, now }: { events: DashEvent[]; loading: boolean; error?: boolean; layout: DashLayout; now: Date }) {
+export function MiniCalendar({
+  events,
+  loading,
+  error,
+  layout,
+  now,
+  onMonth,
+  monthNote
+}: {
+  events: DashEvent[];
+  loading: boolean;
+  error?: boolean;
+  layout: DashLayout;
+  now: Date;
+  /** Told the first day of the month on screen whenever it changes (to load that month's dates). */
+  onMonth?: (first: Date) => void;
+  /** A line under the grid about the month on screen (e.g. "Loading this month…"). */
+  monthNote?: React.ReactNode;
+}) {
   const links = useLinks();
-  const [cursor, setCursor] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1));
+  const [cursor, setCursorState] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1));
+  const setCursor = (d: Date) => {
+    setCursorState(d);
+    onMonth?.(d);
+  };
   const [picked, setPicked] = useState<string | null>(null);
   const byDay = useMemo(() => eventsByDay(events), [events]);
   const grid = monthGrid(cursor);
@@ -716,6 +738,7 @@ export function MiniCalendar({ events, loading, error, layout, now }: { events: 
           Events couldn&apos;t load, so the days show no events. Refresh to try again.
         </p>
       )}
+      {monthNote && <div className="mt-2 text-xs text-muted">{monthNote}</div>}
       {picked && (
         <div className="mt-3 border-t border-border pt-3" aria-live="polite">
           <p className="mb-1.5 text-xs font-semibold">{fmtLong(picked)}</p>
@@ -727,7 +750,7 @@ export function MiniCalendar({ events, loading, error, layout, now }: { events: 
                 <li key={e.id}>
                   <Link href={links.project(e.id)} className={cn("flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 text-sm hover:bg-black/5", FOCUS)}>
                     <span className="min-w-0 truncate">{e.title}</span>
-                    <span className="shrink-0 text-xs text-muted">{new Date(e.starts_at as string).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span>
+                    <span className="shrink-0 text-xs text-muted">{e.all_day ? "All day" : new Date(e.starts_at as string).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span>
                   </Link>
                 </li>
               ))}

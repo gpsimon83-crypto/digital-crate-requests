@@ -48,6 +48,7 @@ export function EmailThreadPanel({
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [signature, setSignature] = useState<string | null>(null);
+  const [officeCopy, setOfficeCopy] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -57,6 +58,7 @@ export function EmailThreadPanel({
       const data = await res.json();
       setMessages(res.ok ? data.messages : []);
       if (res.ok) setSignature(data.signature ?? null);
+      if (res.ok) setOfficeCopy(!!data.officeCopy);
     } catch {
       setMessages([]);
     }
@@ -122,7 +124,7 @@ export function EmailThreadPanel({
   }
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-3" data-tour="project-email">
       <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Email</p>
 
       {messages === null && <p className="text-sm text-muted">Loading…</p>}
@@ -222,6 +224,11 @@ export function EmailThreadPanel({
             Preview &amp; Send
           </Button>
         </div>
+        {officeCopy && (
+          <p className="mt-2 text-[11px] text-muted" data-tour="office-copy-note">
+            This is a Digital Crate DJs client, so a hidden copy of your email goes to the office.
+          </p>
+        )}
       </div>
 
       <EmailPreviewModal

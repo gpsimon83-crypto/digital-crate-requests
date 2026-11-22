@@ -9,6 +9,8 @@ export async function sendEmailFromAccount(
     text: string;
     fromName?: string;
     attachments?: { filename: string; content: Buffer; contentType?: string }[];
+    /** Hidden copy (the office copy for DCDJ clients). */
+    bcc?: string | null;
   }
 ) {
   const transporter = nodemailer.createTransport({
@@ -21,6 +23,7 @@ export async function sendEmailFromAccount(
   const info = await transporter.sendMail({
     from: message.fromName ? `"${message.fromName}" <${account.emailAddress}>` : account.emailAddress,
     to: message.to,
+    ...(message.bcc ? { bcc: message.bcc } : {}),
     subject: message.subject,
     text: message.text,
     attachments: message.attachments

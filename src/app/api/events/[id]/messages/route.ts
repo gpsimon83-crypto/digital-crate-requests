@@ -7,6 +7,7 @@ import { buildEmailSignature } from "@/lib/email-signature";
 import { createEventFile } from "@/lib/data/event-files";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
+import { isDjOwnClient, officeCopyAddress, officeCopyFor } from "@/lib/office-copy";
 
 const BUCKET = "event-files";
 
@@ -31,7 +32,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const messages = await listEventMessages(id);
     const signature = access.dj ? buildEmailSignature(access.dj) : null;
-    return NextResponse.json({ messages, signature });
+    // Tell the composer whether the office gets a copy (DCDJ client) or not (the DJ's own lead).
+    const clientRow = Array.isArray(access.event.clients) ? access.event.clients[0] : access.event.clients;
+    const officeCopy = access.dj ? !isDjOwnClient(clientRow, access.dj.display_name) && !!(await officeCopyAddress(createAdminClient())) : false;
+    return NextResponse.json({ messages, signature, officeCopy });
   } catch (err) {
     return NextResponse.json({ error: errorMessage(err) }, { status: 503 });
   }
@@ -81,8 +85,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   try {
     const uploaded = await Promise.all(attachmentFiles.map((f) => uploadAttachment(id, f)));
 
+    // DCDJ clients: the office gets a hidden copy. A DJ's own leads: no copy.
+    const bcc = await officeCopyFor(createAdminClient(), clientRow, access.dj.display_name);
     const messageId = await sendEmailFromAccount(account, {
       to: clientEmail,
+      bcc,
       subject,
       text: fullBody,
       fromName: access.dj.display_name,
