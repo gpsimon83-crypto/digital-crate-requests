@@ -8,7 +8,7 @@ import type { DashLayout } from "@/lib/dashboard-layout";
 import type { MyGig } from "@/lib/data/my-gigs";
 import { FOCUS, Panel, PanelTitle } from "./widgets";
 
-export type MyGigsState = { djName: string; gigs: MyGig[]; calendarConnected: boolean; loading: boolean; error: boolean };
+export type MyGigsState = { djName: string; gigs: MyGig[]; calendarConnected: boolean; loading: boolean; error: boolean; /** Admin only: where to connect Google Calendar. */ connectHref?: string };
 
 const SOURCE: Record<MyGig["source"], { label: string; Icon: typeof Disc3 }> = {
   project: { label: "Project", Icon: FolderOpen },
@@ -86,8 +86,12 @@ export function MyGigs({ s, layout }: { s: MyGigsState; layout: DashLayout }) {
       )}
       {!s.loading && !s.calendarConnected && (
         <p className="mt-2 text-[11px] text-muted">
-          Google Calendar isn&apos;t connected in Settings, so only venue nights and projects show here.{" "}
-          <Link href="/admin/settings" className={cn("text-gold hover:underline", FOCUS)}>Connect it</Link>
+          Google Calendar isn&apos;t connected yet, so only venue nights and projects show here.{" "}
+          {s.connectHref && (
+            <Link href={s.connectHref} className={cn("text-gold hover:underline", FOCUS)}>
+              Connect it
+            </Link>
+          )}
         </p>
       )}
     </Panel>

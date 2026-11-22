@@ -33,6 +33,8 @@ export async function createInquiry(input: {
   venueName?: string;
   expectedGuests?: number;
   budgetRange?: string;
+  /** Where the lead came from, for a new client (default: the website form). */
+  source?: string;
 }) {
   const db = createAdminClient();
 
@@ -50,7 +52,7 @@ export async function createInquiry(input: {
         last_name: rest.join(" ") || null,
         email: input.email,
         phone: input.phone || null,
-        referral_source: "website booking form"
+        referral_source: input.source || "website booking form"
       })
       .select("id")
       .single();

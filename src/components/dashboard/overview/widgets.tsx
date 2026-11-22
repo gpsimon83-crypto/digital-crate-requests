@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -47,6 +47,26 @@ import {
 import type { DashLayout } from "@/lib/dashboard-layout";
 
 /* ---------------- shared bits ---------------- */
+
+/**
+ * Where dashboard items open. The admin home uses the defaults; the DJ
+ * dashboard passes its own (a DJ's project page, their bookings list…).
+ */
+export type DashLinks = {
+  project: (id: string) => string;
+  allProjects: string;
+  calendar: string;
+  category: (key: "wedding" | "club") => string;
+};
+export const ADMIN_LINKS: DashLinks = {
+  project: (id) => `/admin/events/${id}`,
+  allProjects: "/admin/events",
+  calendar: "/admin/calendar",
+  category: (k) => `/admin/events?category=${k}`
+};
+const LinksContext = createContext<DashLinks>(ADMIN_LINKS);
+export const DashLinksProvider = LinksContext.Provider;
+const useLinks = () => useContext(LinksContext);
 
 export const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
 
@@ -108,9 +128,10 @@ export function BannerPhoto({ src, focal, sizes, priority, className }: { src: s
 
 /** Studio: two photo panels (weddings, club nights), each opening that kind of project. */
 export function StudioBanner({ photos }: { photos: BannerPhotos }) {
+  const links = useLinks();
   const panels = [
-    { key: "wedding", label: "Weddings", href: "/admin/events?category=wedding", src: photos.wedding.url ?? FALLBACK_PHOTOS.wedding, focal: photos.wedding.url ? photos.wedding.focal : { x: 70, y: 60 } },
-    { key: "club", label: "Club & Bar Nights", href: "/admin/events?category=club", src: photos.club.url ?? FALLBACK_PHOTOS.club, focal: photos.club.url ? photos.club.focal : { x: 50, y: 40 } }
+    { key: "wedding", label: "Weddings", href: links.category("wedding"), src: photos.wedding.url ?? FALLBACK_PHOTOS.wedding, focal: photos.wedding.url ? photos.wedding.focal : { x: 70, y: 60 } },
+    { key: "club", label: "Club & Bar Nights", href: links.category("club"), src: photos.club.url ?? FALLBACK_PHOTOS.club, focal: photos.club.url ? photos.club.focal : { x: 50, y: 40 } }
   ];
   return (
     <div className="grid h-[148px] grid-cols-2 gap-2 overflow-hidden rounded-[18px] sm:h-[176px] lg:h-[188px]" data-tour="dash-banner">
@@ -131,28 +152,37 @@ export function StudioBanner({ photos }: { photos: BannerPhotos }) {
 
 /* ---------------- quick actions ---------------- */
 
-export function QuickActions({ layout, className }: { layout: DashLayout; className?: string }) {
+export type QuickAction = { href: string; label: string; icon: LucideIcon; primary?: boolean };
+export const ADMIN_QUICK_ACTIONS: QuickAction[] = [
+  { href: "/admin/events?new=1", label: "New project", icon: Plus, primary: true },
+  { href: "/admin/calendar", label: "View calendar", icon: CalendarDays },
+  { href: "/admin/reports", label: "View reports", icon: BarChart3 }
+];
+
+export function QuickActions({ layout, className, actions = ADMIN_QUICK_ACTIONS }: { layout: DashLayout; className?: string; actions?: QuickAction[] }) {
   const base = cn("inline-flex h-10 items-center gap-2 rounded-[10px] px-4 text-sm font-semibold transition-colors", FOCUS);
   return (
     <div className={cn("flex flex-wrap gap-2", className)} data-tour="dash-quick">
-      <Link href="/admin/events?new=1" className={cn(base, "bg-gold text-[var(--on-gold,#1a140a)] hover:brightness-[1.06]")}>
-        <Plus size={16} aria-hidden /> New project
-      </Link>
-      <Link href="/admin/calendar" className={cn(base, "border border-border bg-card/70 hover:border-gold", layout === "command" && "backdrop-blur")}>
-        <CalendarDays size={16} aria-hidden /> View calendar
-      </Link>
-      <Link href="/admin/reports" className={cn(base, "border border-border bg-card/70 hover:border-gold", layout === "command" && "backdrop-blur")}>
-        <BarChart3 size={16} aria-hidden /> View reports
-      </Link>
+      {actions.map((a) => (
+        <Link
+          key={a.href}
+          href={a.href}
+          className={cn(base, a.primary ? "bg-gold text-[var(--on-gold,#1a140a)] hover:brightness-[1.06]" : "border border-border bg-card/70 hover:border-gold", !a.primary && layout === "command" && "backdrop-blur")}
+        >
+          <a.icon size={16} aria-hidden /> {a.label}
+        </Link>
+      ))}
     </div>
   );
 }
 
 /* ---------------- metrics ---------------- */
 
-export function MetricCards({ m, loading, error, layout }: { m: Metrics | null; loading: boolean; error: boolean; layout: DashLayout }) {
+export type MetricItem = { key: string; icon: LucideIcon; value: string; label: string; help: string; sub?: string; href: string };
+
+export function MetricCards({ m, loading, error, layout, items: given }: { m: Metrics | null; loading: boolean; error: boolean; layout: DashLayout; items?: MetricItem[] }) {
   const v = (n: number | undefined, f: (n: number) => string = String) => (loading ? "…" : error || n === undefined ? "—" : f(n));
-  const items: { key: string; icon: LucideIcon; value: string; label: string; help: string; sub?: string; href: string }[] = [
+  const items: MetricItem[] = given ?? [
     { key: "leads", icon: Users, value: v(m?.newLeads), label: "New leads", help: "Open inquiries waiting for a reply", href: "/admin/events?stage=inquiries" },
     { key: "contracts", icon: FileText, value: v(m?.pendingContracts), label: "Pending contracts", help: "Sent and not signed yet", href: "/admin/events?need=contract" },
     { key: "week", icon: CalendarClock, value: v(m?.upcomingThisWeek), label: "Upcoming this week", help: "Events in the next 7 days, inquiries included", href: "/admin/calendar" },
@@ -211,6 +241,25 @@ export function MetricCards({ m, loading, error, layout }: { m: Metrics | null; 
 
 /* ---------------- revenue ---------------- */
 
+/** The chart's words: admin shows booked vs collected; the DJ dashboard shows their payouts. */
+export type ChartCopy = { title: string; a: string; b: string; empty: string; emptyBody: string; footnote: React.ReactNode };
+export const ADMIN_CHART_COPY: ChartCopy = {
+  title: "Revenue",
+  a: "Booked",
+  b: "Collected",
+  empty: "Nothing booked or collected",
+  emptyBody: "Amounts show here once events are priced or payments come in.",
+  footnote: (
+    <>
+      <b className="font-semibold">Booked</b> is the agreed or quoted value of events by the month they happen (open inquiries included, as in Reports).{" "}
+      <b className="font-semibold">Collected</b> is payments received, by payment date.{" "}
+      <Link href="/admin/reports" className={cn("text-gold underline-offset-2 hover:underline", FOCUS)}>
+        Full report
+      </Link>
+    </>
+  )
+};
+
 export function PeriodSelect({ period, onChange, id }: { period: Period; onChange: (p: Period) => void; id: string }) {
   return (
     <label className="flex items-center gap-2 text-xs text-muted" htmlFor={id}>
@@ -243,7 +292,8 @@ export function RevenueChart({
   error,
   period,
   onPeriod,
-  layout
+  layout,
+  copy = ADMIN_CHART_COPY
 }: {
   trend: TrendRow[] | null;
   loading: boolean;
@@ -251,6 +301,7 @@ export function RevenueChart({
   period: Period;
   onPeriod: (p: Period) => void;
   layout: DashLayout;
+  copy?: ChartCopy;
 }) {
   const spansYears = trend ? new Set(trend.map((t) => t.month.slice(0, 4))).size > 1 : false;
   const data = (trend ?? []).map((t) => ({ ...t, label: monthName(t.month, spansYears), booked: t.bookedCents / 100, collected: t.collectedCents / 100 }));
@@ -260,25 +311,25 @@ export function RevenueChart({
   return (
     <Panel layout={layout} aria-labelledby="dash-rev" data-tour="dash-revenue">
       <PanelTitle layout={layout} id="dash-rev" action={<PeriodSelect id="dash-period" period={period} onChange={onPeriod} />}>
-        Revenue
+        {copy.title}
       </PanelTitle>
       {loading ? (
-        <StateBox kind="loading" title="Loading revenue…" />
+        <StateBox kind="loading" title="Loading…" />
       ) : error ? (
-        <StateBox kind="error" title="Revenue couldn't load" body="The rest of the dashboard is fine. Try again in a moment, or open Reports." />
+        <StateBox kind="error" title={`${copy.title} couldn't load`} body="The rest of the dashboard is fine. Try again in a moment." />
       ) : !trend || trend.length === 0 || allZero ? (
-        <StateBox kind="empty" icon={BarChart3} title={`Nothing booked or collected · ${periodLabel}`} body="Amounts show here once events are priced or payments come in." />
+        <StateBox kind="empty" icon={BarChart3} title={`${copy.empty} · ${periodLabel}`} body={copy.emptyBody} />
       ) : (
         <>
           <ul className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-xs" aria-label="Legend">
             <li className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-gold" aria-hidden /> Booked <span className="tabular-nums text-muted">{money(totals.b)}</span>
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-gold" aria-hidden /> {copy.a} <span className="tabular-nums text-muted">{money(totals.b)}</span>
             </li>
             <li className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-[3px] bg-status-approved" aria-hidden /> Collected <span className="tabular-nums text-muted">{money(totals.c)}</span>
+              <span className="h-2.5 w-2.5 rounded-[3px] bg-status-approved" aria-hidden /> {copy.b} <span className="tabular-nums text-muted">{money(totals.c)}</span>
             </li>
           </ul>
-          <div className="h-[190px] w-full" role="img" aria-label={`Booked ${money(totals.b)} and collected ${money(totals.c)}, ${periodLabel}, by month`}>
+          <div className="h-[190px] w-full" role="img" aria-label={`${copy.a} ${money(totals.b)} and ${copy.b.toLowerCase()} ${money(totals.c)}, ${periodLabel}, by month`}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data} margin={{ top: 6, right: 4, bottom: 0, left: 0 }} barGap={2} barCategoryGap="22%">
                 <CartesianGrid vertical={false} stroke="var(--border)" />
@@ -298,21 +349,18 @@ export function RevenueChart({
                     active && payload?.length ? (
                       <div className="rounded-[10px] border border-border bg-card px-3 py-2 text-xs text-foreground shadow-lg">
                         <p className="mb-1 font-semibold">{label}</p>
-                        <p>Booked: {money(Math.round(Number(payload[0]?.payload?.bookedCents ?? 0)))}</p>
-                        <p>Collected: {money(Math.round(Number(payload[0]?.payload?.collectedCents ?? 0)))}</p>
+                        <p>{copy.a}: {money(Math.round(Number(payload[0]?.payload?.bookedCents ?? 0)))}</p>
+                        <p>{copy.b}: {money(Math.round(Number(payload[0]?.payload?.collectedCents ?? 0)))}</p>
                       </div>
                     ) : null
                   }
                 />
-                <Bar dataKey="booked" name="Booked" fill="var(--gold)" radius={[4, 4, 0, 0]} maxBarSize={30} isAnimationActive={false} />
-                <Bar dataKey="collected" name="Collected" fill="var(--status-approved)" radius={[4, 4, 0, 0]} maxBarSize={30} isAnimationActive={false} />
+                <Bar dataKey="booked" name={copy.a} fill="var(--gold)" radius={[4, 4, 0, 0]} maxBarSize={30} isAnimationActive={false} />
+                <Bar dataKey="collected" name={copy.b} fill="var(--status-approved)" radius={[4, 4, 0, 0]} maxBarSize={30} isAnimationActive={false} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <p className="mt-2 text-[11px] leading-snug text-muted">
-            <b className="font-semibold">Booked</b> is the agreed or quoted value of events by the month they happen (open inquiries included, as in Reports).{" "}
-            <b className="font-semibold">Collected</b> is payments received, by payment date. <Link href="/admin/reports" className={cn("text-gold underline-offset-2 hover:underline", FOCUS)}>Full report</Link>
-          </p>
+          <p className="mt-2 text-[11px] leading-snug text-muted">{copy.footnote}</p>
         </>
       )}
     </Panel>
@@ -482,7 +530,8 @@ function DjCell({ e }: { e: DashEvent }) {
   );
 }
 
-export function UpcomingEvents({ events, loading, error, layout }: { events: DashEvent[]; loading: boolean; error: boolean; layout: DashLayout }) {
+export function UpcomingEvents({ events, loading, error, layout, title = "Upcoming events", showDj = true }: { events: DashEvent[]; loading: boolean; error: boolean; layout: DashLayout; title?: string; showDj?: boolean }) {
+  const links = useLinks();
   const rows = events.slice(0, 6);
   const time = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   return (
@@ -491,12 +540,12 @@ export function UpcomingEvents({ events, loading, error, layout }: { events: Das
         layout={layout}
         id="dash-upcoming"
         action={
-          <Link href="/admin/events" className={cn("text-xs font-semibold text-gold hover:underline", FOCUS)}>
+          <Link href={links.allProjects} className={cn("text-xs font-semibold text-gold hover:underline", FOCUS)}>
             View all{events.length ? ` (${events.length})` : ""}
           </Link>
         }
       >
-        Upcoming events
+        {title}
       </PanelTitle>
       {loading ? (
         <StateBox kind="loading" title="Loading events…" />
@@ -516,7 +565,7 @@ export function UpcomingEvents({ events, loading, error, layout }: { events: Das
                   <th scope="col" className="w-[60px] pb-2 font-semibold">Date</th>
                   <th scope="col" className="pb-2 font-semibold">Event</th>
                   <th scope="col" className="hidden w-[15%] pb-2 font-semibold @6xl:table-cell">Venue</th>
-                  <th scope="col" className="w-[22%] pb-2 font-semibold @5xl:w-[19%]">DJ</th>
+                  {showDj && <th scope="col" className="w-[22%] pb-2 font-semibold @5xl:w-[19%]">DJ</th>}
                   <th scope="col" className="hidden w-[14%] pb-2 font-semibold @5xl:table-cell">Type</th>
                   <th scope="col" className="w-[108px] pb-2 font-semibold">Status</th>
                   <th scope="col" className="w-[76px] pb-2 text-right font-semibold"><span className="sr-only">Actions</span></th>
@@ -530,7 +579,7 @@ export function UpcomingEvents({ events, loading, error, layout }: { events: Das
                       <span className="flex min-w-0 items-center gap-3">
                         <Thumb e={e} />
                         <span className="min-w-0">
-                          <Link href={`/admin/events/${e.id}`} className={cn("block truncate font-semibold hover:text-gold", FOCUS)}>{e.title}</Link>
+                          <Link href={links.project(e.id)} className={cn("block truncate font-semibold hover:text-gold", FOCUS)}>{e.title}</Link>
                           <span className="block truncate text-xs text-muted">
                             {time(e.starts_at as string)} · {clientName(e.clients, "No contact") ?? "No contact"}
                           </span>
@@ -548,11 +597,11 @@ export function UpcomingEvents({ events, loading, error, layout }: { events: Das
                         <span className="text-muted">No venue</span>
                       )}
                     </td>
-                    <td className="py-2.5 pr-3"><DjCell e={e} /></td>
+                    {showDj && <td className="py-2.5 pr-3"><DjCell e={e} /></td>}
                     <td className="hidden truncate py-2.5 pr-3 text-muted @5xl:table-cell">{typeLabel(e)}</td>
                     <td className="py-2.5 pr-2"><StatusPill status={e.status} /></td>
                     <td className="py-2.5 text-right">
-                      <Link href={`/admin/events/${e.id}`} className={cn("inline-flex h-8 items-center rounded-[8px] border border-border px-2.5 text-xs font-semibold hover:border-gold", FOCUS)} aria-label={`${e.djs ? "Open" : "Assign a DJ to"} ${e.title}`}>
+                      <Link href={links.project(e.id)} className={cn("inline-flex h-8 items-center rounded-[8px] border border-border px-2.5 text-xs font-semibold hover:border-gold", FOCUS)} aria-label={`${e.djs ? "Open" : "Assign a DJ to"} ${e.title}`}>
                         {e.djs ? "Open" : "Assign"}
                       </Link>
                     </td>
@@ -564,7 +613,7 @@ export function UpcomingEvents({ events, loading, error, layout }: { events: Das
           <ul className="grid gap-2 @xl:grid-cols-2 @3xl:hidden">
             {rows.map((e) => (
               <li key={e.id}>
-                <Link href={`/admin/events/${e.id}`} className={cn("flex gap-3 rounded-[14px] border border-border p-3 hover:border-gold", FOCUS)}>
+                <Link href={links.project(e.id)} className={cn("flex gap-3 rounded-[14px] border border-border p-3 hover:border-gold", FOCUS)}>
                   <DateBadge iso={e.starts_at as string} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-start justify-between gap-2">
@@ -575,7 +624,7 @@ export function UpcomingEvents({ events, loading, error, layout }: { events: Das
                       {time(e.starts_at as string)} · {typeLabel(e)}
                       {e.venues?.name ? ` · ${e.venues.name}` : ""}
                     </span>
-                    <span className="mt-2 block"><DjCell e={e} /></span>
+                    {showDj && <span className="mt-2 block"><DjCell e={e} /></span>}
                   </span>
                 </Link>
               </li>
@@ -591,6 +640,7 @@ export function UpcomingEvents({ events, loading, error, layout }: { events: Das
 /* ---------------- calendar ---------------- */
 
 export function MiniCalendar({ events, loading, error, layout, now }: { events: DashEvent[]; loading: boolean; error?: boolean; layout: DashLayout; now: Date }) {
+  const links = useLinks();
   const [cursor, setCursor] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1));
   const [picked, setPicked] = useState<string | null>(null);
   const byDay = useMemo(() => eventsByDay(events), [events]);
@@ -658,7 +708,7 @@ export function MiniCalendar({ events, loading, error, layout, now }: { events: 
           <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden />Booked</span>
           <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full border border-gold" aria-hidden />Inquiry</span>
         </span>
-        <Link href="/admin/calendar" className={cn("font-semibold text-gold hover:underline", FOCUS)}>Full calendar</Link>
+        <Link href={links.calendar} className={cn("font-semibold text-gold hover:underline", FOCUS)}>Full calendar</Link>
       </div>
       {loading && <p className="mt-2 text-xs text-muted">Loading events…</p>}
       {error && (
@@ -675,7 +725,7 @@ export function MiniCalendar({ events, loading, error, layout, now }: { events: 
             <ul className="flex flex-col gap-1">
               {list.map((e) => (
                 <li key={e.id}>
-                  <Link href={`/admin/events/${e.id}`} className={cn("flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 text-sm hover:bg-black/5", FOCUS)}>
+                  <Link href={links.project(e.id)} className={cn("flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 text-sm hover:bg-black/5", FOCUS)}>
                     <span className="min-w-0 truncate">{e.title}</span>
                     <span className="shrink-0 text-xs text-muted">{new Date(e.starts_at as string).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span>
                   </Link>

@@ -19,6 +19,21 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-21-dj-portal",
+    date: "2026-11-21",
+    area: "Members area",
+    title: "The DJ portal gets a real dashboard",
+    summary: "DJs now get a menu like yours (side rail on a computer, tab bar on a phone) and a home page in the same two layouts and themes: gigs coming up, what needs doing, earnings, My gigs from the Google Calendar, bookings, calendar and activity. DJs can also add their own leads.",
+    bullets: [
+      "Menu: Home, Notifications, Calendar, Bookings, Leads, Recurring gigs, Payouts, Flyer Creator, Services & pricing, Profile, Library. Each DJ can pick Modern Studio or Midnight Command and a site theme",
+      "Numbers: gigs in the next 30 days, this week, open leads, payouts pending (and paid this year)",
+      "Action hub: bookings to confirm, recurring gigs to confirm, recaps due, open tasks, leads",
+      "Leads: a DJ adds a client's name, email, date and details. It comes to you like a website inquiry, already assigned to that DJ, and you get a notification. Quotes, contracts and payments stay with the office",
+      "New pages: Calendar (bookings plus the shared Google Calendar), Recurring gigs list, Notifications",
+      "See it yourself with View as on any DJ's page"
+    ]
+  },
+  {
     id: "2026-11-21-view-as-dj",
     date: "2026-11-21",
     area: "CRM",

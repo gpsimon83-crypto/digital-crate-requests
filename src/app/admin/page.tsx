@@ -173,7 +173,7 @@ function AdminOverview() {
       reportLoading: !reportReady && reportError !== period,
       reportError: reportError === period,
       now,
-      myGigs: me?.dj && gigs ? { djName: me.dj.display_name, ...gigs } : null
+      myGigs: me?.dj && gigs ? { djName: me.dj.display_name, connectHref: "/admin/settings", ...gigs } : null
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [events, payments, loadError, report, reportError, period, branding, me, now, loading, gigs]);

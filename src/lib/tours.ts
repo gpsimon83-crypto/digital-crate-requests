@@ -18,6 +18,39 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-21-dj-portal": [
+    {
+      path: "/admin/djs",
+      target: "main",
+      title: "See a DJ's new portal",
+      body: "Open any DJ from this list, then click View as on their page. You'll see their portal exactly as they do (read-only)."
+    },
+    {
+      path: "/admin/djs/*",
+      target: '[data-tour="dj-view-as"], main',
+      title: "View as",
+      body: "Click View as to open this DJ's portal. The walkthrough carries on there.",
+      waitHint: "Open a DJ's page to continue."
+    },
+    {
+      path: "/dj-dashboard",
+      target: '[data-tour="dash-metrics"], main',
+      title: "The DJ's home",
+      body: "Gigs coming up, open leads and pay pending, then what needs doing, earnings and My gigs (including the shared Google Calendar). Same layouts and themes as yours."
+    },
+    {
+      path: "/dj-dashboard",
+      target: '[data-tour="dash-actions"], main',
+      title: "What needs doing",
+      body: "Bookings and recurring gigs to confirm, recaps due, tasks and leads, each opening the right page."
+    },
+    {
+      path: "/dj-dashboard/leads",
+      target: '[data-tour="dj-add-lead"], main',
+      title: "DJs add leads",
+      body: "A DJ adds a client they found. It reaches you as an inquiry assigned to that DJ, with a notification. Click Exit on the green banner when you're done looking."
+    }
+  ],
   "2026-11-21-view-as-dj": [
     {
       path: "/admin/djs",

@@ -15,4 +15,4 @@ export const DASH_LAYOUT_KEY = "dcdj-dashboard-layout";
  * Before first paint on the admin home: Midnight Command uses its own top
  * navigation, so the side rail is hidden from the start (no jump on load).
  */
-export const DASH_LAYOUT_BOOT = `try{if(location.pathname==="/admin"&&localStorage.getItem(${JSON.stringify(DASH_LAYOUT_KEY)})==="command")document.documentElement.dataset.dashLayout="command"}catch(_){}`;
+export const DASH_LAYOUT_BOOT = `try{if((location.pathname==="/admin"||location.pathname==="/dj-dashboard")&&localStorage.getItem(${JSON.stringify(DASH_LAYOUT_KEY)})==="command")document.documentElement.dataset.dashLayout="command"}catch(_){}`;

@@ -24,7 +24,10 @@ import {
   RevenueChart,
   StudioBanner,
   UpcomingEvents,
-  type BannerPhotos
+  type BannerPhotos,
+  type ChartCopy,
+  type MetricItem,
+  type QuickAction
 } from "./widgets";
 import { MyGigs, type MyGigsState } from "./my-gigs";
 import type { ActionGroup, ActivityItem, DashEvent, Metrics, Period, TrendRow, TypeRow } from "@/lib/dashboard/overview";
@@ -51,6 +54,21 @@ export interface DashboardData {
   now: Date;
   /** Only when the signed-in admin's login is linked to a DJ profile. */
   myGigs: MyGigsState | null;
+  /** DJ dashboard (and anything else) can swap in its own pieces; the admin home leaves these out. */
+  custom?: {
+    metricItems?: MetricItem[];
+    quickActions?: QuickAction[];
+    chartCopy?: ChartCopy;
+    /** Replaces the event-type panel. */
+    sidePanel?: React.ReactNode;
+    topNav?: React.ReactNode;
+    upcomingTitle?: string;
+    /** The DJ's own dashboard: every row is theirs, so no DJ column. */
+    hideDjColumn?: boolean;
+    eyebrow?: string;
+    studioSub?: string;
+    commandSub?: string;
+  };
 }
 
 /** Modern Studio / Midnight Command switch (arrangement only; colors follow the site theme). */
@@ -89,8 +107,8 @@ export function StudioLayout({ d }: { d: DashboardData }) {
           <h1 id="dash-greet" className="mt-2 font-display text-[32px] font-light leading-[1.05] sm:text-[36px]">
             {d.greeting}
           </h1>
-          <p className="mt-1.5 text-sm text-muted">{d.hero.subheading ?? "Here's what needs your attention today."}</p>
-          <QuickActions layout="studio" className="mt-4" />
+          <p className="mt-1.5 text-sm text-muted">{d.custom?.studioSub ?? d.hero.subheading ?? "Here's what needs your attention today."}</p>
+          <QuickActions layout="studio" className="mt-4" actions={d.custom?.quickActions} />
         </Panel>
         <ActionHub layout="studio" groups={d.groups} loading={d.loading} error={d.error} className="order-4 lg:order-none" />
         {d.myGigs && (
@@ -104,11 +122,11 @@ export function StudioLayout({ d }: { d: DashboardData }) {
           <StudioBanner photos={d.photos} />
         </div>
         <div className="order-3 lg:order-none">
-          <MetricCards layout="studio" m={d.metrics} loading={d.loading} error={d.error} />
+          <MetricCards layout="studio" m={d.metrics} loading={d.loading} error={d.error} items={d.custom?.metricItems} />
         </div>
         <div className="order-7 grid gap-4 lg:order-none xl:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] xl:gap-5">
-          <RevenueChart layout="studio" trend={d.trend} loading={d.reportLoading} error={d.reportError} period={d.period} onPeriod={d.onPeriod} />
-          <EventTypeBars layout="studio" types={d.types} loading={d.reportLoading} error={d.reportError} period={d.period} />
+          <RevenueChart layout="studio" trend={d.trend} loading={d.reportLoading} error={d.reportError} period={d.period} onPeriod={d.onPeriod} copy={d.custom?.chartCopy} />
+          {d.custom?.sidePanel ?? <EventTypeBars layout="studio" types={d.types} loading={d.reportLoading} error={d.reportError} period={d.period} />}
         </div>
         <div className="order-9 lg:order-none">
           <RecentActivity layout="studio" items={d.activity} loading={d.loading} error={d.error} now={d.now} />
@@ -116,7 +134,7 @@ export function StudioLayout({ d }: { d: DashboardData }) {
       </div>
       <div className="order-5 lg:col-span-2 lg:order-none">
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-5">
-          <UpcomingEvents layout="studio" events={d.upcoming} loading={d.loading} error={d.error} />
+          <UpcomingEvents layout="studio" events={d.upcoming} loading={d.loading} error={d.error} title={d.custom?.upcomingTitle} showDj={!d.custom?.hideDjColumn} />
           <MiniCalendar layout="studio" events={d.calendarEvents} loading={d.loading} error={d.error} now={d.now} />
         </div>
       </div>
@@ -140,7 +158,21 @@ const TOP_LINKS = [
  * this page, so it keeps every destination: the main links up top, the rest
  * (and Theme, Sign Out) under "All pages". Phones keep the bottom tab bar.
  */
-export function CommandTopNav() {
+type NavGroup = { label?: string; items: { href: string; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; external?: boolean }[] };
+
+export function CommandTopNav({
+  links = TOP_LINKS,
+  groups = ADMIN_NAV_GROUPS as unknown as NavGroup[],
+  home = { href: "/admin", label: "Admin" },
+  search = true,
+  notificationsHref = "/admin/notifications"
+}: {
+  links?: { href: string; label: string }[];
+  groups?: NavGroup[];
+  home?: { href: string; label: string };
+  search?: boolean;
+  notificationsHref?: string;
+} = {}) {
   const pathname = usePathname();
   const unread = useUnreadNotifications();
   const signOut = useAdminSignOut();
@@ -161,13 +193,13 @@ export function CommandTopNav() {
   return (
     <header className="sticky top-0 z-30 hidden border-b border-border bg-[color-mix(in_srgb,var(--background)_88%,transparent)] backdrop-blur md:block" data-tour="dash-topnav">
       <div className="flex h-14 items-center gap-4 px-5 lg:px-7">
-        <Link href="/admin" className={cn("flex shrink-0 items-center gap-2", FOCUS)} aria-label="Admin home">
+        <Link href={home.href} className={cn("flex shrink-0 items-center gap-2", FOCUS)} aria-label={`${home.label} home`}>
           <Logo variant="icon" brand="crates-djs" size={28} />
-          <span className="hidden text-sm font-semibold lg:inline">Admin</span>
+          <span className="hidden text-sm font-semibold lg:inline">{home.label}</span>
         </Link>
         <nav aria-label="Main" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [scrollbar-width:none]">
-          {TOP_LINKS.map((l) => {
-            const active = l.href === "/admin" ? pathname === "/admin" : false;
+          {links.map((l) => {
+            const active = l.href === home.href ? pathname === home.href : false;
             return (
               <Link
                 key={l.href}
@@ -182,7 +214,7 @@ export function CommandTopNav() {
           })}
         </nav>
         <div className="flex shrink-0 items-center gap-1">
-          <button
+          {search && <button
             type="button"
             // The global search lives with the side menu (Ctrl/⌘ K); this opens the same search.
             onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true, metaKey: true, bubbles: true }))}
@@ -190,8 +222,8 @@ export function CommandTopNav() {
             aria-label="Search (Ctrl or ⌘ K)"
           >
             <Search size={18} />
-          </button>
-          <Link href="/admin/notifications" className={cn("relative flex h-9 w-9 items-center justify-center rounded-full text-muted hover:bg-black/5 hover:text-foreground", FOCUS)} aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}>
+          </button>}
+          <Link href={notificationsHref} className={cn("relative flex h-9 w-9 items-center justify-center rounded-full text-muted hover:bg-black/5 hover:text-foreground", FOCUS)} aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}>
             <Bell size={18} />
             {unread > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-gold" aria-hidden />}
           </Link>
@@ -208,7 +240,7 @@ export function CommandTopNav() {
             {open && (
               <div role="menu" className="absolute right-0 top-full z-50 mt-2 max-h-[75vh] w-[min(560px,90vw)] overflow-y-auto rounded-[14px] border border-border bg-card p-3 text-foreground shadow-[0_16px_40px_rgba(0,0,0,0.3)]">
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {ADMIN_NAV_GROUPS.map((g, i) => (
+                  {groups.map((g, i) => (
                     <div key={g.label ?? i}>
                       {g.label && <p className="px-2 pb-1 text-[10px] uppercase tracking-[2px] text-muted">{g.label}</p>}
                       {g.items.map((it) => (
@@ -254,7 +286,7 @@ export function CommandLayout({ d }: { d: DashboardData }) {
   const focal = d.photos.wedding.url ? d.photos.wedding.focal : { x: 70, y: 60 };
   return (
     <>
-      <CommandTopNav />
+      {d.custom?.topNav ?? <CommandTopNav />}
       <div className="flex flex-col gap-4 p-4 sm:p-6 lg:gap-5 lg:px-7 lg:py-6">
         {/* Hero: words and actions on the left, photo on the right, shaded only where the text sits. */}
         <section className="relative isolate overflow-hidden rounded-[20px] border border-border bg-card" aria-labelledby="dash-greet" data-tour="dash-banner">
@@ -265,32 +297,32 @@ export function CommandLayout({ d }: { d: DashboardData }) {
           </div>
           <div className="flex min-h-[210px] flex-col justify-center gap-1 p-5 sm:min-h-[232px] sm:p-7 sm:pr-[38%] lg:pr-[45%]">
             <div className="flex flex-wrap items-center justify-between gap-2 sm:justify-start sm:gap-4">
-              <p className="text-[11px] font-semibold uppercase tracking-[3px] text-muted">{d.hero.heading ?? "Digital Crate DJs CRM"}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[3px] text-muted">{d.custom?.eyebrow ?? d.hero.heading ?? "Digital Crate DJs CRM"}</p>
               <LayoutSwitch layout="command" />
             </div>
             <h1 id="dash-greet" className="mt-1 font-display text-[34px] font-light leading-[1.05] sm:text-[42px]">
               {d.greeting}
             </h1>
             <p className="text-sm text-muted sm:text-base">
-              {d.hero.subheading ?? "Your event business command center."} <span className="whitespace-nowrap">{d.dateLine}</span>
+              {d.custom?.commandSub ?? d.hero.subheading ?? "Your event business command center."} <span className="whitespace-nowrap">{d.dateLine}</span>
             </p>
-            <QuickActions layout="command" className="mt-4" />
+            <QuickActions layout="command" className="mt-4" actions={d.custom?.quickActions} />
           </div>
         </section>
-        <MetricCards layout="command" m={d.metrics} loading={d.loading} error={d.error} />
+        <MetricCards layout="command" m={d.metrics} loading={d.loading} error={d.error} items={d.custom?.metricItems} />
         {/* Phone: actions and upcoming events first, charts after. Desktop: the reference arrangement. */}
         <div className="contents lg:grid lg:grid-cols-2 lg:gap-5 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.95fr)]">
           <div className="order-4 min-w-0 lg:order-none lg:[&>*]:h-full">
-            <RevenueChart layout="command" trend={d.trend} loading={d.reportLoading} error={d.reportError} period={d.period} onPeriod={d.onPeriod} />
+            <RevenueChart layout="command" trend={d.trend} loading={d.reportLoading} error={d.reportError} period={d.period} onPeriod={d.onPeriod} copy={d.custom?.chartCopy} />
           </div>
           <div className="order-5 min-w-0 lg:order-none lg:[&>*]:h-full">
-            <EventTypeBars layout="command" types={d.types} loading={d.reportLoading} error={d.reportError} period={d.period} />
+            {d.custom?.sidePanel ?? <EventTypeBars layout="command" types={d.types} loading={d.reportLoading} error={d.reportError} period={d.period} />}
           </div>
           <ActionHub layout="command" limit={3} groups={d.groups} loading={d.loading} error={d.error} className="order-1 lg:order-none lg:col-span-2 xl:col-span-1" />
         </div>
         <div className="contents lg:grid lg:grid-cols-[minmax(0,1.9fr)_minmax(300px,1fr)] lg:items-start lg:gap-5">
           <div className="order-2 min-w-0 lg:order-none">
-            <UpcomingEvents layout="command" events={d.upcoming} loading={d.loading} error={d.error} />
+            <UpcomingEvents layout="command" events={d.upcoming} loading={d.loading} error={d.error} title={d.custom?.upcomingTitle} showDj={!d.custom?.hideDjColumn} />
           </div>
           <div className="contents lg:flex lg:min-w-0 lg:flex-col lg:gap-5">
             {d.myGigs && (
