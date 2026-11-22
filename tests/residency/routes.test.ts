@@ -294,7 +294,7 @@ describe("money stays with finance staff", () => {
   it("adding a one-off date can't duplicate a scheduled one", async () => {
     await res.POST(req("POST", weekly), P);
     expect((await gigsRoute.POST(req("POST", { date: String(gigs()[0].gig_date) }), P)).status).toBe(409);
-    const sat = addDays(String(gigs()[0].gig_date), -1);
+    const sat = addDays(String(gigs()[0].gig_date), 6); // the day before the second week: never a scheduled night, never in the past
     expect((await gigsRoute.POST(req("POST", { date: sat, djId: "penny" }), P)).status).toBe(200);
     expect(gigs().find((g) => g.gig_date === sat)).toMatchObject({ source: "manual", coverage: "awaiting", detached: true });
   });
