@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { GuidedTour } from "@/components/admin/guided-tour";
 import { SiteThemeRoot } from "@/components/admin/site-theme";
 import { DASH_LAYOUT_BOOT, SITE_THEME_BOOT } from "@/lib/site-theme-boot";
+import { ViewSwitch } from "@/components/admin/view-switch";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -13,7 +14,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <SiteThemeRoot />
       <AdminSidebarNav />
       <div className="admin-main overflow-x-hidden pb-20 md:pb-0 md:pl-16">{children}</div>
-      <AdminMobileTabBar />
+      <AdminMobileTabBar extra={<ViewSwitch to="dj" variant="sheet" />} />
       <Suspense fallback={null}>
         <GuidedTour />
       </Suspense>

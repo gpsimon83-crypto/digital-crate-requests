@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/site/logo";
-import { LogOut } from "lucide-react";
+import { ExternalLink, LogOut } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -139,7 +139,12 @@ export function Sidebar({
                   </span>
                   <NavLabel variant={variant}>
                     {item.label}
-                    {item.external && <span className="ml-1 text-muted">↗</span>}
+                    {item.external && (
+                      <>
+                        <ExternalLink size={13} className="ml-1.5 inline-block align-[-1px] text-muted" aria-hidden />
+                        <span className="sr-only"> (opens in a new tab)</span>
+                      </>
+                    )}
                   </NavLabel>
                 </Link>
               );

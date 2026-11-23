@@ -4,7 +4,9 @@ import { DjShell } from "@/components/dj/dj-shell";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { accountRole, isStaffRole } from "@/lib/roles";
-import { viewAsDjId } from "@/lib/view-as";
+import { djRowForUser, viewAsDjId } from "@/lib/view-as";
+import { cookies } from "next/headers";
+import { VIEW_MODE_COOKIE } from "@/lib/view-mode";
 import { DASH_LAYOUT_BOOT, SITE_THEME_BOOT } from "@/lib/site-theme-boot";
 
 /**
@@ -19,7 +21,12 @@ export default async function DjDashboardLayout({ children }: { children: React.
     const {
       data: { user }
     } = await supabase.auth.getUser();
-    if (user) shell = !isStaffRole(accountRole(user)) || !!(await viewAsDjId(createAdminClient(), user));
+    if (user) {
+      const db = createAdminClient();
+      shell = !isStaffRole(accountRole(user)) || !!(await viewAsDjId(db, user));
+      // DJ View: staff with their own DJ profile see the portal as that DJ.
+      if (!shell && (await cookies()).get(VIEW_MODE_COOKIE)?.value === "dj") shell = !!(await djRowForUser(db, user.id));
+    }
   } catch {
     shell = false;
   }

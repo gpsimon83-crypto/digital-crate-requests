@@ -25,10 +25,12 @@ import {
   PackageOpen,
   CalendarCheck,
   Mail,
-  Megaphone,
   ShieldCheck,
-  Image
+  Image,
+  Inbox,
+  GraduationCap
 } from "lucide-react";
+import { ACADEMY_URL, MEMBERS_AREA } from "@/lib/external-links";
 import type { LucideIcon } from "lucide-react";
 
 export interface AdminNavItem {
@@ -53,66 +55,71 @@ export const ADMIN_NAV_GROUPS: AdminNavGroup[] = [
   {
     items: [
       { href: "/admin", label: "Home", icon: Home },
+      // What's New lives on the Notifications page (and its own page stays at /admin/whats-new).
       { href: "/admin/notifications", label: "Notifications", icon: Bell },
-      { href: "/admin/whats-new", label: "What's New", icon: Megaphone },
       { href: "/admin/calendar", label: "Calendar", icon: CalendarDays }
     ]
   },
   {
-    label: "Workspace",
+    label: "Work",
     items: [
-      { href: "/admin/events", label: "Projects", icon: Briefcase },
+      { href: "/admin/events", label: "All Projects", icon: Briefcase },
+      { href: "/admin/events?stage=inquiries", label: "Leads & Inquiries", icon: Inbox },
       { href: "/admin/clients", label: "Contacts", icon: Users },
       { href: "/admin/venues", label: "Venue Portals", icon: MapPin },
-      { href: "/admin/meetings", label: "Meetings", icon: CalendarCheck },
-      { href: "/admin/leads", label: "Lead Capture", icon: Magnet },
-      { href: "/admin/security", label: "Inquiry Security", icon: ShieldCheck }
+      { href: "/admin/meetings", label: "Meetings", icon: CalendarCheck }
+    ]
+  },
+  {
+    label: "Team",
+    items: [
+      { href: "/admin/djs", label: "DJ Team", icon: Disc3 },
+      { href: "/admin/invite-codes", label: "Invite Codes", icon: KeyRound },
+      { href: "/admin/equipment", label: "Equipment", icon: Boxes }
     ]
   },
   {
     label: "Business",
     items: [
       { href: "/admin/finance", label: "Finance", icon: Wallet },
-      { href: "/admin/reports", label: "Reports", icon: BarChart3 }
+      { href: "/admin/reports", label: "Reports & Analytics", icon: BarChart3 },
+      { href: "/admin/services", label: "Services", icon: Sparkles },
+      { href: "/admin/packages", label: "Packages", icon: PackageOpen },
+      { href: "/admin/monetization", label: "Monetization", icon: DollarSign }
     ]
   },
   {
     label: "Communication",
     items: [
       { href: "/admin/communications", label: "Communications", icon: Mail },
-      { href: "/admin/files", label: "Library", icon: FolderOpen }
+      { href: "/admin/automations", label: "Automations", icon: Zap }
     ]
   },
   {
-    label: "Team",
+    label: "Resources",
     items: [
-      { href: "/admin/djs", label: "DJs", icon: Disc3 },
-      { href: "/admin/equipment", label: "Equipment", icon: Boxes }
-    ]
-  },
-  {
-    label: "Tools",
-    items: [
-      { href: "/admin/crate-requests", label: "Crate Requests", icon: Music2 },
+      { href: "/admin/crate-requests", label: "Music & Crates", icon: Music2 },
       { href: "/admin/crate-templates", label: "Crate Templates", icon: LayoutTemplate },
-      { href: "/admin/flyers", label: "Flyer Templates", icon: Image },
-      { href: "/admin/monetization", label: "Monetization", icon: DollarSign },
-      { href: "/admin/services", label: "Services", icon: Sparkles },
-      { href: "/admin/packages", label: "Packages", icon: PackageOpen },
+      { href: "/admin/flyers", label: "Flyer Creator", icon: Image },
+      { href: "/admin/files", label: "Documents & Library", icon: FolderOpen },
+      { href: ACADEMY_URL, label: "DCDJs Academy", icon: GraduationCap, external: true },
+      { href: MEMBERS_AREA, label: "DJ Members Area", icon: ArrowLeft, external: true }
+    ]
+  },
+  {
+    label: "Intake",
+    items: [
+      { href: "/admin/leads", label: "Lead Capture", icon: Magnet },
+      { href: "/admin/security", label: "Inquiry Security", icon: ShieldCheck },
       { href: "/admin/tools/scheduler", label: "Scheduler", icon: CalendarClock },
-      { href: "/admin/questionnaires", label: "Questionnaire Builder", icon: ClipboardList },
-      { href: "/admin/automations", label: "Automations", icon: Zap },
-      { href: "/admin/invite-codes", label: "Invite Codes", icon: KeyRound }
+      { href: "/admin/questionnaires", label: "Questionnaire Builder", icon: ClipboardList }
     ]
   },
   {
     label: "System",
     items: [
-      { href: "/admin/settings", label: "Settings", icon: Settings },
-      { href: "/admin/resources", label: "Resources", icon: LifeBuoy }
+      { href: "/admin/settings", label: "Company Settings", icon: Settings },
+      { href: "/admin/resources", label: "Help & Resources", icon: LifeBuoy }
     ]
-  },
-  {
-    items: [{ href: "https://digitalcratedjs.com/members", label: "DJ Portal", icon: ArrowLeft, external: true }]
   }
 ];

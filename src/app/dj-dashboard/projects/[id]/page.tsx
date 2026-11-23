@@ -14,6 +14,7 @@ import { PackageTemplatePicker } from "@/components/project/package-template-pic
 import { PackageSelectionPanel } from "@/components/project/package-selection-panel";
 import { WeddingBasicsInsights } from "@/components/project/wedding-basics-insights";
 import type { MergeContext } from "@/lib/merge-fields";
+import { bookingMergeContext } from "@/lib/dj/booking-merge";
 
 interface ClientRow {
   first_name: string | null;
@@ -106,23 +107,8 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const balanceCents = balance?.balanceCents ?? 0;
 
-  const mergeContext: MergeContext = {
-    clientFirstName: event.clients?.first_name ?? name ?? undefined,
-    clientFullName: name ?? undefined,
-    eventType: event.event_type ?? undefined,
-    eventDate: event.starts_at ? new Date(event.starts_at).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }) : undefined,
-    eventTime: event.starts_at ? new Date(event.starts_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : undefined,
-    eventEndTime: event.ends_at ? new Date(event.ends_at).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) : undefined,
-    venueName: event.venues?.name ?? undefined,
-    guestCount: event.expected_guests != null ? String(event.expected_guests) : undefined,
-    djName: event.djs?.display_name ?? undefined,
-    totalAmount: event.final_amount ?? event.quoted_amount ? money(Math.round((event.final_amount ?? event.quoted_amount ?? 0) * 100)) : undefined,
-    depositAmount: event.deposit_amount != null ? money(Math.round(event.deposit_amount * 100)) : undefined,
-    balanceDue: money(balanceCents),
-    portalLink: `${origin}/portal/events/${id}`,
-    schedulerLink: `${origin}/schedule`,
-    eventCode: event.event_code
-  };
+  const mergeContext: MergeContext = bookingMergeContext(event, balanceCents, origin);
+
 
   return (
     <>

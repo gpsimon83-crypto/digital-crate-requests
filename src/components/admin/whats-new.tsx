@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, ChevronRight, CircleAlert, PlayCircle } from "lucide-react";
 import { hasTour } from "@/lib/tours";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { InboxTabs } from "@/components/admin/inbox-tabs";
 import { UPDATES, type UpdateArea } from "@/lib/whats-new";
 import { markWhatsNewSeen } from "@/lib/use-whats-new";
 import { cn } from "@/lib/utils";
@@ -39,7 +40,7 @@ export function WhatsNew() {
 
   return (
     <>
-      <PageHeader title="What's New" subtitle="Every update to the CRM and the DJ members area, newest first." />
+      <PageHeader title="What's New" subtitle="Every update to the CRM and the DJ members area, newest first." tabs={<InboxTabs active="whats-new" />} />
       <div className="mx-auto flex max-w-3xl flex-col gap-6 p-4 sm:p-6">
         <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter updates">
           {([

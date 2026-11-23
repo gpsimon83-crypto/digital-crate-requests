@@ -9,6 +9,7 @@ import { Sidebar, type SidebarNavGroup } from "@/components/ui/sidebar";
 import { ADMIN_NAV_GROUPS } from "@/lib/admin-nav";
 import { useWhatsNewCount } from "@/lib/use-whats-new";
 import { SiteThemeButton } from "@/components/admin/site-theme";
+import { ViewSwitch } from "@/components/admin/view-switch";
 
 /** Unread notifications, refreshed on each page change (shared with the dashboard's top menu). */
 export function useUnreadNotifications() {
@@ -42,7 +43,7 @@ export function AdminSidebarNav() {
     label: group.label,
     items: group.items.map((item) =>
       item.href === "/admin/notifications"
-        ? { ...item, badge: unreadCount }
+        ? { ...item, badge: unreadCount + whatsNew }
         : item.href === "/admin/whats-new"
           ? { ...item, badge: whatsNew }
           : item
@@ -62,6 +63,7 @@ export function AdminSidebarNav() {
       headerExtra={
         <>
           <QuickCreateMenu />
+          <ViewSwitch to="dj" />
           <GlobalSearch />
         </>
       }

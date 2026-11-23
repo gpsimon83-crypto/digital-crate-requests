@@ -8,6 +8,7 @@ import {
   ListMusic, BarChart3, DollarSign, LayoutTemplate, Mail, PenLine, type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { Col, Grid, PageShell } from "@/components/layout/grid";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
@@ -277,8 +278,9 @@ export default function DjProfilePage() {
   return (
     <>
       <PageHeader
+        breadcrumbs={[{ label: "Account" }, { label: "My Profile" }]}
         title="My Profile"
-        subtitle="Manage your photo and how your hero appears on event pages."
+        subtitle="Your photo, your mailbox for client email, your signature, and how your hero appears on event pages."
         action={
           <div className="flex items-center gap-2">
             {isAdmin && (
@@ -293,10 +295,11 @@ export default function DjProfilePage() {
           </div>
         }
       />
-      <div className="flex flex-col gap-6 p-6">
-        {error && <p className="text-xs text-status-declined">{error}</p>}
-
-        <GlassCard className="flex items-center gap-4">
+      <PageShell>
+        {error && <p className="mb-4 text-xs text-status-declined">{error}</p>}
+        <Grid>
+        <Col span={4} wide className="flex flex-col gap-4 xl:gap-5">
+        <GlassCard className="flex flex-wrap items-center gap-4">
           <DjAvatar name={dj.display_name} photoUrl={dj.photo_url} size={64} />
           <div className="flex-1">
             <p className="font-semibold">{dj.display_name}</p>
@@ -323,7 +326,38 @@ export default function DjProfilePage() {
             {uploading ? "Uploading..." : "Change Photo"}
           </Button>
         </GlassCard>
+        <GlassCard className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold/15 text-gold">
+              <PenLine size={18} />
+            </span>
+            <div className="flex-1">
+              <p className="font-semibold">Email Signature</p>
+              <p className="text-xs text-muted">Shown at the bottom of every client email you send from a project&rsquo;s Activity tab. Phone and email are optional.</p>
+            </div>
+          </div>
 
+          <div className="grid gap-3 sm:grid-cols-2">
+            <EmailField label="Phone (optional)" value={signaturePhone} onChange={setSignaturePhone} placeholder="(555) 123-4567" />
+            <EmailField label="Email (optional)" value={signatureEmail} onChange={setSignatureEmail} placeholder="you@digitalcratedjs.com" />
+          </div>
+
+          <div>
+            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Preview</span>
+            <pre className="whitespace-pre-wrap rounded-[10px] border border-black/10 bg-panel px-3 py-2.5 font-sans text-sm text-muted">
+              {buildEmailSignature({ display_name: dj.display_name, signature_phone: signaturePhone, signature_email: signatureEmail })}
+            </pre>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button variant="primary" size="sm" onClick={handleSaveSignature} disabled={savingSignature} className="w-fit">
+              {savingSignature ? "Saving..." : "Save Signature"}
+            </Button>
+            {signatureSaved && <span className="text-xs text-status-approved">Saved</span>}
+          </div>
+        </GlassCard>
+        </Col>
+        <Col span={8}>
         <GlassCard className="flex flex-col gap-4" data-tour="dj-mailbox">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold/15 text-gold">
@@ -390,39 +424,8 @@ export default function DjProfilePage() {
             </form>
           )}
         </GlassCard>
-
-        <GlassCard className="flex flex-col gap-4">
-          <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold/15 text-gold">
-              <PenLine size={18} />
-            </span>
-            <div className="flex-1">
-              <p className="font-semibold">Email Signature</p>
-              <p className="text-xs text-muted">Shown at the bottom of every client email you send from a project&rsquo;s Activity tab. Phone and email are optional.</p>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <EmailField label="Phone (optional)" value={signaturePhone} onChange={setSignaturePhone} placeholder="(555) 123-4567" />
-            <EmailField label="Email (optional)" value={signatureEmail} onChange={setSignatureEmail} placeholder="you@digitalcratedjs.com" />
-          </div>
-
-          <div>
-            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Preview</span>
-            <pre className="whitespace-pre-wrap rounded-[10px] border border-black/10 bg-panel px-3 py-2.5 font-sans text-sm text-muted">
-              {buildEmailSignature({ display_name: dj.display_name, signature_phone: signaturePhone, signature_email: signatureEmail })}
-            </pre>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button variant="primary" size="sm" onClick={handleSaveSignature} disabled={savingSignature} className="w-fit">
-              {savingSignature ? "Saving..." : "Save Signature"}
-            </Button>
-            {signatureSaved && <span className="text-xs text-status-approved">Saved</span>}
-          </div>
-        </GlassCard>
-
-        {/* Live preview */}
+        </Col>
+        <Col span={7}>
         <GlassCard className="!p-0 overflow-hidden">
           <div className="relative h-[220px] w-full overflow-hidden">
             {dj.photo_url ? (
@@ -461,7 +464,8 @@ export default function DjProfilePage() {
             </div>
           </div>
         </GlassCard>
-
+        </Col>
+        <Col span={5} wide>
         <GlassCard className="flex flex-col gap-5">
           <p className="text-sm font-semibold uppercase tracking-wide text-muted">Hero Image Controls</p>
           <SliderRow
@@ -508,7 +512,9 @@ export default function DjProfilePage() {
             </button>
           </div>
         </GlassCard>
-      </div>
+        </Col>
+        </Grid>
+      </PageShell>
     </>
   );
 }

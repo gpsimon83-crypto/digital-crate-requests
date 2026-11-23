@@ -199,7 +199,7 @@ export default function BriefPage({ params }: { params: Promise<{ id: string }> 
             <Section title="Must play">{b.mustPlay.length ? <ul className="list-disc pl-4">{b.mustPlay.map((s, i) => <li key={i}>{s}</li>)}</ul> : <Empty>None listed.</Empty>}</Section>
             <Section title="Do not play">{b.doNotPlay.length ? <ul className="list-disc pl-4">{b.doNotPlay.map((s, i) => <li key={i}>{s}</li>)}</ul> : <Empty>None listed.</Empty>}</Section>
           </div>
-          {b.notes && <Section title="Notes"><p className="whitespace-pre-line">{b.notes}</p></Section>}
+          {b.notes && <Section title="Client notes"><p className="whitespace-pre-line">{b.notes}</p></Section>}
         </>
       )}
     </div>

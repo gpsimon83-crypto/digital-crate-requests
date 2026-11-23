@@ -19,7 +19,8 @@ import { NextStepsCard } from "@/components/portal/next-steps-card";
 import { PlanningChecklistCard } from "@/components/portal/planning-checklist-card";
 import { UpcomingMeetingCard, type PortalMeeting } from "@/components/portal/upcoming-meeting-card";
 import { ChangeOrdersPanel, type ChangeOrderData } from "@/components/project/change-orders-panel";
-import { ArrowLeft, X, FileText, FileSignature, DollarSign, Music2, ChevronRight, MessageCircle, type LucideIcon } from "lucide-react";
+import { ArrowLeft, X, FileText, FileSignature, DollarSign, Music2, ChevronRight, MessageCircle, Ban, NotebookPen, Contact, Truck, CalendarClock, Disc3, Users, MapPin, CircleCheck, type LucideIcon } from "lucide-react";
+import { Breadcrumbs, Col, FieldGroup, Grid, INPUT, MetricRow, MetricTile, SectionCard } from "@/components/layout/grid";
 import type { HeroSettings } from "@/lib/hero-settings";
 import type { EventCategory } from "@/lib/event-category";
 
@@ -178,11 +179,10 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   const [weatherBackupPlan, setWeatherBackupPlan] = useState("");
   const [vendorMealCount, setVendorMealCount] = useState("");
   const [venueLoadInNotes, setVenueLoadInNotes] = useState("");
-  const [savingVendors, setSavingVendors] = useState(false);
-  const [vendorsSaved, setVendorsSaved] = useState(false);
   const [dayTimeline, setDayTimeline] = useState<TimelineEntry[]>([]);
   const [savingTimeline, setSavingTimeline] = useState(false);
   const [timelineSaved, setTimelineSaved] = useState(false);
+  const [checklistCount, setChecklistCount] = useState<number | null>(null);
 
   const [contract, setContract] = useState<ContractInfo | null>(null);
   const [changeOrders, setChangeOrders] = useState<ChangeOrderData[]>([]);
@@ -256,7 +256,9 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
     };
   }, [bodyTheme]);
 
-  async function handleSave() {
+
+  /** Songs, notes, vendors and day-of logistics: one save (the wedding plan and timeline keep their own). */
+  async function handleSaveAll() {
     setSaving(true);
     setSaved(false);
     setError(null);
@@ -264,7 +266,15 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       const res = await fetch(`/api/portal/events/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mustPlay, doNotPlay, specialRequests })
+        body: JSON.stringify({
+          mustPlay,
+          doNotPlay,
+          specialRequests,
+          vendorContacts,
+          weatherBackupPlan: weatherBackupPlan || null,
+          vendorMealCount: vendorMealCount ? Number(vendorMealCount) : null,
+          venueLoadInNotes: venueLoadInNotes || null
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
@@ -296,30 +306,6 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
     }
   }
 
-  async function handleSaveVendors() {
-    setSavingVendors(true);
-    setVendorsSaved(false);
-    setError(null);
-    try {
-      const res = await fetch(`/api/portal/events/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          vendorContacts,
-          weatherBackupPlan: weatherBackupPlan || null,
-          vendorMealCount: vendorMealCount ? Number(vendorMealCount) : null,
-          venueLoadInNotes: venueLoadInNotes || null
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to save");
-      setVendorsSaved(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setSavingVendors(false);
-    }
-  }
 
   async function handleSign() {
     if (signName.trim().length < 2) {
@@ -608,13 +594,206 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
       )}
 
       {activeTab === "music" && (
-        <div className="mt-6 flex flex-col gap-6">
+        <div className="mt-6 flex flex-col gap-5" data-tour="portal-music-grid">
+          {/* Header: where you are, what this is, and the one save for this page. */}
+          <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+            <div className="min-w-0 max-w-3xl">
+              <Breadcrumbs items={[{ label: "Your events", href: "/portal" }, { label: displayName, href: tabHref("overview") }, { label: "Music" }]} className="mb-1.5" />
+              <h2 className="font-display text-[30px] font-light leading-tight sm:text-[34px]">{isWedding ? "Wedding Music Plan" : "Music & Planning"}</h2>
+              <p className="mt-1 text-sm text-muted">
+                Plan the music, logistics and key details for your {isWedding ? "wedding" : "event"}.
+                {isWedding && !musicPlanOpen ? " Your DJ sends the wedding music plan once your deposit is in — check back after your first payment." : ""}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              {saved && !saving && <span role="status" className="text-sm text-status-approved">Saved</span>}
+              <Button variant="cta" onClick={handleSaveAll} disabled={saving} className="w-fit" data-tour="portal-music-save">
+                {saving ? "Saving..." : "Save changes"}
+              </Button>
+            </div>
+          </div>
+          <nav aria-label="On this page" className="-mx-1 overflow-x-auto px-1 pb-1">
+            <ul className="flex w-max gap-2 sm:w-auto sm:flex-wrap">
+              {[
+                { href: "#music-songs", label: "Songs" },
+                { href: "#music-notes", label: "Notes" },
+                { href: "#music-logistics", label: "Vendors & logistics" },
+                ...(isWedding ? [{ href: "#music-plan", label: "Wedding plan" }] : [])
+              ].map((l) => (
+                <li key={l.href}>
+                  <a href={l.href} className="inline-flex h-9 items-center whitespace-nowrap rounded-full border border-border px-4 text-sm hover:border-gold/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          {error && <p role="alert" className="text-sm text-status-declined">{error}</p>}
+
+          {/* Summary: only what this event's record has. */}
+          <MetricRow>
+            {event.djs?.display_name && <MetricTile icon={Disc3} label="Your DJ" value={event.djs.display_name} />}
+            {event.expected_guests != null && <MetricTile icon={Users} label="Guest count" value={`${event.expected_guests} guests`} />}
+            {event.venues?.name && <MetricTile icon={MapPin} label="Venue" value={event.venues.name} />}
+            <MetricTile
+              icon={CircleCheck}
+              label={isWedding ? "Plan status" : "Song lists"}
+              tone="gold"
+              value={isWedding ? (musicPlanOpen ? (weddingPlan.first_dance_song ? "Planning in progress" : "Ready to start") : "Not sent yet") : `${mustPlay.length} must-play · ${doNotPlay.length} skip`}
+            />
+          </MetricRow>
+
+          {!isWedding && (
+            <p className="text-sm text-muted">Build your night below — tell your DJ exactly what to play and what to skip.</p>
+          )}
+
+          <Grid>
+            <Col span={6} id="music-songs" className="scroll-mt-6">
+              <SectionCard icon={Music2} title="Must-Play List" description="Songs you definitely want played (first dance, favourites, crowd-pleasers).">
+                <SongList items={mustPlay} onRemove={(i) => setMustPlay(mustPlay.filter((_, idx) => idx !== i))} emptyText="No songs added yet." />
+                <div className="flex gap-2">
+                  <label className="sr-only" htmlFor="must-play-new">Add a must-play song</label>
+                  <input
+                    id="must-play-new"
+                    value={newMustPlay}
+                    onChange={(e) => setNewMustPlay(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newMustPlay.trim()) {
+                        e.preventDefault();
+                        setMustPlay([...mustPlay, newMustPlay.trim()]);
+                        setNewMustPlay("");
+                      }
+                    }}
+                    placeholder="Song title — Artist"
+                    className={INPUT}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newMustPlay.trim()) {
+                        setMustPlay([...mustPlay, newMustPlay.trim()]);
+                        setNewMustPlay("");
+                      }
+                    }}
+                    className="shrink-0 rounded-[10px] border border-black/10 px-4 text-sm font-medium hover:border-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                  >
+                    Add
+                  </button>
+                </div>
+              </SectionCard>
+            </Col>
+            <Col span={6}>
+              <SectionCard icon={Ban} title="Do-Not-Play List" description="Songs or artists you'd like your DJ to avoid.">
+                <SongList items={doNotPlay} onRemove={(i) => setDoNotPlay(doNotPlay.filter((_, idx) => idx !== i))} emptyText="No songs added yet." />
+                <div className="flex gap-2">
+                  <label className="sr-only" htmlFor="do-not-play-new">Add a song to skip</label>
+                  <input
+                    id="do-not-play-new"
+                    value={newDoNotPlay}
+                    onChange={(e) => setNewDoNotPlay(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newDoNotPlay.trim()) {
+                        e.preventDefault();
+                        setDoNotPlay([...doNotPlay, newDoNotPlay.trim()]);
+                        setNewDoNotPlay("");
+                      }
+                    }}
+                    placeholder="Song title — Artist"
+                    className={INPUT}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newDoNotPlay.trim()) {
+                        setDoNotPlay([...doNotPlay, newDoNotPlay.trim()]);
+                        setNewDoNotPlay("");
+                      }
+                    }}
+                    className="shrink-0 rounded-[10px] border border-black/10 px-4 text-sm font-medium hover:border-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                  >
+                    Add
+                  </button>
+                </div>
+              </SectionCard>
+            </Col>
+
+            <Col span={isWedding && checklistCount !== 0 ? 8 : 12} id="music-notes" className="scroll-mt-6">
+              <SectionCard icon={NotebookPen} title="Notes for your DJ" description="Preferred genres, transitions, announcements and anything else your DJ should know.">
+                <label className="sr-only" htmlFor="notes-for-dj">Notes for your DJ</label>
+                <textarea
+                  id="notes-for-dj"
+                  value={specialRequests}
+                  onChange={(e) => setSpecialRequests(e.target.value)}
+                  placeholder="Timeline details, anything else your DJ should know..."
+                  className={`${INPUT} min-h-[140px] max-w-[72ch] resize-y px-4 py-2.5`}
+                />
+              </SectionCard>
+            </Col>
+            {isWedding && checklistCount !== 0 && (
+              <Col span={4}>
+                <PlanningChecklistCard eventId={id} onCount={setChecklistCount} className="p-5 sm:p-6" />
+              </Col>
+            )}
+
+            <Col span={4} id="music-logistics" className="scroll-mt-6" stretch>
+              <SectionCard icon={Contact} title="Vendor Contacts" description="Photographer, planner, venue coordinator and anyone else your DJ should know.">
+                {vendorContacts.length === 0 && <p className="text-sm text-muted">No vendors added yet.</p>}
+                {vendorContacts.map((v, i) => (
+                  <fieldset key={i} className="grid grid-cols-2 gap-2 rounded-[12px] border border-border p-2.5">
+                    <legend className="sr-only">Vendor {i + 1}</legend>
+                    <input aria-label="Role" value={v.role} onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, role: e.target.value } : x)))} placeholder="Role (e.g. Photographer)" className={INPUT} />
+                    <input aria-label="Name" value={v.name} onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, name: e.target.value } : x)))} placeholder="Name" className={INPUT} />
+                    <input aria-label="Phone" type="tel" value={v.phone ?? ""} onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, phone: e.target.value } : x)))} placeholder="Phone" className={INPUT} />
+                    <input aria-label="Email" type="email" value={v.email ?? ""} onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, email: e.target.value } : x)))} placeholder="Email" className={INPUT} />
+                    <button
+                      type="button"
+                      onClick={() => setVendorContacts(vendorContacts.filter((_, idx) => idx !== i))}
+                      className="col-span-2 justify-self-end rounded-[8px] px-2 py-0.5 text-xs text-muted hover:text-status-declined focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                    >
+                      Remove
+                    </button>
+                  </fieldset>
+                ))}
+                <Button variant="secondary" size="sm" className="w-fit" onClick={() => setVendorContacts([...vendorContacts, { role: "", name: "" }])}>
+                  + Add vendor
+                </Button>
+              </SectionCard>
+            </Col>
+            <Col span={4} stretch>
+              <SectionCard icon={Truck} title="Venue & Load-in" description="Venue access, parking and load-in details.">
+                <FieldGroup label="Load-in / parking notes" htmlFor="venue-load-in">
+                  <textarea id="venue-load-in" value={venueLoadInNotes} onChange={(e) => setVenueLoadInNotes(e.target.value)} placeholder="Loading dock, parking instructions, load-in time..." className={`${INPUT} min-h-[96px] resize-y`} />
+                </FieldGroup>
+              </SectionCard>
+            </Col>
+            <Col span={4} stretch>
+              <SectionCard icon={CalendarClock} title="Day-of Logistics" description="Final details to help the day run smoothly.">
+                <FieldGroup label="Vendor meal count" htmlFor="vendor-meals" size="short">
+                  <input id="vendor-meals" type="number" min={0} inputMode="numeric" value={vendorMealCount} onChange={(e) => setVendorMealCount(e.target.value)} placeholder="0" className={INPUT} />
+                </FieldGroup>
+                <FieldGroup label="Weather backup plan (outdoor ceremony/reception)" htmlFor="weather-plan">
+                  <textarea id="weather-plan" value={weatherBackupPlan} onChange={(e) => setWeatherBackupPlan(e.target.value)} placeholder="What happens if it rains — alternate location, tent, timing change..." className={`${INPUT} min-h-[80px] resize-y`} />
+                </FieldGroup>
+              </SectionCard>
+            </Col>
+          </Grid>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button variant="cta" onClick={handleSaveAll} disabled={saving} className="w-fit">
+              {saving ? "Saving..." : "Save changes"}
+            </Button>
+            {saved && !saving && <span role="status" className="text-sm text-status-approved">Saved</span>}
+            <span className="text-xs text-muted">Saves your songs, notes, vendors and logistics.</span>
+          </div>
+
+          {isWedding && (
+            <section id="music-plan" aria-label="Wedding Music Plan" className="glass-card flex scroll-mt-6 flex-col gap-6 p-5 sm:p-6">
           {isWedding ? (
             !event.wedding_music_plan_sent_at ? (
-              <GlassCard className="flex flex-col gap-1">
-                <p className="text-sm font-semibold">Wedding Music Plan</p>
+              <div className="flex flex-col gap-1">
+                <p className="text-base font-semibold">Wedding Music Plan</p>
                 <p className="text-sm text-muted">Your DJ sends this planning form once your deposit is in — check back after your first payment.</p>
-              </GlassCard>
+              </div>
             ) : (
               <>
                 <div>
@@ -814,181 +993,9 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
                 </div>
               </>
             )
-          ) : (
-            <GlassCard className="flex flex-col gap-1">
-              <p className="text-sm font-semibold">Music preferences</p>
-              <p className="text-sm text-muted">Build your night below — tell your DJ exactly what to play and what to skip.</p>
-            </GlassCard>
+          ) : null}
+            </section>
           )}
-
-          {/* Songs and notes on the left, vendors and day-of logistics on the right. */}
-          <div className="grid items-start gap-6 lg:grid-cols-2" data-tour="portal-music-grid">
-            <div className="flex min-w-0 flex-col gap-6">
-          <GlassCard neon className="flex flex-col gap-3">
-            <p className="text-sm font-semibold">Must-Play List</p>
-            <SongList items={mustPlay} onRemove={(i) => setMustPlay(mustPlay.filter((_, idx) => idx !== i))} />
-            <div className="flex gap-2">
-              <input
-                value={newMustPlay}
-                onChange={(e) => setNewMustPlay(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newMustPlay.trim()) {
-                    e.preventDefault();
-                    setMustPlay([...mustPlay, newMustPlay.trim()]);
-                    setNewMustPlay("");
-                  }
-                }}
-                placeholder="Song title — Artist"
-                className="flex-1 rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
-              />
-              <button
-                onClick={() => {
-                  if (newMustPlay.trim()) {
-                    setMustPlay([...mustPlay, newMustPlay.trim()]);
-                    setNewMustPlay("");
-                  }
-                }}
-                className="rounded-[10px] border border-black/10 px-4 text-sm font-medium hover:border-gold"
-              >
-                Add
-              </button>
-            </div>
-          </GlassCard>
-
-          <GlassCard className="flex flex-col gap-3">
-            <p className="text-sm font-semibold">Do-Not-Play List</p>
-            <SongList items={doNotPlay} onRemove={(i) => setDoNotPlay(doNotPlay.filter((_, idx) => idx !== i))} />
-            <div className="flex gap-2">
-              <input
-                value={newDoNotPlay}
-                onChange={(e) => setNewDoNotPlay(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newDoNotPlay.trim()) {
-                    e.preventDefault();
-                    setDoNotPlay([...doNotPlay, newDoNotPlay.trim()]);
-                    setNewDoNotPlay("");
-                  }
-                }}
-                placeholder="Song title — Artist"
-                className="flex-1 rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
-              />
-              <button
-                onClick={() => {
-                  if (newDoNotPlay.trim()) {
-                    setDoNotPlay([...doNotPlay, newDoNotPlay.trim()]);
-                    setNewDoNotPlay("");
-                  }
-                }}
-                className="rounded-[10px] border border-black/10 px-4 text-sm font-medium hover:border-gold"
-              >
-                Add
-              </button>
-            </div>
-          </GlassCard>
-
-          <GlassCard className="flex flex-col gap-2">
-            <p className="text-sm font-semibold">Notes for your DJ</p>
-            <textarea
-              value={specialRequests}
-              onChange={(e) => setSpecialRequests(e.target.value)}
-              placeholder="Timeline details, anything else your DJ should know..."
-              className="min-h-[120px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
-            />
-          </GlassCard>
-            </div>
-
-          <GlassCard className="flex min-w-0 flex-col gap-3">
-            <div>
-              <p className="text-sm font-semibold">Vendor Contacts &amp; Day-of Logistics</p>
-              <p className="text-xs text-muted">Photographer, planner, venue coordinator, and anything else your DJ needs to know before showing up.</p>
-            </div>
-            <div className="flex flex-col gap-2">
-              {vendorContacts.map((v, i) => (
-                <div key={i} className="grid grid-cols-2 gap-2 rounded-[12px] border border-border p-2.5">
-                  <input
-                    value={v.role}
-                    onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, role: e.target.value } : x)))}
-                    placeholder="Role (e.g. Photographer)"
-                    className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-                  />
-                  <input
-                    value={v.name}
-                    onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, name: e.target.value } : x)))}
-                    placeholder="Name"
-                    className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-                  />
-                  <input
-                    value={v.phone ?? ""}
-                    onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, phone: e.target.value } : x)))}
-                    placeholder="Phone"
-                    className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-                  />
-                  <input
-                    value={v.email ?? ""}
-                    onChange={(e) => setVendorContacts(vendorContacts.map((x, idx) => (idx === i ? { ...x, email: e.target.value } : x)))}
-                    placeholder="Email"
-                    className="rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setVendorContacts(vendorContacts.filter((_, idx) => idx !== i))}
-                    className="col-span-2 justify-self-end rounded-[8px] px-2 py-0.5 text-xs text-muted hover:text-status-declined focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-              <Button variant="secondary" size="sm" className="w-fit" onClick={() => setVendorContacts([...vendorContacts, { role: "", name: "" }])}>
-                + Add vendor
-              </Button>
-            </div>
-
-            <div className="grid gap-3 border-t border-border pt-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Vendor meal count</span>
-                <input
-                  type="number"
-                  value={vendorMealCount}
-                  onChange={(e) => setVendorMealCount(e.target.value)}
-                  placeholder="How many vendor meals to plan for"
-                  className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-                />
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Venue load-in / parking notes</span>
-                <input
-                  value={venueLoadInNotes}
-                  onChange={(e) => setVenueLoadInNotes(e.target.value)}
-                  placeholder="Loading dock, parking instructions, load-in time..."
-                  className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
-                />
-              </label>
-            </div>
-            <label className="block">
-              <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Weather backup plan (outdoor ceremony/reception)</span>
-              <textarea
-                value={weatherBackupPlan}
-                onChange={(e) => setWeatherBackupPlan(e.target.value)}
-                placeholder="What happens if it rains — alternate location, tent, timing change..."
-                className="min-h-[60px] w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
-              />
-            </label>
-
-            <div className="flex items-center gap-3">
-              <Button variant="secondary" size="sm" onClick={handleSaveVendors} disabled={savingVendors} className="w-fit">
-                {savingVendors ? "Saving..." : "Save vendors"}
-              </Button>
-              {vendorsSaved && <span className="text-xs text-status-approved">Saved</span>}
-            </div>
-          </GlassCard>
-          </div>
-
-          {error && <p className="text-sm text-status-declined">{error}</p>}
-          {saved && <p className="text-sm text-status-approved">Saved.</p>}
-
-          <Button variant="cta" onClick={handleSave} disabled={saving} className="w-fit">
-            {saving ? "Saving..." : "Save changes"}
-          </Button>
         </div>
       )}
 
@@ -1054,20 +1061,20 @@ function Row({ label, value, bold = false }: { label: string; value: string; bol
   );
 }
 
-function SongList({ items, onRemove }: { items: string[]; onRemove: (index: number) => void }) {
+function SongList({ items, onRemove, emptyText = "Nothing added yet." }: { items: string[]; onRemove: (index: number) => void; emptyText?: string }) {
   if (items.length === 0) {
-    return <p className="text-xs text-muted">Nothing added yet.</p>;
+    return <p className="text-sm text-muted">{emptyText}</p>;
   }
   return (
-    <div className="flex flex-wrap gap-2">
+    <ul className="flex flex-wrap gap-2">
       {items.map((item, i) => (
-        <span key={`${item}-${i}`} className="flex items-center gap-1.5 rounded-[10px] border border-black/10 bg-panel px-3 py-1.5 text-xs">
-          {item}
-          <button onClick={() => onRemove(i)} className="text-muted hover:text-status-declined">
-            <X size={12} />
+        <li key={`${item}-${i}`} className="flex max-w-full items-center gap-1.5 rounded-[10px] border border-black/10 bg-panel px-3 py-1.5 text-xs">
+          <span className="min-w-0 break-words">{item}</span>
+          <button type="button" onClick={() => onRemove(i)} aria-label={`Remove ${item}`} className="shrink-0 rounded-[4px] text-muted hover:text-status-declined focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+            <X size={12} aria-hidden />
           </button>
-        </span>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }

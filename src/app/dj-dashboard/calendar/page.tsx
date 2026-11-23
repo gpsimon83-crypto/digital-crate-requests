@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { ActionPanel, Col, Grid, PageShell } from "@/components/layout/grid";
+import { UpdateAvailabilityButton } from "@/components/dj/update-availability";
 import { DashLinksProvider } from "@/components/dashboard/overview/widgets";
 import { MiniCalendar } from "@/components/dashboard/overview/event-calendar";
 import { MyGigs, type MyGigsState } from "@/components/dashboard/overview/my-gigs";
@@ -105,13 +107,28 @@ export default function DjCalendarPage() {
 
   return (
     <DashLinksProvider value={DJ_LINKS}>
-      <PageHeader title="Calendar" subtitle="Your bookings and every date on the shared Digital Crate DJs calendar with your name on it." />
-      <div className="grid gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] lg:gap-5">
+      <PageHeader
+        breadcrumbs={[{ label: "My work" }, { label: "Calendar & Availability" }]}
+        title="Calendar & Availability"
+        subtitle="Your bookings and every date on the shared Digital Crate DJs calendar with your name on it."
+        action={<UpdateAvailabilityButton variant="inline" />}
+      />
+      <PageShell className="flex flex-col gap-4 xl:gap-5">
         <div data-tour="dj-calendar-month">
           <MiniCalendar layout={layout} events={all} loading={events === null} error={error} now={now} onMonth={loadMonth} monthNote={note} showDj={false} />
         </div>
-        <MyGigs layout={layout} s={{ djName: name, ...(gigs ?? { gigs: [], calendarConnected: true, loading: true, error: false }) }} />
-      </div>
+        <Grid>
+          <Col span={7}>
+            <MyGigs layout={layout} s={{ djName: name, ...(gigs ?? { gigs: [], calendarConnected: true, loading: true, error: false }) }} />
+          </Col>
+          <Col span={5}>
+            <ActionPanel title="Your availability">
+              <p className="text-sm text-muted">You send your monthly availability from the members area. The office books gigs from it, so keep it current.</p>
+              <UpdateAvailabilityButton variant="inline" />
+            </ActionPanel>
+          </Col>
+        </Grid>
+      </PageShell>
     </DashLinksProvider>
   );
 }

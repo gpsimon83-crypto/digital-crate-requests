@@ -14,18 +14,25 @@ type Item = { id: string; title: string; nextMove: string | null; status: string
  * They tick themselves off when the contract is signed, the payment is in,
  * the questionnaire and the music plan are done.
  */
-export function PlanningChecklistCard({ eventId }: { eventId: string }) {
+export function PlanningChecklistCard({ eventId, onCount, className }: { eventId: string; /** Told how many steps there are once loaded (0 = the card shows nothing). */ onCount?: (n: number) => void; className?: string }) {
   const [items, setItems] = useState<Item[] | null>(null);
   useEffect(() => {
     fetch(`/api/portal/events/${eventId}/tasks`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : { tasks: [] }))
-      .then((j) => setItems(j.tasks ?? []))
-      .catch(() => setItems([]));
+      .then((j) => {
+        setItems(j.tasks ?? []);
+        onCount?.((j.tasks ?? []).length);
+      })
+      .catch(() => {
+        setItems([]);
+        onCount?.(0);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only refetch when the event changes
   }, [eventId]);
   if (!items?.length) return null;
   const done = items.filter((i) => i.status === "done").length;
   return (
-    <GlassCard className="flex flex-col gap-2" data-tour="portal-checklist">
+    <GlassCard className={cn("flex flex-col gap-2", className)} data-tour="portal-checklist">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-[2.5px] text-muted">Your planning checklist</p>
         <span className="text-xs text-muted">

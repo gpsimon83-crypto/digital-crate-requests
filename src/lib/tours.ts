@@ -18,6 +18,46 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-22-portal-grid-and-menus": [
+    {
+      path: "/admin",
+      target: '.admin-rail, [data-tour="mobile-more"]',
+      title: "The admin menu",
+      body: "Grouped as Work, Team, Business, Communication, Resources, Intake and System. DCDJs Academy and the DJ members area open in a new tab."
+    },
+    {
+      path: "/admin",
+      target: '[data-tour="view-switch"], .admin-rail',
+      title: "Admin View and DJ View",
+      body: "If your login is linked to your own DJ profile, DJ View shows the DJ portal with your own gigs, calendar and pay. Admin View brings you back."
+    },
+    {
+      path: "/admin/notifications",
+      target: '[data-tour="inbox-tabs"], main',
+      title: "What's New lives here now",
+      body: "Notifications and What's New are tabs of one page. The latest updates also show beside your notifications."
+    },
+    {
+      path: "/dj-dashboard",
+      target: '[data-tour="update-availability"], [data-tour="mobile-more"]',
+      title: "Update Availability",
+      body: "Opens the members-area Availability tab in a new tab, where DJs send their monthly availability.",
+      waitHint: "Switch to DJ View (or open the DJ portal) to continue."
+    },
+    {
+      path: "/dj-dashboard/tasks",
+      target: '[data-tour="dj-tasks-detail"], main',
+      title: "Tasks & Planning",
+      body: "Every booking's open tasks, with its planning brief one click away. Messages, Meetings and Documents work the same way."
+    },
+    {
+      path: "/admin/events/*",
+      target: '[data-tour="event-client-portal"], main',
+      title: "The client planning page",
+      body: "Clients plan on their portal's Music tab: song lists side by side, notes beside the checklist, vendors and logistics together, one Save changes. Press View client portal, then Music, to see it.",
+      waitHint: "Open any wedding project to continue."
+    }
+  ],
   "2026-11-22-event-calendar-redesign": [
     {
       path: "/admin",

@@ -5,7 +5,10 @@ import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { cn } from "@/lib/utils";
-import { Bell, CheckCheck } from "lucide-react";
+import { Bell, CheckCheck, Megaphone } from "lucide-react";
+import { InboxTabs } from "@/components/admin/inbox-tabs";
+import { Col, Grid, PageShell, SectionCard } from "@/components/layout/grid";
+import { UPDATES } from "@/lib/whats-new";
 
 interface NotificationRow {
   id: string;
@@ -59,8 +62,11 @@ export default function AdminNotificationsPage() {
             </button>
           ) : undefined
         }
+        tabs={<InboxTabs active="notifications" />}
       />
-      <div className="flex flex-col gap-2 p-6">
+      <PageShell>
+      <Grid>
+      <Col span={8} className="flex flex-col gap-2" aria-label="Notifications">
         {notifications === null && <p className="text-sm text-muted">Loading...</p>}
         {notifications !== null && notifications.length === 0 && (
           <GlassCard className="flex flex-col items-center gap-2 py-10 text-center">
@@ -96,7 +102,25 @@ export default function AdminNotificationsPage() {
             </button>
           );
         })}
-      </div>
+      </Col>
+      <Col span={4}>
+        <SectionCard icon={Megaphone} title="Latest updates" description="New features and changes to the CRM." actions={<Link href="/admin/whats-new" className="rounded-[6px] text-xs font-semibold text-gold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">All updates</Link>}>
+          <ul className="flex flex-col divide-y divide-border">
+            {UPDATES.slice(0, 4).map((u) => (
+              <li key={u.id} className="py-2.5 first:pt-0 last:pb-0">
+                <Link href={`/admin/whats-new/${u.id}`} className="block rounded-[6px] hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+                  <span className="block text-sm font-medium leading-snug">{u.title}</span>
+                  <span className="mt-0.5 block text-[11px] text-muted">
+                    {new Date(`${u.date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · {u.area}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </SectionCard>
+      </Col>
+      </Grid>
+      </PageShell>
     </>
   );
 }

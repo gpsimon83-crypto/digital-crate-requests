@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Repeat } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { Col, Grid, PageShell } from "@/components/layout/grid";
+import { MyGigsTabs } from "@/components/dj/my-gigs-tabs";
 import { GlassCard } from "@/components/ui/glass-card";
 
 type Gig = { id: string; date: string; start: string; end: string; night: string; venue: string | null; place: string | null; changeNote: string | null };
@@ -54,8 +56,8 @@ export default function DjGigsPage() {
   const none = data && !data.awaiting.length && !data.upcoming.length && !data.recapDue.length;
   return (
     <>
-      <PageHeader title="Recurring gigs" subtitle="Your regular bar and club nights: confirm the ones you're asked to cover, and send a short recap after each." />
-      <div className="mx-auto flex max-w-3xl flex-col gap-6 p-4 sm:p-6">
+      <PageHeader breadcrumbs={[{ label: "My Gigs", href: "/dj-dashboard/bookings" }, { label: "Recurring gigs" }]} title="My Gigs" subtitle="Your regular bar and club nights: confirm the ones you're asked to cover, and send a short recap after each." tabs={<MyGigsTabs />} />
+      <PageShell>
         {error ? (
           <p role="alert" className="text-sm text-status-declined">Your gigs couldn&apos;t load. Refresh to try again.</p>
         ) : !data ? (
@@ -66,13 +68,19 @@ export default function DjGigsPage() {
             <p className="text-sm text-muted">No recurring gigs assigned to you right now.</p>
           </GlassCard>
         ) : (
-          <>
-            <Section title="Asking you to cover" hint="Say yes or pass so the venue knows." gigs={data.awaiting} cta="Respond" />
-            <Section title="Recaps due" hint="A minute each: how the night went." gigs={data.recapDue} cta="Write recap" />
-            <Section title="Coming up" hint="Confirmed nights." gigs={data.upcoming} cta="Details" />
-          </>
+          <Grid>
+            <Col span={6}>
+              <Section title="Asking you to cover" hint="Say yes or pass so the venue knows." gigs={data.awaiting} cta="Respond" />
+            </Col>
+            <Col span={6}>
+              <Section title="Recaps due" hint="A minute each: how the night went." gigs={data.recapDue} cta="Write recap" />
+            </Col>
+            <Col span={12}>
+              <Section title="Coming up" hint="Confirmed nights." gigs={data.upcoming} cta="Details" />
+            </Col>
+          </Grid>
         )}
-      </div>
+      </PageShell>
     </>
   );
 }

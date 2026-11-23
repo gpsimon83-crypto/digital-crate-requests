@@ -646,3 +646,11 @@ body {
     padding-left: 0;
   }
 }
+
+/* Shared page width: every admin/DJ page caps at 1680px and centres on
+   ultrawide screens (PAGE_MAX in components/layout/grid.tsx). Full-screen
+   workspaces opt out with .full-bleed. */
+.admin-main > :not(.full-bleed) {
+  max-width: 1680px;
+  margin-inline: auto;
+}

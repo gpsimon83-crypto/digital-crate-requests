@@ -11,14 +11,14 @@ import { DjOverview } from "@/components/dj/dj-overview";
  * page that was here before.
  */
 export default function DjPortalHomePage() {
-  const [me, setMe] = useState<{ staff: boolean; dj: { id: string; display_name: string } | null } | null>(null);
+  const [me, setMe] = useState<{ staff: boolean; djView: boolean; dj: { id: string; display_name: string } | null } | null>(null);
   useEffect(() => {
     fetch("/api/me")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setMe({ staff: isStaffRole(d?.user?.role), dj: d?.dj ?? null }))
-      .catch(() => setMe({ staff: false, dj: null }));
+      .then((d) => setMe({ staff: isStaffRole(d?.user?.role), djView: d?.viewMode === "dj", dj: d?.dj ?? null }))
+      .catch(() => setMe({ staff: false, djView: false, dj: null }));
   }, []);
   if (!me) return <div className="min-h-[60vh]" aria-busy="true" />;
-  if (me.staff || !me.dj) return <ClassicHome />;
+  if ((me.staff && !me.djView) || !me.dj) return <ClassicHome />;
   return <DjOverview djId={me.dj.id} djName={me.dj.display_name} />;
 }

@@ -19,6 +19,23 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-22-portal-grid-and-menus",
+    date: "2026-11-22",
+    area: "Members area",
+    title: "New DJ menu, four new DJ pages, and roomier page layouts",
+    summary: "The DJ portal menu is regrouped (Overview, My work, Resources, Account) with an Update Availability button on top, and pages now sit on a shared grid instead of long full-width strips. The client planning page (the portal's Music tab) puts related cards side by side.",
+    bullets: [
+      "New DJ pages: Tasks & Planning, Messages, Meetings and Documents & Library. They show the DJ's own bookings' tasks, emails, meetings and files, the same ones as on each booking",
+      "My Gigs is Bookings, Recurring gigs and Leads with tabs; Calendar & Availability and Update Availability open the members-area Availability tab",
+      "DCDJs Academy opens the members-area Academy in a new tab (it doesn't share logins or progress with the CRM)",
+      "Admins linked to their own DJ profile get Admin View / DJ View in the menu: DJ View is the portal with their own gigs and pay",
+      "Admin menu regrouped in the agreed order. What's New now sits with Notifications (tabs on both pages)",
+      "Client Music tab: Must-Play and Do-Not-Play side by side, Notes for your DJ beside the planning checklist, then Vendor Contacts, Venue & Load-in and Day-of Logistics in three cards. One Save changes for all of them; the wedding plan still waits for the deposit",
+      "DJ brief: the client's notes are now labelled Client notes"
+    ],
+    link: { href: "/dj-dashboard", label: "Open the DJ portal" }
+  },
+  {
     id: "2026-11-22-event-calendar-redesign",
     date: "2026-11-22",
     area: "CRM",

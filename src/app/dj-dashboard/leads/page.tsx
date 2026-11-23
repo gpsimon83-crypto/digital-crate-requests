@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CalendarDays, Check, Inbox, Plus, X } from "lucide-react";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { ActionPanel, Col, Grid, PageShell } from "@/components/layout/grid";
+import { MyGigsTabs } from "@/components/dj/my-gigs-tabs";
 import { GlassCard } from "@/components/ui/glass-card";
 import { EVENT_TYPES } from "@/lib/event-types";
 import { cn } from "@/lib/utils";
@@ -77,7 +79,9 @@ function LeadsPage() {
   return (
     <>
       <PageHeader
-        title="Leads"
+        breadcrumbs={[{ label: "My Gigs", href: "/dj-dashboard/bookings" }, { label: "Leads" }]}
+        tabs={<MyGigsTabs />}
+        title="My Gigs"
         subtitle="Clients interested in booking you. Add one you found yourself and the office takes it from there: quote, contract and payment."
         action={
           !open ? (
@@ -87,14 +91,16 @@ function LeadsPage() {
           ) : undefined
         }
       />
-      <div className="mx-auto flex max-w-4xl flex-col gap-4 p-4 sm:p-6">
+      <PageShell className="flex flex-col gap-4">
         {added && (
           <p role="status" className="flex items-center gap-2 rounded-[12px] border border-status-approved/40 bg-status-approved/10 px-4 py-3 text-sm">
             <Check size={16} className="text-status-approved" /> Lead for {added} added. The office has been told, and it&apos;s on your list below.
           </p>
         )}
+        <Grid>
         {open && (
-          <GlassCard className="flex flex-col gap-4" data-tour="dj-lead-form">
+          <Col span={7}>
+          <GlassCard className="flex flex-col gap-4 p-5 sm:p-6" data-tour="dj-lead-form">
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="text-sm font-semibold">New lead</p>
@@ -152,8 +158,10 @@ function LeadsPage() {
               </div>
             </form>
           </GlassCard>
+          </Col>
         )}
 
+        <Col span={open ? 5 : 8}>
         <section aria-labelledby="leads-list">
           <h2 id="leads-list" className="mb-2 text-xs font-semibold uppercase tracking-[1.5px] text-muted">
             Open leads {leads ? `(${leads.length})` : ""}
@@ -191,7 +199,17 @@ function LeadsPage() {
           )}
           <p className="mt-3 text-[11px] text-muted">Once the office confirms a lead it moves to your Bookings.</p>
         </section>
-      </div>
+        </Col>
+        {!open && (
+          <Col span={4}>
+            <ActionPanel title="How leads work">
+              <p className="text-sm text-muted">Add someone who asked you about a booking. The office follows up with the quote, contract and payment, and you stay the DJ on it.</p>
+              <p className="text-sm text-muted">When you email a client you added, no copy goes to the office.</p>
+            </ActionPanel>
+          </Col>
+        )}
+        </Grid>
+      </PageShell>
     </>
   );
 }

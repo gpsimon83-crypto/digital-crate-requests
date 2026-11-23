@@ -8,7 +8,7 @@ import { SideDrawer } from "@/components/ui/side-drawer";
 import { ADMIN_NAV_GROUPS } from "@/lib/admin-nav";
 import { useWhatsNewCount } from "@/lib/use-whats-new";
 import { SiteThemeList } from "@/components/admin/site-theme";
-import { LayoutDashboard, Briefcase, Users, CalendarDays, Menu } from "lucide-react";
+import { LayoutDashboard, Briefcase, Users, CalendarDays, Menu, ExternalLink } from "lucide-react";
 
 const PRIMARY_ITEMS = [
   { href: "/admin", label: "Home", icon: LayoutDashboard },
@@ -17,11 +17,11 @@ const PRIMARY_ITEMS = [
   { href: "/admin/calendar", label: "Calendar", icon: CalendarDays }
 ];
 
-type NavItem = { href: string; label: string; icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>; external?: boolean };
+type NavItem = { href: string; label: string; icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>; external?: boolean; alsoActive?: string[] };
 type NavGroup = { label?: string; items: NavItem[] };
 
 /** Phone tab bar: four main places plus More (every page, and Site theme). The DJ portal passes its own. */
-export function AdminMobileTabBar({ primary = PRIMARY_ITEMS, groups = ADMIN_NAV_GROUPS as unknown as NavGroup[] }: { primary?: NavItem[]; groups?: NavGroup[] } = {}) {
+export function AdminMobileTabBar({ primary = PRIMARY_ITEMS, groups = ADMIN_NAV_GROUPS as unknown as NavGroup[], extra }: { primary?: NavItem[]; groups?: NavGroup[]; /** Shown at the top of the More menu (e.g. Update Availability, the view switch). */ extra?: React.ReactNode } = {}) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const whatsNew = useWhatsNewCount();
@@ -30,8 +30,8 @@ export function AdminMobileTabBar({ primary = PRIMARY_ITEMS, groups = ADMIN_NAV_
   return (
     <>
       <nav className="fixed bottom-0 inset-x-0 z-20 flex border-t border-black/10 bg-panel/95 backdrop-blur-lg pb-[env(safe-area-inset-bottom)] md:hidden">
-        {PRIMARY.map(({ href, label, icon: Icon }, i) => {
-          const active = pathname === href;
+        {PRIMARY.map(({ href, label, icon: Icon, alsoActive }, i) => {
+          const active = pathname === href || !!alsoActive?.includes(pathname);
           return (
             <Link
               key={href}
@@ -63,6 +63,7 @@ export function AdminMobileTabBar({ primary = PRIMARY_ITEMS, groups = ADMIN_NAV_
 
       <SideDrawer open={moreOpen} onClose={() => setMoreOpen(false)} title="Menu" subtitle="Digital Crate DJs">
         <div className="flex flex-col gap-1">
+          {extra && <div className="mb-2 flex flex-col gap-2">{extra}</div>}
           {groups.map((group, gi) => (
             <div key={group.label ?? `group-${gi}`}>
               {gi > 0 && <div className="my-2 h-px bg-border" />}
@@ -76,12 +77,17 @@ export function AdminMobileTabBar({ primary = PRIMARY_ITEMS, groups = ADMIN_NAV_
                   onClick={() => setMoreOpen(false)}
                   className={cn(
                     "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
-                    pathname === item.href ? "sidebar-active" : "text-foreground hover:bg-black/5"
+                    pathname === item.href || item.alsoActive?.includes(pathname) ? "sidebar-active" : "text-foreground hover:bg-black/5"
                   )}
                 >
                   <item.icon size={18} className="shrink-0 text-muted" />
                   {item.label}
-                  {item.external && <span className="ml-1 text-muted">↗</span>}
+                  {item.external && (
+                    <>
+                      <ExternalLink size={13} className="text-muted" aria-hidden />
+                      <span className="sr-only"> (opens in a new tab)</span>
+                    </>
+                  )}
                   {item.href === "/admin/whats-new" && whatsNew > 0 && (
                     <span className="ml-auto rounded-full bg-gold px-1.5 text-[10px] font-semibold text-[#1A140A]">{whatsNew > 9 ? "9+" : whatsNew}</span>
                   )}

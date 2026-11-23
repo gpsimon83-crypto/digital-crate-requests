@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { accountRole } from "@/lib/roles";
+import { cookies } from "next/headers";
+import { accountRole, isStaffRole } from "@/lib/roles";
+import { VIEW_MODE_COOKIE } from "@/lib/view-mode";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { djRowForUser, viewAsDjId } from "@/lib/view-as";
@@ -33,5 +35,9 @@ export async function GET() {
     dj = null;
   }
 
-  return NextResponse.json({ user: { id: user.id, email: viewAs ? null : user.email, role }, dj, viewAs });
+  // Admin View / DJ View: staff whose login is their own DJ profile can switch (presentation only).
+  const canSwitchView = !viewAs && !!dj && isStaffRole(accountRole(user));
+  const viewMode = canSwitchView && (await cookies()).get(VIEW_MODE_COOKIE)?.value === "dj" ? "dj" : "admin";
+
+  return NextResponse.json({ user: { id: user.id, email: viewAs ? null : user.email, role }, dj, viewAs, viewMode, canSwitchView });
 }

@@ -6,8 +6,10 @@ import Link from "next/link";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { MyGigsTabs } from "@/components/dj/my-gigs-tabs";
+import { Col, Grid, MetricRow, MetricTile } from "@/components/layout/grid";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
-import { Check, X, LogOut, ShieldCheck, CalendarClock, MapPin, Plus, PartyPopper, UserCircle, DollarSign } from "lucide-react";
+import { Check, X, LogOut, ShieldCheck, CalendarClock, MapPin, Plus, PartyPopper, UserCircle, DollarSign, Clock, CalendarCheck } from "lucide-react";
 import { isStaffRole } from "@/lib/roles";
 import { EVENT_CATEGORY_GROUPS } from "@/lib/event-types";
 import type { EventCategory } from "@/lib/event-category";
@@ -62,7 +64,8 @@ export default function DjBookingsPage() {
       const meData = await meRes.json();
       if (!meRes.ok) throw new Error(meData.error || "Not signed in");
 
-      const admin = isStaffRole(meData.user?.role);
+      // Staff in DJ View see their own gigs, like any DJ.
+      const admin = isStaffRole(meData.user?.role) && meData.viewMode !== "dj";
       setIsAdmin(admin);
       setRoleReady(true);
 
@@ -173,8 +176,10 @@ export default function DjBookingsPage() {
   return (
     <div className="min-h-dvh bg-background">
       <PageHeader
-        title={isAdmin ? "All Bookings" : "My Bookings"}
-        subtitle={djName ? djName : "Digital Crate DJs"}
+        title={isAdmin ? "All Bookings" : "My Gigs"}
+        subtitle={isAdmin ? "Digital Crate DJs" : "Your bookings, recurring nights and leads."}
+        breadcrumbs={isAdmin ? undefined : [{ label: "My work" }, { label: "My Gigs" }]}
+        tabs={roleReady && !isAdmin ? <MyGigsTabs /> : undefined}
         action={
           <div className="flex items-center gap-2">
             {djName && !isAdmin && <DjAvatar name={djName} photoUrl={djPhoto} size={32} />}
@@ -186,12 +191,12 @@ export default function DjBookingsPage() {
                 <DollarSign size={14} /> My Services
               </Link>
             )}
-            <Link
+            {isAdmin && <Link
               href="/dj-dashboard/profile"
               className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-gold/40 hover:text-gold"
             >
               <UserCircle size={14} /> My Profile
-            </Link>
+            </Link>}
             {roleReady && isAdmin && (
               <Link
                 href="/admin"
@@ -200,28 +205,30 @@ export default function DjBookingsPage() {
                 <ShieldCheck size={14} /> Admin Panel
               </Link>
             )}
-            <button
+            {isAdmin && <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 rounded-[10px] border border-black/12 px-3.5 py-2 text-xs font-medium text-muted transition-colors hover:border-black/25 hover:text-foreground"
             >
               <LogOut size={14} /> Sign Out
-            </button>
+            </button>}
           </div>
         }
       />
 
-      <main className="mx-auto flex max-w-4xl flex-col gap-10 px-6 py-10 sm:px-8">
+      <main className="mx-auto w-full max-w-[1680px] px-6 pb-16 pt-6">
         {error && (
-          <GlassCard className="border-status-declined/30 text-sm text-status-declined">{error}</GlassCard>
+          <GlassCard className="mb-4 border-status-declined/30 text-sm text-status-declined">{error}</GlassCard>
         )}
-
-        <div className="-mb-4 flex flex-wrap gap-2">
+        <Grid>
+        <Col span={8} className="flex flex-col gap-8">
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by event type">
           {[{ key: "all", label: "All" }, ...EVENT_CATEGORY_GROUPS.map((g) => ({ key: g.key, label: g.label }))].map((c) => (
             <button
               key={c.key}
               onClick={() => setCategory(c.key)}
+              aria-pressed={category === c.key}
               className={cn(
-                "rounded-[10px] border px-3 py-1.5 text-xs font-medium transition-colors",
+                "min-h-9 rounded-[10px] border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold",
                 category === c.key ? "border-gold bg-gold/10 text-gold" : "border-black/12 text-muted hover:border-black/25 hover:text-foreground"
               )}
             >
@@ -230,12 +237,68 @@ export default function DjBookingsPage() {
           ))}
         </div>
 
+        <DjGigsSections />
+
+        <section>
+          <SectionHeading label="Awaiting Your Confirmation" count={pending.length} />
+          {events === null && <p className="text-sm text-muted">Loading...</p>}
+          {events !== null && pending.length === 0 && !error && (
+            <EmptyState text="Nothing needs your confirmation right now." />
+          )}
+          <div className="flex flex-col gap-3">
+            {pending.map((e) => (
+              <GlassCard key={e.id} className="flex flex-col gap-4 border-gold/60 p-5 shadow-[0_0_0_1px_var(--gold)] sm:flex-row sm:items-center sm:justify-between">
+                <EventInfo event={e} isAdmin={isAdmin} />
+                <div className="flex gap-2">
+                  <button
+                    disabled={actingId === e.id}
+                    onClick={() => respond(e.id, "confirm")}
+                    className="flex items-center gap-1.5 rounded-[10px] bg-status-approved px-4 py-2.5 text-xs font-bold text-black transition-transform hover:scale-[1.02] disabled:opacity-50"
+                  >
+                    <Check size={14} /> Confirm
+                  </button>
+                  <button
+                    disabled={actingId === e.id}
+                    onClick={() => respond(e.id, "decline")}
+                    className="flex items-center gap-1.5 rounded-[10px] bg-status-declined px-4 py-2.5 text-xs font-bold text-white transition-transform hover:scale-[1.02] disabled:opacity-50"
+                  >
+                    <X size={14} /> Decline
+                  </button>
+                </div>
+              </GlassCard>
+            ))}
+          </div>
+        </section>
+
+        <section>
+          <SectionHeading label="Confirmed Upcoming Events" count={upcoming.length} />
+          {events !== null && upcoming.length === 0 && !error && (
+            <EmptyState text="No confirmed events yet." />
+          )}
+          <div className="grid gap-3 2xl:grid-cols-2">
+            {upcoming.map((e) => (
+              <GlassCard
+                key={e.id}
+                className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <EventInfo event={e} isAdmin={isAdmin} showCode />
+                <StatusChip tone="approved" className="shrink-0">Confirmed</StatusChip>
+              </GlassCard>
+            ))}
+          </div>
+        </section>
+        </Col>
+        <Col span={4} className="flex flex-col gap-4 xl:sticky xl:top-6">
+          <MetricRow cols={2} className="sm:grid-cols-2 xl:grid-cols-2">
+            <MetricTile icon={Clock} label="To confirm" value={events === null ? "…" : pending.length} tone={pending.length ? "urgent" : "default"} />
+            <MetricTile icon={CalendarCheck} label="Confirmed" value={events === null ? "…" : upcoming.length} />
+          </MetricRow>
         {!isAdmin && (
           <section>
             {!showCreate ? (
               <button
                 onClick={() => setShowCreate(true)}
-                className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-gold/35 bg-gold/5 py-4 text-sm font-semibold text-gold transition-colors hover:bg-gold/10 sm:w-fit sm:px-8"
+                className="flex w-full items-center justify-center gap-2 rounded-[10px] border border-dashed border-gold/35 bg-gold/5 py-4 text-sm font-semibold text-gold transition-colors hover:bg-gold/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
               >
                 <Plus size={16} /> Create Event
               </button>
@@ -324,56 +387,8 @@ export default function DjBookingsPage() {
           </section>
         )}
 
-        <DjGigsSections />
-
-        <section>
-          <SectionHeading label="Awaiting Your Confirmation" count={pending.length} />
-          {events === null && <p className="text-sm text-muted">Loading...</p>}
-          {events !== null && pending.length === 0 && !error && (
-            <EmptyState text="Nothing needs your confirmation right now." />
-          )}
-          <div className="flex flex-col gap-3">
-            {pending.map((e) => (
-              <GlassCard key={e.id} neon className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <EventInfo event={e} isAdmin={isAdmin} />
-                <div className="flex gap-2">
-                  <button
-                    disabled={actingId === e.id}
-                    onClick={() => respond(e.id, "confirm")}
-                    className="flex items-center gap-1.5 rounded-[10px] bg-status-approved px-4 py-2.5 text-xs font-bold text-black transition-transform hover:scale-[1.02] disabled:opacity-50"
-                  >
-                    <Check size={14} /> Confirm
-                  </button>
-                  <button
-                    disabled={actingId === e.id}
-                    onClick={() => respond(e.id, "decline")}
-                    className="flex items-center gap-1.5 rounded-[10px] bg-status-declined px-4 py-2.5 text-xs font-bold text-white transition-transform hover:scale-[1.02] disabled:opacity-50"
-                  >
-                    <X size={14} /> Decline
-                  </button>
-                </div>
-              </GlassCard>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <SectionHeading label="Confirmed Upcoming Events" count={upcoming.length} />
-          {events !== null && upcoming.length === 0 && !error && (
-            <EmptyState text="No confirmed events yet." />
-          )}
-          <div className="flex flex-col gap-3">
-            {upcoming.map((e) => (
-              <GlassCard
-                key={e.id}
-                className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <EventInfo event={e} isAdmin={isAdmin} showCode />
-                <StatusChip tone="approved" className="shrink-0">Confirmed</StatusChip>
-              </GlassCard>
-            ))}
-          </div>
-        </section>
+        </Col>
+        </Grid>
       </main>
     </div>
   );
