@@ -11,7 +11,10 @@ import { cn } from "@/lib/utils";
 import { linkedText } from "@/lib/flyers/links";
 import { FORMATS, FORMAT_KEYS, type FormatKey, type PlaceholderValues, type Scene, type TemplateContent } from "@/lib/flyers/types";
 
-type Template = { id: string; name: string; description: string | null; venue_id: string | null; venue_name: string | null; version: number; content: TemplateContent };
+type Template = { id: string; name: string; description: string | null; venue_id: string | null; venue_name: string | null; version: number; content: TemplateContent; published_at?: string | null };
+
+const NEW_DAYS = 14;
+const isNew = (t: Template) => !!t.published_at && Date.now() - new Date(t.published_at).getTime() < NEW_DAYS * 86_400_000;
 type Design = { id: string; dj_id: string; title: string; format: FormatKey; scene: Scene; updated_at: string; djs?: { display_name: string } | null };
 type Booking = { id: string; title: string | null; starts_at: string | null; venue_id: string | null; venue_name: string | null; dj_id?: string | null; source?: "event" | "calendar"; values: PlaceholderValues };
 type Boot = {
@@ -42,6 +45,7 @@ function Flyers() {
   const [data, setData] = useState<Boot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [startOpen, setStartOpen] = useState(!!params.get("event"));
+  const [startTemplate, setStartTemplate] = useState<string | null>(null);
 
   async function load() {
     const r = await fetch("/api/flyers");
@@ -86,6 +90,45 @@ function Flyers() {
         {!data && !error && <p className="text-sm text-muted">Loading…</p>}
         {data && (
           <>
+            {data.templates.length > 0 && (
+              <section aria-labelledby="office-templates" className="mb-10" data-tour="flyer-office-templates">
+                <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+                  <h2 id="office-templates" className="text-sm font-semibold uppercase tracking-wide text-muted">
+                    Templates from the office
+                  </h2>
+                  <p className="text-xs text-muted">Pick one to start. Your photo and name fill in.</p>
+                </div>
+                <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                  {[...data.templates]
+                    .sort((a, b) => Number(isNew(b)) - Number(isNew(a)))
+                    .map((t) => {
+                      const first = FORMAT_KEYS.find((k) => t.content.formats[k]);
+                      const sc = first ? t.content.formats[first] : null;
+                      return (
+                        <li key={t.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setStartTemplate(t.id);
+                              setStartOpen(true);
+                            }}
+                            className="group block w-full text-left focus-visible:outline-none"
+                            aria-label={`Start a flyer from ${t.name}`}
+                            data-office-template={t.name}
+                          >
+                            <span className="relative flex aspect-[4/5] items-center justify-center overflow-hidden rounded-[12px] border border-black/10 bg-[#1a1610] transition-colors group-hover:border-gold group-focus-visible:ring-2 group-focus-visible:ring-gold">
+                              {sc && <ScenePreviewClient scene={previewScene(sc, SAMPLE)} width={sc.format === "story" ? 110 : 150} />}
+                              {isNew(t) && <span className="absolute left-2 top-2 rounded-full bg-gold px-2 py-0.5 text-[10px] font-bold uppercase text-black">New</span>}
+                            </span>
+                            <span className="mt-1.5 block truncate text-sm font-medium">{t.name}</span>
+                            {t.venue_name && <span className="block truncate text-xs text-muted">For {t.venue_name}</span>}
+                          </button>
+                        </li>
+                      );
+                    })}
+                </ul>
+              </section>
+            )}
             <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted">{data.me.dj ? "My flyers" : "Flyers"}</h2>
             {data.designs.length ? (
               <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -118,19 +161,22 @@ function Flyers() {
           </>
         )}
       </main>
-      {startOpen && data && <StartDialog data={data} initialEvent={params.get("event")} onClose={() => setStartOpen(false)} onCreated={(id) => router.push(`/dj-dashboard/flyers/${id}`)} />}
+      {startOpen && data && <StartDialog data={data} initialEvent={params.get("event")} initialTemplate={startTemplate} onClose={() => {
+        setStartOpen(false);
+        setStartTemplate(null);
+      }} onCreated={(id) => router.push(`/dj-dashboard/flyers/${id}`)} />}
     </div>
   );
 }
 
-function StartDialog({ data, initialEvent, onClose, onCreated }: { data: Boot; initialEvent: string | null; onClose: () => void; onCreated: (id: string) => void }) {
+function StartDialog({ data, initialEvent, initialTemplate = null, onClose, onCreated }: { data: Boot; initialEvent: string | null; /** Picked from the office templates gallery: keep it. */ initialTemplate?: string | null; onClose: () => void; onCreated: (id: string) => void }) {
   const staffOnly = !data.me.dj;
   const [djId, setDjId] = useState(data.me.dj?.id ?? "");
   const [eventId, setEventId] = useState(initialEvent && data.events.some((e) => e.id === initialEvent) ? initialEvent : "");
   const event = data.events.find((e) => e.id === eventId) ?? null;
   // Templates for the booking's venue first.
   const templates = useMemo(() => [...data.templates].sort((a, b) => Number(b.venue_id === event?.venue_id && !!b.venue_id) - Number(a.venue_id === event?.venue_id && !!a.venue_id)), [data.templates, event]);
-  const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
+  const [templateId, setTemplateId] = useState(initialTemplate ?? templates[0]?.id ?? "");
   const [venueFilter, setVenueFilter] = useState("");
   const venueOpts = useMemo(() => [...new Map(data.events.filter((e) => e.venue_id).map((e) => [e.venue_id!, e.venue_name ?? "Venue"])).entries()].sort((a, b) => a[1].localeCompare(b[1])), [data.events]);
   const shownEvents = data.events.filter((e) => !venueFilter || e.venue_id === venueFilter || e.id === eventId);
@@ -144,13 +190,13 @@ function StartDialog({ data, initialEvent, onClose, onCreated }: { data: Boot; i
       .then((j) => {
         if (!live || !j) return;
         setActive(j);
-        if (j.templateId && data.templates.some((t) => t.id === j.templateId)) setTemplateId(j.templateId);
+        if (!initialTemplate && j.templateId && data.templates.some((t) => t.id === j.templateId)) setTemplateId(j.templateId);
       })
       .catch(() => undefined);
     return () => {
       live = false;
     };
-  }, [eventId, venueFilter, data.templates]);
+  }, [eventId, venueFilter, data.templates, initialTemplate]);
   const template = templates.find((t) => t.id === templateId) ?? null;
   const formats = FORMAT_KEYS.filter((k) => template?.content.formats[k]);
   const [format, setFormat] = useState<FormatKey>("portrait");

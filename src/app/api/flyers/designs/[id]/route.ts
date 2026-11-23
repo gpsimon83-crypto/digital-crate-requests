@@ -5,6 +5,7 @@ import { publicAssets } from "@/lib/flyers/server";
 import { checkDjChanges, parseScene, parseTemplateContent } from "@/lib/flyers/scene";
 import { djOnEvent, flyerEvents, loadEvent, loadFlyerContext, type FlyerContext } from "@/lib/flyers/data";
 import { resolveTemplate } from "@/lib/flyers/activation";
+import { templateAccess } from "@/lib/flyers/sharing";
 import { findCalendarNight, isCalendarKey, type CalendarNightRef } from "@/lib/flyers/calendar-nights";
 import { applyTemplateKeepingOverrides } from "@/lib/flyers/links";
 import type { FormatKey, Scene, TemplateContent } from "@/lib/flyers/types";
@@ -69,7 +70,11 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const d = dj as { id: string; display_name: string; photo_url: string | null } | null;
     const ctx = await contextFor(db, row);
     // Templates to switch to (published), and which one is active for this event/venue.
-    const { data: tpls } = await db.from("flyer_templates").select("id, name, venue_id, current_version_id").eq("status", "published").order("name");
+    const allowed = await templateAccess(db, { staff: actor.staff, djId: actor.dj?.id ?? null });
+    const active = await resolveTemplate(db, { eventId: row.event_id, venueId: ctx.venue?.id ?? null, allowed });
+    // A DJ can switch to templates shared with them, the one this flyer uses, and the one the office turned on here.
+    const { data: tplRows } = await db.from("flyer_templates").select("id, name, venue_id, current_version_id").eq("status", "published").order("name");
+    const tpls = ((tplRows ?? []) as { id: string; name: string; venue_id: string | null; current_version_id: string | null }[]).filter((t) => allowed(t.id) || t.id === row.template_id || t.id === active.templateId);
     const vIds = ((tpls ?? []) as { current_version_id: string | null }[]).map((t) => t.current_version_id).filter((x): x is string => !!x);
     const { data: vers } = vIds.length ? await db.from("flyer_template_versions").select("id, content").in("id", vIds) : { data: [] };
     const templates = ((tpls ?? []) as { id: string; name: string; venue_id: string | null; current_version_id: string | null }[])
@@ -78,7 +83,6 @@ export async function GET(_req: NextRequest, { params }: Params) {
         return c?.formats?.[row.format] ? { id: t.id, name: t.name, venue_id: t.venue_id } : null;
       })
       .filter(Boolean);
-    const active = await resolveTemplate(db, { eventId: row.event_id, venueId: ctx.venue?.id ?? null });
     const djs = actor.staff ? (((await db.from("djs").select("id, display_name").order("display_name")).data ?? []) as { id: string; display_name: string }[]) : [];
     return NextResponse.json({
       design: row,
@@ -164,6 +168,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       if (!uuidOk(b.applyTemplate)) return NextResponse.json({ error: "Unknown template." }, { status: 400 });
       const { data: t } = await db.from("flyer_templates").select("id, status, current_version_id").eq("id", b.applyTemplate).maybeSingle();
       if (!t || t.status !== "published" || !t.current_version_id) return NextResponse.json({ error: "That template isn't available." }, { status: 404 });
+      if (!actor.staff && t.id !== row.template_id && !(await templateAccess(db, { staff: false, djId: actor.dj?.id ?? null }))(t.id)) {
+        const here = await resolveTemplate(db, { eventId: row.event_id, venueId: row.venue_id ?? null });
+        if (here.via === "latest" || here.templateId !== t.id) return NextResponse.json({ error: "That template isn't available." }, { status: 404 });
+      }
       const { data: v } = await db.from("flyer_template_versions").select("id, content").eq("id", t.current_version_id).single();
       const content = parseTemplateContent(v?.content);
       const layout = content.ok ? content.value.formats[row.format] : null;

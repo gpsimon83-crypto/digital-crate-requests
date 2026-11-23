@@ -16,7 +16,7 @@ export async function listActivations(db: Db): Promise<Activation[]> {
  * event override → venue default → company default → newest published template.
  * Only published templates count.
  */
-export async function resolveTemplate(db: Db, opts: { eventId?: string | null; venueId?: string | null }): Promise<{ templateId: string | null; via: ActivationScope | "latest" | null }> {
+export async function resolveTemplate(db: Db, opts: { eventId?: string | null; venueId?: string | null; /** For a DJ: the templates shared with them (an activation the office set still counts). */ allowed?: (id: string) => boolean }): Promise<{ templateId: string | null; via: ActivationScope | "latest" | null }> {
   const acts = await listActivations(db);
   const { data: pub } = await db.from("flyer_templates").select("id, updated_at").eq("status", "published").order("updated_at", { ascending: false });
   const published = new Set(((pub ?? []) as { id: string }[]).map((t) => t.id));
@@ -27,7 +27,7 @@ export async function resolveTemplate(db: Db, opts: { eventId?: string | null; v
   if (byVenue) return { templateId: byVenue, via: "venue" };
   const company = pick(acts.find((a) => a.scope === "company"));
   if (company) return { templateId: company, via: "company" };
-  const latest = ((pub ?? []) as { id: string }[])[0]?.id ?? null;
+  const latest = ((pub ?? []) as { id: string }[]).find((t) => !opts.allowed || opts.allowed(t.id))?.id ?? null;
   return { templateId: latest, via: latest ? "latest" : null };
 }
 

@@ -4,6 +4,7 @@ import { ensureSampleTemplate, flyerActor, flyerError } from "@/lib/flyers/serve
 import { publicAssets } from "@/lib/flyers/server";
 import { EVENT_SELECT, eventValues, flyerEvents, type EventRow, type VenueRow } from "@/lib/flyers/data";
 import type { TemplateContent } from "@/lib/flyers/types";
+import { templateAccess } from "@/lib/flyers/sharing";
 
 /**
  * Everything the Flyer Creator needs to start: published templates, the
@@ -24,10 +25,12 @@ export async function GET() {
       .order("updated_at", { ascending: false });
     if (tErr) throw tErr;
     type TRow = { id: string; name: string; description: string | null; venue_id: string | null; current_version_id: string | null };
-    const tList = (tRows ?? []) as TRow[];
+    // A DJ only gets the templates shared with them (All DJs, or picked); staff get all.
+    const allowed = await templateAccess(db, { staff: actor.staff, djId: actor.dj?.id ?? null });
+    const tList = ((tRows ?? []) as TRow[]).filter((t) => allowed(t.id));
     const versionIds = tList.map((t) => t.current_version_id).filter((x): x is string => !!x);
     const { data: vRows, error: vErr } = versionIds.length
-      ? await db.from("flyer_template_versions").select("id, version, content").in("id", versionIds)
+      ? await db.from("flyer_template_versions").select("id, version, content, published_at").in("id", versionIds)
       : { data: [], error: null };
     if (vErr) throw vErr;
     const { data: venues } = await db.from("venues").select("id, name, logo_url").order("name");
@@ -36,7 +39,7 @@ export async function GET() {
       .map((t) => {
         const v = ((vRows ?? []) as { id: string; version: number; content: TemplateContent }[]).find((x) => x.id === t.current_version_id);
         if (!v) return null;
-        return { id: t.id, name: t.name, description: t.description, venue_id: t.venue_id, venue_name: venueList.find((x) => x.id === t.venue_id)?.name ?? null, version_id: v.id, version: v.version, content: v.content };
+        return { id: t.id, name: t.name, description: t.description, venue_id: t.venue_id, venue_name: venueList.find((x) => x.id === t.venue_id)?.name ?? null, version_id: v.id, version: v.version, content: v.content, published_at: (v as { published_at?: string }).published_at ?? null };
       })
       .filter(Boolean);
 

@@ -18,6 +18,20 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-23-flyer-template-sharing": [
+    {
+      path: "/admin/flyers",
+      target: '[data-tour="flyer-tpl-share"], main',
+      title: "Who gets this template",
+      body: "This button shows who sees the template in their portal. Click it to pick All DJs, Chosen DJs (tick who), or Office only."
+    },
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-office-templates"], main',
+      title: "What DJs see",
+      body: "Templates shared with a DJ show here on their Flyers page, newest marked New. Picking one opens New flyer with it selected."
+    }
+  ],
   "2026-11-23-questionnaire-recommended-pricing": [
     {
       path: "/admin/services?cat=bars-nightlife",

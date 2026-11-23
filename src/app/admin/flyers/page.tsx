@@ -11,10 +11,12 @@ import { ScenePreviewClient } from "@/components/flyers/client";
 import type { Asset } from "@/components/flyers/editor-panels";
 import { ActivateMenu, activeLabels, type Activation, type UpcomingEvent } from "@/components/flyers/template-activation";
 import { cn } from "@/lib/utils";
+import { TemplateSharing } from "@/components/flyers/template-sharing";
+import type { ShareMode } from "@/lib/flyers/sharing";
 import { linkedText } from "@/lib/flyers/links";
 import { FORMATS, FORMAT_KEYS, type FormatKey, type Scene, type TemplateContent } from "@/lib/flyers/types";
 
-type Row = { id: string; slug: string | null; name: string; description: string | null; venue_id: string | null; status: "draft" | "published" | "archived"; draft: TemplateContent; formats: FormatKey[]; versions: number; current_version: number | null; published_at: string | null; designs: number; updated_at: string };
+type Row = { id: string; slug: string | null; name: string; description: string | null; venue_id: string | null; status: "draft" | "published" | "archived"; draft: TemplateContent; formats: FormatKey[]; versions: number; current_version: number | null; published_at: string | null; designs: number; updated_at: string; share_mode: ShareMode; shared_dj_ids: string[] };
 
 const SAMPLE = { dj_name: "DJ Name", event_title: "Saturday Night", event_date: "Saturday, November 22", start_time: "9 PM", end_time: "2 AM", venue_name: "Venue Name", venue_address: "123 Main St, Milwaukee, WI" , ...BADGE_SAMPLES};
 const preview = (s: Scene): Scene => ({ ...s, nodes: s.nodes.map((n) => (n.kind === "text" ? { ...n, text: linkedText(n.text, { values: SAMPLE, slots: [], venueId: null, hasEvent: false }) } : n)) });
@@ -23,6 +25,8 @@ export default function AdminFlyersPage() {
   const router = useRouter();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [venues, setVenues] = useState<{ id: string; name: string }[]>([]);
+  const [djs, setDjs] = useState<{ id: string; display_name: string }[]>([]);
+  const [sharingReady, setSharingReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [sizes, setSizes] = useState<FormatKey[]>(["square", "portrait", "story"]);
@@ -79,8 +83,10 @@ export default function AdminFlyersPage() {
     const r = await fetch("/api/admin/flyers/templates");
     const j = await r.json().catch(() => ({}));
     if (!r.ok) return setError(j.error ?? "Couldn't load templates.");
-    setRows(j.templates);
+    setRows(j.templates.map((t: Row) => ({ ...t, share_mode: t.share_mode ?? "all", shared_dj_ids: t.shared_dj_ids ?? [] })));
     setVenues(j.venues);
+    setDjs(j.djs ?? []);
+    setSharingReady(!!j.sharingReady);
   }
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -170,6 +176,7 @@ export default function AdminFlyersPage() {
                             </button>
                           )
                         )}
+                        <TemplateSharing template={t} djs={djs} ready={sharingReady} onSaved={(mode, ids) => setRows((rs) => rs && rs.map((x) => (x.id === t.id ? { ...x, share_mode: mode, shared_dj_ids: ids } : x)))} />
                         <button className="inline-flex h-8 items-center gap-1 rounded-[8px] border border-status-declined/30 px-2.5 text-xs text-status-declined" onClick={() => void remove(t)} aria-label={`Delete ${t.name}`}>
                           <Trash2 size={13} />
                         </button>

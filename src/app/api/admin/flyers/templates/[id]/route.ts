@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { SHARE_MODES, type ShareMode } from "@/lib/flyers/sharing";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { flyerAdmin, flyerError, uuidOk } from "@/lib/flyers/server";
 import { publicAssets } from "@/lib/flyers/server";
@@ -38,7 +39,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (admin instanceof NextResponse) return admin;
   const { id } = await params;
   if (!uuidOk(id)) return NextResponse.json({ error: "Template not found" }, { status: 404 });
-  const b = (await req.json().catch(() => ({}))) as { name?: unknown; description?: unknown; venueId?: unknown; draft?: unknown; status?: unknown };
+  const b = (await req.json().catch(() => ({}))) as { name?: unknown; description?: unknown; venueId?: unknown; draft?: unknown; status?: unknown; shareMode?: unknown; sharedDjIds?: unknown };
+  if (b.shareMode !== undefined && !SHARE_MODES.includes(b.shareMode as ShareMode)) return NextResponse.json({ error: "Pick All DJs, chosen DJs or Office only." }, { status: 400 });
+  const sharedDjIds = Array.isArray(b.sharedDjIds) ? [...new Set(b.sharedDjIds.filter((x): x is string => typeof x === "string" && uuidOk(x)))].slice(0, 500) : undefined;
+  if (b.shareMode === "selected" && sharedDjIds && sharedDjIds.length === 0) return NextResponse.json({ error: "Pick at least one DJ, or choose Office only." }, { status: 400 });
   const update: Record<string, unknown> = { updated_by: admin.user.id, updated_at: new Date().toISOString() };
   if (typeof b.name === "string") {
     const n = b.name.trim().slice(0, 80);
@@ -59,9 +63,22 @@ export async function PATCH(req: NextRequest, { params }: Params) {
       if (b.status === "published" && !t?.current_version_id) return NextResponse.json({ error: "Publish the template first." }, { status: 400 });
       update.status = b.status;
     }
+    if (b.shareMode !== undefined) update.share_mode = b.shareMode;
     const { data, error } = await db.from("flyer_templates").update(update).eq("id", id).select("id, updated_at, status").maybeSingle();
-    if (error) throw error;
+    if (error) {
+      if (b.shareMode !== undefined && /share_mode/.test(error.message ?? "")) return NextResponse.json({ error: "Run migration 0068_flyer_template_sharing.sql in Supabase to choose who gets templates." }, { status: 503 });
+      throw error;
+    }
     if (!data) return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    if (sharedDjIds) {
+      // Replace the list: who this template is shared with when it's set to chosen DJs.
+      const del = await db.from("flyer_template_shares").delete().eq("template_id", id);
+      if (del.error) throw del.error;
+      if (sharedDjIds.length) {
+        const ins = await db.from("flyer_template_shares").insert(sharedDjIds.map((dj_id) => ({ template_id: id, dj_id })));
+        if (ins.error) throw ins.error;
+      }
+    }
     return NextResponse.json({ ok: true, updated_at: data.updated_at, status: data.status });
   } catch (err) {
     return flyerError(err);

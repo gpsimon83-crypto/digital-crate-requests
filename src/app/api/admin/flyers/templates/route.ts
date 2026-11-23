@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ensureSampleTemplate, flyerAdmin, flyerError, uuidOk } from "@/lib/flyers/server";
 import { emptyScene, parseTemplateContent } from "@/lib/flyers/scene";
 import { FORMATS, type FormatKey, type TemplateContent } from "@/lib/flyers/types";
+import { sharesByTemplate } from "@/lib/flyers/sharing";
 
 /** Staff: every template (drafts, published, archived) with version counts and how many flyers use each. */
 export async function GET() {
@@ -16,6 +17,8 @@ export async function GET() {
     const { data: versions } = await db.from("flyer_template_versions").select("id, template_id, version, published_at");
     const { data: designs } = await db.from("flyer_designs").select("template_id");
     const { data: venues } = await db.from("venues").select("id, name").order("name");
+    const sharing = await sharesByTemplate(db);
+    const { data: djs } = await db.from("djs").select("id, display_name").order("display_name");
     const rows = (data ?? []) as { id: string; draft: TemplateContent; current_version_id: string | null }[];
     return NextResponse.json({
       templates: rows.map((t) => {
@@ -27,10 +30,14 @@ export async function GET() {
           versions: vs.length,
           current_version: current?.version ?? null,
           published_at: current?.published_at ?? null,
-          designs: ((designs ?? []) as { template_id: string | null }[]).filter((d) => d.template_id === t.id).length
+          designs: ((designs ?? []) as { template_id: string | null }[]).filter((d) => d.template_id === t.id).length,
+          share_mode: sharing.modes.get(t.id) ?? "all",
+          shared_dj_ids: sharing.djs.get(t.id) ?? []
         };
       }),
-      venues: venues ?? []
+      venues: venues ?? [],
+      djs: djs ?? [],
+      sharingReady: sharing.ready
     });
   } catch (err) {
     return flyerError(err);

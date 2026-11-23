@@ -19,6 +19,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-23-flyer-template-sharing",
+    date: "2026-11-23",
+    area: "CRM",
+    title: "Share flyer templates with all DJs, chosen DJs, or keep them office-only",
+    summary: "Each flyer template now has a Share button: All DJs, Chosen DJs (tick who), or Office only. DJs see the templates shared with them in a new Templates from the office gallery on their Flyers page, with new ones marked.",
+    bullets: [
+      "Flyer Templates: the button on each card shows who gets it (All DJs, 3 DJs, Office only); click it to change",
+      "DJ portal → Flyers: Templates from the office, newest marked New; picking one opens New flyer with it selected",
+      "A DJ can't start from or switch to a template that isn't shared with them; staff always see every template",
+      "A template you Activate for a venue or event still starts that venue's or event's flyers",
+      "Existing templates stay shared with all DJs until you change them"
+    ],
+    link: { href: "/admin/flyers", label: "Open Flyer Templates" },
+    action: "Run migration 0068_flyer_template_sharing.sql in Supabase to turn on sharing choices."
+  },
+  {
     id: "2026-11-23-questionnaire-recommended-pricing",
     date: "2026-11-23",
     area: "CRM",

@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { flyerActor, flyerError, uuidOk } from "@/lib/flyers/server";
 import { djOnEvent, loadEvent, loadFlyerContext } from "@/lib/flyers/data";
 import { resolveTemplate } from "@/lib/flyers/activation";
+import { templateAccess } from "@/lib/flyers/sharing";
 import { findCalendarNight, isCalendarKey, parseCalendarKey, type CalendarNightRef } from "@/lib/flyers/calendar-nights";
 import { linkScene, resolveScene } from "@/lib/flyers/links";
 import { parseTemplateContent } from "@/lib/flyers/scene";
@@ -45,7 +46,11 @@ export async function POST(req: NextRequest) {
     if (event && b.djId && actor.staff && event.dj_id !== b.djId && !(await djOnEvent(db, event.id, b.djId))) return NextResponse.json({ error: "That DJ isn't on this event." }, { status: 400 });
 
     const venueId = event?.venue_id ?? night?.venue_id ?? (b.venueId && uuidOk(b.venueId) ? b.venueId : null);
-    const templateId = b.templateId && uuidOk(b.templateId) ? b.templateId : (await resolveTemplate(db, { eventId: event?.id, venueId })).templateId;
+    // A DJ starts from templates shared with them, or the one the office turned on for this event/venue.
+    const allowed = await templateAccess(db, { staff: actor.staff, djId: actor.dj?.id ?? null });
+    const here = await resolveTemplate(db, { eventId: event?.id, venueId, allowed });
+    const templateId = b.templateId && uuidOk(b.templateId) ? b.templateId : here.templateId;
+    if (b.templateId && !allowed(b.templateId) && !(here.via !== "latest" && here.templateId === b.templateId)) return NextResponse.json({ error: "That template isn't available." }, { status: 404 });
     if (!templateId) return NextResponse.json({ error: "No template is published yet." }, { status: 400 });
 
     const { data: t, error: tErr } = await db.from("flyer_templates").select("id, name, status, venue_id, current_version_id").eq("id", templateId).maybeSingle();
@@ -102,7 +107,8 @@ export async function GET(req: NextRequest) {
     const db = createAdminClient();
     const cal = eventId ? parseCalendarKey(eventId) : null;
     const event = eventId && uuidOk(eventId) ? await loadEvent(db, eventId) : null;
-    return NextResponse.json(await resolveTemplate(db, { eventId: event?.id, venueId: event?.venue_id ?? cal?.venueId ?? (venueParam && uuidOk(venueParam) ? venueParam : null) }));
+    const allowed = await templateAccess(db, { staff: actor.staff, djId: actor.dj?.id ?? null });
+    return NextResponse.json(await resolveTemplate(db, { eventId: event?.id, venueId: event?.venue_id ?? cal?.venueId ?? (venueParam && uuidOk(venueParam) ? venueParam : null), allowed }));
   } catch (err) {
     return flyerError(err);
   }
