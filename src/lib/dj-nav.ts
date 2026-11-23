@@ -1,4 +1,4 @@
-import { Bell, BookOpen, CalendarCheck, CalendarDays, CalendarClock, ClipboardList, Disc3, GraduationCap, Home, Image, Library, MessagesSquare, Sparkles, UserCircle, Wallet } from "lucide-react";
+import { Bell, BookOpen, HandCoins, CalendarCheck, CalendarDays, CalendarClock, ClipboardList, Disc3, GraduationCap, Home, Image, Library, MessagesSquare, Sparkles, UserCircle, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ACADEMY_URL } from "@/lib/external-links";
 
@@ -31,6 +31,7 @@ export const DJ_NAV_GROUPS: { label?: string; items: DjNavItem[] }[] = [
     label: "My work",
     items: [
       { href: "/dj-dashboard/bookings", label: "My Gigs", icon: Disc3, alsoActive: MY_GIGS_PATHS },
+      { href: "/dj-dashboard/offers", label: "Gig Offers", icon: HandCoins },
       { href: "/dj-dashboard/calendar", label: "Calendar & Availability", icon: CalendarDays },
       { href: "/dj-dashboard/tasks", label: "Tasks & Planning", icon: ClipboardList },
       { href: "/dj-dashboard/messages", label: "Messages", icon: MessagesSquare },

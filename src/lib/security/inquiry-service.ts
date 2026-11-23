@@ -207,6 +207,7 @@ export async function submitPublicRequest(kind: InquiryKind, raw: unknown, ctx: 
       venue_name: (data.venueName as string | undefined) ?? null,
       expected_guests: (data.expectedGuests as number | undefined) ?? null,
       budget_range: (data.budgetRange as string | undefined) ?? null,
+      ...(data.packageId ? { package_id: data.packageId as string } : {}),
       message: data.message ?? null,
       slot_start: slotStart?.toISOString() ?? null,
       slot_end: slotEnd?.toISOString() ?? null,

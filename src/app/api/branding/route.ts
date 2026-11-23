@@ -26,6 +26,10 @@ export async function GET() {
     if (error) throw error;
 
     // Dashboard banner extras (migration 0063). Optional: without them the dashboard uses its built-in photos.
+    // Default banner for client project pages (migration 0066). Optional.
+    const cover = await db.from("platform_settings").select("default_project_cover").eq("id", true).maybeSingle();
+    const projectCover = !cover.error ? ((cover.data?.default_project_cover as string | null) ?? null) : null;
+
     let adminDashboard: { weddingFocal: { x: number; y: number } | null; clubUrl: string | null; clubFocal: { x: number; y: number } | null } | null = null;
     const extra = await db.from("platform_settings").select("admin_club_image_url, admin_dashboard_banners").eq("id", true).maybeSingle();
     if (!extra.error && extra.data) {
@@ -37,7 +41,7 @@ export async function GET() {
 
     return NextResponse.json({
       adminDashboard,
-      portalHero: { imageUrl: data?.portal_hero_image_url ?? null, heading: data?.portal_hero_heading ?? null, subheading: data?.portal_hero_subheading ?? null },
+      portalHero: { projectCover, imageUrl: data?.portal_hero_image_url ?? null, heading: data?.portal_hero_heading ?? null, subheading: data?.portal_hero_subheading ?? null },
       adminHero: { imageUrl: data?.admin_hero_image_url ?? null, heading: data?.admin_hero_heading ?? null, subheading: data?.admin_hero_subheading ?? null }
     });
   } catch (err) {

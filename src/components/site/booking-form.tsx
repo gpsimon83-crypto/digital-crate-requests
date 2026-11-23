@@ -8,7 +8,10 @@ import { businessToday, checkPublicEventDate } from "@/lib/security/business-dat
 import { TurnstileWidget, HoneypotField, newSubmissionId } from "@/components/site/turnstile-widget";
 import { CheckEmailPanel } from "@/components/site/check-email-panel";
 
-export function BookingForm({ djs }: { djs: { id: string; display_name: string }[] }) {
+export type PickedPackage = { id: string; name: string; price: string; category: string };
+
+export function BookingForm({ djs, picked = null }: { djs: { id: string; display_name: string }[]; /** From "Request this package" on the Services page. */ picked?: PickedPackage | null }) {
+  const [pkg, setPkg] = useState<PickedPackage | null>(picked);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
@@ -74,6 +77,7 @@ export function BookingForm({ djs }: { djs: { id: string; display_name: string }
           venueName: venueName || undefined,
           expectedGuests: expectedGuests ? Number(expectedGuests) : undefined,
           budgetRange: budgetRange || undefined,
+          packageId: pkg?.id || undefined,
           message: message || undefined,
           website: website || undefined,
           turnstileToken: captcha || undefined,
@@ -103,6 +107,17 @@ export function BookingForm({ djs }: { djs: { id: string; display_name: string }
   return (
     <form onSubmit={handleSubmit} className="relative flex flex-col gap-4" noValidate={false}>
       <HoneypotField value={website} onChange={setWebsite} />
+      {pkg && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-[10px] border border-gold/50 bg-gold/5 px-3 py-2 text-sm" data-testid="picked-package">
+          <span>
+            Package: <strong>{pkg.name}</strong> · {pkg.price}
+            <span className="text-muted"> ({pkg.category})</span>
+          </span>
+          <button type="button" onClick={() => setPkg(null)} className="text-xs text-muted underline hover:text-foreground">
+            Remove
+          </button>
+        </div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Full name" value={name} onChange={setName} required placeholder="Your name" maxLength={100} autoComplete="name" error={fieldErrors.name} />
         <Field label="Email address" value={email} onChange={setEmail} required type="email" placeholder="your@email.com" maxLength={254} autoComplete="email" error={fieldErrors.email} />

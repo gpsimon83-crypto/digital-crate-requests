@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
 import { PORTAL_THEMES, backdropSettings, resolvePortalTheme, type PortalThemeId } from "@/lib/portal-themes";
 import { EVENT_CATEGORY_LABELS, type EventCategory } from "@/lib/event-category";
+import { CoverPicker } from "@/components/project/cover-picker";
+import { builtInCover } from "@/lib/project-covers";
 
 export type PortalHeroBannerSize = "compact" | "standard" | "tall";
 
@@ -106,6 +108,21 @@ export function PortalHeroPanel({ eventId, initial, eventCategory = null }: { ev
     }
   }
 
+  async function pickCover(src: string | null) {
+    setUploading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/events/${eventId}/portal-hero`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ portalHeroImageUrl: src }) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Couldn't use that photo");
+      setData((d) => ({ ...d, portal_hero_image_url: json.event.portal_hero_image_url }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function saveFields() {
     setSaving(true);
     setSaved(false);
@@ -183,9 +200,16 @@ export function PortalHeroPanel({ eventId, initial, eventCategory = null }: { ev
           )}
         </div>
         {!data.portal_hero_image_url && (
-          <p className="mt-1.5 text-xs text-muted">Upload a photo to unlock framing, banner size, and text color controls.</p>
+          <p className="mt-1.5 text-xs text-muted">No photo of its own: the client sees the office default from Settings. Upload or pick one to unlock framing, banner size, and text color controls.</p>
         )}
       </div>
+
+      <details data-tour="portal-cover-picker" open={!data.portal_hero_image_url || !!builtInCover(data.portal_hero_image_url)}>
+        <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted">Or pick one of our photos</summary>
+        <div className="mt-2">
+          <CoverPicker value={data.portal_hero_image_url} onPick={pickCover} disabled={uploading} label="Project banner photos" />
+        </div>
+      </details>
 
       {data.portal_hero_image_url && (
         <>

@@ -72,7 +72,13 @@ export const supabaseInquiryRepo: InquiryRepo = {
   },
 
   async insert(row) {
-    const { data, error } = await createAdminClient().from("inquiry_submissions").insert(row).select("*").single();
+    let { data, error } = await createAdminClient().from("inquiry_submissions").insert(row).select("*").single();
+    // Before migration 0066 there's no package column: keep the request, drop the package.
+    if (error && "package_id" in row && /package_id/.test(error.message ?? "")) {
+      const { package_id: _drop, ...rest } = row as typeof row & { package_id?: string };
+      void _drop;
+      ({ data, error } = await createAdminClient().from("inquiry_submissions").insert(rest).select("*").single());
+    }
     if (error) throw error;
     return rowOf(data)!;
   },

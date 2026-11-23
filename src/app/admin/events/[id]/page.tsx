@@ -10,6 +10,8 @@ import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { cn } from "@/lib/utils";
 import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
 import { EVENT_TYPES } from "@/lib/event-types";
+import { priceLabel } from "@/lib/data/catalog";
+import { DjOfferPanel } from "@/components/project/dj-offer-panel";
 import { ContactEditDrawer, type EditableContact } from "@/components/admin/contact-edit-drawer";
 import { BookingPanel } from "@/components/project/booking-panel";
 import { EquipmentPlanCard } from "@/components/project/equipment-plan-card";
@@ -98,6 +100,8 @@ interface EventDetail {
   expected_guests: number | null;
   venue_name: string | null;
   budget_range: string | null;
+  /** The Services package the client asked about, as shown then (migration 0066). */
+  package_snapshot?: { name: string; category: string | null; pricing_type: "fixed" | "starting_at" | "quote"; price: number | null; hours: number | null; captured_at: string } | null;
   special_requests: string | null;
   must_play: string[] | null;
   do_not_play: string[] | null;
@@ -1259,6 +1263,16 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                             </div>
                           ))}
                         </dl>
+                        {event.package_snapshot && (
+                          <p className="text-sm" data-tour="event-requested-package">
+                            <span className="text-muted">Asked about: </span>
+                            <strong>{event.package_snapshot.name}</strong>
+                            {" · "}
+                            {priceLabel({ pricing_type: event.package_snapshot.pricing_type, price: event.package_snapshot.price })}
+                            {event.package_snapshot.category ? ` · ${event.package_snapshot.category}` : ""}
+                            <span className="text-xs text-muted"> (as shown {new Date(event.package_snapshot.captured_at).toLocaleDateString()}; later Services edits don&apos;t change it)</span>
+                          </p>
+                        )}
                         {(event.clients?.partner_first_name || event.clients?.partner_last_name || event.clients?.married_last_name || choiceLabels(event.clients?.contact_methods)) && (
                           <div className="flex flex-col gap-1 border-t border-border pt-3">
                             {(event.clients?.partner_first_name || event.clients?.partner_last_name) && (
@@ -1309,6 +1323,10 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                       <p className="text-xs uppercase tracking-[1.5px] text-muted">Client notes</p>
                       {event.special_requests ? <p className="whitespace-pre-wrap text-sm">{event.special_requests}</p> : <p className="text-sm text-muted">No notes from the client yet.</p>}
                     </GlassCard>
+                  </div>
+
+                  <div id="project-dj-offer" className="scroll-mt-6">
+                    <DjOfferPanel eventId={id} djs={djOptions} />
                   </div>
 
                   <div id="project-questionnaire" className="scroll-mt-6">

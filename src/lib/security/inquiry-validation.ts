@@ -67,6 +67,8 @@ export function inquirySchema(now: Date = new Date()) {
       z.coerce.number({ error: "Please enter a number of guests." }).int("Please enter a whole number of guests.").min(1, "Please enter at least 1 guest.").max(5000, "Please enter 5,000 guests or fewer.").optional()
     ),
     budgetRange: z.preprocess(blankToUndefined, z.enum(BUDGET_RANGES, { error: "Please choose a budget range from the list." }).optional()),
+    // The Services package they picked ("Request this package").
+    packageId: z.preprocess(blankToUndefined, z.uuid("Please pick the package again from the Services page.").optional()),
     message: text(3000),
     ...metaFields
   });

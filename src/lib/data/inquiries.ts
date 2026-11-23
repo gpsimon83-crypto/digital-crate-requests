@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deriveEventCategory } from "@/lib/event-category";
 import { zonedTimeToUtc } from "@/lib/scheduler-time";
+import { loadAdminCatalog, packageSnapshot, toPublicCatalog } from "@/lib/data/catalog";
 
 function generateEventCode(title: string) {
   const slug =
@@ -35,6 +36,8 @@ export async function createInquiry(input: {
   budgetRange?: string;
   /** Where the lead came from, for a new client (default: the website form). */
   source?: string;
+  /** The Services package they asked about. */
+  packageId?: string;
 }) {
   const db = createAdminClient();
 
@@ -83,6 +86,22 @@ export async function createInquiry(input: {
     .select()
     .single();
   if (eventError) throw eventError;
+
+  // The package they asked about, frozen as shown (name, price, inclusions):
+  // later catalog edits never change what this inquiry asked for.
+  if (input.packageId) {
+    try {
+      const cats = toPublicCatalog(await loadAdminCatalog(db, { withPayout: false }));
+      const hit = cats.flatMap((c) => c.packages.map((p) => ({ p, c }))).find((x) => x.p.id === input.packageId);
+      if (hit) {
+        const snap = packageSnapshot(hit.p, hit.c.name);
+        await db.from("events").update({ package_id: hit.p.id, package_snapshot: snap }).eq("id", event.id);
+        return { ...event, package_id: hit.p.id, package_snapshot: snap };
+      }
+    } catch {
+      // The inquiry still goes through without the package.
+    }
+  }
 
   return event;
 }

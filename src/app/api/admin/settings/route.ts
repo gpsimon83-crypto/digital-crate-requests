@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { builtInCover } from "@/lib/project-covers";
 import { requireAdmin } from "@/lib/require-admin";
 
 const DEFAULT_SETTINGS = {
@@ -116,7 +117,9 @@ export async function PATCH(req: NextRequest) {
         ...(body.portalHeroSettings !== undefined ? { portal_hero_settings: body.portalHeroSettings } : {}),
         ...(body.reviewUrl !== undefined ? { review_url: body.reviewUrl } : {}),
         ...(body.adminDashboardBanners !== undefined ? { admin_dashboard_banners: cleanBanners(body.adminDashboardBanners) } : {}),
-        ...(body.officeCopyEmail !== undefined ? { office_copy_email: cleanEmail(body.officeCopyEmail) } : {})
+        ...(body.officeCopyEmail !== undefined ? { office_copy_email: cleanEmail(body.officeCopyEmail) } : {}),
+        // Only one of the built-in photos (or none): never an arbitrary URL.
+        ...(body.defaultProjectCover !== undefined ? { default_project_cover: builtInCover(body.defaultProjectCover)?.src ?? null } : {})
       })
       .eq("id", true)
       .select()

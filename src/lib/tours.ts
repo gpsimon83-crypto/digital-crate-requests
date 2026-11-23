@@ -18,6 +18,50 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-23-services-catalog-dj-offers": [
+    {
+      path: "/admin/services",
+      target: '[data-tour="services-packages"], main',
+      title: "Packages by event category",
+      body: "Pick a tab to see its packages. Edit opens the package; the arrows change its order; Deactivate hides it from clients and new inquiries without touching existing bookings."
+    },
+    {
+      path: "/admin/services",
+      target: '[data-tour="services-categories"], main',
+      title: "Your categories",
+      body: "Add, rename, reorder or turn off the event categories. A package can sit in more than one: tick them in Edit Package."
+    },
+    {
+      path: "/admin/services",
+      target: '[data-tour="services-addons"], main',
+      title: "Add-ons",
+      body: "Set each add-on's price and where it's offered. Packages that include one show it as Included, with no extra charge."
+    },
+    {
+      path: "/admin/services",
+      target: '[data-tour="services-packages"], main',
+      title: "DJ Payout on each package",
+      body: "In Edit Package, the DJ Payout section (admins only) sets a percentage or flat amount, the DJ service amount for bundles, and shows the client price, estimated DJ payout and DCDJs share."
+    },
+    {
+      path: "/admin/events",
+      target: "table, main",
+      title: "Send a DJ an offer",
+      body: "Open a project and go to Details → DJ offer. The package's rule suggests the payout; change it if you need to, then send. The DJ accepts it under Gig Offers in their portal."
+    },
+    {
+      path: "/admin/settings",
+      target: '[data-tour="default-project-cover"], main',
+      title: "Default project photo",
+      body: "Pick the banner clients see on their project page when it has no photo of its own. Any project can pick a different one under Customize Portal."
+    },
+    {
+      path: "/admin/services",
+      target: '[data-tour="services-client-link"], main',
+      title: "What clients see",
+      body: "This opens the client Services page: the same packages by category, with Request this package, and none of the payout details."
+    }
+  ],
   "2026-11-23-edit-everything": [
     {
       path: "/admin/equipment",

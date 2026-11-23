@@ -70,7 +70,8 @@ async function activateInquiry(sub: SubmissionRow): Promise<string> {
     message: sub.message ?? undefined,
     venueName: sub.venue_name ?? undefined,
     expectedGuests: sub.expected_guests ?? undefined,
-    budgetRange: sub.budget_range ?? undefined
+    budgetRange: sub.budget_range ?? undefined,
+    packageId: sub.package_id ?? undefined
   });
 
   await logActivity({ actorLabel: sub.source === "wordpress" ? "Website inquiry (digitalcratedjs.com)" : "Website inquiry form", action: "lead.created", entityType: "event", entityId: event.id, eventId: event.id, metadata: { email_verified: true } });

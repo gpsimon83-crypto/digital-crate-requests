@@ -4,6 +4,8 @@ import { Logo } from "@/components/site/logo";
 import { BookingForm } from "@/components/site/booking-form";
 import { HomepageGuide } from "@/components/site/homepage-guide";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadAdminCatalog, priceLabel, toPublicCatalog } from "@/lib/data/catalog";
+import type { PickedPackage } from "@/components/site/booking-form";
 import { QrCode, Music2, Heart, LogIn, PartyPopper, UserCircle, Disc3, ExternalLink } from "lucide-react";
 
 const STEPS = [
@@ -39,8 +41,22 @@ async function getDjs() {
   return data ?? [];
 }
 
-export default async function Home() {
-  const djs = await getDjs();
+async function getPicked(id: string | undefined): Promise<PickedPackage | null> {
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+  try {
+    const cats = toPublicCatalog(await loadAdminCatalog(createAdminClient(), { withPayout: false }));
+    for (const c of cats) {
+      const p = c.packages.find((x) => x.id === id);
+      if (p) return { id: p.id, name: p.name, price: priceLabel(p), category: c.name };
+    }
+  } catch {
+    // no package, no problem
+  }
+  return null;
+}
+
+export default async function Home({ searchParams }: { searchParams: Promise<{ package?: string }> }) {
+  const [djs, picked] = await Promise.all([getDjs(), searchParams.then((s) => getPicked(s.package))]);
 
   return (
     <div className="min-h-dvh bg-background">
@@ -51,6 +67,7 @@ export default async function Home() {
           <span className="text-sm font-semibold tracking-wide">Digital Crate DJs</span>
         </div>
         <div className="hidden items-center gap-6 text-xs font-medium uppercase tracking-widest text-muted sm:flex">
+          <Link href="/services" className="hover:text-gold">Services</Link>
           <a href="#booking" className="hover:text-gold">Booking</a>
           <a href="#contact" className="hover:text-gold">Contact</a>
           <a
@@ -145,7 +162,7 @@ export default async function Home() {
             </ul>
           </div>
           <GlassCard neon>
-            <BookingForm djs={djs} />
+            <BookingForm djs={djs} picked={picked} />
           </GlassCard>
         </div>
       </section>

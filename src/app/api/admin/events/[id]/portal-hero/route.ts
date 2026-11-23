@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/error-message";
+import { builtInCover } from "@/lib/project-covers";
 import { requireAdmin } from "@/lib/require-admin";
 
 /**
@@ -55,6 +56,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const update: Record<string, unknown> = {};
     if (portalHeroSettings !== undefined) update.portal_hero_settings = portalHeroSettings;
+    // Pick one of the built-in photos (only those paths; uploads go through the form above).
+    if (body.portalHeroImageUrl !== undefined) {
+      if (body.portalHeroImageUrl !== null && !builtInCover(body.portalHeroImageUrl)) return NextResponse.json({ error: "Pick one of the listed photos" }, { status: 400 });
+      update.portal_hero_image_url = body.portalHeroImageUrl;
+    }
     if (coupleDisplayName !== undefined) update.couple_display_name = coupleDisplayName;
     if (portalHeroHeadlineOverride !== undefined) update.portal_hero_headline_override = portalHeroHeadlineOverride;
     if (portalHeroSubheadingOverride !== undefined) update.portal_hero_subheading_override = portalHeroSubheadingOverride;

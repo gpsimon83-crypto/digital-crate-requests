@@ -90,6 +90,8 @@ interface EventDetail {
 }
 
 interface Branding {
+  /** The office's default photo for project pages. */
+  projectCover?: string | null;
   imageUrl: string | null;
   heading: string | null;
   subheading: string | null;
@@ -361,7 +363,8 @@ function PortalEventPageInner({ params }: { params: Promise<{ id: string }> }) {
   }
 
   const isWedding = event.event_category === "wedding";
-  const heroImage = event.portal_hero_image_url ?? branding?.imageUrl ?? null;
+  // The project's own photo, else the office's default project photo, else the portal banner.
+  const heroImage = event.portal_hero_image_url ?? branding?.projectCover ?? branding?.imageUrl ?? null;
   const heroSettings = event.portal_hero_image_url ? event.portal_hero_settings : null;
   const headline = event.portal_hero_headline_override ?? branding?.heading ?? null;
   const displayName = event.couple_display_name ?? event.title;

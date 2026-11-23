@@ -19,6 +19,25 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-23-services-catalog-dj-offers",
+    date: "2026-11-23",
+    area: "CRM",
+    title: "Services by category, DJ payout rules and gig offers, and default project photos",
+    summary: "Services now has event-category tabs with package cards you can edit, reorder, move between categories and turn off. Each package has an admin-only DJ payout rule, and projects can send a DJ an offer with their exact payout, which they accept in the DJ portal. Clients see the catalog on a new Services page.",
+    bullets: [
+      "New and revised packages: Private Party DJ / Plus / Signature, School Dance / Prom & Homecoming / Large School Event, Corporate Event / Corporate Gala. Weddings, Bars & Nightlife and Live Band + DJ keep their prices",
+      "Live Band + DJ is one record shown in every category it's in, at Starting at $6,500 with a confirmed quote before payment",
+      "Monograms and logo displays are off for new bookings; anything already quoted, booked or invoiced with them is unchanged",
+      "Edit Package: name, description, coverage, pricing type (fixed, starting at, request a quote), price, features, categories, included add-ons, and the DJ Payout with a preview of the DJ payout and DCDJs share",
+      "Projects → Details → DJ offer: the package's rule suggests the payout (55% standard, 65% DJ-sourced, flat for bar nights). Change it, then send. DJs see Your Payout, the date, times, equipment and paid extras under Gig Offers, never the client price or split",
+      "A change after a DJ accepts sends a revised offer; the accepted one stands until they accept again, and every version is kept",
+      "Settings → Default project photo, and Customize Portal on a project, let you pick one of 15 banner photos",
+      "Requests from the Services page remember the package at the price shown, so later edits don't change them"
+    ],
+    link: { href: "/admin/services", label: "Open Services" },
+    action: "Run migration 0066_services_catalog_payouts.sql in Supabase to turn this on. Then fill in Elite's features on the Services page and check which categories your existing packages landed in."
+  },
+  {
     id: "2026-11-23-edit-everything",
     date: "2026-11-23",
     area: "CRM",

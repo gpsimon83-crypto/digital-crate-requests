@@ -25,6 +25,7 @@ describe("menus only link to pages that exist", () => {
       "Home",
       "Notifications",
       "My Gigs",
+      "Gig Offers",
       "Calendar & Availability",
       "Tasks & Planning",
       "Messages",

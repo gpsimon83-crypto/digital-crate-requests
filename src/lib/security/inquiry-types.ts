@@ -28,6 +28,8 @@ export interface SubmissionRow {
   venue_name: string | null;
   expected_guests: number | null;
   budget_range: string | null;
+  /** The Services package they asked about (migration 0066). */
+  package_id?: string | null;
   message: string | null;
   slot_start: string | null;
   slot_end: string | null;

@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ToggleSwitch } from "@/components/ui/toggle-switch";
 import { Field } from "@/components/ui/field";
 import { HeroBanner } from "@/components/ui/hero-banner";
+import { CoverPicker } from "@/components/project/cover-picker";
 import { HeroCropControls } from "@/components/ui/hero-crop-controls";
 import { mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
 import { ShieldCheck, ChevronRight, CalendarDays, Image as ImageIcon, Sparkles } from "lucide-react";
@@ -115,6 +116,7 @@ interface Settings {
   admin_dashboard_banners?: Partial<Record<"wedding" | "club", Partial<HeroSettings>>> | null;
   /** Migration 0064. */
   office_copy_email?: string | null;
+  default_project_cover?: string | null;
 }
 
 interface CalendarConnection {
@@ -413,6 +415,22 @@ function AdminSettingsPageInner() {
     }
   }
 
+  const [coverMsg, setCoverMsg] = useState<string | null>(null);
+  async function setDefaultCover(src: string | null) {
+    setCoverMsg(null);
+    const before = settings?.default_project_cover ?? null;
+    setSettings((s) => s && { ...s, default_project_cover: src });
+    try {
+      const res = await fetch("/api/admin/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ defaultProjectCover: src }) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(/default_project_cover/.test(json.error ?? "") ? "Run migration 0066 in Supabase first to save a default photo." : json.error || "Couldn't save");
+      setCoverMsg(src ? "Saved. Projects without their own photo now show this one." : "Saved. Projects without their own photo show the client portal banner.");
+    } catch (err) {
+      setSettings((s) => s && { ...s, default_project_cover: before });
+      setCoverMsg(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  }
+
   async function clearHeroImage(surface: "portal" | "admin" | "club") {
     setUploading(surface);
     setError(null);
@@ -604,6 +622,25 @@ function AdminSettingsPageInner() {
                 onChange={(v) => setSettings((s) => s && { ...s, review_url: v || null })}
                 placeholder="Your Google Business / The Knot / WeddingWire review link"
               />
+            </GlassCard>
+
+            <GlassCard className="flex flex-col gap-4" data-tour="default-project-cover">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <ImageIcon size={18} className="shrink-0 text-gold" />
+                  <div>
+                    <p className="text-sm font-semibold">Default project photo</p>
+                    <p className="text-xs text-muted">The banner on each client&apos;s project page when the project has no photo of its own. Any project can pick a different one under Customize Portal.</p>
+                  </div>
+                </div>
+                {settings.default_project_cover && (
+                  <Button variant="text" size="sm" onClick={() => setDefaultCover(null)}>
+                    Use none
+                  </Button>
+                )}
+              </div>
+              <CoverPicker value={settings.default_project_cover ?? null} onPick={(src) => setDefaultCover(src)} label="Default project photo" />
+              {coverMsg && <p role="status" className="text-xs text-muted">{coverMsg}</p>}
             </GlassCard>
 
             <GlassCard className="flex flex-col gap-4">
