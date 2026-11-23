@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { mergeSavedFraming } from "@/lib/hero-settings";
 import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getOwnDjId } from "@/lib/dj-auth";
@@ -54,7 +55,10 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json();
     const update: Record<string, unknown> = {};
-    if (body.heroSettings && typeof body.heroSettings === "object") update.hero_settings = body.heroSettings;
+    if (body.heroSettings && typeof body.heroSettings === "object") {
+      const { data: cur } = await db.from("djs").select("hero_settings").eq("id", djId).maybeSingle();
+      update.hero_settings = mergeSavedFraming(cur?.hero_settings, body.heroSettings);
+    }
     if (typeof body.signaturePhone === "string") update.signature_phone = body.signaturePhone.trim() || null;
     if (typeof body.signatureEmail === "string") update.signature_email = body.signatureEmail.trim() || null;
 

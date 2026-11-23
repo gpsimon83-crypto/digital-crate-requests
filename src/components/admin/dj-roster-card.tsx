@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Camera, Eye, Link2, MoreHorizontal, PenLine, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { HeroSettings } from "@/lib/hero-settings";
+import { cardFraming, type CardFraming, type HeroSettings } from "@/lib/hero-settings";
 import { ACCESS_HELP, ACCESS_LABEL, type PortalAccess } from "@/lib/dj/portal-access";
 
 export type RosterDj = {
@@ -52,15 +52,17 @@ function initials(name: string) {
 }
 
 /**
- * The portrait: the saved photo, framed by the saved hero position and zoom
- * (head-and-shoulders bias when nothing is saved), served at card size via
- * next/image so the original upload is never downloaded in full or changed.
+ * The portrait: the saved photo in a 4:3 frame, positioned by the DJ's card
+ * framing (hero_settings.card; head-and-shoulders by default, kept apart from
+ * the wide event-banner framing), served at card size via next/image so the
+ * original upload is never downloaded in full or changed.
  */
-function Portrait({ dj }: { dj: RosterDj }) {
+export function Portrait({ dj, framing, sizes }: { dj: Pick<RosterDj, "display_name" | "photo_url" | "hero_settings">; /** Override (the live preview while adjusting). */ framing?: CardFraming; sizes?: string }) {
   const [state, setState] = useState<"loading" | "ok" | "broken">(dj.photo_url ? "loading" : "broken");
-  const x = dj.hero_settings?.xPosition ?? 50;
-  const y = dj.hero_settings?.yPosition ?? 28;
-  const zoom = Math.max(100, Math.min(180, dj.hero_settings?.zoom ?? 100)) / 100;
+  const f = framing ?? cardFraming(dj.hero_settings);
+  const x = f.x;
+  const y = f.y;
+  const zoom = f.zoom / 100;
   const showPhoto = dj.photo_url && state !== "broken";
   return (
     <div className="relative aspect-[4/3] w-full overflow-hidden bg-[color-mix(in_srgb,var(--foreground)_6%,transparent)]">
@@ -71,7 +73,7 @@ function Portrait({ dj }: { dj: RosterDj }) {
             src={dj.photo_url!}
             alt={`Photo of ${dj.display_name}`}
             fill
-            sizes="(min-width: 1536px) 360px, (min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw"
+            sizes={sizes ?? "(min-width: 1536px) 360px, (min-width: 1024px) 30vw, (min-width: 640px) 45vw, 100vw"}
             className={cn("object-cover transition-opacity duration-300", state === "ok" ? "opacity-100" : "opacity-0")}
             style={{ objectPosition: `${x}% ${y}%`, transform: zoom > 1 ? `scale(${zoom})` : undefined, transformOrigin: `${x}% ${y}%` }}
             onLoad={() => setState("ok")}

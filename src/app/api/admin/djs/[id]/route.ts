@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { mergeSavedFraming } from "@/lib/hero-settings";
 import { errorMessage } from "@/lib/error-message";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/require-admin";
@@ -72,7 +73,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       update.display_name = body.displayName.trim();
     }
     if (body.heroSettings && typeof body.heroSettings === "object") {
-      update.hero_settings = body.heroSettings;
+      // Merge so a banner-framing save keeps the roster card framing, and the other way round.
+      const { data: cur } = await db.from("djs").select("hero_settings").eq("id", id).maybeSingle();
+      update.hero_settings = mergeSavedFraming(cur?.hero_settings, body.heroSettings);
     }
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: "Nothing to update" }, { status: 400 });

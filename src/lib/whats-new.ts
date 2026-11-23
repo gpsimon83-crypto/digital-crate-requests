@@ -29,7 +29,7 @@ export const UPDATES: UpdateEntry[] = [
       "Counts and filters use the same words: Total DJs, Portal active, Not connected (plus Pending or blocked when there are any)",
       "Search by name, sort A–Z (by the name after \"DJ\"), Z–A or by portal access",
       "The camera button opens Quick edit at the photo (upload and framing); the ⋯ menu has Quick edit, View as, Copy setup link and Remove from roster (with its confirmation)",
-      "Photos use each DJ's saved framing and load at card size; no photo shows their initials"
+      "Photos are framed head-and-shoulders on the card, with their own Card photo setting in Quick edit (separate from the event banner framing); no photo shows their initials"
     ],
     link: { href: "/admin/djs", label: "Open Manage DJs" }
   },

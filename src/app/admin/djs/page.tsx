@@ -6,8 +6,8 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
-import { DEFAULT_HERO_SETTINGS, mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
-import { DjRosterCard, AccessChip, type RosterDj } from "@/components/admin/dj-roster-card";
+import { DEFAULT_CARD_FRAMING, DEFAULT_HERO_SETTINGS, cardFraming, mergeHeroSettings, type CardFraming, type HeroSettings } from "@/lib/hero-settings";
+import { DjRosterCard, AccessChip, Portrait, type RosterDj } from "@/components/admin/dj-roster-card";
 import { FieldGroup, INPUT, MetricRow, MetricTile, PageShell } from "@/components/layout/grid";
 import { inFilter, type AccessFilter, type PortalAccess } from "@/lib/dj/portal-access";
 import { SideDrawer } from "@/components/ui/side-drawer";
@@ -38,6 +38,7 @@ export default function AdminDjsPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   const [heroDraft, setHeroDraft] = useState<HeroSettings>(DEFAULT_HERO_SETTINGS);
+  const [cardDraft, setCardDraft] = useState<CardFraming>(DEFAULT_CARD_FRAMING);
   const [drawerDjId, setDrawerDjId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -67,6 +68,7 @@ export default function AdminDjsPage() {
     setDrawerDjId(dj.id);
     setEditName(dj.display_name);
     setHeroDraft(mergeHeroSettings(dj.hero_settings));
+    setCardDraft(cardFraming(dj.hero_settings));
     setLoginEmail("");
   }
 
@@ -167,6 +169,26 @@ export default function AdminDjsPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update name");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  /** Card framing only (the server merges it into the saved settings, so the banner framing stays). */
+  async function handleSaveCard(djId: string) {
+    setSavingId(djId);
+    try {
+      const res = await fetch(`/api/admin/djs/${djId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ heroSettings: { card: cardDraft } })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save the card photo");
+      setNotice("Card photo saved.");
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -442,6 +464,26 @@ export default function AdminDjsPage() {
             </GlassCard>
             </div>
 
+            {drawerDj.photo_url && (
+              <GlassCard className="flex flex-col gap-3" data-tour="dj-card-framing">
+                <SectionHeader icon={SlidersHorizontal} title="Card photo" description="How the photo sits on this DJ's roster card. Keep the head near the top with the shoulders showing." />
+                <div className="overflow-hidden rounded-[12px] border border-border">
+                  <Portrait key={drawerDj.photo_url} dj={drawerDj} framing={cardDraft} sizes="360px" />
+                </div>
+                <HeroSlider label="Up / down" value={cardDraft.y} min={0} max={100} onChange={(v) => setCardDraft((s) => ({ ...s, y: v }))} />
+                <HeroSlider label="Left / right" value={cardDraft.x} min={0} max={100} onChange={(v) => setCardDraft((s) => ({ ...s, x: v }))} />
+                <HeroSlider label="Zoom" value={cardDraft.zoom} min={100} max={180} suffix="%" onChange={(v) => setCardDraft((s) => ({ ...s, zoom: v }))} />
+                <div className="flex items-center gap-3">
+                  <Button variant="primary" size="sm" onClick={() => handleSaveCard(drawerDj.id)} disabled={savingId === drawerDj.id} className="w-fit">
+                    {savingId === drawerDj.id ? "Saving..." : "Save card photo"}
+                  </Button>
+                  <button type="button" onClick={() => setCardDraft(DEFAULT_CARD_FRAMING)} className="ml-auto rounded-[6px] text-xs text-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+                    Restore default
+                  </button>
+                </div>
+              </GlassCard>
+            )}
+
             <GlassCard className="flex flex-col gap-3">
               <SectionHeader icon={PenLine} title="Display Name" />
               <div className="flex items-center gap-2">
@@ -504,7 +546,7 @@ export default function AdminDjsPage() {
             )}
 
             <GlassCard className="flex flex-col gap-4">
-              <SectionHeader icon={SlidersHorizontal} title="Hero Image" description="How this DJ's photo is framed on event pages." />
+              <SectionHeader icon={SlidersHorizontal} title="Event banner photo" description="How this DJ's photo is framed in the wide banner on event pages (separate from the card)." />
               <HeroSlider label="Horizontal Position" value={heroDraft.xPosition} min={0} max={100} onChange={(v) => setHeroDraft((s) => ({ ...s, xPosition: v }))} />
               <HeroSlider label="Vertical Position" value={heroDraft.yPosition} min={0} max={100} onChange={(v) => setHeroDraft((s) => ({ ...s, yPosition: v }))} />
               <HeroSlider label="Zoom" value={heroDraft.zoom} min={100} max={180} suffix="%" onChange={(v) => setHeroDraft((s) => ({ ...s, zoom: v }))} />
