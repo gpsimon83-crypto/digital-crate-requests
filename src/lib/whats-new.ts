@@ -19,6 +19,21 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-22-manage-djs-cards",
+    date: "2026-11-22",
+    area: "CRM",
+    title: "Manage DJs is now a grid of profile cards",
+    summary: "The roster shows each DJ's photo, name and portal access on a card, with counts, search, filters and sorting on top. Add DJ opens a side panel.",
+    bullets: [
+      "Portal access is read from the DJ's real login: Portal active, Not connected, and separate Invite sent, Setup link sent and Access disabled states, so an unaccepted invite no longer counts as active",
+      "Counts and filters use the same words: Total DJs, Portal active, Not connected (plus Pending or blocked when there are any)",
+      "Search by name, sort A–Z (by the name after \"DJ\"), Z–A or by portal access",
+      "The camera button opens Quick edit at the photo (upload and framing); the ⋯ menu has Quick edit, View as, Copy setup link and Remove from roster (with its confirmation)",
+      "Photos use each DJ's saved framing and load at card size; no photo shows their initials"
+    ],
+    link: { href: "/admin/djs", label: "Open Manage DJs" }
+  },
+  {
     id: "2026-11-22-portal-grid-and-menus",
     date: "2026-11-22",
     area: "Members area",

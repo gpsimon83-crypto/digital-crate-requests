@@ -654,3 +654,17 @@ body {
   max-width: 1680px;
   margin-inline: auto;
 }
+
+/* Portal-access chips (Manage DJs). Light first; dark site themes below. */
+:root {
+  --chip-ok-fg: #1f6a47; --chip-ok-bg: #eaf6ef; --chip-ok-bd: #bcdcc9; --chip-ok-dot: #2f9a68;
+  --chip-off-fg: #626770; --chip-off-bg: rgba(0, 0, 0, 0.03); --chip-off-bd: rgba(0, 0, 0, 0.14); --chip-off-dot: #8a8f97;
+  --chip-wait-fg: #7a5a14; --chip-wait-bg: #fbf3e1; --chip-wait-bd: #e6d2a4; --chip-wait-dot: #c4962f;
+  --chip-bad-fg: #9a3a32; --chip-bad-bg: #fbecea; --chip-bad-bd: #e8c1bc; --chip-bad-dot: #c65a4f;
+}
+html[data-project-theme-dark] {
+  --chip-ok-fg: #a9e2c5; --chip-ok-bg: #12251c; --chip-ok-bd: #2e4b3d; --chip-ok-dot: #44ad7f;
+  --chip-off-fg: #b6bbc2; --chip-off-bg: #1c2027; --chip-off-bd: #363b44; --chip-off-dot: #8b919a;
+  --chip-wait-fg: #e8cf96; --chip-wait-bg: #2a2416; --chip-wait-bd: #4d4228; --chip-wait-dot: #c9a24c;
+  --chip-bad-fg: #f0b3ab; --chip-bad-bg: #2b1a19; --chip-bad-bd: #553230; --chip-bad-dot: #d0675b;
+}

@@ -163,8 +163,12 @@ export function MetricTile({ icon: Icon, label, value, hint, href, tone = "defau
 }
 
 /** A row of metric tiles: 1 → 2 → 4 across. */
-export function MetricRow({ children, className, cols = 4 }: { children: React.ReactNode; className?: string; cols?: 2 | 3 | 4 }) {
-  return <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2 xl:gap-5", cols === 3 && "lg:grid-cols-3", cols === 4 && "xl:grid-cols-4", className)}>{children}</div>;
+export function MetricRow({ children, className, cols = 4, ...rest }: { children: React.ReactNode; className?: string; cols?: 2 | 3 | 4 } & React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={cn("grid grid-cols-1 gap-4 sm:grid-cols-2 xl:gap-5", cols === 3 && "lg:grid-cols-3", cols === 4 && "xl:grid-cols-4", className)} {...rest}>
+      {children}
+    </div>
+  );
 }
 
 const FIELD_W = { short: "sm:max-w-[12rem]", medium: "sm:max-w-[22rem]", long: "max-w-[48rem]", full: "" } as const;

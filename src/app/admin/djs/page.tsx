@@ -1,30 +1,30 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { DjAvatar } from "@/components/dashboard/dj-avatar";
 import { DEFAULT_HERO_SETTINGS, mergeHeroSettings, type HeroSettings } from "@/lib/hero-settings";
-import { StatusChip } from "@/components/ui/status-chip";
-import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
+import { DjRosterCard, AccessChip, type RosterDj } from "@/components/admin/dj-roster-card";
+import { FieldGroup, INPUT, MetricRow, MetricTile, PageShell } from "@/components/layout/grid";
+import { inFilter, type AccessFilter, type PortalAccess } from "@/lib/dj/portal-access";
 import { SideDrawer } from "@/components/ui/side-drawer";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { cn } from "@/lib/utils";
-import { Disc3, ArrowUpRight, PenLine, Mail, SlidersHorizontal, AlertTriangle, type LucideIcon } from "lucide-react";
+import { Disc3, ArrowUpRight, PenLine, Mail, SlidersHorizontal, AlertTriangle, Plus, Users, LogIn, UserX, Search, X, type LucideIcon } from "lucide-react";
 
-interface DjRow {
-  id: string;
-  display_name: string;
-  auth_user_id: string | null;
-  photo_url: string | null;
-  hero_settings: Partial<HeroSettings> | null;
-}
+type DjRow = RosterDj;
+type SortKey = "az" | "za" | "access";
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: "az", label: "Sort A–Z" },
+  { key: "za", label: "Sort Z–A" },
+  { key: "access", label: "Portal access" }
+];
+const ACCESS_ORDER: PortalAccess[] = ["active", "invited", "setup_sent", "disabled", "missing", "none"];
 
 export default function AdminDjsPage() {
-  const router = useRouter();
   const [djs, setDjs] = useState<DjRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
@@ -40,10 +40,17 @@ export default function AdminDjsPage() {
   const [heroDraft, setHeroDraft] = useState<HeroSettings>(DEFAULT_HERO_SETTINGS);
   const [drawerDjId, setDrawerDjId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<AccessFilter>("all");
+  const [sort, setSort] = useState<SortKey>("az");
+  const [notice, setNotice] = useState<string | null>(null);
+  const photoCard = useRef<HTMLDivElement>(null);
+  const focusPhoto = useRef(false);
 
   async function load() {
     try {
-      const res = await fetch("/api/admin/djs");
+      const res = await fetch("/api/admin/djs/roster");
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load DJs");
       setDjs(data.djs ?? []);
@@ -81,6 +88,8 @@ export default function AdminDjsPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to add DJ");
       setNewName("");
+      setAddOpen(false);
+      setNotice(`${data.dj?.display_name ?? "The DJ"} is on the roster.`);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -200,40 +209,196 @@ export default function AdminDjsPage() {
     }
   }
 
+  async function viewAs(dj: DjRow) {
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/view-as", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ djId: dj.id }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't switch views");
+      window.location.assign("/dj-dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  }
+
+  async function copySetupLink(dj: DjRow) {
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/djs/${dj.id}/setup-link`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't make a setup link");
+      await navigator.clipboard.writeText(data.link).catch(() => {});
+      setNotice(`Setup link for ${dj.display_name} copied. Paste it into a text or email (Manage profile has Email and Text buttons too).`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    }
+  }
+
+  // The photo button on a card opens Quick edit at the photo (upload and framing).
+  useEffect(() => {
+    if (!focusPhoto.current || !drawerDjId) return;
+    focusPhoto.current = false;
+    const t = setTimeout(() => {
+      photoCard.current?.scrollIntoView({ block: "start" });
+      photoCard.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    }, 150);
+    return () => clearTimeout(t);
+  }, [drawerDjId]);
+
+  const list = djs ?? [];
+  const counts = {
+    total: list.length,
+    active: list.filter((d) => d.access === "active").length,
+    none: list.filter((d) => d.access === "none").length,
+    pending: list.filter((d) => inFilter(d.access, "pending")).length
+  };
+  const term = q.trim().toLowerCase();
+  // A–Z goes by the name after "DJ " (Bubblz, GMO, Hy Def, J.Prime, MaKara…), the way the team reads it.
+  const sortName = (n: string) => n.replace(/^DJ\s+/i, "");
+  const byName = (a: DjRow, b: DjRow) => sortName(a.display_name).localeCompare(sortName(b.display_name), undefined, { sensitivity: "base" });
+  const shown = list
+    .filter((d) => inFilter(d.access, filter) && (!term || d.display_name.toLowerCase().includes(term)))
+    .sort((a, b) => (sort === "za" ? byName(b, a) : sort === "access" ? ACCESS_ORDER.indexOf(a.access) - ACCESS_ORDER.indexOf(b.access) || byName(a, b) : byName(a, b)));
+  const FILTERS: { key: AccessFilter; label: string; n: number }[] = [
+    { key: "all", label: "All DJs", n: counts.total },
+    { key: "active", label: "Portal active", n: counts.active },
+    ...(counts.pending ? [{ key: "pending" as const, label: "Pending or blocked", n: counts.pending }] : []),
+    { key: "none", label: "Not connected", n: counts.none }
+  ];
+
   return (
     <>
-      <PageHeader title="Manage DJs" subtitle="Add DJs to the roster, edit their name and photo, and create their dashboard login." />
-      <div className="flex flex-col gap-6 p-6">
-        <GlassCard neon className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <label className="block flex-1">
-            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">New DJ Name</span>
-            <input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="DJ Example"
-              className="w-full rounded-[10px] border border-black/10 bg-panel px-4 py-2.5 text-sm focus:border-gold focus:outline-none"
-            />
-          </label>
-          <Button variant="cta" onClick={handleAdd} disabled={adding} className="shrink-0">
-            {adding ? "Adding..." : "+ Add DJ"}
+      <PageHeader
+        title="Manage DJs"
+        subtitle="Your roster, profiles and portal access."
+        action={
+          <Button variant="cta" onClick={() => setAddOpen(true)} className="w-fit" data-tour="dj-add">
+            <Plus size={16} aria-hidden /> Add DJ
           </Button>
-        </GlassCard>
+        }
+      />
+      <PageShell className="flex flex-col gap-4 xl:gap-5">
+        {error && (
+          <p role="alert" className="rounded-[10px] border border-status-declined/40 px-3 py-2 text-sm text-status-declined">
+            {error}
+          </p>
+        )}
+        {notice && (
+          <p role="status" className="flex items-start justify-between gap-3 rounded-[10px] border border-status-approved/40 px-3 py-2 text-sm">
+            {notice}
+            <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss" className="shrink-0 rounded-[6px] text-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+              <X size={15} aria-hidden />
+            </button>
+          </p>
+        )}
 
-        {error && <p className="text-xs text-status-declined">{error}</p>}
+        <MetricRow cols={3} data-tour="dj-roster-counts">
+          <MetricTile icon={Users} label="Total DJs" value={djs === null ? "…" : counts.total} />
+          <MetricTile icon={LogIn} label="Portal active" value={djs === null ? "…" : counts.active} hint="Have a working portal login" />
+          <MetricTile icon={UserX} label="Not connected" value={djs === null ? "…" : counts.none} hint={counts.pending ? `${counts.pending} more with an invite or setup link pending` : "No portal login yet"} />
+        </MetricRow>
 
-        <DataTable
-          columns={columns(openDrawer)}
-          rows={djs ?? []}
-          rowKey={(dj) => dj.id}
-          onRowClick={(dj) => router.push(`/admin/djs/${dj.id}`)}
-          loading={djs === null}
-          searchFn={(dj, q) => dj.display_name.toLowerCase().includes(q)}
-          searchPlaceholder="Search DJs…"
-          emptyIcon={Disc3}
-          emptyTitle="No DJs yet"
-          emptyBody="Add your first DJ to the roster."
-        />
-      </div>
+        <div className="flex flex-wrap items-center gap-3" data-tour="dj-roster-toolbar">
+          <label className="relative w-full sm:w-72">
+            <span className="sr-only">Search DJs</span>
+            <Search size={15} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+            <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search DJs…" className={`${INPUT} h-10 pl-9`} />
+          </label>
+          <div role="group" aria-label="Filter by portal access" className="flex flex-wrap gap-2">
+            {FILTERS.map((f) => (
+              <button
+                key={f.key}
+                type="button"
+                aria-pressed={filter === f.key}
+                onClick={() => setFilter(f.key)}
+                className={cn(
+                  "inline-flex h-10 items-center gap-1.5 rounded-full border px-4 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]",
+                  filter === f.key ? "border-gold bg-gold font-semibold text-[var(--on-gold,#1a140a)]" : "border-border hover:border-gold/60"
+                )}
+              >
+                {f.label}
+                <span className={cn("text-xs tabular-nums", filter === f.key ? "opacity-80" : "text-muted")}>{djs === null ? "" : f.n}</span>
+              </button>
+            ))}
+          </div>
+          <label className="ml-auto">
+            <span className="sr-only">Sort</span>
+            <select value={sort} onChange={(e) => setSort(e.target.value as SortKey)} className={`${INPUT} h-10 w-auto pr-8`}>
+              {SORTS.map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {djs === null ? (
+          <ul aria-label="Loading the roster" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:gap-5 2xl:grid-cols-4">
+            {Array.from({ length: 8 }, (_, i) => (
+              <li key={i} className="glass-card h-[340px] animate-pulse !p-0" aria-hidden />
+            ))}
+          </ul>
+        ) : list.length === 0 ? (
+          <div className="glass-card flex flex-col items-center gap-3 px-6 py-12 text-center">
+            <Disc3 size={26} className="text-gold" aria-hidden />
+            <p className="font-semibold">No DJs yet</p>
+            <p className="text-sm text-muted">Add your first DJ to the roster.</p>
+            <Button variant="cta" onClick={() => setAddOpen(true)} className="w-fit">
+              <Plus size={16} aria-hidden /> Add DJ
+            </Button>
+          </div>
+        ) : shown.length === 0 ? (
+          <div className="glass-card flex flex-col items-center gap-2 px-6 py-10 text-center">
+            <p className="font-semibold">No DJs match</p>
+            <p className="text-sm text-muted">{term ? `Nothing for "${q.trim()}"` : "No DJs in this group"}{filter !== "all" ? ` with ${FILTERS.find((f) => f.key === filter)?.label.toLowerCase()}` : ""}.</p>
+            <button type="button" onClick={() => { setQ(""); setFilter("all"); }} className="mt-1 rounded-[8px] text-sm font-semibold text-gold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+              Clear search and filters
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="sr-only" aria-live="polite">{shown.length} of {list.length} DJs shown</p>
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:gap-5 2xl:grid-cols-4" data-tour="dj-roster-grid">
+              {shown.map((dj) => (
+                <li key={dj.id} className="flex">
+                  <div className="flex w-full">
+                    <DjRosterCard
+                      dj={dj}
+                      onEditPhoto={() => {
+                        focusPhoto.current = true;
+                        openDrawer(dj);
+                      }}
+                      onQuickEdit={() => openDrawer(dj)}
+                      onViewAs={() => viewAs(dj)}
+                      onSetupLink={dj.access === "none" || dj.access === "setup_sent" ? () => copySetupLink(dj) : undefined}
+                      onRemove={() => setPendingDeleteId(dj.id)}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </PageShell>
+
+      <SideDrawer open={addOpen} onClose={() => setAddOpen(false)} title="Add a DJ" subtitle="They join the roster right away. You can add a photo and a portal login next.">
+        <form
+          className="flex flex-col gap-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleAdd();
+          }}
+        >
+          <FieldGroup label="DJ name" htmlFor="new-dj-name">
+            <input id="new-dj-name" autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="DJ Example" className={INPUT} required />
+          </FieldGroup>
+          <Button variant="cta" type="submit" disabled={adding || !newName.trim()} className="w-fit">
+            {adding ? "Adding..." : "Add DJ"}
+          </Button>
+        </form>
+      </SideDrawer>
 
       <SideDrawer open={!!drawerDj} onClose={closeDrawer} title={drawerDj?.display_name ?? ""} subtitle="Quick edit">
         {drawerDj && (
@@ -242,13 +407,10 @@ export default function AdminDjsPage() {
               <Link href={`/admin/djs/${drawerDj.id}`} className="flex w-fit items-center gap-1 text-xs text-gold hover:underline">
                 View full profile <ArrowUpRight size={12} />
               </Link>
-              {drawerDj.auth_user_id ? (
-                <StatusChip tone="approved">Has Login</StatusChip>
-              ) : (
-                <StatusChip tone="pending">No Login</StatusChip>
-              )}
+              <AccessChip access={drawerDj.access} />
             </div>
 
+            <div ref={photoCard}>
             <GlassCard className="flex items-center gap-4">
               <DjAvatar name={drawerDj.display_name} photoUrl={drawerDj.photo_url} size={64} />
               <div className="flex-1">
@@ -278,6 +440,7 @@ export default function AdminDjsPage() {
                 {savingId === drawerDj.id ? "Uploading…" : "Browse…"}
               </Button>
             </GlassCard>
+            </div>
 
             <GlassCard className="flex flex-col gap-3">
               <SectionHeader icon={PenLine} title="Display Name" />
@@ -379,45 +542,6 @@ export default function AdminDjsPage() {
       />
     </>
   );
-}
-
-function columns(onEdit: (dj: DjRow) => void): DataTableColumn<DjRow>[] {
-  return [
-    {
-      key: "name",
-      header: "Name",
-      sortValue: (dj) => dj.display_name,
-      render: (dj) => (
-        <span className="flex items-center gap-2.5">
-          <DjAvatar name={dj.display_name} photoUrl={dj.photo_url} size={28} />
-          <span className="font-medium">{dj.display_name}</span>
-        </span>
-      )
-    },
-    {
-      key: "login",
-      header: "Login",
-      sortValue: (dj) => (dj.auth_user_id ? 1 : 0),
-      render: (dj) =>
-        dj.auth_user_id ? <StatusChip tone="approved">Has Login</StatusChip> : <StatusChip tone="pending">No Login</StatusChip>
-    },
-    {
-      key: "actions",
-      header: "",
-      align: "right",
-      render: (dj) => (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit(dj);
-          }}
-          className="text-xs text-gold hover:underline"
-        >
-          Manage
-        </button>
-      )
-    }
-  ];
 }
 
 function SectionHeader({

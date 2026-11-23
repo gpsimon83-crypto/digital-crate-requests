@@ -18,6 +18,32 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-22-manage-djs-cards": [
+    {
+      path: "/admin/djs",
+      target: '[data-tour="dj-roster-counts"], main',
+      title: "Your roster at a glance",
+      body: "How many DJs you have, how many can sign in to the DJ portal, and how many have no login yet."
+    },
+    {
+      path: "/admin/djs",
+      target: '[data-tour="dj-roster-toolbar"], main',
+      title: "Find a DJ",
+      body: "Search by name, filter by portal access, and sort A–Z, Z–A or by access."
+    },
+    {
+      path: "/admin/djs",
+      target: '[data-dj-card], main',
+      title: "Each DJ's card",
+      body: "Manage profile opens their full page. The camera button changes their photo and its framing. The ⋯ menu has Quick edit, View as, Copy setup link (while they have no login) and Remove from roster."
+    },
+    {
+      path: "/admin/djs",
+      target: '[data-tour="dj-add"], main',
+      title: "Add a DJ",
+      body: "Type their name and they're on the roster. Add a photo and send a setup link from their card."
+    }
+  ],
   "2026-11-22-portal-grid-and-menus": [
     {
       path: "/admin",
