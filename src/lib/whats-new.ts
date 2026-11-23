@@ -19,6 +19,21 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-23-projects-bulk-equipment-finance",
+    date: "2026-11-23",
+    area: "CRM",
+    title: "Select several projects at once, a shorter Equipment page, and Finance on the grid",
+    summary: "Projects has a checkbox on every row with bulk Move to stage and Delete, and a ⋯ menu per project. Equipment's setup rules show one space at a time as short cards. Finance puts its numbers, balances, payouts and expenses in cards side by side.",
+    bullets: [
+      "Projects: tick rows (or the header box for everything matching your search), then Move to a stage or Delete. Deleting asks first, and a project with payments is kept and named",
+      "Inquiries: tick inquiries to Decline or Delete them together",
+      "Long spam titles are cut to two lines",
+      "Equipment: setup rules are tabbed by space with counts; each rule is a summary card and Edit opens it in a side panel. Deleting a rule now asks first",
+      "Finance: five summary tiles, Outstanding balances, then DJ Payouts and Expenses side by side. Deleting a payout or expense now asks first, and expense dates no longer show a day early"
+    ],
+    link: { href: "/admin/events", label: "Open Projects" }
+  },
+  {
     id: "2026-11-22-manage-djs-cards",
     date: "2026-11-22",
     area: "CRM",

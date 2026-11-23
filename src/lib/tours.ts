@@ -18,6 +18,26 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-23-projects-bulk-equipment-finance": [
+    {
+      path: "/admin/events",
+      target: 'table input[type="checkbox"], main',
+      title: "Pick several projects",
+      body: "Tick projects, or the box in the header for every project matching your search. A bar appears with Move to stage and Delete. Each row's ⋯ menu has Open and Delete too."
+    },
+    {
+      path: "/admin/equipment",
+      target: '[data-tour="equipment-setup-rules"], main',
+      title: "Setup rules, one space at a time",
+      body: "Pick a space to see its rules as short cards. Edit opens a rule in a side panel."
+    },
+    {
+      path: "/admin/finance",
+      target: '[data-tour="finance-totals"], main',
+      title: "Finance at a glance",
+      body: "Your totals on top, then what's still owed, with DJ payouts and expenses side by side."
+    }
+  ],
   "2026-11-22-manage-djs-cards": [
     {
       path: "/admin/djs",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 import { ChevronUp, ChevronDown, Search } from "lucide-react";
@@ -35,6 +35,14 @@ interface DataTableProps<T> {
   emptyIcon: LucideIcon;
   emptyTitle: string;
   emptyBody?: string;
+  /**
+   * Checkboxes for picking rows (bulk actions). The header box picks every
+   * row that matches the search, across pages. `rowLabel` names a row for
+   * screen readers.
+   */
+  selection?: { selected: Set<string>; onChange: (next: Set<string>) => void; rowLabel: (row: T) => string };
+  /** Shown above the table while rows are picked (the bulk actions). */
+  bulkBar?: ReactNode;
 }
 
 const ALIGN_CLASSES = { left: "text-left", right: "text-right", center: "text-center" } as const;
@@ -58,7 +66,9 @@ export function DataTable<T>({
   loading = false,
   emptyIcon,
   emptyTitle,
-  emptyBody
+  emptyBody,
+  selection,
+  bulkBar
 }: DataTableProps<T>) {
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -83,6 +93,30 @@ export function DataTable<T>({
   const pageCount = pageSize > 0 ? Math.max(1, Math.ceil(sorted.length / pageSize)) : 1;
   const pageSafe = Math.min(page, pageCount - 1);
   const pageRows = pageSize > 0 ? sorted.slice(pageSafe * pageSize, pageSafe * pageSize + pageSize) : sorted;
+
+  // Header checkbox: every row that matches the search (all pages).
+  const sortedKeys = useMemo(() => sorted.map(rowKey), [sorted, rowKey]);
+  const pickedHere = selection ? sortedKeys.filter((k) => selection.selected.has(k)).length : 0;
+  const allPicked = !!selection && sortedKeys.length > 0 && pickedHere === sortedKeys.length;
+  const somePicked = !!selection && pickedHere > 0 && !allPicked;
+  const headBox = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (headBox.current) headBox.current.indeterminate = somePicked;
+  }, [somePicked]);
+  function togglePickAll() {
+    if (!selection) return;
+    const next = new Set(selection.selected);
+    if (allPicked) sortedKeys.forEach((k) => next.delete(k));
+    else sortedKeys.forEach((k) => next.add(k));
+    selection.onChange(next);
+  }
+  function togglePick(k: string) {
+    if (!selection) return;
+    const next = new Set(selection.selected);
+    if (next.has(k)) next.delete(k);
+    else next.add(k);
+    selection.onChange(next);
+  }
 
   function toggleSort(key: string) {
     if (sortKey !== key) {
@@ -118,6 +152,8 @@ export function DataTable<T>({
         </div>
       )}
 
+      {selection && selection.selected.size > 0 && bulkBar}
+
       {loading && <p className="text-sm text-muted">Loading…</p>}
       {!loading && sorted.length === 0 && <EmptyState icon={emptyIcon} title={emptyTitle} body={emptyBody} />}
 
@@ -127,6 +163,18 @@ export function DataTable<T>({
             <table className="data-table">
               <thead>
                 <tr>
+                  {selection && (
+                    <th className="sticky top-0 z-10 w-10 bg-background">
+                      <input
+                        ref={headBox}
+                        type="checkbox"
+                        checked={allPicked}
+                        onChange={togglePickAll}
+                        aria-label={allPicked ? "Unselect all" : `Select all ${sortedKeys.length}`}
+                        className="h-4 w-4 cursor-pointer accent-[var(--gold)]"
+                      />
+                    </th>
+                  )}
                   {columns.map((col) => (
                     <th
                       key={col.key}
@@ -153,8 +201,21 @@ export function DataTable<T>({
                   <tr
                     key={rowKey(row)}
                     onClick={onRowClick ? () => onRowClick(row) : undefined}
-                    className={onRowClick ? "is-linked" : undefined}
+                    className={cn(onRowClick && "is-linked", selection?.selected.has(rowKey(row)) && "bg-gold/[0.06]")}
+                    aria-selected={selection ? selection.selected.has(rowKey(row)) : undefined}
                   >
+                    {selection && (
+                      // The cell is the hit area, so a near-miss doesn't open the row.
+                      <td className="w-10" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selection.selected.has(rowKey(row))}
+                          onChange={() => togglePick(rowKey(row))}
+                          aria-label={`Select ${selection.rowLabel(row)}`}
+                          className="h-4 w-4 cursor-pointer accent-[var(--gold)]"
+                        />
+                      </td>
+                    )}
                     {columns.map((col) => (
                       <td key={col.key} className={cn(ALIGN_CLASSES[col.align ?? "left"], col.hideBelow && HIDE_CLASSES[col.hideBelow], col.className)}>
                         {col.render(row)}

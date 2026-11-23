@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { PageShell, SectionCard } from "@/components/layout/grid";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
@@ -107,9 +108,9 @@ export default function AdminEquipmentPage() {
           </Button>
         }
       />
-      <div className="flex flex-col gap-4 p-6">
+      <PageShell className="flex flex-col gap-4 xl:gap-5">
         {showCreate && (
-          <div className="border border-border p-4">
+          <SectionCard title="New item" description="Add a piece of gear to the closet.">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <label className="block">
                 <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Category</span>
@@ -143,15 +144,16 @@ export default function AdminEquipmentPage() {
                 <Field label="Storage Location" value={storageLocation} onChange={setStorageLocation} placeholder="Main Warehouse - Shelf A3" />
               </div>
             </div>
-            {error && <p className="mt-3 text-xs text-status-declined">{error}</p>}
-            <div className="mt-4">
+            {error && <p role="alert" className="text-xs text-status-declined">{error}</p>}
+            <div>
               <Button variant="primary" onClick={handleAdd} disabled={adding}>
                 {adding ? "Adding…" : "Add Equipment"}
               </Button>
             </div>
-          </div>
+          </SectionCard>
         )}
 
+        <SectionCard icon={Boxes} title="Inventory" description={items ? `${items.length} ${items.length === 1 ? "item" : "items"}, ${items.reduce((n, i) => n + (i.quantity_owned ?? 0), 0)} pieces in all` : undefined}>
         <DataTable
           columns={equipmentColumns(setPendingDeleteId)}
           rows={items ?? []}
@@ -163,9 +165,10 @@ export default function AdminEquipmentPage() {
           emptyTitle="No equipment yet"
           emptyBody="Add your first piece of gear."
         />
+        </SectionCard>
 
         <EquipmentSetupRules inventory={(items ?? []).map((i) => ({ id: i.id, name: i.name, category: i.category }))} />
-      </div>
+      </PageShell>
 
       <ConfirmModal
         open={!!pendingDeleteId}

@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { StatTile } from "@/components/ui/stat-tile";
+import { Col, Grid, MetricTile, PageShell, SectionCard } from "@/components/layout/grid";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -64,6 +65,8 @@ export default function AdminFinancePage() {
   const [djs, setDjs] = useState<DjOption[]>([]);
   const [payouts, setPayouts] = useState<PayoutRow[] | null>(null);
   const [expenses, setExpenses] = useState<ExpenseRow[] | null>(null);
+
+  const [pendingDelete, setPendingDelete] = useState<{ kind: "payout" | "expense"; id: string } | null>(null);
 
   function load() {
     fetch("/api/admin/events")
@@ -159,17 +162,18 @@ export default function AdminFinancePage() {
   return (
     <>
       <PageHeader title="Finance" subtitle="Booking value, payments collected, DJ payouts, and what's still outstanding." />
-      <div className="flex flex-col gap-8 p-6">
-        <div className="flex flex-wrap border border-border">
-          <StatTile icon={Wallet} label="Total booked value" value={loading ? "…" : money(totals.quotedCents)} />
-          <StatTile icon={CheckCircle2} label="Collected" value={loading ? "…" : money(totals.paidCents)} />
-          <StatTile icon={Clock} label="Outstanding" value={loading ? "…" : money(totals.outstandingCents)} tone={totals.outstandingCents > 0 ? "urgent" : "default"} />
-          <StatTile icon={Users} label="DJ payouts due" value={payouts === null ? "…" : money(totals.payoutsDueCents)} tone={totals.payoutsDueCents > 0 ? "urgent" : "default"} />
-          <StatTile icon={TrendingUp} label="Net revenue" value={payouts === null || expenses === null ? "…" : money(totals.netCents)} />
+      <PageShell className="flex flex-col gap-4 xl:gap-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 xl:gap-5" data-tour="finance-totals">
+          <MetricTile icon={Wallet} label="Total booked value" value={loading ? "…" : money(totals.quotedCents)} />
+          <MetricTile icon={CheckCircle2} label="Collected" value={loading ? "…" : money(totals.paidCents)} />
+          <MetricTile icon={Clock} label="Outstanding" value={loading ? "…" : money(totals.outstandingCents)} tone={totals.outstandingCents > 0 ? "urgent" : "default"} />
+          <MetricTile icon={Users} label="DJ payouts due" value={payouts === null ? "…" : money(totals.payoutsDueCents)} tone={totals.payoutsDueCents > 0 ? "urgent" : "default"} />
+          <MetricTile icon={TrendingUp} label="Net revenue" value={payouts === null || expenses === null ? "…" : money(totals.netCents)} hint="Collected minus payouts and expenses" tone="gold" />
         </div>
 
-        <div>
-          <p className="mb-2 text-sm font-semibold">Outstanding balances</p>
+        <Grid>
+        <Col span={12}>
+        <SectionCard icon={Clock} title="Outstanding balances" description="Booked projects with money still to collect. Click one to open it.">
           <DataTable
             columns={outstandingColumns()}
             rows={outstanding}
@@ -180,12 +184,29 @@ export default function AdminFinancePage() {
             emptyTitle="Nothing outstanding"
             emptyBody="Every booked event is paid in full."
           />
-        </div>
+        </SectionCard>
+        </Col>
 
-        <PayoutsSection events={events ?? []} djs={djs} payouts={payouts} onCreate={handleCreatePayout} onTogglePaid={handleTogglePaid} onDelete={handleDeletePayout} />
-
-        <ExpensesSection expenses={expenses} onCreate={handleCreateExpense} onDelete={handleDeleteExpense} />
-      </div>
+        <Col span={7}>
+          <PayoutsSection events={events ?? []} djs={djs} payouts={payouts} onCreate={handleCreatePayout} onTogglePaid={handleTogglePaid} onDelete={(id) => setPendingDelete({ kind: "payout", id })} />
+        </Col>
+        <Col span={5}>
+          <ExpensesSection expenses={expenses} onCreate={handleCreateExpense} onDelete={(id) => setPendingDelete({ kind: "expense", id })} />
+        </Col>
+        </Grid>
+      </PageShell>
+      <ConfirmModal
+        open={!!pendingDelete}
+        title={pendingDelete?.kind === "payout" ? "Delete this payout?" : "Delete this expense?"}
+        body={pendingDelete?.kind === "payout" ? "The DJ will no longer see it in My Earnings. This can't be undone." : "It comes off your net revenue. This can't be undone."}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          const d = pendingDelete;
+          setPendingDelete(null);
+          if (d) void (d.kind === "payout" ? handleDeletePayout(d.id) : handleDeleteExpense(d.id));
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </>
   );
 }
@@ -278,16 +299,19 @@ function PayoutsSection({
   }
 
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm font-semibold">DJ Payouts</p>
+    <SectionCard
+      icon={Users}
+      title="DJ Payouts"
+      description="What each DJ is owed per gig. They see these in My Earnings."
+      actions={
         <Button variant="primary" size="sm" onClick={() => setShowAdd((v) => !v)}>
           {showAdd ? <X size={13} /> : <Plus size={13} />} {showAdd ? "Cancel" : "Add Payout"}
         </Button>
-      </div>
+      }
+    >
 
       {showAdd && (
-        <GlassCard className="mb-4 flex flex-col gap-3">
+        <GlassCard className="flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="block">
               <span className={labelClass}>Event</span>
@@ -331,7 +355,7 @@ function PayoutsSection({
       ) : payouts.length === 0 ? (
         <EmptyState icon={Users} title="No payouts yet" body="Add a payout once you've agreed what a DJ is owed for an event." />
       ) : (
-        <div className="flex flex-col divide-y divide-border border-y border-border">
+        <div className="flex flex-col divide-y divide-border">
           {payouts.map((p) => (
             <div key={p.id} className="flex items-center justify-between gap-3 py-3">
               <div className="min-w-0">
@@ -350,15 +374,15 @@ function PayoutsSection({
                     {p.status === "paid" ? "Paid" : "Mark Paid"}
                   </StatusChip>
                 </button>
-                <button onClick={() => onDelete(p.id)} className="text-status-declined hover:underline">
-                  <Trash2 size={12} />
+                <button onClick={() => onDelete(p.id)} aria-label={`Delete payout for ${p.djs?.display_name ?? "DJ"}`} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-status-declined hover:bg-status-declined/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+                  <Trash2 size={14} aria-hidden />
                 </button>
               </div>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </SectionCard>
   );
 }
 
@@ -391,16 +415,19 @@ function ExpensesSection({
   }
 
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm font-semibold">Expenses</p>
+    <SectionCard
+      icon={Receipt}
+      title="Expenses"
+      description="Equipment, insurance, software and other costs."
+      actions={
         <Button variant="primary" size="sm" onClick={() => setShowAdd((v) => !v)}>
           {showAdd ? <X size={13} /> : <Plus size={13} />} {showAdd ? "Cancel" : "Add Expense"}
         </Button>
-      </div>
+      }
+    >
 
       {showAdd && (
-        <GlassCard className="mb-4 flex flex-col gap-3">
+        <GlassCard className="flex flex-col gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className={labelClass}>Description</span>
@@ -438,26 +465,26 @@ function ExpensesSection({
       ) : expenses.length === 0 ? (
         <EmptyState icon={Receipt} title="No expenses logged" body="Track equipment, insurance, software, and other business costs here." />
       ) : (
-        <div className="flex flex-col divide-y divide-border border-y border-border">
+        <div className="flex flex-col divide-y divide-border">
           {expenses.map((e) => (
             <div key={e.id} className="flex items-center justify-between gap-3 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium">{e.description}</p>
                 <p className="text-xs capitalize text-muted">
-                  {e.category ?? "other"} · {new Date(e.incurred_on).toLocaleDateString()}
+                  {e.category ?? "other"} · {new Date(`${e.incurred_on.slice(0, 10)}T12:00:00`).toLocaleDateString()}
                   {e.events?.title && ` · ${e.events.title}`}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-3 text-xs">
                 <span className="font-semibold tabular-nums">{money(e.amount_cents)}</span>
-                <button onClick={() => onDelete(e.id)} className="text-status-declined hover:underline">
-                  <Trash2 size={12} />
+                <button onClick={() => onDelete(e.id)} aria-label={`Delete expense: ${e.description}`} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-status-declined hover:bg-status-declined/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+                  <Trash2 size={14} aria-hidden />
                 </button>
               </div>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </SectionCard>
   );
 }

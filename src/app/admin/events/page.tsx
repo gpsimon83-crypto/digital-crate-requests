@@ -16,7 +16,9 @@ import type { EventCategory } from "@/lib/event-category";
 import { PIPELINE_STAGES, PIPELINE_STAGE_DOT } from "@/lib/pipeline-stage";
 import { clientName } from "@/lib/format";
 import { Field } from "@/components/ui/field";
-import { Plus, X, Briefcase, ChevronRight, Magnet, Mail, Phone, CalendarDays } from "lucide-react";
+import { Plus, X, Briefcase, Magnet, Mail, Phone, CalendarDays, ExternalLink, Trash2 } from "lucide-react";
+import { ActionMenu } from "@/components/ui/action-menu";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 
 interface EventRow {
   id: string;
@@ -83,6 +85,10 @@ function AdminEventsPageContent() {
   const [showCreate, setShowCreate] = useState(() => searchParams.get("new") === "1");
 
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string[] | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const [title, setTitle] = useState("");
   const [djId, setDjId] = useState("");
@@ -226,6 +232,65 @@ function AdminEventsPageContent() {
     }
   }
 
+  /** Run one request per project, a few at a time, and report what didn't go through. */
+  async function runEach(ids: string[], label: string, call: (id: string) => Promise<Response>) {
+    setBulkBusy(label);
+    setError(null);
+    setNotice(null);
+    const failed: { id: string; why: string }[] = [];
+    for (let i = 0; i < ids.length; i += 4) {
+      await Promise.all(
+        ids.slice(i, i + 4).map(async (id) => {
+          try {
+            const res = await call(id);
+            if (!res.ok) failed.push({ id, why: (await res.json().catch(() => ({}))).error ?? `Error ${res.status}` });
+          } catch {
+            failed.push({ id, why: "Network error" });
+          }
+        })
+      );
+    }
+    setBulkBusy(null);
+    return failed;
+  }
+  const titleOf = (id: string) => events?.find((e) => e.id === id)?.title ?? "A project";
+  function reportResult(verb: string, ids: string[], failed: { id: string; why: string }[]) {
+    const done = ids.length - failed.length;
+    setNotice(`${verb} ${done} ${done === 1 ? "project" : "projects"}.`);
+    if (failed.length)
+      setError(
+        `${failed.length} not ${verb.toLowerCase()}: ` +
+          failed
+            .slice(0, 4)
+            .map((f) => `${titleOf(f.id).slice(0, 40)} (${f.why})`)
+            .join("; ") +
+          (failed.length > 4 ? "…" : "")
+      );
+    setPicked(new Set(failed.map((f) => f.id)));
+  }
+
+  async function handleBulkStage(stageName: string) {
+    const ids = [...shownPicked];
+    const failed = await runEach(ids, "stage", (id) => fetch(`/api/admin/events/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pipelineStage: stageName }) }));
+    reportResult(`Moved to ${stageName}:`, ids, failed);
+    await loadAll();
+  }
+
+  async function handleDelete(ids: string[]) {
+    setConfirmDelete(null);
+    // The server keeps any project that has payment history (and says so).
+    const failed = await runEach(ids, "delete", (id) => fetch(`/api/admin/events/${id}`, { method: "DELETE" }));
+    reportResult("Deleted", ids, failed);
+    await loadAll();
+  }
+
+  async function handleBulkDecline() {
+    const ids = [...shownPicked];
+    const failed = await runEach(ids, "decline", (id) => fetch(`/api/events/${id}/decline`, { method: "POST" }));
+    reportResult("Declined", ids, failed);
+    await loadAll();
+  }
+
   async function handleInquiryAction(id: string, action: "confirm" | "decline") {
     setBusyId(id);
     setError(null);
@@ -247,6 +312,9 @@ function AdminEventsPageContent() {
   const needNow = new Date();
   const needFiltered = need ? (events ?? []).filter((e) => matchesNeed(e as unknown as DashEvent, need, needNow)) : null;
   const visibleEvents = needFiltered ?? (categoryGroup ? stageFiltered.filter((e) => categoryGroup.match(e.event_category)) : stageFiltered);
+  // Bulk actions only ever touch projects in the current view (not ones picked under another tab or filter).
+  const visibleIds = new Set(visibleEvents.map((e) => e.id));
+  const shownPicked = new Set([...picked].filter((id) => visibleIds.has(id)));
 
   function stageHref(key: string) {
     const params = new URLSearchParams();
@@ -359,9 +427,51 @@ function AdminEventsPageContent() {
 
         {events === null && <p className="text-sm text-muted">Loading projects…</p>}
 
+        {error && !showCreate && (
+          <p role="alert" className="flex items-start justify-between gap-3 rounded-[10px] border border-status-declined/40 px-3 py-2 text-sm text-status-declined">
+            {error}
+            <button type="button" onClick={() => setError(null)} aria-label="Dismiss" className="shrink-0 rounded-[6px] text-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+              <X size={15} aria-hidden />
+            </button>
+          </p>
+        )}
+        {notice && (
+          <p role="status" className="flex items-start justify-between gap-3 rounded-[10px] border border-status-approved/40 px-3 py-2 text-sm">
+            {notice}
+            <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss" className="shrink-0 rounded-[6px] text-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+              <X size={15} aria-hidden />
+            </button>
+          </p>
+        )}
+
         {(stage === "active" || need) && events !== null && (
           <DataTable
-            columns={eventColumns(handleStageChange)}
+            selection={{ selected: shownPicked, onChange: setPicked, rowLabel: (e) => e.title }}
+            bulkBar={
+              <BulkBar count={shownPicked.size} busy={bulkBusy} onClear={() => setPicked(new Set())}>
+                <label className="flex items-center gap-2 text-sm">
+                  <span className="text-muted">Move to</span>
+                  <select
+                    value=""
+                    disabled={!!bulkBusy}
+                    onChange={(ev) => ev.target.value && handleBulkStage(ev.target.value)}
+                    className="h-9 rounded-[10px] border border-border bg-panel px-2 text-sm focus:border-gold focus:outline-none"
+                    aria-label="Move the selected projects to a stage"
+                  >
+                    <option value="">Stage…</option>
+                    {PIPELINE_STAGES.map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Button variant="destructive" size="sm" disabled={!!bulkBusy} onClick={() => setConfirmDelete([...shownPicked])}>
+                  <Trash2 size={14} aria-hidden /> Delete…
+                </Button>
+              </BulkBar>
+            }
+            columns={eventColumns(handleStageChange, (id) => router.push(`/admin/events/${id}`), (id) => setConfirmDelete([id]))}
             rows={visibleEvents}
             rowKey={(e) => e.id}
             onRowClick={(e) => router.push(`/admin/events/${e.id}`)}
@@ -382,10 +492,47 @@ function AdminEventsPageContent() {
         )}
 
         {!need && stage === "inquiries" && visibleEvents.length > 0 && (
+          <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="h-4 w-4 accent-[var(--gold)]"
+                checked={visibleEvents.every((e) => shownPicked.has(e.id))}
+                onChange={(ev) => setPicked(ev.target.checked ? new Set(visibleEvents.map((e) => e.id)) : new Set())}
+              />
+              Select all {visibleEvents.length}
+            </label>
+          </div>
+          {shownPicked.size > 0 && (
+            <BulkBar count={shownPicked.size} busy={bulkBusy} onClear={() => setPicked(new Set())}>
+              <Button variant="secondary" size="sm" disabled={!!bulkBusy} onClick={handleBulkDecline}>
+                Decline
+              </Button>
+              <Button variant="destructive" size="sm" disabled={!!bulkBusy} onClick={() => setConfirmDelete([...shownPicked])}>
+                <Trash2 size={14} aria-hidden /> Delete…
+              </Button>
+            </BulkBar>
+          )}
           <div className="flex flex-col divide-y divide-border border-y border-border">
             {visibleEvents.map((e) => (
-              <div key={e.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
+              <div key={e.id} className={cn("flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between", picked.has(e.id) && "bg-gold/[0.06]")}>
+                <div className="flex min-w-0 items-start gap-3">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 shrink-0 accent-[var(--gold)]"
+                  checked={picked.has(e.id)}
+                  aria-label={`Select ${e.title}`}
+                  onChange={() =>
+                    setPicked((cur) => {
+                      const n = new Set(cur);
+                      if (n.has(e.id)) n.delete(e.id);
+                      else n.add(e.id);
+                      return n;
+                    })
+                  }
+                />
+                <div className="min-w-0">
                   <p className="font-medium">{e.title}</p>
                   <p className="text-sm text-muted">{clientName(e.clients, "Unnamed contact") ?? "No client"}</p>
                   <div className="mt-1 flex flex-wrap gap-3 text-xs text-muted">
@@ -405,7 +552,8 @@ function AdminEventsPageContent() {
                       </span>
                     )}
                   </div>
-                  {e.special_requests && <p className="mt-1.5 text-sm">{e.special_requests}</p>}
+                  {e.special_requests && <p className="mt-1.5 line-clamp-2 break-words text-sm">{e.special_requests}</p>}
+                </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <Button variant="primary" size="sm" disabled={busyId === e.id} onClick={() => handleInquiryAction(e.id, "confirm")}>
@@ -414,21 +562,56 @@ function AdminEventsPageContent() {
                   <Button variant="destructive" size="sm" disabled={busyId === e.id} onClick={() => handleInquiryAction(e.id, "decline")}>
                     Decline
                   </Button>
-                  <Link href={`/admin/events/${e.id}`} className="flex items-center justify-center text-muted hover:text-gold">
-                    <ChevronRight size={15} />
-                  </Link>
+                  <ActionMenu
+                    label={`More actions for ${e.title}`}
+                    items={[
+                      { label: "Open project", icon: ExternalLink, onSelect: () => router.push(`/admin/events/${e.id}`) },
+                      "separator",
+                      { label: "Delete project…", icon: Trash2, danger: true, onSelect: () => setConfirmDelete([e.id]) }
+                    ]}
+                  />
                 </div>
               </div>
             ))}
           </div>
+          </div>
         )}
+
+        <ConfirmModal
+          open={!!confirmDelete}
+          title={confirmDelete && confirmDelete.length > 1 ? `Delete ${confirmDelete.length} projects?` : "Delete this project?"}
+          body={
+            confirmDelete && confirmDelete.length === 1
+              ? `"${titleOf(confirmDelete[0]).slice(0, 80)}" and its tasks, messages, files and contract are removed for good. A project with payments is kept.`
+              : "Each project and its tasks, messages, files and contracts are removed for good. Any project with payments is kept and listed after."
+          }
+          confirmLabel={confirmDelete && confirmDelete.length > 1 ? `Delete ${confirmDelete.length}` : "Delete"}
+          onConfirm={() => confirmDelete && handleDelete(confirmDelete)}
+          onCancel={() => setConfirmDelete(null)}
+        />
 
       </div>
     </>
   );
 }
 
-function eventColumns(onStageChange: (eventId: string, stage: string) => void): DataTableColumn<EventRow>[] {
+/** Bulk actions for the selected projects. */
+function BulkBar({ count, busy, onClear, children }: { count: number; busy: string | null; onClear: () => void; children: React.ReactNode }) {
+  return (
+    <div role="region" aria-label="Bulk actions" className="sticky top-2 z-20 flex flex-wrap items-center gap-3 rounded-[12px] border border-gold/50 bg-panel px-4 py-2.5 shadow-lg" data-tour="projects-bulk">
+      <span className="text-sm font-semibold" aria-live="polite">
+        {count} selected
+      </span>
+      {children}
+      {busy && <span className="text-xs text-muted">Working…</span>}
+      <button type="button" onClick={onClear} className="ml-auto rounded-[8px] px-2 py-1 text-sm text-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+        Clear
+      </button>
+    </div>
+  );
+}
+
+function eventColumns(onStageChange: (eventId: string, stage: string) => void, onOpen: (id: string) => void, onDelete: (id: string) => void): DataTableColumn<EventRow>[] {
   return [
     {
       key: "date",
@@ -448,7 +631,7 @@ function eventColumns(onStageChange: (eventId: string, stage: string) => void): 
         const name = clientName(e.clients, "Unnamed contact");
         return (
           <>
-            <Link href={`/admin/events/${e.id}`} data-tour="project-link" className="font-medium hover:text-gold hover:underline">
+            <Link href={`/admin/events/${e.id}`} data-tour="project-link" title={e.title} className="line-clamp-2 break-words font-medium hover:text-gold hover:underline">
               {e.title}
             </Link>
             {name ? <div className="text-xs text-muted">{name}</div> : <div className="text-xs text-status-urgent">No client linked</div>}
@@ -536,7 +719,16 @@ function eventColumns(onStageChange: (eventId: string, stage: string) => void): 
       key: "actions",
       header: "",
       align: "right",
-      render: () => <ChevronRight size={15} className="text-muted" />
+      render: (e) => (
+        <ActionMenu
+          label={`More actions for ${e.title}`}
+          items={[
+            { label: "Open project", icon: ExternalLink, onSelect: () => onOpen(e.id) },
+            "separator",
+            { label: "Delete project…", icon: Trash2, danger: true, onSelect: () => onDelete(e.id) }
+          ]}
+        />
+      )
     }
   ];
 }
