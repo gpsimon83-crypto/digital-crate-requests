@@ -48,3 +48,10 @@ export async function deleteExpense(id: string): Promise<void> {
   const { error } = await db.from("expenses").delete().eq("id", id);
   if (error) throw error;
 }
+
+export async function updateExpense(id: string, updates: { description?: string; amount_cents?: number; category?: string | null; incurred_on?: string }): Promise<ExpenseRow> {
+  const db = createAdminClient();
+  const { data, error } = await db.from("expenses").update(updates).eq("id", id).select("*, events(title)").single();
+  if (error) throw error;
+  return data;
+}

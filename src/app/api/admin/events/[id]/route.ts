@@ -56,6 +56,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     venueId?: string | null;
     finalAmount?: number | null;
     djId?: string | null;
+    title?: string;
+    eventType?: string | null;
+    expectedGuests?: number | null;
   };
 
   if (status && !VALID_STATUSES.includes(status)) {
@@ -85,6 +88,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (venueId !== undefined) updates.venue_id = venueId || null;
     if (finalAmount !== undefined) updates.final_amount = finalAmount;
     if (djId !== undefined) updates.dj_id = djId || null;
+    // Project name, type and guest count (renaming a project).
+    const b = body as { title?: unknown; eventType?: unknown; expectedGuests?: unknown };
+    if (b.title !== undefined) {
+      const t = typeof b.title === "string" ? b.title.trim() : "";
+      if (!t || t.length > 200) return NextResponse.json({ error: "A project needs a name (up to 200 characters)" }, { status: 400 });
+      updates.title = t;
+    }
+    if (b.eventType !== undefined) updates.event_type = typeof b.eventType === "string" && b.eventType.trim() ? b.eventType.trim().slice(0, 100) : null;
+    if (b.expectedGuests !== undefined) {
+      const n = b.expectedGuests === null || b.expectedGuests === "" ? null : Number(b.expectedGuests);
+      if (n !== null && (!Number.isInteger(n) || n < 0 || n > 100000)) return NextResponse.json({ error: "Guest count must be a whole number" }, { status: 400 });
+      updates.expected_guests = n;
+    }
 
     // These specific fields are what a signed contract's terms cover —
     // changing any of them while a contract is already signed needs both

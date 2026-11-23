@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { Col, Grid, MetricTile, PageShell, SectionCard } from "@/components/layout/grid";
+import { Col, FieldGroup, FieldRow, Grid, INPUT, MetricTile, PageShell, SectionCard } from "@/components/layout/grid";
+import { SideDrawer } from "@/components/ui/side-drawer";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -11,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { StatusChip } from "@/components/ui/status-chip";
 import { DataTable, type DataTableColumn } from "@/components/ui/data-table";
 import { clientName } from "@/lib/format";
-import { Wallet, CheckCircle2, Clock, Users, Receipt, TrendingUp, Plus, X, Trash2 } from "lucide-react";
+import { Wallet, CheckCircle2, Clock, Users, Receipt, TrendingUp, Plus, X, Trash2, PenLine } from "lucide-react";
 
 interface EventRow {
   id: string;
@@ -67,6 +68,28 @@ export default function AdminFinancePage() {
   const [expenses, setExpenses] = useState<ExpenseRow[] | null>(null);
 
   const [pendingDelete, setPendingDelete] = useState<{ kind: "payout" | "expense"; id: string } | null>(null);
+  const [editPayout, setEditPayout] = useState<{ p: PayoutRow; amount: string; notes: string } | null>(null);
+  const [editExpense, setEditExpense] = useState<{ e: ExpenseRow; description: string; amount: string; category: string; incurredOn: string } | null>(null);
+  const [editErr, setEditErr] = useState<string | null>(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  async function saveEdit(url: string, body: Record<string, unknown>) {
+    setSavingEdit(true);
+    setEditErr(null);
+    try {
+      const res = await fetch(url, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't save");
+      setEditPayout(null);
+      setEditExpense(null);
+      load();
+    } catch (err) {
+      setEditErr(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+  const cents = (v: string) => Math.round(Number(v) * 100);
 
   function load() {
     fetch("/api/admin/events")
@@ -188,13 +211,77 @@ export default function AdminFinancePage() {
         </Col>
 
         <Col span={7}>
-          <PayoutsSection events={events ?? []} djs={djs} payouts={payouts} onCreate={handleCreatePayout} onTogglePaid={handleTogglePaid} onDelete={(id) => setPendingDelete({ kind: "payout", id })} />
+          <PayoutsSection events={events ?? []} djs={djs} payouts={payouts} onCreate={handleCreatePayout} onTogglePaid={handleTogglePaid} onDelete={(id) => setPendingDelete({ kind: "payout", id })} onEdit={(p) => { setEditErr(null); setEditPayout({ p, amount: (p.amount_cents / 100).toFixed(2), notes: p.notes ?? "" }); }} />
         </Col>
         <Col span={5}>
-          <ExpensesSection expenses={expenses} onCreate={handleCreateExpense} onDelete={(id) => setPendingDelete({ kind: "expense", id })} />
+          <ExpensesSection expenses={expenses} onCreate={handleCreateExpense} onDelete={(id) => setPendingDelete({ kind: "expense", id })} onEdit={(e) => { setEditErr(null); setEditExpense({ e, description: e.description, amount: (e.amount_cents / 100).toFixed(2), category: e.category ?? "other", incurredOn: e.incurred_on.slice(0, 10) }); }} />
         </Col>
         </Grid>
       </PageShell>
+      <SideDrawer open={!!editPayout} onClose={() => setEditPayout(null)} title="Edit payout" subtitle={editPayout ? `${editPayout.p.djs?.display_name ?? "DJ"} · ${editPayout.p.events?.title ?? "Event"}` : undefined}>
+        {editPayout && (
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(ev) => {
+              ev.preventDefault();
+              if (!(Number(editPayout.amount) > 0)) return setEditErr("Amount must be more than $0.");
+              saveEdit(`/api/admin/payouts/${editPayout.p.id}`, { amountCents: cents(editPayout.amount), notes: editPayout.notes.trim() || null });
+            }}
+          >
+            <FieldGroup label="Amount ($)" htmlFor="edit-payout-amount" size="short">
+              <input id="edit-payout-amount" type="number" min={0} step="0.01" inputMode="decimal" value={editPayout.amount} onChange={(ev) => setEditPayout({ ...editPayout, amount: ev.target.value })} className={INPUT} />
+            </FieldGroup>
+            <FieldGroup label="Note" htmlFor="edit-payout-notes" hint="The DJ sees this under the gig in My Earnings.">
+              <input id="edit-payout-notes" value={editPayout.notes} onChange={(ev) => setEditPayout({ ...editPayout, notes: ev.target.value })} placeholder="Includes travel" className={INPUT} />
+            </FieldGroup>
+            {editErr && <p role="alert" className="text-sm text-status-declined">{editErr}</p>}
+            <div className="flex gap-3">
+              <Button variant="primary" type="submit" disabled={savingEdit}>{savingEdit ? "Saving…" : "Save changes"}</Button>
+              <Button variant="secondary" type="button" onClick={() => setEditPayout(null)}>Cancel</Button>
+            </div>
+          </form>
+        )}
+      </SideDrawer>
+      <SideDrawer open={!!editExpense} onClose={() => setEditExpense(null)} title="Edit expense">
+        {editExpense && (
+          <form
+            className="flex flex-col gap-4"
+            onSubmit={(ev) => {
+              ev.preventDefault();
+              if (!editExpense.description.trim()) return setEditErr("Add a description.");
+              if (!(Number(editExpense.amount) > 0)) return setEditErr("Amount must be more than $0.");
+              saveEdit(`/api/admin/expenses/${editExpense.e.id}`, { description: editExpense.description, amountCents: cents(editExpense.amount), category: editExpense.category, incurredOn: editExpense.incurredOn });
+            }}
+          >
+            <FieldGroup label="Description" htmlFor="edit-exp-desc">
+              <input id="edit-exp-desc" value={editExpense.description} onChange={(ev) => setEditExpense({ ...editExpense, description: ev.target.value })} className={INPUT} />
+            </FieldGroup>
+            <FieldRow cols={3}>
+              <FieldGroup label="Amount ($)" htmlFor="edit-exp-amount">
+                <input id="edit-exp-amount" type="number" min={0} step="0.01" inputMode="decimal" value={editExpense.amount} onChange={(ev) => setEditExpense({ ...editExpense, amount: ev.target.value })} className={INPUT} />
+              </FieldGroup>
+              <FieldGroup label="Category" htmlFor="edit-exp-cat">
+                <select id="edit-exp-cat" value={editExpense.category} onChange={(ev) => setEditExpense({ ...editExpense, category: ev.target.value })} className={INPUT}>
+                  {[...new Set([...CATEGORIES, editExpense.category])].map((c) => (
+                    <option key={c} value={c}>
+                      {c.charAt(0).toUpperCase() + c.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </FieldGroup>
+              <FieldGroup label="Date" htmlFor="edit-exp-date">
+                <input id="edit-exp-date" type="date" value={editExpense.incurredOn} onChange={(ev) => setEditExpense({ ...editExpense, incurredOn: ev.target.value })} className={INPUT} />
+              </FieldGroup>
+            </FieldRow>
+            {editErr && <p role="alert" className="text-sm text-status-declined">{editErr}</p>}
+            <div className="flex gap-3">
+              <Button variant="primary" type="submit" disabled={savingEdit}>{savingEdit ? "Saving…" : "Save changes"}</Button>
+              <Button variant="secondary" type="button" onClick={() => setEditExpense(null)}>Cancel</Button>
+            </div>
+          </form>
+        )}
+      </SideDrawer>
+
       <ConfirmModal
         open={!!pendingDelete}
         title={pendingDelete?.kind === "payout" ? "Delete this payout?" : "Delete this expense?"}
@@ -268,7 +355,8 @@ function PayoutsSection({
   payouts,
   onCreate,
   onTogglePaid,
-  onDelete
+  onDelete,
+  onEdit
 }: {
   events: EventRow[];
   djs: DjOption[];
@@ -276,6 +364,7 @@ function PayoutsSection({
   onCreate: (input: { eventId: string; djId: string; amountCents: number; notes: string }) => Promise<boolean>;
   onTogglePaid: (p: PayoutRow) => void;
   onDelete: (id: string) => void;
+  onEdit: (p: PayoutRow) => void;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [eventId, setEventId] = useState("");
@@ -374,6 +463,9 @@ function PayoutsSection({
                     {p.status === "paid" ? "Paid" : "Mark Paid"}
                   </StatusChip>
                 </button>
+                <button onClick={() => onEdit(p)} aria-label={`Edit payout for ${p.djs?.display_name ?? "DJ"}`} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-muted hover:bg-[color-mix(in_srgb,var(--foreground)_6%,transparent)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+                  <PenLine size={14} aria-hidden />
+                </button>
                 <button onClick={() => onDelete(p.id)} aria-label={`Delete payout for ${p.djs?.display_name ?? "DJ"}`} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-status-declined hover:bg-status-declined/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
                   <Trash2 size={14} aria-hidden />
                 </button>
@@ -389,11 +481,13 @@ function PayoutsSection({
 function ExpensesSection({
   expenses,
   onCreate,
-  onDelete
+  onDelete,
+  onEdit
 }: {
   expenses: ExpenseRow[] | null;
   onCreate: (input: { description: string; amountCents: number; category: string; incurredOn: string }) => Promise<boolean>;
   onDelete: (id: string) => void;
+  onEdit: (e: ExpenseRow) => void;
 }) {
   const [showAdd, setShowAdd] = useState(false);
   const [description, setDescription] = useState("");
@@ -477,6 +571,9 @@ function ExpensesSection({
               </div>
               <div className="flex shrink-0 items-center gap-3 text-xs">
                 <span className="font-semibold tabular-nums">{money(e.amount_cents)}</span>
+                <button onClick={() => onEdit(e)} aria-label={`Edit expense: ${e.description}`} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-muted hover:bg-[color-mix(in_srgb,var(--foreground)_6%,transparent)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
+                  <PenLine size={14} aria-hidden />
+                </button>
                 <button onClick={() => onDelete(e.id)} aria-label={`Delete expense: ${e.description}`} className="flex h-8 w-8 items-center justify-center rounded-[8px] text-status-declined hover:bg-status-declined/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
                   <Trash2 size={14} aria-hidden />
                 </button>

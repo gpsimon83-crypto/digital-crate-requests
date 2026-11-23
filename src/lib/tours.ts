@@ -18,6 +18,32 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-23-edit-everything": [
+    {
+      path: "/admin/equipment",
+      target: '[data-tour="equipment-new-item"], main',
+      title: "Add gear under your own name",
+      body: "Click New Item, type the name you use (like Rev 7 controller), and pick a category or type a new one. Click any row in the list to edit it."
+    },
+    {
+      path: "/admin/events",
+      target: 'table, main',
+      title: "Rename a project",
+      body: "Each project's ⋯ menu has Rename…. Open a project and click Edit on Project Details to change its name, event type and guest count too."
+    },
+    {
+      path: "/admin/clients",
+      target: 'main',
+      title: "Edit a contact",
+      body: "Open a contact and click Edit contact to change their name, email, phone, partner details or address. On a project, the Edit beside the client does the same."
+    },
+    {
+      path: "/admin/finance",
+      target: '[data-tour="finance-totals"], main',
+      title: "Fix a payout or expense",
+      body: "The pencil beside each payout or expense lets you correct the amount, note, category or date."
+    }
+  ],
   "2026-11-23-projects-bulk-equipment-finance": [
     {
       path: "/admin/events",

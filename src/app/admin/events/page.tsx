@@ -16,8 +16,9 @@ import type { EventCategory } from "@/lib/event-category";
 import { PIPELINE_STAGES, PIPELINE_STAGE_DOT } from "@/lib/pipeline-stage";
 import { clientName } from "@/lib/format";
 import { Field } from "@/components/ui/field";
-import { Plus, X, Briefcase, Magnet, Mail, Phone, CalendarDays, ExternalLink, Trash2 } from "lucide-react";
+import { Plus, X, Briefcase, Magnet, Mail, Phone, CalendarDays, ExternalLink, Trash2, PenLine } from "lucide-react";
 import { ActionMenu } from "@/components/ui/action-menu";
+import { SideDrawer } from "@/components/ui/side-drawer";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 
 interface EventRow {
@@ -89,6 +90,29 @@ function AdminEventsPageContent() {
   const [bulkBusy, setBulkBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string[] | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
+  const [renameErr, setRenameErr] = useState<string | null>(null);
+  const [savingName, setSavingName] = useState(false);
+
+  async function saveRename() {
+    if (!renaming) return;
+    const t = renaming.title.trim();
+    if (!t) return setRenameErr("A project needs a name.");
+    setSavingName(true);
+    setRenameErr(null);
+    try {
+      const res = await fetch(`/api/admin/events/${renaming.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: t }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't rename");
+      setEvents((cur) => (cur ? cur.map((e) => (e.id === renaming.id ? { ...e, title: t } : e)) : cur));
+      setNotice(`Renamed to “${t}”.`);
+      setRenaming(null);
+    } catch (err) {
+      setRenameErr(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   const [title, setTitle] = useState("");
   const [djId, setDjId] = useState("");
@@ -471,7 +495,7 @@ function AdminEventsPageContent() {
                 </Button>
               </BulkBar>
             }
-            columns={eventColumns(handleStageChange, (id) => router.push(`/admin/events/${id}`), (id) => setConfirmDelete([id]))}
+            columns={eventColumns(handleStageChange, (id) => router.push(`/admin/events/${id}`), (id) => setConfirmDelete([id]), (e) => { setRenameErr(null); setRenaming({ id: e.id, title: e.title }); })}
             rows={visibleEvents}
             rowKey={(e) => e.id}
             onRowClick={(e) => router.push(`/admin/events/${e.id}`)}
@@ -566,6 +590,7 @@ function AdminEventsPageContent() {
                     label={`More actions for ${e.title}`}
                     items={[
                       { label: "Open project", icon: ExternalLink, onSelect: () => router.push(`/admin/events/${e.id}`) },
+                      { label: "Rename…", icon: PenLine, onSelect: () => { setRenameErr(null); setRenaming({ id: e.id, title: e.title }); } },
                       "separator",
                       { label: "Delete project…", icon: Trash2, danger: true, onSelect: () => setConfirmDelete([e.id]) }
                     ]}
@@ -576,6 +601,32 @@ function AdminEventsPageContent() {
           </div>
           </div>
         )}
+
+        <SideDrawer open={!!renaming} onClose={() => setRenaming(null)} title="Rename project" subtitle="The new name shows everywhere, including the client's portal.">
+          {renaming && (
+            <form
+              className="flex flex-col gap-4"
+              onSubmit={(ev) => {
+                ev.preventDefault();
+                saveRename();
+              }}
+            >
+              <label className="block">
+                <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Project name</span>
+                <input autoFocus value={renaming.title} onChange={(ev) => setRenaming({ ...renaming, title: ev.target.value })} maxLength={200} required className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none" />
+              </label>
+              {renameErr && <p role="alert" className="text-sm text-status-declined">{renameErr}</p>}
+              <div className="flex gap-3">
+                <Button variant="primary" type="submit" disabled={savingName}>
+                  {savingName ? "Saving…" : "Save name"}
+                </Button>
+                <Button variant="secondary" type="button" onClick={() => setRenaming(null)}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          )}
+        </SideDrawer>
 
         <ConfirmModal
           open={!!confirmDelete}
@@ -611,7 +662,7 @@ function BulkBar({ count, busy, onClear, children }: { count: number; busy: stri
   );
 }
 
-function eventColumns(onStageChange: (eventId: string, stage: string) => void, onOpen: (id: string) => void, onDelete: (id: string) => void): DataTableColumn<EventRow>[] {
+function eventColumns(onStageChange: (eventId: string, stage: string) => void, onOpen: (id: string) => void, onDelete: (id: string) => void, onRename: (e: EventRow) => void): DataTableColumn<EventRow>[] {
   return [
     {
       key: "date",
@@ -724,6 +775,7 @@ function eventColumns(onStageChange: (eventId: string, stage: string) => void, o
           label={`More actions for ${e.title}`}
           items={[
             { label: "Open project", icon: ExternalLink, onSelect: () => onOpen(e.id) },
+            { label: "Rename…", icon: PenLine, onSelect: () => onRename(e) },
             "separator",
             { label: "Delete project…", icon: Trash2, danger: true, onSelect: () => onDelete(e.id) }
           ]}

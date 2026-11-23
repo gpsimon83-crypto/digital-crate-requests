@@ -9,6 +9,8 @@ import { Tabs } from "@/components/ui/tabs";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { cn } from "@/lib/utils";
 import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
+import { EVENT_TYPES } from "@/lib/event-types";
+import { ContactEditDrawer, type EditableContact } from "@/components/admin/contact-edit-drawer";
 import { BookingPanel } from "@/components/project/booking-panel";
 import { EquipmentPlanCard } from "@/components/project/equipment-plan-card";
 import { ProjectDayCards } from "@/components/project/project-day-cards";
@@ -188,6 +190,13 @@ function money(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+/** An ISO instant as the value a datetime-local input expects, in the viewer's time. */
+function toLocalInput(iso: string) {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export default function AdminEventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   return (
     <Suspense fallback={<div className="p-8 text-sm text-muted">Loading...</div>}>
@@ -249,7 +258,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
   const [djOptions, setDjOptions] = useState<ClientOption[]>([]);
   const [changeOrders, setChangeOrders] = useState<ChangeOrderData[]>([]);
   const [editingDetails, setEditingDetails] = useState(false);
-  const [detailsDraft, setDetailsDraft] = useState<{ startsAt: string; endsAt: string; venueId: string; finalAmount: string; djId: string }>({
+  const [detailsDraft, setDetailsDraft] = useState<{ title?: string; eventType?: string; expectedGuests?: string; startsAt: string; endsAt: string; venueId: string; finalAmount: string; djId: string }>({
     startsAt: "",
     endsAt: "",
     venueId: "",
@@ -262,6 +271,7 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
   const [deleting, setDeleting] = useState(false);
 
   const [changingContact, setChangingContact] = useState(false);
+  const [editingContact, setEditingContact] = useState(false);
   const [savingStage, setSavingStage] = useState(false);
   const [savingPipelineStage, setSavingPipelineStage] = useState(false);
   const [sendingMusicPlan, setSendingMusicPlan] = useState(false);
@@ -828,6 +838,17 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
         />
       ) : (
           <div className="mx-6 mt-6 flex flex-col gap-8 sm:mx-8 lg:flex-row">
+            {event.clients && editingContact && (
+              <ContactEditDrawer
+                contact={event.clients as unknown as EditableContact}
+                open
+                onClose={() => setEditingContact(false)}
+                onSaved={(c) => {
+                  setEvent((prev) => (prev ? { ...prev, clients: { ...prev.clients!, ...(c as unknown as Partial<ClientRow>) } } : prev));
+                  setEditingContact(false);
+                }}
+              />
+            )}
             <div className="flex-1">
               <p className="mb-2 text-[10px] uppercase tracking-[1.5px] text-muted">Contact</p>
               {!changingContact ? (
@@ -848,7 +869,12 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                   ) : (
                     <p className="text-sm text-muted">No contact linked</p>
                   )}
-                  <button onClick={() => setChangingContact(true)} className="ml-2 text-xs text-gold hover:underline">
+                  {event.clients && (
+                    <button onClick={() => setEditingContact(true)} className="ml-2 rounded-[6px] text-xs text-gold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold" data-tour="project-edit-contact">
+                      Edit
+                    </button>
+                  )}
+                  <button onClick={() => setChangingContact(true)} className="ml-2 rounded-[6px] text-xs text-gold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold">
                     {name ? "Change" : "Link a client"}
                   </button>
                 </div>
@@ -1062,8 +1088,12 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                           size="sm"
                           onClick={() => {
                             setDetailsDraft({
-                              startsAt: event.starts_at ? event.starts_at.slice(0, 16) : "",
-                              endsAt: event.ends_at ? event.ends_at.slice(0, 16) : "",
+                              title: event.title,
+                              eventType: event.event_type ?? "",
+                              expectedGuests: event.expected_guests != null ? String(event.expected_guests) : "",
+                              // The inputs show local time: convert from the stored UTC instant (slicing it would shift the time on save).
+                              startsAt: event.starts_at ? toLocalInput(event.starts_at) : "",
+                              endsAt: event.ends_at ? toLocalInput(event.ends_at) : "",
                               venueId: event.venues ? (venueOptions.find((v) => v.label === event.venues?.name)?.id ?? "") : "",
                               finalAmount: event.final_amount != null ? String(event.final_amount) : "",
                               djId: event.dj_id ?? ""
@@ -1081,6 +1111,43 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                         <p className="text-xs text-status-declined">
                           If this contract is already signed, changing these creates a change order both the client and DJ must acknowledge — nothing is silently altered.
                         </p>
+                        <div className="grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_8rem]" data-tour="event-details-name">
+                          <label className="block">
+                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Project name</span>
+                            <input
+                              value={detailsDraft.title ?? ""}
+                              onChange={(e) => setDetailsDraft((d) => ({ ...d, title: e.target.value }))}
+                              maxLength={200}
+                              required
+                              className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                            />
+                          </label>
+                          <label className="block">
+                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Event type</span>
+                            <input
+                              value={detailsDraft.eventType ?? ""}
+                              onChange={(e) => setDetailsDraft((d) => ({ ...d, eventType: e.target.value }))}
+                              list="event-type-options"
+                              className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                            />
+                            <datalist id="event-type-options">
+                              {EVENT_TYPES.map((t) => (
+                                <option key={t} value={t} />
+                              ))}
+                            </datalist>
+                          </label>
+                          <label className="block">
+                            <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Guests</span>
+                            <input
+                              type="number"
+                              min={0}
+                              inputMode="numeric"
+                              value={detailsDraft.expectedGuests ?? ""}
+                              onChange={(e) => setDetailsDraft((d) => ({ ...d, expectedGuests: e.target.value }))}
+                              className="w-full rounded-[10px] border border-black/10 bg-panel px-3 py-2 text-sm focus:border-gold focus:outline-none"
+                            />
+                          </label>
+                        </div>
                         <div className="grid gap-3 sm:grid-cols-2">
                           <label className="block">
                             <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Start time</span>
@@ -1152,6 +1219,9 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                                   method: "PATCH",
                                   headers: { "Content-Type": "application/json" },
                                   body: JSON.stringify({
+                                    ...(detailsDraft.title !== undefined && detailsDraft.title.trim() !== event.title ? { title: detailsDraft.title } : {}),
+                                    ...(detailsDraft.eventType !== undefined && (detailsDraft.eventType.trim() || null) !== (event.event_type ?? null) ? { eventType: detailsDraft.eventType.trim() || null } : {}),
+                                    ...(detailsDraft.expectedGuests !== undefined && (detailsDraft.expectedGuests === "" ? null : Number(detailsDraft.expectedGuests)) !== (event.expected_guests ?? null) ? { expectedGuests: detailsDraft.expectedGuests === "" ? null : Number(detailsDraft.expectedGuests) } : {}),
                                     startsAt: detailsDraft.startsAt ? new Date(detailsDraft.startsAt).toISOString() : null,
                                     endsAt: detailsDraft.endsAt ? new Date(detailsDraft.endsAt).toISOString() : null,
                                     venueId: detailsDraft.venueId || null,

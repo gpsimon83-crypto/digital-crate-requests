@@ -11,6 +11,7 @@ import { StatTile } from "@/components/ui/stat-tile";
 import { EmptyState } from "@/components/ui/empty-state";
 import { money, clientName } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ContactEditDrawer, type EditableContact } from "@/components/admin/contact-edit-drawer";
 import {
   ArrowLeft,
   Building2,
@@ -24,7 +25,8 @@ import {
   Wallet,
   FolderOpen,
   MessageSquare,
-  ExternalLink
+  ExternalLink,
+  PenLine
 } from "lucide-react";
 
 interface EventRow {
@@ -37,7 +39,7 @@ interface EventRow {
   contract_status: string | null;
 }
 
-interface ClientDetail {
+interface ClientDetail extends EditableContact {
   id: string;
   status: string;
   company_name: string | null;
@@ -126,6 +128,7 @@ function ClientDetailInner({ params }: { params: Promise<{ id: string }> }) {
   const searchParams = useSearchParams();
   const activeTab = (searchParams.get("tab") as TabKey | null) ?? "overview";
 
+  const [editOpen, setEditOpen] = useState(false);
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [messages, setMessages] = useState<ClientMessage[] | null>(null);
   const [contracts, setContracts] = useState<ContractRow[] | null>(null);
@@ -204,12 +207,25 @@ function ClientDetailInner({ params }: { params: Promise<{ id: string }> }) {
   }
 
   const name = clientName(client, "Unnamed contact");
+  const editor = (
+    <ContactEditDrawer
+      key={editOpen ? "open" : "closed"}
+      contact={client}
+      open={editOpen}
+      onClose={() => setEditOpen(false)}
+      onSaved={(c) => {
+        setClient((prev) => (prev ? { ...prev, ...c, events: prev.events } : prev));
+        setEditOpen(false);
+      }}
+    />
+  );
   const events = [...client.events].sort((a, b) => new Date(b.starts_at ?? 0).getTime() - new Date(a.starts_at ?? 0).getTime());
   const totalValueCents = client.events.reduce((sum, e) => sum + Math.round((e.final_amount ?? e.quoted_amount ?? 0) * 100), 0);
   const totalCollectedCents = (payments ?? []).filter((p) => p.status === "succeeded").reduce((sum, p) => sum + p.amount_cents, 0);
 
   return (
     <div className="pb-16">
+      {editor}
       <Link
         href="/admin/clients"
         className="ml-6 mt-5 inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[1.5px] text-muted hover:text-foreground sm:ml-8"
@@ -237,9 +253,14 @@ function ClientDetailInner({ params }: { params: Promise<{ id: string }> }) {
               )}
             </div>
           </div>
-          <StatusChip tone={STATUS_TONE[client.status] ?? "muted"} className="capitalize">
-            {client.status}
-          </StatusChip>
+          <div className="flex items-center gap-2">
+            <StatusChip tone={STATUS_TONE[client.status] ?? "muted"} className="capitalize">
+              {client.status}
+            </StatusChip>
+            <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+              <PenLine size={13} aria-hidden /> Edit contact
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-wrap border border-border">
@@ -252,10 +273,17 @@ function ClientDetailInner({ params }: { params: Promise<{ id: string }> }) {
 
         {activeTab === "overview" && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <GlassCard className="flex flex-col gap-2">
-              <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Contact Details</p>
+            <GlassCard className="flex flex-col gap-2" data-tour="contact-details">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-[1.5px] text-muted">Contact Details</p>
+                <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
+                  <PenLine size={13} aria-hidden /> Edit
+                </Button>
+              </div>
               <Row label="Email" value={client.email ?? "—"} />
               <Row label="Phone" value={client.phone ?? "—"} />
+              {(client.partner_first_name || client.partner_last_name) && <Row label="Partner" value={[client.partner_first_name, client.partner_last_name].filter(Boolean).join(" ") + (client.partner_phone ? ` · ${client.partner_phone}` : "")} />}
+              {(client.address_line1 || client.city) && <Row label="Address" value={[client.address_line1, client.address_line2, [client.city, client.state].filter(Boolean).join(", "), client.postal_code].filter(Boolean).join(" · ")} />}
               <Row label="Referral source" value={client.referral_source ?? "—"} />
             </GlassCard>
             <GlassCard className="flex flex-col gap-2">

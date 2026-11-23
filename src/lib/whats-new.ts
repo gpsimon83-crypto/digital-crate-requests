@@ -19,6 +19,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-23-edit-everything",
+    date: "2026-11-23",
+    area: "CRM",
+    title: "Edit what you've entered: gear, contacts, project names and more",
+    summary: "Anything you can add you can now also change. Equipment items, contact details, project names and details, payouts, expenses and crate templates all have Edit. Equipment also lets you add an item under your own name, like \"Rev 7 controller\", in any category you type.",
+    bullets: [
+      "Equipment: New item takes any name and a category from the list or one you type (for example \"controller\"). Click a row, or ⋯ → Edit, to change it",
+      "Contacts: Edit contact on the contact page changes name, email, phone, partner, address and status. Projects have the same Edit beside the client",
+      "Projects: ⋯ → Rename… in the list, and Project Details now edits the name, event type and guest count",
+      "Finance: a pencil beside each payout and expense edits the amount, note, category or date",
+      "Crate templates: Edit opens the template in the form above the list",
+      "The office only saves the fields each form shows, so nothing else on a record can be changed by accident"
+    ],
+    link: { href: "/admin/equipment", label: "Open Equipment" }
+  },
+  {
     id: "2026-11-23-projects-bulk-equipment-finance",
     date: "2026-11-23",
     area: "CRM",

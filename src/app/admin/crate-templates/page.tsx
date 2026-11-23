@@ -32,6 +32,29 @@ export default function AdminCrateTemplatesPage() {
   const [adding, setAdding] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  function resetForm() {
+    setName("");
+    setDescription("");
+    setEventType("");
+    setTargetGenres([]);
+    setTargetEras([]);
+    setCleanRequirement("");
+    setEditingId(null);
+  }
+  function startEdit(t: TemplateRow) {
+    setEditingId(t.id);
+    setName(t.name);
+    setDescription(t.description ?? "");
+    setEventType(t.event_type ?? "");
+    setTargetGenres(t.target_genres ?? []);
+    setTargetEras(t.target_eras ?? []);
+    setCleanRequirement(t.clean_requirement ?? "");
+    setError(null);
+    setShowCreate(true);
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   async function load() {
     try {
@@ -66,26 +89,23 @@ export default function AdminCrateTemplatesPage() {
     setAdding(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/crate-templates", {
-        method: "POST",
+      const res = await fetch(editingId ? `/api/admin/crate-templates/${editingId}` : "/api/admin/crate-templates", {
+        method: editingId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
           description: description.trim() || undefined,
-          eventType: eventType || undefined,
+          // Editing sends empty values as null so a cleared field clears.
+          eventType: eventType || (editingId ? null : undefined),
           targetGenres,
           targetEras,
-          cleanRequirement: cleanRequirement || undefined,
+          cleanRequirement: cleanRequirement || (editingId ? null : undefined),
+          ...(editingId ? { description: description.trim() || null } : {}),
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to add template");
-      setName("");
-      setDescription("");
-      setEventType("");
-      setTargetGenres([]);
-      setTargetEras([]);
-      setCleanRequirement("");
+      if (!res.ok) throw new Error(data.error || (editingId ? "Failed to save template" : "Failed to add template"));
+      resetForm();
       setShowCreate(false);
       await load();
     } catch (err) {
@@ -114,7 +134,13 @@ export default function AdminCrateTemplatesPage() {
         title="Crate Templates"
         subtitle="Recommended genre/era/energy balance for common event types — never actual songs."
         action={
-          <Button variant="primary" onClick={() => setShowCreate((v) => !v)}>
+          <Button
+            variant="primary"
+            onClick={() => {
+              if (showCreate) resetForm();
+              setShowCreate((v) => !v);
+            }}
+          >
             {showCreate ? <X size={15} /> : <Plus size={15} />}
             {showCreate ? "Cancel" : "New Template"}
           </Button>
@@ -124,6 +150,7 @@ export default function AdminCrateTemplatesPage() {
         {error && !showCreate && <p className="text-xs text-status-declined">{error}</p>}
         {showCreate && (
         <div className="flex flex-col gap-3 border border-border p-4">
+          {editingId && <p className="text-sm font-semibold">Editing “{templates?.find((t) => t.id === editingId)?.name ?? name}”</p>}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1.5 block text-xs uppercase tracking-wide text-muted">Template Name</span>
@@ -176,7 +203,7 @@ export default function AdminCrateTemplatesPage() {
           </div>
           {error && <p className="text-xs text-status-declined">{error}</p>}
           <Button variant="primary" onClick={handleAdd} disabled={adding} className="self-start">
-            {adding ? "Adding…" : "Add Template"}
+            {adding ? "Saving…" : editingId ? "Save changes" : "Add Template"}
           </Button>
         </div>
         )}
@@ -195,6 +222,9 @@ export default function AdminCrateTemplatesPage() {
                     {t.target_genres.length > 0 ? ` · ${t.target_genres.join(", ")}` : ""}
                   </p>
                 </div>
+                <button onClick={() => startEdit(t)} className="ml-auto rounded-[6px] text-xs text-gold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold" aria-label={`Edit ${t.name}`}>
+                  Edit
+                </button>
                 <button
                   onClick={() => setPendingDeleteId(t.id)}
                   className="shrink-0 rounded-[10px] border border-status-declined/40 px-3 py-1.5 text-xs text-status-declined"
