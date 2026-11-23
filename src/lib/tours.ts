@@ -18,6 +18,26 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-22-event-calendar-redesign": [
+    {
+      path: "/admin",
+      target: '[data-tour="dash-calendar"], main',
+      title: "The event calendar",
+      body: "The month on the left, the day you pick on the right. Each day lists up to two events and then +N more. Lime is booked, an amber ring is an inquiry, grey is away."
+    },
+    {
+      path: "/admin",
+      target: '[data-tour="cal-controls"], [data-tour="dash-calendar"]',
+      title: "Change month or view",
+      body: "Go back or forward a month, or jump to Today. Agenda lists the month's events in order. Full calendar opens the full calendar page."
+    },
+    {
+      path: "/admin",
+      target: '[data-tour="cal-day"], [data-tour="dash-calendar"]',
+      title: "The day you picked",
+      body: "Every event that day, earliest first, with its time, DJ and venue. View event opens the project."
+    }
+  ],
   "2026-11-21-dj-calendar-dates": [
     {
       path: "/admin/settings",

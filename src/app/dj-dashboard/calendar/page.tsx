@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageHeader } from "@/components/dashboard/page-header";
-import { DashLinksProvider, MiniCalendar } from "@/components/dashboard/overview/widgets";
+import { DashLinksProvider } from "@/components/dashboard/overview/widgets";
+import { MiniCalendar } from "@/components/dashboard/overview/event-calendar";
 import { MyGigs, type MyGigsState } from "@/components/dashboard/overview/my-gigs";
 import { useDashLayout } from "@/lib/dashboard-layout";
 import { DJ_LINKS } from "@/lib/dj/links";
@@ -107,7 +108,7 @@ export default function DjCalendarPage() {
       <PageHeader title="Calendar" subtitle="Your bookings and every date on the shared Digital Crate DJs calendar with your name on it." />
       <div className="grid gap-4 p-4 sm:p-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)] lg:gap-5">
         <div data-tour="dj-calendar-month">
-          <MiniCalendar layout={layout} events={all} loading={events === null} error={error} now={now} onMonth={loadMonth} monthNote={note} />
+          <MiniCalendar layout={layout} events={all} loading={events === null} error={error} now={now} onMonth={loadMonth} monthNote={note} showDj={false} />
         </div>
         <MyGigs layout={layout} s={{ djName: name, ...(gigs ?? { gigs: [], calendarConnected: true, loading: true, error: false }) }} />
       </div>

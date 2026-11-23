@@ -17,7 +17,6 @@ import {
   FALLBACK_PHOTOS,
   FOCUS,
   MetricCards,
-  MiniCalendar,
   Panel,
   QuickActions,
   RecentActivity,
@@ -30,6 +29,7 @@ import {
   type QuickAction
 } from "./widgets";
 import { MyGigs, type MyGigsState } from "./my-gigs";
+import { MiniCalendar } from "./event-calendar";
 import type { ActionGroup, ActivityItem, DashEvent, Metrics, Period, TrendRow, TypeRow } from "@/lib/dashboard/overview";
 
 /** Everything both layouts show: the same data, worked out once by the page. */
@@ -133,9 +133,9 @@ export function StudioLayout({ d }: { d: DashboardData }) {
         </div>
       </div>
       <div className="order-5 lg:col-span-2 lg:order-none">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-5">
+        <div className="grid gap-4 xl:gap-5">
           <UpcomingEvents layout="studio" events={d.upcoming} loading={d.loading} error={d.error} title={d.custom?.upcomingTitle} showDj={!d.custom?.hideDjColumn} />
-          <MiniCalendar layout="studio" events={d.calendarEvents} loading={d.loading} error={d.error} now={d.now} />
+          <MiniCalendar layout="studio" events={d.calendarEvents} loading={d.loading} error={d.error} now={d.now} showDj={!d.custom?.hideDjColumn} />
         </div>
       </div>
     </div>
@@ -330,13 +330,13 @@ export function CommandLayout({ d }: { d: DashboardData }) {
                 <MyGigs layout="command" s={d.myGigs} />
               </div>
             )}
-            <div className="order-3 min-w-0 lg:order-none">
-              <MiniCalendar layout="command" events={d.calendarEvents} loading={d.loading} error={d.error} now={d.now} />
-            </div>
             <div className="order-6 min-w-0 lg:order-none">
               <RecentActivity layout="command" items={d.activity} loading={d.loading} error={d.error} now={d.now} />
             </div>
           </div>
+        </div>
+        <div className="order-3 min-w-0 lg:order-none">
+          <MiniCalendar layout="command" events={d.calendarEvents} loading={d.loading} error={d.error} now={d.now} showDj={!d.custom?.hideDjColumn} />
         </div>
       </div>
     </>

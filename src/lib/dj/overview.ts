@@ -88,7 +88,7 @@ export function calendarItems(gigs: MyGig[], events: DashEvent[]): DashEvent[] {
     .filter((g) => g.source !== "project")
     .map((g) => ({
       id: g.key,
-      title: g.venue ? `${g.title} · ${g.venue}` : g.title,
+      title: g.title,
       status: g.away ? "away" : "confirmed",
       event_type: null,
       event_category: null,
@@ -101,7 +101,9 @@ export function calendarItems(gigs: MyGig[], events: DashEvent[]): DashEvent[] {
       djs: null,
       venues: g.venue ? { name: g.venue } : null,
       clients: null,
-      all_day: !g.starts_at
+      all_day: !g.starts_at,
+      ends_at: g.ends_at,
+      calendar_source: g.source === "venue_night" ? ("venue_night" as const) : ("google" as const)
     }));
   return [...events, ...extra];
 }

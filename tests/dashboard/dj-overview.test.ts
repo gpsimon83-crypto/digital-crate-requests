@@ -68,7 +68,8 @@ describe("DJ dashboard numbers", () => {
   it("calendar: Google Calendar entries join the bookings and open the calendar page", () => {
     const items = calendarItems([gig({ key: "gabc", venue: "Kyotes" }), gig({ source: "project", key: "p:x" })], [events[2]]);
     expect(items).toHaveLength(2);
-    expect(items[1].title).toBe("Peace @ Kyotes · Kyotes");
+    // The venue shows on its own line in the day panel now, not glued to the title.
+    expect(items[1]).toMatchObject({ title: "Peace @ Kyotes", venues: { name: "Kyotes" }, calendar_source: "google" });
     expect(DJ_LINKS.project(items[1].id)).toBe("/dj-dashboard/calendar");
     expect(DJ_LINKS.project(events[2].id)).toBe(`/dj-dashboard/projects/${events[2].id}`);
   });

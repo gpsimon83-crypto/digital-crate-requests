@@ -19,6 +19,21 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-22-event-calendar-redesign",
+    date: "2026-11-22",
+    area: "CRM",
+    title: "A bigger event calendar with a day panel",
+    summary: "The dashboard calendar now runs the full width: a month grid with each day's events written in, and a panel beside it with every event on the day you pick. It's the same calendar on DJs' Calendar pages.",
+    bullets: [
+      "Each day shows up to two events, then \"+N more\". Booked is a lime dot, Inquiry an amber ring, Away a grey dot",
+      "Pick a day to see its events with times, DJ, venue and View event. Picking a day from next or last month switches to that month",
+      "Agenda switches to a list of the month's events, in order",
+      "Keyboard: arrow keys move between days, Page Up/Down change month",
+      "On a phone the grid shows dots and counts, with the day's events underneath"
+    ],
+    link: { href: "/admin", label: "Open the dashboard" }
+  },
+  {
     id: "2026-11-21-dj-calendar-dates",
     date: "2026-11-21",
     area: "Members area",

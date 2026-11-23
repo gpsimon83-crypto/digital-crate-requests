@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -10,7 +10,6 @@ import {
   BarChart3,
   CalendarClock,
   CalendarDays,
-  ChevronLeft,
   ChevronRight,
   CircleDollarSign,
   Disc3,
@@ -30,9 +29,6 @@ import { cn } from "@/lib/utils";
 import { money, clientName } from "@/lib/format";
 import {
   PERIODS,
-  dayKey,
-  eventsByDay,
-  monthGrid,
   relativeTime,
   typeLabel,
   type ActionGroup,
@@ -67,6 +63,8 @@ export const ADMIN_LINKS: DashLinks = {
 const LinksContext = createContext<DashLinks>(ADMIN_LINKS);
 export const DashLinksProvider = LinksContext.Provider;
 const useLinks = () => useContext(LinksContext);
+/** Where dashboard items link (admin or DJ portal). */
+export const useDashLinks = useLinks;
 
 export const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
 
@@ -637,133 +635,7 @@ export function UpcomingEvents({ events, loading, error, layout, title = "Upcomi
   );
 }
 
-/* ---------------- calendar ---------------- */
-
-export function MiniCalendar({
-  events,
-  loading,
-  error,
-  layout,
-  now,
-  onMonth,
-  monthNote
-}: {
-  events: DashEvent[];
-  loading: boolean;
-  error?: boolean;
-  layout: DashLayout;
-  now: Date;
-  /** Told the first day of the month on screen whenever it changes (to load that month's dates). */
-  onMonth?: (first: Date) => void;
-  /** A line under the grid about the month on screen (e.g. "Loading this month…"). */
-  monthNote?: React.ReactNode;
-}) {
-  const links = useLinks();
-  const [cursor, setCursorState] = useState(() => new Date(now.getFullYear(), now.getMonth(), 1));
-  const setCursor = (d: Date) => {
-    setCursorState(d);
-    onMonth?.(d);
-  };
-  const [picked, setPicked] = useState<string | null>(null);
-  const byDay = useMemo(() => eventsByDay(events), [events]);
-  const grid = monthGrid(cursor);
-  const todayKey = dayKey(now);
-  const list = picked ? (byDay.get(picked) ?? []) : [];
-  const fmtLong = (k: string) => {
-    const [y, m, d] = k.split("-").map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
-  };
-  const weekdays = Array.from({ length: 7 }, (_, i) => new Date(2023, 0, 1 + i)); // 2023-01-01 is a Sunday
-  return (
-    <Panel layout={layout} aria-labelledby="dash-cal" data-tour="dash-calendar">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 id="dash-cal" className="font-display text-[21px] font-light" aria-live="polite">
-          {cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" })}
-        </h2>
-        <div className="flex items-center gap-1">
-          <button type="button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1))} className={cn("flex h-8 w-8 items-center justify-center rounded-[8px] border border-border hover:border-gold", FOCUS)} aria-label="Previous month">
-            <ChevronLeft size={15} />
-          </button>
-          <button type="button" onClick={() => setCursor(new Date(now.getFullYear(), now.getMonth(), 1))} className={cn("h-8 rounded-[8px] border border-border px-2 text-xs hover:border-gold", FOCUS)}>
-            Today
-          </button>
-          <button type="button" onClick={() => setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1))} className={cn("flex h-8 w-8 items-center justify-center rounded-[8px] border border-border hover:border-gold", FOCUS)} aria-label="Next month">
-            <ChevronRight size={15} />
-          </button>
-        </div>
-      </div>
-      <div className="grid grid-cols-7 text-center">
-        {weekdays.map((d) => (
-          <div key={d.getDay()} aria-hidden className="pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted">
-            <abbr title={d.toLocaleDateString(undefined, { weekday: "long" })} className="no-underline">{d.toLocaleDateString(undefined, { weekday: "short" }).slice(0, 3)}</abbr>
-          </div>
-        ))}
-        {grid.map((d) => {
-          const k = dayKey(d);
-          const inMonth = d.getMonth() === cursor.getMonth();
-          const evs = byDay.get(k) ?? [];
-          const isToday = k === todayKey;
-          const isPicked = k === picked;
-          return (
-            <button
-              key={k}
-              type="button"
-              onClick={() => setPicked(isPicked ? null : k)}
-              aria-pressed={isPicked}
-              aria-label={`${fmtLong(k)}${isToday ? ", today" : ""}: ${evs.length ? `${evs.length} ${evs.length === 1 ? "event" : "events"}` : "no events"}`}
-              className={cn("relative flex h-10 flex-col items-center justify-center rounded-[10px] text-sm tabular-nums hover:bg-black/5", FOCUS, !inMonth && "text-muted/50", isPicked && "bg-gold-soft")}
-            >
-              <span className={cn("flex h-7 w-7 items-center justify-center rounded-full", isToday && "bg-gold font-semibold text-[var(--on-gold,#1a140a)]")}>{d.getDate()}</span>
-              {evs.length > 0 && (
-                <span className="absolute bottom-0.5 flex gap-0.5" aria-hidden>
-                  {evs.slice(0, 3).map((e) => (
-                    <span key={e.id} className={cn("h-1.5 w-1.5 rounded-full", e.status === "away" ? "bg-muted/60" : e.status === "inquiry" ? "border border-gold" : "bg-gold")} />
-                  ))}
-                </span>
-              )}
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
-        <span className="flex items-center gap-3">
-          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden />Booked</span>
-          <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full border border-gold" aria-hidden />Inquiry</span>
-          {events.some((e) => e.status === "away") && (
-            <span className="flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-muted/60" aria-hidden />Away</span>
-          )}
-        </span>
-        <Link href={links.calendar} className={cn("font-semibold text-gold hover:underline", FOCUS)}>Full calendar</Link>
-      </div>
-      {loading && <p className="mt-2 text-xs text-muted">Loading events…</p>}
-      {error && (
-        <p role="alert" className="mt-2 text-xs text-status-declined">
-          Events couldn&apos;t load, so the days show no events. Refresh to try again.
-        </p>
-      )}
-      {monthNote && <div className="mt-2 text-xs text-muted">{monthNote}</div>}
-      {picked && (
-        <div className="mt-3 border-t border-border pt-3" aria-live="polite">
-          <p className="mb-1.5 text-xs font-semibold">{fmtLong(picked)}</p>
-          {list.length === 0 ? (
-            <p className="text-xs text-muted">No events this day.</p>
-          ) : (
-            <ul className="flex flex-col gap-1">
-              {list.map((e) => (
-                <li key={e.id}>
-                  <Link href={links.project(e.id)} className={cn("flex items-center justify-between gap-2 rounded-[8px] px-2 py-1.5 text-sm hover:bg-black/5", FOCUS)}>
-                    <span className="min-w-0 truncate">{e.title}</span>
-                    <span className="shrink-0 text-xs text-muted">{e.all_day ? "All day" : new Date(e.starts_at as string).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </Panel>
-  );
-}
+/* ---------------- calendar: see event-calendar.tsx ---------------- */
 
 /* ---------------- activity ---------------- */
 

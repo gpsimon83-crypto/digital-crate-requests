@@ -18,6 +18,10 @@ export interface DashEvent {
   event_type: string | null;
   event_category: EventCategory | null;
   starts_at: string | null;
+  /** When it ends, if known (projects have it in the list; calendar entries when Google has one). */
+  ends_at?: string | null;
+  /** Set for calendar entries that aren't project records. */
+  calendar_source?: "google" | "venue_night";
   created_at: string;
   quoted_amount: number | null;
   final_amount: number | null;
