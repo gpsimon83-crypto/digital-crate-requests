@@ -19,6 +19,23 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-23-questionnaire-recommended-pricing",
+    date: "2026-11-23",
+    area: "CRM",
+    title: "Questionnaire answers now recommend a package and price, and Bars & Nightlife has packages",
+    summary: "Each project shows the Services package that fits the client's answers, with the add-ons they need and an estimated total. Weddings use Wedding Basics; every other event gets a new Event Basics questionnaire. Only the office and the project's DJ see it, never the client.",
+    bullets: [
+      "Bars & Nightlife: Bar Night – House Sound ($500, 4 hours, $275 flat DJ payout) and Bar Residency (quoted, payout set per date)",
+      "Project → Details → Recommended package: the best fit and two alternatives, with add-ons priced (or Included when the package already has them) and an estimated total",
+      "Hours come from their start and end times (plus ceremony and cocktail hour for weddings); a shortfall is flagged",
+      "Event Basics (date, venue, times, guests, mics, uplighting, clean music, setup) for parties, school, corporate and bar events: create and copy the link right on the card",
+      "DJs see the same recommendation on their project page and can send the questionnaire link; they never see payout or company share",
+      "Use this package sets the project's package, so a new DJ offer suggests its payout"
+    ],
+    link: { href: "/admin/events", label: "Open Projects" },
+    action: "Run migration 0067_bar_packages_event_basics.sql in Supabase to add the bar packages and Event Basics."
+  },
+  {
     id: "2026-11-23-services-catalog-dj-offers",
     date: "2026-11-23",
     area: "CRM",

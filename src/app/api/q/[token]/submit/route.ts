@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { applyWeddingBasics, cleanAnswers, linkByToken, submissionProblems, WEDDING_BASICS } from "@/lib/data/questionnaire-links";
 import { getTemplateForEventType } from "@/lib/data/questionnaires";
 import { logActivity } from "@/lib/activity";
+import { applyEventBasics, EVENT_BASICS } from "@/lib/data/basics";
 
 const noStore = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     if (problems.length) return NextResponse.json({ error: `${problems[0].prompt} ${problems[0].problem}`, problems }, { status: 400, headers: noStore });
 
     const now = new Date().toISOString();
-    const applied = type === WEDDING_BASICS ? await applyWeddingBasics(db, link.event_id, answers, { template }) : { filled: [], differs: [] };
+    const applied = type === WEDDING_BASICS ? await applyWeddingBasics(db, link.event_id, answers, { template }) : type === EVENT_BASICS ? await applyEventBasics(db, link.event_id, answers) : { filled: [], differs: [] };
     const { error } = await db.from("questionnaire_links").update({ answers, completed_at: now, locked: true, current_question_key: null, applied, updated_at: now }).eq("id", link.id);
     if (error) throw error;
     await logActivity({ actorLabel: "Client (questionnaire link)", action: "questionnaire.completed", entityType: "event", entityId: link.event_id, eventId: link.event_id, metadata: { questionnaire: template.title, filled: applied.filled, differs: applied.differs.map((d) => d.field) } });

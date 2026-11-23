@@ -12,6 +12,7 @@ import { PIPELINE_STAGES } from "@/lib/pipeline-stage";
 import { EVENT_TYPES } from "@/lib/event-types";
 import { priceLabel } from "@/lib/data/catalog";
 import { DjOfferPanel } from "@/components/project/dj-offer-panel";
+import { PackageRecommendation } from "@/components/project/package-recommendation";
 import { ContactEditDrawer, type EditableContact } from "@/components/admin/contact-edit-drawer";
 import { BookingPanel } from "@/components/project/booking-panel";
 import { EquipmentPlanCard } from "@/components/project/equipment-plan-card";
@@ -1323,6 +1324,10 @@ function AdminEventDetailInner({ params }: { params: Promise<{ id: string }> }) 
                       <p className="text-xs uppercase tracking-[1.5px] text-muted">Client notes</p>
                       {event.special_requests ? <p className="whitespace-pre-wrap text-sm">{event.special_requests}</p> : <p className="text-sm text-muted">No notes from the client yet.</p>}
                     </GlassCard>
+                  </div>
+
+                  <div id="project-recommendation" className="scroll-mt-6">
+                    <PackageRecommendation eventId={id} linkControls="event" />
                   </div>
 
                   <div id="project-dj-offer" className="scroll-mt-6">

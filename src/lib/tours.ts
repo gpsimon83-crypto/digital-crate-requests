@@ -18,6 +18,33 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-23-questionnaire-recommended-pricing": [
+    {
+      path: "/admin/services?cat=bars-nightlife",
+      target: '[data-tour="services-packages"], main',
+      title: "Bars & Nightlife packages",
+      body: "Bar Night – House Sound at $500 with a $275 flat payout, and Bar Residency priced by quote. Edit them like any other package."
+    },
+    {
+      path: "/admin/events",
+      target: "table, main",
+      title: "Recommended package on each project",
+      body: "Open a project and go to Details. Recommended package shows the best fit from your Services catalog, the add-ons their answers call for and an estimated total, with the DJ payout estimate."
+    },
+    {
+      path: "/admin/events",
+      target: "table, main",
+      title: "Send Event Basics",
+      body: "For parties, school, corporate and bar events, Create link on that card copies an Event Basics link to text or email. Weddings keep using Wedding Basics. Use this package sets the package for the DJ offer."
+    },
+    {
+      path: "/dj-dashboard/bookings",
+      target: "main",
+      title: "DJs see it too",
+      body: "On their project page a DJ sees the same recommendation and can send the questionnaire link. They don't see payouts or the company share, and clients never see the recommendation.",
+      waitHint: "Switch to DJ View (or open the DJ portal) to continue."
+    }
+  ],
   "2026-11-23-services-catalog-dj-offers": [
     {
       path: "/admin/services",

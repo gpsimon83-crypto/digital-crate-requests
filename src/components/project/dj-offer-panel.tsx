@@ -59,6 +59,9 @@ export function DjOfferPanel({ eventId, djs }: { eventId: string; djs: { id: str
   );
   useEffect(() => {
     void load();
+    const onChange = () => void load();
+    window.addEventListener("project-package-changed", onChange);
+    return () => window.removeEventListener("project-package-changed", onChange);
   }, [load]);
 
   if (!data || (!data.ready && !err)) return null;

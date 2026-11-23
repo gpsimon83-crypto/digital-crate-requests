@@ -13,6 +13,7 @@ import { QuestionnaireSummary } from "@/components/project/questionnaire-summary
 import { PackageTemplatePicker } from "@/components/project/package-template-picker";
 import { PackageSelectionPanel } from "@/components/project/package-selection-panel";
 import { WeddingBasicsInsights } from "@/components/project/wedding-basics-insights";
+import { PackageRecommendation } from "@/components/project/package-recommendation";
 import type { MergeContext } from "@/lib/merge-fields";
 import { bookingMergeContext } from "@/lib/dj/booking-merge";
 
@@ -184,6 +185,8 @@ export default function DjProjectPage({ params }: { params: Promise<{ id: string
             <WeddingBasicsInsights eventId={id} />
           </GlassCard>
         )}
+
+        <PackageRecommendation eventId={id} />
 
         <QuestionnaireSummary eventId={id} />
 
