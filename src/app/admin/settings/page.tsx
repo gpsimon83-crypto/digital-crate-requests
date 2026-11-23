@@ -203,6 +203,7 @@ function GoogleCalendarCard() {
   const searchParams = useSearchParams();
   const justConnected = searchParams.get("calendar") === "connected";
   const connectError = searchParams.get("calendar") === "error";
+  const scopeError = searchParams.get("calendar") === "scope";
 
   const [connection, setConnection] = useState<CalendarConnection | null | undefined>(undefined);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -290,6 +291,11 @@ function GoogleCalendarCard() {
 
       {justConnected && <p className="text-xs text-status-approved">Connected — the next sync runs within 15 minutes.</p>}
       {connectError && <p className="text-xs text-status-declined">Something went wrong connecting to Google. Try again.</p>}
+      {scopeError && (
+        <p role="alert" className="text-xs text-status-declined">
+          Google didn&apos;t give the CRM calendar access. Connect again, and on Google&apos;s screen tick the box for calendar access (&ldquo;See, edit, share, and permanently delete all the calendars…&rdquo;) before pressing Continue.
+        </p>
+      )}
 
       {connection === undefined && <p className="text-xs text-muted">Loading…</p>}
 
@@ -312,7 +318,7 @@ function GoogleCalendarCard() {
               : "Not synced yet — first run within 15 minutes."}
           </p>
           {connection.lastSyncStatus === "error" && connection.lastSyncError && (
-            <p className="text-status-declined">{connection.lastSyncError}</p>
+            <p className="text-status-declined">{/insufficient authentication scopes|ACCESS_TOKEN_SCOPE_INSUFFICIENT/.test(connection.lastSyncError) ? "Last sync failed: Google didn't give the CRM calendar access. Reconnect and tick the calendar access box." : connection.lastSyncError}</p>
           )}
           <p>
             Bookings go to: <span className="text-foreground">{connection.googleCalendarId === "primary" ? `the main calendar of ${connection.connectedEmail ?? "this account"}` : connection.googleCalendarId}</span>.
@@ -325,7 +331,7 @@ function GoogleCalendarCard() {
               The calendar your DJs write their gigs on (like &ldquo;Young Wedding - Penny&rdquo;). Each DJ sees the entries with their name on their own Calendar page. It&apos;s only read, never changed, and doesn&apos;t block booking times.
             </span>
             {calError ? (
-              <span role="alert" className="text-status-declined">{/invalid_grant|signed the CRM out/.test(calError) ? "Google signed the CRM out of this calendar, so the list of calendars can't load. Press Reconnect Google Calendar below and sign in again." : calError}</span>
+              <span role="alert" className="text-status-declined">{/invalid_grant|signed the CRM out/.test(calError) ? "Google signed the CRM out of this calendar, so the list of calendars can't load. Press Reconnect Google Calendar below and sign in again." : /403|insufficient/i.test(calError) ? "Google didn't give the CRM calendar access. Press Reconnect Google Calendar below, and on Google's screen tick the calendar access box before pressing Continue." : calError}</span>
             ) : calendars === null ? (
               <span>Loading your calendars…</span>
             ) : (
@@ -364,7 +370,7 @@ function GoogleCalendarCard() {
               </span>
             )}
           </div>
-          {(/invalid_grant|signed the CRM out/.test(`${calError ?? ""} ${connection.lastSyncError ?? ""}`)) && (
+          {(/invalid_grant|signed the CRM out|403|insufficient/i.test(`${calError ?? ""} ${connection.lastSyncError ?? ""}`)) && (
             <a href="/api/admin/calendar/oauth/start" className="w-fit">
               <Button variant="primary" size="sm">Reconnect Google Calendar</Button>
             </a>

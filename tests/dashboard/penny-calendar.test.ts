@@ -19,3 +19,13 @@ describe("Penny's calendar entries", () => {
     expect(isAwayNote("Kick off party - Penny")).toBe(false);
   });
 });
+
+import { hasCalendarScope } from "@/lib/google-calendar";
+describe("hasCalendarScope", () => {
+  it("spots a sign-in where the calendar box was left unticked", () => {
+    expect(hasCalendarScope("https://www.googleapis.com/auth/userinfo.email openid")).toBe(false);
+    expect(hasCalendarScope("https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/userinfo.email")).toBe(false);
+    expect(hasCalendarScope("https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/calendar")).toBe(true);
+    expect(hasCalendarScope(undefined)).toBe(true);
+  });
+});

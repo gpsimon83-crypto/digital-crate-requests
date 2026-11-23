@@ -30,6 +30,14 @@ interface TokenResponse {
   refresh_token?: string;
   expires_in: number;
   token_type: string;
+  /** Space-separated scopes the person actually allowed (Google lets them untick some). */
+  scope?: string;
+}
+
+/** Did Google grant full calendar access? (False when the calendar box was left unticked.) */
+export function hasCalendarScope(scope: string | undefined): boolean {
+  if (scope === undefined) return true; // older responses omit it; the first sync will tell
+  return scope.split(/\s+/).includes("https://www.googleapis.com/auth/calendar");
 }
 
 export async function exchangeCodeForTokens(code: string): Promise<TokenResponse> {
