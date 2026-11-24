@@ -143,6 +143,7 @@ export default function TemplateEditPage() {
     <div className="fixed inset-0 z-[60] bg-background">
       <FlyerEditorClient
         mode="template"
+        templateId={id}
         title={t.name}
         scenes={t.draft.formats}
         format={first}

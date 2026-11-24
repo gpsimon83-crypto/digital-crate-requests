@@ -76,6 +76,7 @@ import { importSvg } from "./svg-import";
 import dynamic from "next/dynamic";
 
 // Animate is loaded only when opened (it brings the video encoder with it).
+import type { AnimateSource } from "./motion/animate-workspace";
 const AnimateWorkspace = dynamic(() => import("./motion/animate-workspace").then((m) => m.AnimateWorkspace), { ssr: false });
 
 export type Scenes = Partial<Record<FormatKey, Scene>>;
@@ -144,6 +145,8 @@ export type FlyerEditorProps = {
   onSaveReady?: (saveNow: () => Promise<boolean>) => void;
   /** Flyers (design mode): the event / venue / DJs its linked layers follow. */
   link?: LinkProps;
+  /** Template mode: the template's id, so Animate can save motion with each size of the draft. */
+  templateId?: string;
   /** Template mode: preview with a real event / venue and chosen DJs (display only, never saved). */
   preview?: { values: PlaceholderValues; slots: (string | null)[]; venueId: string | null } | null;
   /** Template mode: the controls that choose that preview (shown in the sizes bar). */
@@ -203,6 +206,12 @@ export function FlyerEditor(props: FlyerEditorProps) {
   const [fitZoom, setFitZoom] = useState(0.4);
   const [fontsKey, setFontsKey] = useState(0);
   const [animOpen, setAnimOpen] = useState(false);
+  // Animate works on a flyer, or on the size of a template being edited.
+  const animSource: AnimateSource | null = props.link
+    ? { kind: "design", id: props.link.designId }
+    : mode === "template" && props.templateId
+      ? { kind: "template", id: props.templateId, format: active }
+      : null;
   const [showGuides, setShowGuides] = useState(true);
   const [savedKey, setSavedKey] = useState(() =>
     JSON.stringify({ s: props.scenes, t: props.title }),
@@ -281,6 +290,13 @@ export function FlyerEditor(props: FlyerEditorProps) {
       fxScale: Math.min(1, Math.ceil(Math.max(0.35, zoom * (typeof window === "undefined" ? 1 : window.devicePixelRatio || 1)) * 4) / 4)
     };
   }, [mode, previewDjId, linkData, previewValues, props.previewDjs, props.preview, zoom]);
+  // Animate: templates always show the sample wording (or the chosen event's), never raw {{placeholders}},
+  // since that's what the preview video should look like.
+  const animCtx: SrcContext = useMemo(() => {
+    if (mode !== "template") return { ...ctx, maskView: null };
+    const real = Object.fromEntries(Object.entries(props.preview?.values ?? {}).filter(([, v]) => v != null && v !== ""));
+    return { ...ctx, maskView: null, values: { ...(props.sampleValues ?? {}), ...real } as PlaceholderValues };
+  }, [mode, ctx, props.sampleValues, props.preview]);
 
   /* ---- permissions ---- */
   const can = useCallback(
@@ -877,6 +893,30 @@ export function FlyerEditor(props: FlyerEditorProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scene, mode, previewValues, fxDraft, fxHold, fxIdsKey]);
 
+  // Animate on a template: the sample wording is shown, but layout changes made there are written back
+  // with the template's own {{placeholders}} (sample text never ends up in the template).
+  const animScene = useMemo(() => {
+    if (mode !== "template") return scene;
+    const vals = animCtx.values ?? {};
+    return { ...scene, nodes: scene.nodes.map((n) => (n.kind === "text" ? { ...n, text: linkedText(n.text, { values: vals, slots: [], venueId: null, hasEvent: false }) } : n)) };
+  }, [mode, scene, animCtx.values]);
+  const unfill = useCallback(
+    (next: FlyerNode[], cur: FlyerNode[]) => {
+      if (mode !== "template") return next;
+      const raw = new Map(cur.map((n) => [n.id, n]));
+      const shownToRaw = new Map<string, string>();
+      for (const n of animScene.nodes) if (n.kind === "text") shownToRaw.set(n.text, (raw.get(n.id) as typeof n | undefined)?.text ?? n.text);
+      return next.map((n) => {
+        if (n.kind !== "text") return n;
+        const was = raw.get(n.id);
+        if (was && was.kind === "text") return { ...n, text: was.text };
+        // A duplicate of a layer: give it back its placeholders.
+        return shownToRaw.has(n.text) ? { ...n, text: shownToRaw.get(n.text)! } : n;
+      });
+    },
+    [mode, animScene]
+  );
+
   /* ---- template sizes ---- */
   function addFormat(f: FormatKey, copyFrom: FormatKey | null) {
     setHist((h) => {
@@ -1407,7 +1447,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
           >
             <Save size={15} /> Save
           </button>
-          {mode === "design" && props.link && (
+          {animSource && (
             <button
               className={cn(iconBtn, "border-gold/60")}
               onClick={() => {
@@ -1415,7 +1455,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
                 setAnimOpen(true);
               }}
               data-tour="flyer-animate"
-              title="Add motion and export a looping video"
+              title={mode === "template" ? `Add motion to the ${FORMATS[active].label.toLowerCase()} size; new flyers from this template start with it` : "Add motion and export a looping video"}
             >
               <Clapperboard size={15} /> Animate
             </button>
@@ -1749,16 +1789,17 @@ export function FlyerEditor(props: FlyerEditorProps) {
           </div>
         </div>
       )}
-      {animOpen && props.link && (
+      {animOpen && animSource && (
         <AnimateWorkspace
-          designId={props.link.designId}
-          scene={scene}
-          ctx={{ ...ctx, maskView: null }}
+          key={animSource.kind === "template" ? animSource.format : animSource.id}
+          source={animSource}
+          scene={animScene}
+          ctx={animCtx}
           title={title}
           onClose={() => setAnimOpen(false)}
           canMove={canMove}
           canRemove={(n) => can(n, "remove")}
-          onNodes={(nodes) => setScene((s) => ({ ...s, nodes }), null)}
+          onNodes={(nodes) => setScene((s) => ({ ...s, nodes: unfill(nodes, s.nodes) }), null)}
         />
       )}
       {sendOpen && props.link && (

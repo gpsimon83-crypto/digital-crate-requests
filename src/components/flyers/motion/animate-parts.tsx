@@ -652,7 +652,9 @@ function FramePreview({ scene, ctx, target, f }: { scene: Scene; ctx: SrcContext
  * the encoder, finished files are kept for download). Without the jobs
  * migration it still exports, just without the tracking and storage.
  */
-export function ExportQueue({ designId, scene, ctx, anim, title, onClose, onFormats }: { designId: string; scene: Scene; ctx: SrcContext; anim: Animation; title: string; onClose: () => void; onFormats: (f: NonNullable<Animation["formats"]>) => void }) {
+const TEMPLATE_NOTE = "Template preview: videos download straight away and aren't kept. Flyers made from this template keep their exports.";
+
+export function ExportQueue({ designId, scene, ctx, anim, title, onClose, onFormats }: { designId: string | null; scene: Scene; ctx: SrcContext; anim: Animation; title: string; onClose: () => void; onFormats: (f: NonNullable<Animation["formats"]>) => void }) {
   const [pick, setPick] = useState<FormatKey[]>([scene.format]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [noJobs, setNoJobs] = useState<string | null>(null);
@@ -670,6 +672,11 @@ export function ExportQueue({ designId, scene, ctx, anim, title, onClose, onForm
   const fr = (k: FormatKey) => formats[k] ?? DEFAULT_FRAMING;
 
   const refresh = async () => {
+    // Templates: videos download straight away (no saved export history; that belongs to real flyers).
+    if (!designId) {
+      noJobsRef.current = TEMPLATE_NOTE;
+      return setNoJobs(TEMPLATE_NOTE);
+    }
     const r = await fetch(`/api/flyers/designs/${designId}/renders`);
     const j = await r.json().catch(() => ({}));
     if (r.status === 503 && j.setup) {

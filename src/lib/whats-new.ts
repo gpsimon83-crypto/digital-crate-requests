@@ -19,6 +19,23 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-24-animate-templates",
+    date: "2026-11-24",
+    area: "Members area",
+    title: "Animate flyer templates too",
+    summary: "The Animate button is now in the Flyer Template editor as well as the Flyer Creator. Motion you add to a template is saved for that size and published with it, so every new flyer made from the template starts already animated. Each flyer keeps its own copy, so DJs can still change it, and editing the template later never changes flyers already made.",
+    bullets: [
+      "Flyer Template (Admin → Flyers): the master layout with placeholders, in story / portrait / square, published and shared with DJs",
+      "Flyer Creator (Flyers): a real flyer made from a template for one night, with the details filled in",
+      "Animate on a template saves motion per size (switch size in the editor, then Animate again for that size)",
+      "Publish the template to send its motion out; new flyers start with it",
+      "Template previews show the sample wording (or the booking you chose to preview with), never raw {{placeholders}}; moving or duplicating layers in Animate keeps the template's placeholders",
+      "Videos exported from a template download straight away (export history is kept on real flyers)"
+    ],
+    link: { href: "/admin/flyers", label: "Open Flyer Templates" },
+    action: "Run supabase/migrations/0071_flyer_template_animation.sql in Supabase so templates can save and publish motion."
+  },
+  {
     id: "2026-11-23-flyer-animator",
     date: "2026-11-23",
     area: "Members area",

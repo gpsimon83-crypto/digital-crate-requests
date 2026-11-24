@@ -29,6 +29,9 @@ export async function POST(_req: NextRequest, { params }: Params) {
     const version = ((last?.version as number) ?? 0) + 1;
     const { data: v, error: vErr } = await db.from("flyer_template_versions").insert({ template_id: id, version, content: content.value, published_by: admin.user.id }).select("id, version, published_at").single();
     if (vErr) throw vErr;
+    // Animate: the draft's motion goes out with this version (after migration 0071).
+    const anim = await db.from("flyer_templates").select("animation").eq("id", id).maybeSingle();
+    if (!anim.error && anim.data?.animation) await db.from("flyer_template_versions").update({ animation: anim.data.animation }).eq("id", v.id);
     const { error: uErr } = await db.from("flyer_templates").update({ current_version_id: v.id, status: "published", updated_by: admin.user.id, updated_at: new Date().toISOString() }).eq("id", id);
     if (uErr) throw uErr;
     return NextResponse.json({ ok: true, version: v });

@@ -18,6 +18,34 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-24-animate-templates": [
+    {
+      path: "/admin/flyers",
+      target: '[data-tour="flyer-tpl-edit"]',
+      title: "Open a template",
+      body: "Templates are the master layouts DJs make flyers from. Click Next to open the first one, or click Edit on any template.",
+      follow: '[data-tour="flyer-tpl-edit"]'
+    },
+    {
+      path: "/admin/flyers/templates/*",
+      target: '[data-tour="flyer-animate"]',
+      title: "Animate this size",
+      body: "Animate opens the Flyer Animator for the size you're editing (story, portrait or square). Motion is saved with the template's draft.",
+      waitHint: "Open any template to continue."
+    },
+    {
+      path: "/admin/flyers/templates/*",
+      target: '[data-tour="animate-mode"]',
+      title: "Same tools as flyers",
+      body: "Styles, effects, keyframes and the timeline work just like on a flyer. You see sample wording here; your placeholders stay in the template."
+    },
+    {
+      path: "/admin/flyers/templates/*",
+      target: '[data-tour="animate-export"]',
+      title: "Publish to share the motion",
+      body: "Back in the template, Publish sends this motion out: every new flyer made from the template starts with it, and DJs can change their own copy."
+    }
+  ],
   "2026-11-23-flyer-animator": [
     {
       path: "/dj-dashboard/flyers",

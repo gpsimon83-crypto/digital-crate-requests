@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { parseAnimation } from "@/lib/flyers/motion/schema";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { flyerActor, flyerError, uuidOk } from "@/lib/flyers/server";
 import { djOnEvent, loadEvent, loadFlyerContext } from "@/lib/flyers/data";
@@ -91,6 +92,13 @@ export async function POST(req: NextRequest) {
       ({ data: made, error } = await db.from("flyer_designs").insert(row).select("id").single());
     }
     if (error) throw error;
+    // Animate: start with the template's motion for this size (its own copy from now on).
+    const va = await db.from("flyer_template_versions").select("animation").eq("id", v.id).maybeSingle();
+    const start = !va.error ? ((va.data?.animation as Record<string, unknown> | null) ?? null)?.[format] : null;
+    if (start) {
+      const p = parseAnimation(start);
+      if (p.ok && p.value) await db.from("flyer_designs").update({ animation: p.value, animation_updated_at: new Date().toISOString() }).eq("id", made!.id);
+    }
     return NextResponse.json({ id: made!.id });
   } catch (err) {
     return flyerError(err);

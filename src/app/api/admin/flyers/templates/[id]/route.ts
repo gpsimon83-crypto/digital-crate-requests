@@ -4,6 +4,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { flyerAdmin, flyerError, uuidOk } from "@/lib/flyers/server";
 import { publicAssets } from "@/lib/flyers/server";
 import { parseTemplateContent } from "@/lib/flyers/scene";
+import { FORMATS, type FormatKey } from "@/lib/flyers/types";
+import { parseAnimation } from "@/lib/flyers/motion/schema";
+
+const ANIM_SETUP = "Saving motion on templates needs migration 0071_flyer_template_animation.sql in Supabase. You can still preview and export.";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -17,6 +21,9 @@ export async function GET(_req: NextRequest, { params }: Params) {
     const { data, error } = await db.from("flyer_templates").select("id, slug, name, description, venue_id, status, current_version_id, draft, updated_at").eq("id", id).maybeSingle();
     if (error) throw error;
     if (!data) return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    // Motion by size (after migration 0071; null until then).
+    const anim = await db.from("flyer_templates").select("animation").eq("id", id).maybeSingle();
+    (data as Record<string, unknown>).animation = anim.error ? undefined : (anim.data?.animation ?? null);
     const { data: versions } = await db.from("flyer_template_versions").select("id, version, published_at").eq("template_id", id).order("version", { ascending: false });
     const { data: shared } = await db.from("flyer_assets").select("*").eq("scope", "template").order("created_at", { ascending: false }).limit(300);
     const { data: venues } = await db.from("venues").select("id, name, logo_url").order("name");
@@ -39,7 +46,30 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   if (admin instanceof NextResponse) return admin;
   const { id } = await params;
   if (!uuidOk(id)) return NextResponse.json({ error: "Template not found" }, { status: 404 });
-  const b = (await req.json().catch(() => ({}))) as { name?: unknown; description?: unknown; venueId?: unknown; draft?: unknown; status?: unknown; shareMode?: unknown; sharedDjIds?: unknown };
+  const b = (await req.json().catch(() => ({}))) as { name?: unknown; description?: unknown; venueId?: unknown; draft?: unknown; status?: unknown; shareMode?: unknown; sharedDjIds?: unknown; animation?: unknown };
+  // Animate: save the motion for one size of the draft ({ format, value }), nothing else.
+  if (b.animation !== undefined) {
+    const a = b.animation as { format?: unknown; value?: unknown };
+    if (typeof a.format !== "string" || !(a.format in FORMATS)) return NextResponse.json({ error: "Pick a size." }, { status: 400 });
+    const parsed = parseAnimation(a.value ?? null);
+    if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
+    try {
+      const db = createAdminClient();
+      const cur = await db.from("flyer_templates").select("animation").eq("id", id).maybeSingle();
+      if (cur.error) {
+        if (/animation/.test(cur.error.message ?? "")) return NextResponse.json({ error: ANIM_SETUP, setup: true }, { status: 503 });
+        throw cur.error;
+      }
+      const all = { ...((cur.data?.animation as Record<string, unknown> | null) ?? {}) };
+      if (parsed.value) all[a.format as FormatKey] = parsed.value;
+      else delete all[a.format as FormatKey];
+      const { error } = await db.from("flyer_templates").update({ animation: all, updated_by: admin.user.id }).eq("id", id);
+      if (error) throw error;
+      return NextResponse.json({ ok: true });
+    } catch (err) {
+      return flyerError(err);
+    }
+  }
   if (b.shareMode !== undefined && !SHARE_MODES.includes(b.shareMode as ShareMode)) return NextResponse.json({ error: "Pick All DJs, chosen DJs or Office only." }, { status: 400 });
   const sharedDjIds = Array.isArray(b.sharedDjIds) ? [...new Set(b.sharedDjIds.filter((x): x is string => typeof x === "string" && uuidOk(x)))].slice(0, 500) : undefined;
   if (b.shareMode === "selected" && sharedDjIds && sharedDjIds.length === 0) return NextResponse.json({ error: "Pick at least one DJ, or choose Office only." }, { status: 400 });

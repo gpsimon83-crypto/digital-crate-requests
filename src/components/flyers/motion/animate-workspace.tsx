@@ -5,7 +5,7 @@ import { AudioWaveform, Check, ChevronDown, Copy, Download, Eye, EyeOff, GripVer
 import { cn } from "@/lib/utils";
 import { FlyerStage, type NodePatch } from "../flyer-canvas";
 import { fontString, loadSceneFonts, type SrcContext } from "../loaders";
-import { ROLES, type FlyerNode, type Role, type Scene } from "@/lib/flyers/types";
+import { FORMATS, ROLES, type FlyerNode, type FormatKey, type Role, type Scene } from "@/lib/flyers/types";
 import { duplicateNodes, newText } from "@/lib/flyers/scene";
 import { MOTION_PRESETS, PLANNED, PRESET_BY_ID, isProtected, presetFits, roleOf, type Category } from "@/lib/flyers/motion/presets";
 import { evaluateFrame, frameCount, frameTime } from "@/lib/flyers/motion/engine";
@@ -58,8 +58,10 @@ function loadCustom(): { name: string; stack: MotionItem[] }[] {
 
 const tabFor = (n: FlyerNode): Tab => (n.kind === "text" ? "text" : n.role === "background" ? "backgrounds" : n.role === "overlay" ? "overlays" : "photos");
 
+export type AnimateSource = { kind: "design"; id: string } | { kind: "template"; id: string; format: FormatKey };
+
 export function AnimateWorkspace({
-  designId,
+  source,
   scene,
   ctx,
   title,
@@ -68,7 +70,8 @@ export function AnimateWorkspace({
   canMove,
   canRemove
 }: {
-  designId: string;
+  /** Where the motion is saved: a flyer, or one size of a template's draft. */
+  source: AnimateSource;
   scene: Scene;
   ctx: SrcContext;
   title: string;
@@ -114,24 +117,27 @@ export function AnimateWorkspace({
   // Load the saved settings once (or start empty).
   useEffect(() => {
     let live = true;
-    fetch(`/api/flyers/designs/${designId}`)
+    fetch(source.kind === "design" ? `/api/flyers/designs/${source.id}` : `/api/admin/flyers/templates/${source.id}`)
       .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
       .then(({ ok, j }) => {
         if (!live) return;
-        if (!ok) return setLoadErr(j.error ?? "Couldn't open this flyer.");
-        const p = parseAnimation(j.design?.animation ?? null);
+        if (!ok) return setLoadErr(j.error ?? (source.kind === "design" ? "Couldn't open this flyer." : "Couldn't open this template."));
+        const saved = source.kind === "design" ? (j.design?.animation ?? null) : ((j.template?.animation ?? null)?.[source.format] ?? null);
+        const p = parseAnimation(saved);
         const base = p.ok && p.value ? p.value : emptyAnimation();
         const nodesNow = sceneRef.current.nodes;
         // Motion on layers that were since deleted is dropped.
         setAnim({ ...base, layers: Object.fromEntries(Object.entries(base.layers).filter(([id]) => nodesNow.some((n) => n.id === id))) });
-        if (!("animation" in (j.design ?? {}))) setSave({ state: "error", msg: "Saving needs migration 0069_flyer_animation.sql in Supabase. You can still preview and export." });
+        if (source.kind === "design" && !("animation" in (j.design ?? {}))) setSave({ state: "error", msg: "Saving needs migration 0069_flyer_animation.sql in Supabase. You can still preview and export." });
+        if (source.kind === "template" && j.template?.animation === undefined) setSave({ state: "error", msg: "Saving motion on templates needs migration 0071_flyer_template_animation.sql in Supabase. You can still preview and export." });
       })
       .catch(() => live && setLoadErr("Couldn't open this flyer."));
     loadSceneFonts([sceneRef.current]).then(() => live && setFontsKey((k) => k + 1));
     return () => {
       live = false;
     };
-  }, [designId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source.kind, source.id, source.kind === "template" ? source.format : ""]);
 
   const shown = preview ?? trial ?? anim;
   const N = shown ? frameCount(shown) : 240;
@@ -212,7 +218,10 @@ export function AnimateWorkspace({
     async (a: Animation) => {
       setSave({ state: "saving" });
       try {
-        const r = await fetch(`/api/flyers/designs/${designId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ animation: a }) });
+        const r =
+          source.kind === "design"
+            ? await fetch(`/api/flyers/designs/${source.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ animation: a }) })
+            : await fetch(`/api/admin/flyers/templates/${source.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ animation: { format: source.format, value: a } }) });
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(j.error ?? "Couldn't save");
         dirty.current = false;
@@ -221,7 +230,8 @@ export function AnimateWorkspace({
         setSave({ state: "error", msg: e instanceof Error ? e.message : "Couldn't save" });
       }
     },
-    [designId]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [source.kind, source.id, source.kind === "template" ? source.format : ""]
   );
   useEffect(() => {
     if (!anim || !dirty.current) return;
@@ -420,10 +430,15 @@ export function AnimateWorkspace({
         <span className={cn("hidden h-7 border-l md:block", T.line)} />
         <nav className="flex min-w-0 items-center gap-2 text-[17px]" aria-label="Breadcrumb">
           <button onClick={onClose} className="hover:underline" title={`Back to the design: ${title}`}>
-            Flyer Creator
+            {source.kind === "template" ? "Flyer Template" : "Flyer Creator"}
           </button>
           <span className={T.muted}>/</span>
           <span className="font-semibold text-[#c6f432]">Animate</span>
+          {source.kind === "template" && (
+            <span className="rounded-full border border-[#2e2f29] px-2 py-0.5 text-[11px] text-[#c9cbc0]" title="Motion is saved for this size. New flyers made from this template start with it after you publish.">
+              {FORMATS[source.format].label} size
+            </span>
+          )}
           <span className={cn("hidden max-w-56 truncate text-xs 2xl:inline", T.muted)}>{title}</span>
         </nav>
         <div className="flex rounded-full border border-[#2e2f29] p-0.5 text-xs" role="tablist" aria-label="Animate mode" data-tour="animate-mode">
@@ -842,7 +857,7 @@ export function AnimateWorkspace({
       </div>
 
       {loopOpen && <LoopCheck scene={scene} ctx={ctx} anim={anim} reduced={reduced} onClose={() => setLoopOpen(false)} onPlay={() => (setFrame(0), setPlaying(true))} />}
-      {exportOpen && <ExportQueue designId={designId} scene={scene} ctx={ctx} anim={anim} title={title} onClose={() => setExportOpen(false)} onFormats={(f) => change((a) => ({ ...a, formats: f }), "Change video sizes", "formats")} />}
+      {exportOpen && <ExportQueue designId={source.kind === "design" ? source.id : null} scene={scene} ctx={ctx} anim={anim} title={title} onClose={() => setExportOpen(false)} onFormats={(f) => change((a) => ({ ...a, formats: f }), "Change video sizes", "formats")} />}
       <style>{CSS}</style>
     </Shell>
   );
