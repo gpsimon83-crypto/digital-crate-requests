@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Layer, Stage } from "react-konva";
-import { ArrowDown, ArrowLeft, ArrowUp, ClipboardCopy, ClipboardPaste, Download, Eye, EyeOff, Headphones, Lock, Pause, Play, Plus, Redo2, RefreshCw, Repeat, Save, Trash2, Undo2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, BringToFront, ChevronDown, ChevronUp, ClipboardCopy, Move, Pencil, SendToBack, ClipboardPaste, Download, Eye, EyeOff, Headphones, Lock, Pause, Play, Plus, Redo2, RefreshCw, Repeat, Save, Trash2, Undo2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SceneNodes, ScenePreview } from "../flyer-canvas";
-import { loadSceneFonts, type SrcContext } from "../loaders";
+import { FlyerStage, ScenePreview, type NodePatch } from "../flyer-canvas";
+import { fontString, loadSceneFonts, type SrcContext } from "../loaders";
 import { FORMATS, ROLES, type FlyerNode, type Role, type Scene } from "@/lib/flyers/types";
 import { MOTION_PRESETS, PLANNED, PRESET_BY_ID, isProtected, presetFits, roleOf, type Category, type ParamKey } from "@/lib/flyers/motion/presets";
 import { checkLoop, evaluateFrame, frameCount, frameTime, type LoopReport } from "@/lib/flyers/motion/engine";
@@ -18,8 +17,10 @@ import { VideoRenderer, type ExportProgress } from "./video-export";
  * Animate mode: the same flyer, its own layers, with motion added on top.
  * Simple mode is the default (pick a style, set the intensity, check the
  * loop, export); Advanced adds the layer list, the motion library, each
- * layer's stack and the timeline. Settings are saved on the flyer, next to
- * the layout, which is never changed here.
+ * layer's stack and the timeline. Motion is saved on the flyer next to the
+ * layout. Layers can also be moved, resized, renamed and re-stacked here:
+ * those changes go to the flyer's layout (the same as in Design), and one
+ * undo history covers both.
  */
 
 const CATS: { key: Category; label: string }[] = [
@@ -36,7 +37,9 @@ const INTENSITIES: { key: Intensity; label: string }[] = [
 const PARAM_LABEL: Record<ParamKey, string> = { strength: "Strength", cycles: "Cycles per loop", phase: "Start offset", easing: "Easing", direction: "Direction", color: "Color", blend: "Blend", seed: "Seed", timing: "In / out" };
 const CUSTOM_KEY = "dcdj-motion-presets-v1";
 
-type Hist = { past: Animation[]; future: Animation[] };
+/** One undo step: the motion and the layers as they were, and what the step did. */
+type Snap = { anim: Animation; nodes: FlyerNode[]; label: string };
+type Hist = { past: Snap[]; future: Snap[]; lastKey: string | null; lastAt: number };
 const fmt = (t: number) => `${Math.floor(t / 60)}:${(t % 60).toFixed(1).padStart(4, "0")}`;
 
 function loadCustom(): { name: string; stack: MotionItem[] }[] {
@@ -48,9 +51,26 @@ function loadCustom(): { name: string; stack: MotionItem[] }[] {
   }
 }
 
-export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { designId: string; scene: Scene; ctx: SrcContext; title: string; onClose: () => void }) {
+export function AnimateWorkspace({
+  designId,
+  scene,
+  ctx,
+  title,
+  onClose,
+  onNodes,
+  canMove
+}: {
+  designId: string;
+  scene: Scene;
+  ctx: SrcContext;
+  title: string;
+  onClose: () => void;
+  /** Writes layer changes (move, resize, rename, order) to the flyer's layout; the editor saves them. */
+  onNodes: (nodes: FlyerNode[]) => void;
+  canMove: (n: FlyerNode) => boolean;
+}) {
   const [anim, setAnim] = useState<Animation | null>(null);
-  const [hist, setHist] = useState<Hist>({ past: [], future: [] });
+  const [hist, setHist] = useState<Hist>({ past: [], future: [], lastKey: null, lastAt: 0 });
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [mode, setMode] = useState<"simple" | "advanced">("simple");
   const [frame, setFrame] = useState(0);
@@ -59,6 +79,9 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
   const [selected, setSelected] = useState<string | null>(null);
   const [cat, setCat] = useState<Category>("text");
   const [preview, setPreview] = useState<Animation | null>(null);
+  /** Hovering an effect in the library plays it on the selected layer (nothing is added). */
+  const [trial, setTrial] = useState<Animation | null>(null);
+  const trialStartedPlay = useRef(false);
   const [confirmRecipe, setConfirmRecipe] = useState<string | null>(null);
   const [clip, setClip] = useState<MotionItem[] | null>(null);
   const [custom, setCustom] = useState<{ name: string; stack: MotionItem[] }[]>(loadCustom);
@@ -67,6 +90,12 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
   const [exportOpen, setExportOpen] = useState(false);
   const [fontsKey, setFontsKey] = useState(0);
   const dirty = useRef(false);
+  const animRef = useRef<Animation | null>(null);
+  const sceneRef = useRef(scene);
+  useEffect(() => {
+    animRef.current = anim;
+    sceneRef.current = scene;
+  });
 
   // Load the saved settings (or start empty); reduced motion follows the device setting.
   useEffect(() => {
@@ -79,17 +108,18 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
         const p = parseAnimation(j.design?.animation ?? null);
         const base = p.ok && p.value ? p.value : emptyAnimation();
         // Motion on layers that were since deleted is kept out of the way (and dropped on the next save).
-        setAnim({ ...base, layers: Object.fromEntries(Object.entries(base.layers).filter(([id]) => scene.nodes.some((n) => n.id === id))) });
+        const nodesNow = sceneRef.current.nodes;
+        setAnim({ ...base, layers: Object.fromEntries(Object.entries(base.layers).filter(([id]) => nodesNow.some((n) => n.id === id))) });
         if (!("animation" in (j.design ?? {}))) setSave({ state: "error", msg: "Saving needs migration 0069_flyer_animation.sql in Supabase. You can still preview and export." });
       })
       .catch(() => live && setLoadErr("Couldn't open this flyer."));
-    loadSceneFonts([scene]).then(() => live && setFontsKey((k) => k + 1));
+    loadSceneFonts([sceneRef.current]).then(() => live && setFontsKey((k) => k + 1));
     return () => {
       live = false;
     };
-  }, [designId, scene]);
+  }, [designId]);
 
-  const shown = preview ?? anim;
+  const shown = preview ?? trial ?? anim;
   const N = shown ? frameCount(shown) : 240;
   const t = shown ? frameTime(shown, frame % N) : 0;
   const motion = useMemo(() => (shown ? evaluateFrame(scene, shown, t, { reduced }) : null), [scene, shown, t, reduced]);
@@ -108,33 +138,68 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, shown?.fps]);
 
-  /** Every change goes through here: undoable, then saved shortly after. */
-  const change = useCallback((fn: (a: Animation) => Animation) => {
-    setAnim((cur) => {
-      if (!cur) return cur;
-      const next = fn(cur);
-      if (next === cur) return cur;
-      setHist((h) => ({ past: [...h.past.slice(-60), cur], future: [] }));
-      dirty.current = true;
-      return next;
+  /** Records one undo step (quick repeats with the same key, like dragging a slider, merge into one). */
+  const record = useCallback((label: string, key: string | null) => {
+    const cur = animRef.current;
+    if (!cur) return;
+    const now = Date.now();
+    setHist((h) => {
+      if (key && key === h.lastKey && now - h.lastAt < 900 && h.past.length) return { ...h, lastAt: now };
+      return { past: [...h.past.slice(-80), { anim: cur, nodes: sceneRef.current.nodes, label }], future: [], lastKey: key, lastAt: now };
     });
   }, []);
-  const undo = () =>
-    setHist((h) => {
-      if (!h.past.length || !anim) return h;
-      const prev = h.past[h.past.length - 1];
-      setAnim(prev);
+
+  /** Every motion change goes through here: undoable, then saved shortly after. */
+  const change = useCallback(
+    (fn: (a: Animation) => Animation, label = "Change motion", key: string | null = null) => {
+      const cur = animRef.current;
+      if (!cur) return;
+      const next = fn(cur);
+      if (next === cur) return;
+      record(label, key);
+      animRef.current = next;
       dirty.current = true;
-      return { past: h.past.slice(0, -1), future: [anim, ...h.future] };
-    });
-  const redo = () =>
-    setHist((h) => {
-      if (!h.future.length || !anim) return h;
-      const next = h.future[0];
       setAnim(next);
-      dirty.current = true;
-      return { past: [...h.past, anim], future: h.future.slice(1) };
-    });
+    },
+    [record]
+  );
+
+  /** Layer changes (move, resize, rename, order): into the flyer's layout, undoable from here too. */
+  const changeNodes = useCallback(
+    (fn: (nodes: FlyerNode[]) => FlyerNode[], label: string, key: string | null = null) => {
+      const cur = sceneRef.current.nodes;
+      const next = fn(cur);
+      if (next === cur) return;
+      record(label, key);
+      sceneRef.current = { ...sceneRef.current, nodes: next };
+      onNodes(next);
+    },
+    [record, onNodes]
+  );
+
+  const restore = (snap: Snap) => {
+    animRef.current = snap.anim;
+    setAnim(snap.anim);
+    dirty.current = true;
+    if (snap.nodes !== sceneRef.current.nodes) {
+      sceneRef.current = { ...sceneRef.current, nodes: snap.nodes };
+      onNodes(snap.nodes);
+    }
+  };
+  const undo = () => {
+    const h = hist;
+    if (!h.past.length || !anim) return;
+    const prev = h.past[h.past.length - 1];
+    setHist({ past: h.past.slice(0, -1), future: [{ anim, nodes: scene.nodes, label: prev.label }, ...h.future], lastKey: null, lastAt: 0 });
+    restore(prev);
+  };
+  const redo = () => {
+    const h = hist;
+    if (!h.future.length || !anim) return;
+    const next = h.future[0];
+    setHist({ past: [...h.past, { anim, nodes: scene.nodes, label: next.label }], future: h.future.slice(1), lastKey: null, lastAt: 0 });
+    restore(next);
+  };
 
   const saveNow = useCallback(async (a: Animation) => {
     setSave({ state: "saving" });
@@ -164,16 +229,73 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
       } else if (e.key === " ") {
         e.preventDefault();
         setPlaying((p) => !p);
+      } else if (selected && e.key.startsWith("Arrow")) {
+        // Nudge the selected layer: 1 px, or 10 px with Shift.
+        const n = scene.nodes.find((x) => x.id === selected);
+        if (!n || n.locked || !canMove(n)) return;
+        e.preventDefault();
+        const d = e.shiftKey ? 10 : 1;
+        const dx = e.key === "ArrowLeft" ? -d : e.key === "ArrowRight" ? d : 0;
+        const dy = e.key === "ArrowUp" ? -d : e.key === "ArrowDown" ? d : 0;
+        changeNodes((ns) => ns.map((x) => (x.id === n.id ? ({ ...x, x: x.x + dx, y: x.y + dy } as FlyerNode) : x)), `Move ${n.name}`, `nudge:${n.id}`);
+      } else if (e.key === "Escape") {
+        setSelected(null);
       }
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   });
 
-  const nodes = useMemo(() => [...scene.nodes].filter((n) => n.visible).reverse(), [scene.nodes]);
+  const nodes = [...scene.nodes].filter((n) => n.visible).reverse();
   const sel = scene.nodes.find((n) => n.id === selected) ?? null;
   const layerOf = (id: string): LayerMotion => anim?.layers[id] ?? { stack: [] };
-  const setLayer = (id: string, fn: (l: LayerMotion) => LayerMotion) => change((a) => ({ ...a, recipe: a.recipe, layers: { ...a.layers, [id]: fn(a.layers[id] ?? { stack: [] }) } }));
+  const setLayer = (id: string, fn: (l: LayerMotion) => LayerMotion, label = "Change motion", key: string | null = null) =>
+    change((a) => ({ ...a, recipe: a.recipe, layers: { ...a.layers, [id]: fn(a.layers[id] ?? { stack: [] }) } }), label, key);
+
+  /** Moves the layer in the stacking order (scene order is back to front). */
+  const restack = (id: string, to: "front" | "forward" | "backward" | "back") =>
+    changeNodes(
+      (ns) => {
+        const i = ns.findIndex((n) => n.id === id);
+        if (i < 0) return ns;
+        const j = to === "front" ? ns.length - 1 : to === "back" ? 0 : to === "forward" ? Math.min(ns.length - 1, i + 1) : Math.max(0, i - 1);
+        if (i === j) return ns;
+        const out = [...ns];
+        const [n] = out.splice(i, 1);
+        out.splice(j, 0, n);
+        return out;
+      },
+      to === "front" || to === "forward" ? "Bring layer forward" : "Send layer back"
+    );
+  const rename = (id: string, name: string) => {
+    const clean = name.trim().slice(0, 60);
+    if (!clean) return;
+    changeNodes((ns) => ns.map((n) => (n.id === id && n.name !== clean ? ({ ...n, name: clean } as FlyerNode) : n)), "Rename layer", `name:${id}`);
+  };
+  const applyPatches = (patches: NodePatch[], key: string) => {
+    const names = patches.map((p) => scene.nodes.find((n) => n.id === p.id)?.name).filter(Boolean);
+    changeNodes((ns) => ns.map((n) => {
+      const p = patches.find((x) => x.id === n.id);
+      return p ? ({ ...n, ...p.patch } as FlyerNode) : n;
+    }), `Move ${names.join(", ") || "layer"}`, key);
+  };
+
+  /** Plays an effect on the selected layer while the pointer is on it in the library. */
+  const tryPreset = (presetId: string | null) => {
+    if (!presetId || !anim || !selected) {
+      setTrial(null);
+      if (trialStartedPlay.current) setPlaying(false);
+      trialStartedPlay.current = false;
+      return;
+    }
+    const l = anim.layers[selected] ?? { stack: [] };
+    // Shown on its own (solo) so you see exactly what this effect does.
+    setTrial({ ...anim, layers: { ...anim.layers, [selected]: { ...l, muted: false, solo: true, stack: [...l.stack.slice(0, MAX_STACK - 1), newItem(presetId)] } } });
+    if (!playing) {
+      trialStartedPlay.current = true;
+      setPlaying(true);
+    }
+  };
 
   // Fit the preview to the space.
   // A callback ref: the preview box only exists once the settings have loaded.
@@ -207,8 +329,17 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
     if (clash.length && confirmRecipe !== id) return setConfirmRecipe(id);
     setConfirmRecipe(null);
     setPreview(null);
-    change((a) => applyRecipe(r, scene.nodes, a));
+    change((a) => applyRecipe(r, scene.nodes, a), `Apply ${r.name}`);
   }
+  function removeRecipe(id: string) {
+    const r = RECIPES.find((x) => x.id === id)!;
+    const ids = Object.keys(planRecipe(r, scene.nodes, anim!));
+    change((a) => ({ ...a, recipe: null, layers: Object.fromEntries(Object.entries(a.layers).map(([k, l]) => [k, ids.includes(k) ? { ...l, stack: [] } : l])) }), `Remove ${r.name}`);
+  }
+  const clearAll = () => change((a) => ({ ...a, recipe: null, layers: Object.fromEntries(Object.entries(a.layers).map(([k, l]) => [k, { ...l, stack: [] }])) }), "Remove all motion");
+  const removeItem = (layerId: string, itemId: string) => setLayer(layerId, (l) => ({ ...l, stack: l.stack.filter((x) => x.id !== itemId) }), "Remove effect");
+  const undoLabel = hist.past.length ? hist.past[hist.past.length - 1].label : null;
+  const redoLabel = hist.future.length ? hist.future[0].label : null;
 
   const timeline = (
     <div className="border-t border-black/10 bg-[var(--card)] px-3 py-2" data-tour="animate-timeline">
@@ -226,10 +357,10 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
                 <button className={cn("w-40 truncate text-left", selected === n.id && "font-semibold text-gold-dim")} onClick={() => setSelected(n.id)}>
                   {n.name}
                 </button>
-                <button aria-label={`${l.muted ? "Unmute" : "Mute"} ${n.name}`} onClick={() => setLayer(n.id, (x) => ({ ...x, muted: !x.muted }))} className={cn("rounded px-1", l.muted ? "text-status-declined" : "text-muted")}>
+                <button aria-label={`${l.muted ? "Unmute" : "Mute"} ${n.name}`} onClick={() => setLayer(n.id, (x) => ({ ...x, muted: !x.muted }), l.muted ? "Unmute layer" : "Mute layer")} className={cn("rounded px-1", l.muted ? "text-status-declined" : "text-muted")}>
                   {l.muted ? <EyeOff size={13} /> : <Eye size={13} />}
                 </button>
-                <button aria-label={`Solo ${n.name}`} aria-pressed={!!l.solo} onClick={() => setLayer(n.id, (x) => ({ ...x, solo: !x.solo }))} className={cn("rounded px-1", l.solo ? "text-gold-dim" : "text-muted")}>
+                <button aria-label={`Solo ${n.name}`} aria-pressed={!!l.solo} onClick={() => setLayer(n.id, (x) => ({ ...x, solo: !x.solo }), "Solo layer")} className={cn("rounded px-1", l.solo ? "text-gold-dim" : "text-muted")}>
                   <Headphones size={13} />
                 </button>
                 <div className="relative h-5 flex-1 rounded bg-black/5">
@@ -261,7 +392,7 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
           </div>
           <label className="flex items-center gap-1.5 text-xs">
             Length
-            <select value={anim.duration} onChange={(e) => change((a) => ({ ...a, duration: Number(e.target.value) }))} className="rounded-[8px] border border-black/12 bg-transparent px-2 py-1">
+            <select value={anim.duration} onChange={(e) => change((a) => ({ ...a, duration: Number(e.target.value) }), "Change length")} className="rounded-[8px] border border-black/12 bg-transparent px-2 py-1">
               {DURATIONS.map((d) => (
                 <option key={d} value={d}>
                   {d} s
@@ -269,10 +400,10 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
               ))}
             </select>
           </label>
-          <button className={iconBtn} onClick={undo} disabled={!hist.past.length} aria-label="Undo">
-            <Undo2 size={15} />
+          <button className={iconBtn} onClick={undo} disabled={!undoLabel} aria-label={undoLabel ? `Undo: ${undoLabel}` : "Undo"} title={undoLabel ? `Undo: ${undoLabel} (Ctrl/⌘ Z)` : "Nothing to undo"} data-tour="animate-undo">
+            <Undo2 size={15} /> <span className="hidden max-w-40 truncate xl:inline">{undoLabel ? `Undo: ${undoLabel}` : "Undo"}</span>
           </button>
-          <button className={iconBtn} onClick={redo} disabled={!hist.future.length} aria-label="Redo">
+          <button className={iconBtn} onClick={redo} disabled={!redoLabel} aria-label={redoLabel ? `Redo: ${redoLabel}` : "Redo"} title={redoLabel ? `Redo: ${redoLabel} (Ctrl/⌘ Shift Z)` : "Nothing to redo"}>
             <Redo2 size={15} />
           </button>
           <span className={cn("text-[11px]", save.state === "error" ? "text-status-declined" : "text-muted")} title={save.msg}>
@@ -294,20 +425,30 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
         {mode === "advanced" && (
           <aside className="min-h-0 overflow-y-auto border-r border-black/10 bg-[var(--card)] p-3" aria-label="Layers" data-tour="animate-layers">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Layers</p>
+            <p className="mb-2 text-[11px] text-muted">Top is the front. Double-click a name to rename it. Drag layers on the flyer to move them.</p>
             <ul className="flex flex-col gap-1">
-              {nodes.map((n) => {
+              {nodes.map((n, i) => {
                 const l = layerOf(n.id);
                 const role = roleOf(n, l.role);
                 return (
-                  <li key={n.id}>
-                    <button onClick={() => setSelected(n.id)} className={cn("w-full rounded-[10px] border px-2.5 py-2 text-left", selected === n.id ? "border-gold bg-gold/10" : "border-transparent hover:border-black/10")}>
-                      <span className="flex items-center gap-1.5 text-sm font-medium">
-                        <span className="min-w-0 flex-1 truncate">{n.name}</span>
-                        {anim.readableLock && isProtected(n, role) && <Lock size={12} className="text-muted" aria-label="Kept readable" />}
-                        {l.stack.length > 0 && <span className="rounded-full bg-gold/20 px-1.5 text-[10px] font-semibold text-gold-dim">{l.stack.length}</span>}
-                      </span>
-                      <span className="text-[11px] text-muted">{ROLES[role]}{n.kind === "text" ? " · live text" : n.kind === "image" ? " · picture" : " · shape"}</span>
-                    </button>
+                  <li key={n.id} className={cn("group flex items-start gap-1 rounded-[10px] border px-2 py-1.5", selected === n.id ? "border-gold bg-gold/10" : "border-transparent hover:border-black/10")}>
+                    <div className="min-w-0 flex-1">
+                      <LayerName node={n} selected={selected === n.id} onSelect={() => setSelected(n.id)} onRename={(v) => rename(n.id, v)} />
+                      <button onClick={() => setSelected(n.id)} className="block w-full text-left text-[11px] text-muted" tabIndex={-1}>
+                        {ROLES[role]}
+                        {n.kind === "text" ? " · live text" : n.kind === "image" ? " · picture" : " · shape"}
+                        {l.stack.length > 0 && <span className="ml-1 rounded-full bg-gold/20 px-1.5 text-[10px] font-semibold text-gold-dim">{l.stack.length} motion</span>}
+                        {anim.readableLock && isProtected(n, role) && <Lock size={11} className="ml-1 inline text-muted" aria-label="Kept readable" />}
+                      </button>
+                    </div>
+                    <div className="flex flex-col opacity-60 group-hover:opacity-100">
+                      <button className="p-0.5 disabled:opacity-20" disabled={i === 0 || !canMove(n)} onClick={() => restack(n.id, "forward")} aria-label={`Bring ${n.name} forward`} title="Bring forward">
+                        <ChevronUp size={13} />
+                      </button>
+                      <button className="p-0.5 disabled:opacity-20" disabled={i === nodes.length - 1 || !canMove(n)} onClick={() => restack(n.id, "backward")} aria-label={`Send ${n.name} back`} title="Send back">
+                        <ChevronDown size={13} />
+                      </button>
+                    </div>
                   </li>
                 );
               })}
@@ -318,13 +459,37 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
         <section className="flex min-w-0 flex-col bg-[#ece7dd] lg:min-h-0">
           <div ref={wrap} className="flex h-[58vh] shrink-0 items-center justify-center overflow-hidden p-3 lg:h-auto lg:min-h-0 lg:flex-1 lg:shrink">
             <div className="shadow-xl" data-tour="animate-preview">
-              <Stage width={Math.round(scene.width * zoom)} height={Math.round(scene.height * zoom)} scaleX={zoom} scaleY={zoom} listening={false}>
-                <Layer listening={false}>
-                  <SceneNodes scene={scene} ctx={pctx} exporting={false} act={null} fontsKey={fontsKey} motion={motion} />
-                </Layer>
-              </Stage>
+              <div
+                onPointerDownCapture={() => {
+                  // Grabbing a layer pauses playback, so it holds still while you move it.
+                  if (playing) setPlaying(false);
+                }}
+              >
+                <FlyerStage
+                  scene={scene}
+                  zoom={zoom}
+                  selected={selected && !playing ? [selected] : []}
+                  ctx={pctx}
+                  fontsKey={fontsKey}
+                  showGuides
+                  canMove={canMove}
+                  onSelect={(id) => setSelected(id)}
+                  onClear={() => setSelected(null)}
+                  onChange={applyPatches}
+                  onEditText={(id) => {
+                    setSelected(id);
+                    setMode("advanced");
+                  }}
+                  coarse={typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse)").matches}
+                  motion={motion}
+                />
+              </div>
             </div>
           </div>
+          <p className="px-3 pb-1 text-center text-[11px] text-muted">
+            <Move size={11} className="mr-1 inline" />
+            Click a layer to select it, drag to move, use the handles to resize or turn. Arrow keys nudge (Shift for 10 px). Changes also apply to the flyer design.
+          </p>
           <div className="flex flex-wrap items-center gap-2 border-t border-black/10 bg-[var(--card)] px-3 py-2">
             <button className={cn(iconBtn, "border-gold bg-gold text-black")} onClick={() => setPlaying((p) => !p)} aria-label={playing ? "Pause" : "Play"}>
               {playing ? <Pause size={15} /> : <Play size={15} />}
@@ -334,6 +499,7 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
             <label className="flex items-center gap-1 text-xs text-muted">
               <input type="checkbox" checked={reduced} onChange={(e) => setReduced(e.target.checked)} /> Reduced motion preview
             </label>
+            {trial && <span className="rounded-full bg-gold/15 px-3 py-1 text-xs">Trying an effect on {sel?.name}</span>}
             {preview && (
               <span className="flex items-center gap-2 rounded-full bg-gold/15 px-3 py-1 text-xs">
                 Previewing a style
@@ -349,6 +515,7 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
         <aside className="min-h-0 overflow-y-auto border-l border-black/10 bg-[var(--card)] p-4" aria-label={mode === "simple" ? "Motion style" : "Motion library"}>
           {mode === "simple" ? (
             <div className="flex flex-col gap-5">
+              {sel && <LayerCard node={sel} anim={anim} canMove={canMove(sel)} onRename={(v) => rename(sel.id, v)} onRestack={(to) => restack(sel.id, to)} onRemove={(id) => removeItem(sel.id, id)} onEdit={() => setMode("advanced")} onClose={() => setSelected(null)} />}
               <section>
                 <h2 className="text-sm font-semibold">1 · Event details</h2>
                 <dl className="mt-1.5 grid grid-cols-[4.5rem_1fr] gap-x-2 gap-y-0.5 text-xs">
@@ -389,26 +556,41 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
                             Preview
                           </button>
                           <button className="rounded-[8px] border border-gold px-2.5 py-1 text-xs font-semibold hover:bg-gold/10" disabled={!names.length} onClick={() => recipeClick(r.id)}>
-                            {confirmRecipe === r.id ? "Replace and apply" : "Apply"}
+                            {confirmRecipe === r.id ? "Replace and apply" : on ? "Apply again" : "Apply"}
                           </button>
+                          {on && (
+                            <button className="rounded-[8px] border border-black/12 px-2.5 py-1 text-xs text-status-declined hover:border-status-declined" onClick={() => removeRecipe(r.id)}>
+                              Remove
+                            </button>
+                          )}
                         </div>
                       </li>
                     );
                   })}
                 </ul>
+                <MotionSummary
+                  nodes={nodes}
+                  anim={anim}
+                  onPick={(id) => {
+                    setSelected(id);
+                    setMode("advanced");
+                  }}
+                  onRemove={removeItem}
+                  onClearAll={clearAll}
+                />
               </section>
               <section data-tour="animate-intensity">
                 <h2 className="text-sm font-semibold">3 · Intensity</h2>
                 <div className="mt-2 grid grid-cols-3 gap-1 rounded-[10px] border border-black/12 p-1" role="radiogroup" aria-label="Overall intensity">
                   {INTENSITIES.map((i) => (
-                    <button key={i.key} role="radio" aria-checked={anim.intensity === i.key} onClick={() => change((a) => ({ ...a, intensity: i.key }))} className={cn("rounded-[8px] py-1.5 text-xs", anim.intensity === i.key ? "bg-gold font-semibold text-black" : "text-muted")}>
+                    <button key={i.key} role="radio" aria-checked={anim.intensity === i.key} onClick={() => change((a) => ({ ...a, intensity: i.key }), `Intensity: ${i.label}`)} className={cn("rounded-[8px] py-1.5 text-xs", anim.intensity === i.key ? "bg-gold font-semibold text-black" : "text-muted")}>
                       {i.label}
                     </button>
                   ))}
                 </div>
                 <p className="mt-1 text-[11px] text-muted">Scales every effect within its safe limits. Each layer&apos;s own strength stays as you set it; this multiplies it.</p>
                 <label className="mt-3 flex items-start gap-2 text-sm">
-                  <input type="checkbox" className="mt-1" checked={anim.readableLock} onChange={(e) => change((a) => ({ ...a, readableLock: e.target.checked }))} />
+                  <input type="checkbox" className="mt-1" checked={anim.readableLock} onChange={(e) => change((a) => ({ ...a, readableLock: e.target.checked }), e.target.checked ? "Keep details readable" : "Let details move")} />
                   <span>
                     Keep event details readable
                     <span className="block text-[11px] text-muted">Venue, date, time and address stay visible and steady. Decorative text can move freely.</span>
@@ -440,7 +622,11 @@ export function AnimateWorkspace({ designId, scene, ctx, title, onClose }: { des
               cat={cat}
               setCat={setCat}
               layer={sel ? layerOf(sel.id) : null}
-              setLayer={(fn) => sel && setLayer(sel.id, fn)}
+              setLayer={(fn, label, key) => sel && setLayer(sel.id, fn, label, key)}
+              canMove={sel ? canMove(sel) : false}
+              onRename={(v) => sel && rename(sel.id, v)}
+              onRestack={(to) => sel && restack(sel.id, to)}
+              onTry={tryPreset}
               clip={clip}
               setClip={setClip}
               custom={custom}
@@ -517,24 +703,38 @@ function Advanced({
   clip,
   setClip,
   custom,
-  saveCustom
+  saveCustom,
+  canMove,
+  onRename,
+  onRestack,
+  onTry
 }: {
   anim: Animation;
   sel: FlyerNode | null;
   cat: Category;
   setCat: (c: Category) => void;
   layer: LayerMotion | null;
-  setLayer: (fn: (l: LayerMotion) => LayerMotion) => void;
+  setLayer: (fn: (l: LayerMotion) => LayerMotion, label?: string, key?: string | null) => void;
+  canMove: boolean;
+  onRename: (name: string) => void;
+  onRestack: (to: "front" | "forward" | "backward" | "back") => void;
+  onTry: (presetId: string | null) => void;
   clip: MotionItem[] | null;
   setClip: (s: MotionItem[] | null) => void;
   custom: { name: string; stack: MotionItem[] }[];
   saveCustom: (name: string, stack: MotionItem[]) => void;
 }) {
   const [customName, setCustomName] = useState("");
+  // Leaving the panel (or picking another layer) ends any effect being tried.
+  useEffect(() => () => onTry(null), [sel?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!sel || !layer) return <p className="text-sm text-muted">Select a layer on the left to add or adjust its motion.</p>;
   const role = roleOf(sel, layer.role);
   const full = layer.stack.length >= MAX_STACK;
-  const patchItem = (id: string, p: Partial<MotionItem>) => setLayer((l) => ({ ...l, stack: l.stack.map((x) => (x.id === id ? { ...x, ...p } : x)) }));
+  const patchItem = (id: string, p: Partial<MotionItem>, key?: string) => setLayer((l) => ({ ...l, stack: l.stack.map((x) => (x.id === id ? { ...x, ...p } : x)) }), "Adjust effect", key ?? `item:${id}:${Object.keys(p).join()}`);
+  const swap = (id: string, presetId: string) =>
+    setLayer((l) => ({ ...l, stack: l.stack.map((x) => (x.id === id ? { ...newItem(presetId), id: x.id, strength: x.strength, cycles: x.cycles, phase: x.phase } : x)) }), `Change to ${PRESET_BY_ID.get(presetId)?.name}`);
+  const sample = sel.kind === "text" ? (sel.uppercase ? sel.text.toUpperCase() : sel.text).replace(/\s+/g, " ").replace(/\{\{[^}]*\}\}/g, "").trim().slice(0, 16) || "Text" : null;
+  const sampleFont = sel.kind === "text" ? fontString(sel) : null;
   const move = (i: number, d: -1 | 1) =>
     setLayer((l) => {
       const s = [...l.stack];
@@ -542,15 +742,18 @@ function Advanced({
       if (j < 0 || j >= s.length) return l;
       [s[i], s[j]] = [s[j], s[i]];
       return { ...l, stack: s };
-    });
+    }, "Reorder effects");
   const presets = MOTION_PRESETS.filter((p) => p.category === cat);
   return (
     <div className="flex flex-col gap-4" data-tour="animate-library">
       <div>
-        <p className="text-sm font-semibold">{sel.name}</p>
-        <label className="mt-1 flex items-center gap-2 text-xs text-muted">
+        <LayerNameField key={`${sel.id}:${sel.name}`} name={sel.name} onRename={onRename} />
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          <RestackButtons canMove={canMove} onRestack={onRestack} />
+        </div>
+        <label className="mt-1.5 flex items-center gap-2 text-xs text-muted">
           Role
-          <select value={role} onChange={(e) => setLayer((l) => ({ ...l, role: e.target.value === sel.role ? undefined : (e.target.value as Role) }))} className="rounded-[6px] border border-black/12 bg-transparent px-1.5 py-0.5">
+          <select value={role} onChange={(e) => setLayer((l) => ({ ...l, role: e.target.value === sel.role ? undefined : (e.target.value as Role) }), "Change role")} className="rounded-[6px] border border-black/12 bg-transparent px-1.5 py-0.5">
             {(Object.keys(ROLES) as Role[]).map((r) => (
               <option key={r} value={r}>
                 {ROLES[r]}
@@ -563,7 +766,8 @@ function Advanced({
       </div>
 
       <section>
-        <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted">Motion Library</p>
+        <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-muted">Motion Library</p>
+        <p className="mb-1.5 text-[11px] text-muted">Point at an effect to see it play on {sel.name}. Click to add it.</p>
         <div className="mb-2 grid grid-cols-4 gap-1 text-[11px]" role="tablist">
           {CATS.map((c) => (
             <button key={c.key} role="tab" aria-selected={cat === c.key} onClick={() => setCat(c.key)} className={cn("rounded-[8px] py-1", cat === c.key ? "bg-gold font-semibold text-black" : "border border-black/10 text-muted")}>
@@ -579,14 +783,27 @@ function Advanced({
                 <button
                   disabled={fits !== true || full}
                   title={fits !== true ? fits : full ? `Up to ${MAX_STACK} effects per layer` : p.description}
-                  onClick={() => setLayer((l) => ({ ...l, stack: [...l.stack, newItem(p.id)] }))}
+                  onClick={() => {
+                    onTry(null);
+                    setLayer((l) => ({ ...l, stack: [...l.stack, newItem(p.id)] }), `Add ${p.name}`);
+                  }}
+                  onMouseEnter={() => fits === true && onTry(p.id)}
+                  onMouseLeave={() => onTry(null)}
+                  onFocus={() => fits === true && onTry(p.id)}
+                  onBlur={() => onTry(null)}
                   className="motion-card group w-full rounded-[10px] border border-black/10 p-2 text-left hover:border-gold focus-visible:border-gold focus-visible:outline-none disabled:opacity-40"
                   data-preset={p.id}
                 >
-                  <span className={cn("motion-thumb mb-1 flex h-9 items-center justify-center rounded-[6px] bg-[#16140f] text-[11px] font-bold tracking-wide text-[#f3e8cf]", `mt-${p.id.split(".")[1]}`)} aria-hidden>
-                    {p.category === "text" ? "TEXT" : p.category === "photos" ? "◉" : p.category === "backgrounds" ? "▦" : "✦"}
+                  <span className="mb-1 flex h-10 items-center justify-center overflow-hidden rounded-[6px] bg-[#16140f]" aria-hidden>
+                    <span
+                      className={cn("motion-thumb inline-block truncate px-1 text-[13px] leading-none text-[#f3e8cf]", `mt-${p.id.split(".")[1]}`)}
+                      style={sample && sampleFont ? { fontFamily: `${sampleFont.family}, sans-serif`, fontWeight: Number(sampleFont.style.replace(/\D/g, "")) || 700 } : undefined}
+                    >
+                      {sample ?? (p.category === "photos" ? "◉ photo" : p.category === "backgrounds" ? "▦ background" : "✦ overlay")}
+                    </span>
                   </span>
                   <span className="block text-xs font-medium leading-tight">{p.name}</span>
+                  <span className="block text-[10px] leading-tight text-muted">{p.description}</span>
                   {fits !== true && <span className="block text-[10px] leading-tight text-muted">{fits}</span>}
                 </button>
               </li>
@@ -608,7 +825,7 @@ function Advanced({
             <p className="text-[11px] font-semibold text-muted">My presets (this device)</p>
             <div className="mt-1 flex flex-wrap gap-1">
               {custom.map((c) => (
-                <button key={c.name} className="rounded-full border border-black/12 px-2 py-0.5 text-[11px] hover:border-gold" onClick={() => setLayer((l) => ({ ...l, stack: c.stack.filter((x) => PRESET_BY_ID.has(x.preset)).slice(0, MAX_STACK).map((x) => ({ ...x, id: newItemId() })) }))}>
+                <button key={c.name} className="rounded-full border border-black/12 px-2 py-0.5 text-[11px] hover:border-gold" onClick={() => setLayer((l) => ({ ...l, stack: c.stack.filter((x) => PRESET_BY_ID.has(x.preset)).slice(0, MAX_STACK).map((x) => ({ ...x, id: newItemId() })) }), `Use preset ${c.name}`)}>
                   {c.name}
                 </button>
               ))}
@@ -624,10 +841,10 @@ function Advanced({
             <button className={iconBtn} disabled={!layer.stack.length} onClick={() => setClip(layer.stack)} aria-label="Copy motion" title="Copy motion">
               <ClipboardCopy size={13} />
             </button>
-            <button className={iconBtn} disabled={!clip} onClick={() => clip && setLayer((l) => ({ ...l, stack: clip.map((x) => ({ ...x, id: newItemId() })) }))} aria-label="Paste motion" title="Paste motion">
+            <button className={iconBtn} disabled={!clip} onClick={() => clip && setLayer((l) => ({ ...l, stack: clip.map((x) => ({ ...x, id: newItemId() })) }), "Paste motion")} aria-label="Paste motion" title="Paste motion">
               <ClipboardPaste size={13} />
             </button>
-            <button className={iconBtn} disabled={!layer.stack.length} onClick={() => setLayer((l) => ({ ...l, stack: [] }))} aria-label="Clear motion" title="Clear motion">
+            <button className={iconBtn} disabled={!layer.stack.length} onClick={() => setLayer((l) => ({ ...l, stack: [] }), "Clear layer motion")} aria-label="Clear motion" title="Clear motion">
               <Trash2 size={13} />
             </button>
           </div>
@@ -640,19 +857,31 @@ function Advanced({
             return (
               <li key={it.id} className="rounded-[10px] border border-black/10 p-2.5">
                 <div className="flex items-center gap-1">
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                    {i + 1}. {p.name}
-                  </span>
+                  <span className="text-sm font-medium">{i + 1}.</span>
+                  <select
+                    value={it.preset}
+                    onChange={(e) => swap(it.id, e.target.value)}
+                    aria-label={`Change effect ${i + 1}`}
+                    title="Change this effect"
+                    className="min-w-0 flex-1 truncate rounded-[6px] border border-transparent bg-transparent py-0.5 text-sm font-medium hover:border-black/12"
+                  >
+                    {MOTION_PRESETS.filter((q) => q.id === it.preset || presetFits(q, sel, role, anim.readableLock) === true).map((q) => (
+                      <option key={q.id} value={q.id}>
+                        {q.name} ({CATS.find((c) => c.key === q.category)?.label})
+                      </option>
+                    ))}
+                  </select>
                   <button className="p-1 text-muted disabled:opacity-30" disabled={i === 0} onClick={() => move(i, -1)} aria-label={`Move ${p.name} up`}>
                     <ArrowUp size={13} />
                   </button>
                   <button className="p-1 text-muted disabled:opacity-30" disabled={i === layer.stack.length - 1} onClick={() => move(i, 1)} aria-label={`Move ${p.name} down`}>
                     <ArrowDown size={13} />
                   </button>
-                  <button className="p-1 text-status-declined" onClick={() => setLayer((l) => ({ ...l, stack: l.stack.filter((x) => x.id !== it.id) }))} aria-label={`Remove ${p.name}`}>
+                  <button className="p-1 text-status-declined" onClick={() => setLayer((l) => ({ ...l, stack: l.stack.filter((x) => x.id !== it.id) }), `Remove ${p.name}`)} aria-label={`Remove ${p.name}`} title="Remove this effect">
                     <X size={13} />
                   </button>
                 </div>
+                <p className="text-[11px] text-muted">{p.description}</p>
                 {fits !== true && <p className="text-[11px] text-status-urgent">Paused: {fits}</p>}
                 <Params item={it} params={p.params} onChange={(x) => patchItem(it.id, x)} />
               </li>
@@ -678,6 +907,163 @@ function Advanced({
         )}
       </section>
       <style>{THUMB_CSS}</style>
+    </div>
+  );
+}
+
+function RestackButtons({ canMove, onRestack }: { canMove: boolean; onRestack: (to: "front" | "forward" | "backward" | "back") => void }) {
+  const b = "inline-flex h-7 items-center gap-1 rounded-[7px] border border-black/12 px-2 text-[11px] disabled:opacity-40 hover:border-gold";
+  if (!canMove) return <span className="text-[11px] text-muted">This layer is locked in the design, so it can&apos;t be moved here.</span>;
+  return (
+    <>
+      <button className={b} onClick={() => onRestack("front")} title="Bring to front">
+        <BringToFront size={12} /> Front
+      </button>
+      <button className={b} onClick={() => onRestack("forward")} title="Bring forward one" aria-label="Bring forward">
+        <ChevronUp size={12} />
+      </button>
+      <button className={b} onClick={() => onRestack("backward")} title="Send back one" aria-label="Send backward">
+        <ChevronDown size={12} />
+      </button>
+      <button className={b} onClick={() => onRestack("back")} title="Send to back">
+        <SendToBack size={12} /> Back
+      </button>
+    </>
+  );
+}
+
+/** Rename field: saves on Enter or when you leave it. */
+function LayerNameField({ name, onRename }: { name: string; onRename: (v: string) => void }) {
+  const [v, setV] = useState(name);
+  return (
+    <label className="flex items-center gap-1.5">
+      <Pencil size={13} className="shrink-0 text-muted" aria-hidden />
+      <input
+        value={v}
+        maxLength={60}
+        aria-label="Layer name"
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => (v.trim() ? onRename(v) : setV(name))}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") setV(name);
+        }}
+        className="min-w-0 flex-1 rounded-[6px] border border-transparent bg-transparent px-1 py-0.5 text-sm font-semibold hover:border-black/12 focus:border-gold focus:outline-none"
+        data-tour="animate-rename"
+      />
+    </label>
+  );
+}
+
+/** Layer list name: click selects, double-click (or the pencil) renames in place. */
+function LayerName({ node, selected, onSelect, onRename }: { node: FlyerNode; selected: boolean; onSelect: () => void; onRename: (v: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [v, setV] = useState(node.name);
+  if (editing)
+    return (
+      <input
+        autoFocus
+        value={v}
+        maxLength={60}
+        aria-label={`Rename ${node.name}`}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => {
+          if (v.trim()) onRename(v);
+          setEditing(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") {
+            setV(node.name);
+            setEditing(false);
+          }
+        }}
+        className="w-full rounded-[6px] border border-gold bg-transparent px-1 py-0.5 text-sm font-medium focus:outline-none"
+      />
+    );
+  return (
+    <span className="flex items-center gap-1">
+      <button onClick={onSelect} onDoubleClick={() => (setV(node.name), setEditing(true))} className={cn("min-w-0 flex-1 truncate text-left text-sm font-medium", selected && "text-gold-dim")}>
+        {node.name}
+      </button>
+      <button className="p-0.5 text-muted opacity-0 group-hover:opacity-100 focus-visible:opacity-100" onClick={() => (setV(node.name), setEditing(true))} aria-label={`Rename ${node.name}`} title="Rename">
+        <Pencil size={12} />
+      </button>
+    </span>
+  );
+}
+
+/** Simple mode: the layer picked on the flyer, with its name, order and motion. */
+function LayerCard({ node, anim, canMove, onRename, onRestack, onRemove, onEdit, onClose }: { node: FlyerNode; anim: Animation; canMove: boolean; onRename: (v: string) => void; onRestack: (to: "front" | "forward" | "backward" | "back") => void; onRemove: (itemId: string) => void; onEdit: () => void; onClose: () => void }) {
+  const stack = anim.layers[node.id]?.stack ?? [];
+  return (
+    <section className="rounded-[12px] border border-gold/60 bg-gold/5 p-3" aria-label="Selected layer" data-tour="animate-layer-card">
+      <div className="flex items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <LayerNameField key={`${node.id}:${node.name}`} name={node.name} onRename={onRename} />
+        </div>
+        <button className="p-1 text-muted" onClick={onClose} aria-label="Deselect layer">
+          <X size={14} />
+        </button>
+      </div>
+      <p className="mt-1 text-[11px] text-muted">{canMove ? "Drag it on the flyer to move it; use the handles to resize or turn it." : "Locked in the design."}</p>
+      <div className="mt-2 flex flex-wrap gap-1">
+        <RestackButtons canMove={canMove} onRestack={onRestack} />
+      </div>
+      <p className="mt-3 text-xs font-semibold">Motion on this layer</p>
+      {stack.length ? (
+        <ul className="mt-1 flex flex-col gap-1">
+          {stack.map((it) => (
+            <li key={it.id} className="flex items-center gap-1 text-xs">
+              <span className="min-w-0 flex-1 truncate">{PRESET_BY_ID.get(it.preset)?.name}</span>
+              <button className="p-0.5 text-status-declined" onClick={() => onRemove(it.id)} aria-label={`Remove ${PRESET_BY_ID.get(it.preset)?.name}`} title="Remove">
+                <X size={12} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-1 text-[11px] text-muted">None yet.</p>
+      )}
+      <button className="mt-2 text-xs font-semibold text-gold-dim underline" onClick={onEdit}>
+        Add or change motion (Advanced)
+      </button>
+    </section>
+  );
+}
+
+/** Simple mode: every effect on the flyer right now, with remove and change. */
+function MotionSummary({ nodes, anim, onPick, onRemove, onClearAll }: { nodes: FlyerNode[]; anim: Animation; onPick: (id: string) => void; onRemove: (layerId: string, itemId: string) => void; onClearAll: () => void }) {
+  const rows = nodes.filter((n) => anim.layers[n.id]?.stack.length);
+  if (!rows.length) return null;
+  return (
+    <div className="mt-3 rounded-[12px] border border-black/10 p-3" data-tour="animate-summary">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold">Motion on this flyer now</p>
+        <button className="text-[11px] text-status-declined underline" onClick={onClearAll}>
+          Remove all motion
+        </button>
+      </div>
+      <ul className="mt-1.5 flex flex-col gap-1.5">
+        {rows.map((n) => (
+          <li key={n.id} className="text-xs">
+            <button className="font-medium hover:text-gold-dim hover:underline" onClick={() => onPick(n.id)} title="Change this layer's motion">
+              {n.name}
+            </button>
+            <span className="ml-1 inline-flex flex-wrap gap-1 align-middle">
+              {anim.layers[n.id].stack.map((it) => (
+                <span key={it.id} className="inline-flex items-center gap-0.5 rounded-full bg-black/5 py-0.5 pl-2 pr-1 text-[11px]">
+                  {PRESET_BY_ID.get(it.preset)?.name}
+                  <button onClick={() => onRemove(n.id, it.id)} aria-label={`Remove ${PRESET_BY_ID.get(it.preset)?.name} from ${n.name}`} className="rounded-full p-0.5 text-muted hover:text-status-declined">
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-1.5 text-[11px] text-muted">Click a layer name to change its effects. Undo (top bar) steps back through every change.</p>
     </div>
   );
 }

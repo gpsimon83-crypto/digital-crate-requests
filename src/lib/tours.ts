@@ -18,6 +18,52 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-23-animate-layers-undo": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "Click Next to open your first flyer, or click any flyer.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-animate"]',
+      title: "Open Animate",
+      body: "Click Animate.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-preview"]',
+      title: "Move any layer",
+      body: "Click a layer on the flyer to select it, then drag it, use the handles to resize or turn it, or nudge it with the arrow keys. Click one now, then Next."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-layer-card"]',
+      title: "Rename and re-stack",
+      body: "The selected layer's card: type a new name, and use Front, Back or the arrows to change what sits in front. Its motion is listed underneath with × to remove."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-summary"], [data-tour="animate-styles"]',
+      title: "Change or remove motion",
+      body: "Everything moving on the flyer is listed here. Remove one effect with ×, a whole style with Remove on its card, or everything with Remove all motion. Click a layer name to change its effects."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-undo"]',
+      title: "Undo says what it undoes",
+      body: "Undo steps back through every change, motion and layout alike, and tells you which one is next. Ctrl/⌘ Z works too."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-mode"]',
+      title: "See effects on your text",
+      body: "In Advanced, select a layer and point at any effect in the Motion Library: it plays on that layer right away. Click to add it; the dropdown on an added effect swaps it for another."
+    }
+  ],
   "2026-11-23-flyer-animate": [
     {
       path: "/dj-dashboard/flyers",

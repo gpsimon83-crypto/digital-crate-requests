@@ -19,6 +19,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-23-animate-layers-undo",
+    date: "2026-11-23",
+    area: "Members area",
+    title: "Animate: move and rename layers, see each effect on your text, undo anything",
+    summary: "In Animate you can now arrange the flyer itself: click any layer to drag, resize or turn it, rename it, and change what sits in front. Effects in the library preview live on the layer you picked, and every change (motion or layout) can be undone, removed or swapped.",
+    bullets: [
+      "Click a layer on the flyer: drag to move, handles to resize or turn, arrow keys to nudge (Shift for 10 px); Front / Back and the arrows change the stacking order",
+      "Rename a layer in its card, or double-click its name in the Advanced layer list",
+      "Point at an effect in the Motion Library to watch it play on that layer before adding it; each card shows your own text and says what the effect does",
+      "Undo now says what it will undo (\"Undo: Move DJ name\"), covers motion and layer changes alike, and works with Ctrl/⌘ Z",
+      "Change an effect in place with its dropdown, remove one with ×, remove a whole motion style, or Remove all motion from the new \"Motion on this flyer now\" list",
+      "Layer moves and renames apply to the flyer design too, and are saved with it"
+    ],
+    link: { href: "/dj-dashboard/flyers", label: "Open Flyers" }
+  },
+  {
     id: "2026-11-23-flyer-animate",
     date: "2026-11-23",
     area: "Members area",

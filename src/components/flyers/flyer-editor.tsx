@@ -1756,6 +1756,8 @@ export function FlyerEditor(props: FlyerEditorProps) {
           ctx={{ ...ctx, maskView: null }}
           title={title}
           onClose={() => setAnimOpen(false)}
+          canMove={canMove}
+          onNodes={(nodes) => setScene((s) => ({ ...s, nodes }), null)}
         />
       )}
       {sendOpen && props.link && (

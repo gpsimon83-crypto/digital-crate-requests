@@ -115,7 +115,7 @@ export function MotionWrap({ node, st, children }: { node: FlyerNode; st: Motion
   );
   const centre = node.kind === "text" && node.pivot === "center";
   return (
-    <Group x={cx + st.dx} y={cy + st.dy} offsetX={cx} offsetY={cy} scaleX={st.scale} scaleY={st.scale} rotation={st.rotate} opacity={st.opacity} listening={false}>
+    <Group x={cx + st.dx} y={cy + st.dy} offsetX={cx} offsetY={cy} scaleX={st.scale} scaleY={st.scale} rotation={st.rotate} opacity={st.opacity}>
       {body}
       {st.overlays.length > 0 && (
         <Group
@@ -126,6 +126,7 @@ export function MotionWrap({ node, st, children }: { node: FlyerNode; st: Motion
           rotation={node.rotation}
           clip={{ x: 0, y: 0, width: node.width, height: node.height }}
           opacity={node.opacity}
+          listening={false}
         >
           {st.overlays.map((o, i) => (
             <KShape

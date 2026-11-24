@@ -720,7 +720,8 @@ export function FlyerStage({
   onChange,
   onEditText,
   coarse,
-  maskEdit
+  maskEdit,
+  motion = null
 }: {
   scene: Scene;
   zoom: number;
@@ -736,6 +737,8 @@ export function FlyerStage({
   coarse: boolean;
   /** Mask mode: brushing and fade handles on this picture layer; nothing else can be picked or moved. */
   maskEdit?: MaskEdit | null;
+  /** Animate: the moment of motion to draw (layers still move and resize at their saved place). */
+  motion?: Map<string, MotionState> | null;
 }) {
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -877,7 +880,7 @@ export function FlyerStage({
           if (p.length) onChange(p, `drag:${selected.join(",")}`);
         }}
       >
-        <SceneNodes scene={scene} ctx={ctx} exporting={false} act={act} fontsKey={fontsKey} />
+        <SceneNodes scene={scene} ctx={ctx} exporting={false} act={act} fontsKey={fontsKey} motion={motion} />
         <Transformer
           ref={trRef}
           rotateEnabled={allMovable}
