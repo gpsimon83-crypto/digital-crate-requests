@@ -18,6 +18,58 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-23-flyer-animator": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "Click Next to open your first flyer, or click any flyer.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-animate"]',
+      title: "Open the Flyer Animator",
+      body: "Click Animate.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-layers"]',
+      title: "Layers",
+      body: "Every layer of your flyer. Pick one here or on the flyer, drag ⠿ to reorder, double-click to rename, and the eye hides it in the video."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-library"]',
+      title: "Motion Library",
+      body: "Styles has the ready-made looks. Text, Photos, Backgrounds, Overlays and Glitch show the effects that suit the layer you picked: point to preview, click to add."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-preview"]',
+      title: "The flyer",
+      body: "Drag, resize or turn layers right here. Play, step frame by frame, or scrub. The sparkle button has preview quality and reduced motion."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-timeline"]',
+      title: "Timeline",
+      body: "One bar per layer: drag its ends to choose when it's on screen. Double-click a bar to add a keyframe, drag diamonds to move them. Undo and zoom are in this bar."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-check-loop"]',
+      title: "Loop enabled",
+      body: "Every video loops. Click to play it three times and compare the last and first frames."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-export"]',
+      title: "Export video",
+      body: "Pick Story, Portrait and Square (fill or fit, never stretched), then export. Each one is made on this device and kept for 30 days; you can cancel, retry or download them all."
+    }
+  ],
   "2026-11-23-animate-layers-undo": [
     {
       path: "/dj-dashboard/flyers",
@@ -41,9 +93,9 @@ export const TOURS: Record<string, TourStep[]> = {
     },
     {
       path: "/dj-dashboard/flyers/*",
-      target: '[data-tour="animate-layer-card"]',
+      target: '[data-tour="animate-layers"]',
       title: "Rename and re-stack",
-      body: "The selected layer's card: type a new name, and use Front, Back or the arrows to change what sits in front. Its motion is listed underneath with × to remove."
+      body: "In Layers, double-click a name to rename it, and drag ⠿ to change what sits in front (top is front). + adds a text layer; the other buttons duplicate or delete the selected one."
     },
     {
       path: "/dj-dashboard/flyers/*",
@@ -55,13 +107,13 @@ export const TOURS: Record<string, TourStep[]> = {
       path: "/dj-dashboard/flyers/*",
       target: '[data-tour="animate-undo"]',
       title: "Undo says what it undoes",
-      body: "Undo steps back through every change, motion and layout alike, and tells you which one is next. Ctrl/⌘ Z works too."
+      body: "Undo (in the Timeline bar) steps back through every change, motion and layout alike, and tells you which one is next. Ctrl/⌘ Z works too."
     },
     {
       path: "/dj-dashboard/flyers/*",
       target: '[data-tour="animate-mode"]',
       title: "See effects on your text",
-      body: "In Advanced, select a layer and point at any effect in the Motion Library: it plays on that layer right away. Click to add it; the dropdown on an added effect swaps it for another."
+      body: "Select a layer and point at any effect in the Motion Library: it plays on that layer right away. Click to add it, then tune it in Effect Controls."
     }
   ],
   "2026-11-23-flyer-animate": [

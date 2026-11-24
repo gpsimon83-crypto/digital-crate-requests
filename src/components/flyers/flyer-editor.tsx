@@ -1757,6 +1757,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
           title={title}
           onClose={() => setAnimOpen(false)}
           canMove={canMove}
+          canRemove={(n) => can(n, "remove")}
           onNodes={(nodes) => setScene((s) => ({ ...s, nodes }), null)}
         />
       )}

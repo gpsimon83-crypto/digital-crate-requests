@@ -692,7 +692,7 @@ export function SceneNodes({ scene, ctx, exporting, act, fontsKey, onStatus, mot
             <TextLayer key={n.id} node={textInMotion(n, st)} act={act} fontsKey={fontsKey} ctx={ctx} exporting={exporting} reveal={st?.reveal ?? null} />
           );
         return st ? (
-          <MotionWrap key={n.id} node={n} st={st}>
+          <MotionWrap key={n.id} node={n} st={st} px={Math.min(1, Math.max(0.2, ctx.fxScale ?? 1))}>
             {el}
           </MotionWrap>
         ) : (

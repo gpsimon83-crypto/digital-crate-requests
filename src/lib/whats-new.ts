@@ -19,6 +19,23 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-23-flyer-animator",
+    date: "2026-11-23",
+    area: "Members area",
+    title: "The Flyer Animator: new layout, glitch effects, keyframes and video exports for every size",
+    summary: "Animate now opens as the Flyer Animator: Layers on the left, your flyer in the middle, the Motion Library and Effect Controls on the right, and a full timeline underneath. It brings real glitch effects, keyframes, Story / Portrait / Square videos and an export list you can come back to.",
+    bullets: [
+      "Glitch effects that each behave differently: Digital Slice (hard slices jump in short bursts), RGB Signal (colour channels pull apart and the picture bends), Analog VHS (steady tape look with tracking tears), plus Film Grain, Text Shine Sweep and Masked Reveal",
+      "Every glitch has strength, bursts per loop, burst length, slices, max move, RGB split, noise and seed; event details and faces stay readable",
+      "Whole-layer moves now work on photos and logos too: Soft Fade, Slide & Return, Gentle Float, Slow Zoom & Return, Scale Pulse",
+      "Effect Controls: Strength, Speed, Start offset (seconds) and Loop mode (repeat or ping-pong)",
+      "Timeline: a coloured bar per layer (drag its ends for when it's on screen), keyframes for position, size, turn, opacity and effect strength, snapping, zoom, frame stepping, lock, solo",
+      "Export video: Story, Portrait and Square from one design (fill or fit, never stretched, with the apps' safe area shown), tracked with progress, cancel, retry and Download all; finished videos are kept for 30 days"
+    ],
+    link: { href: "/dj-dashboard/flyers", label: "Open Flyers" },
+    action: "Run supabase/migrations/0070_flyer_render_jobs.sql in Supabase to keep export history and finished videos. Without it, exports still work and download straight away."
+  },
+  {
     id: "2026-11-23-animate-layers-undo",
     date: "2026-11-23",
     area: "Members area",

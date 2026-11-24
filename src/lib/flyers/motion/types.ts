@@ -1,4 +1,5 @@
 import type { Role } from "../types";
+import type { RasterOp } from "./raster";
 
 /**
  * Animation settings for one flyer, stored next to the static layout
@@ -31,10 +32,60 @@ export type MotionItem = {
   seed?: number;
   /** Entrance / exit share of each cycle (envelope presets); the rest is hold. */
   timing?: { in: number; out: number };
+  /** Glitch presets: burst schedule and limits. */
+  glitch?: GlitchParams;
+  /** Repeat: each cycle plays forward. Ping-pong: forward then backward, so any effect closes the loop smoothly. */
+  loop?: "repeat" | "pingpong";
+};
+
+export type GlitchParams = {
+  /** Bursts per loop (whole number, so every repeat glitches at the same moments). */
+  bursts: number;
+  /** Seconds each burst lasts. */
+  burstLen: number;
+  /** How many horizontal slices the layer is cut into. */
+  slices: number;
+  /** Largest sideways move of a slice or row, in flyer px. */
+  maxShift: number;
+  /** Red / blue separation, in flyer px. */
+  rgb: number;
+  /** Noise amount, 0–1. */
+  noise: number;
+};
+
+/**
+ * A keyframe: offsets from the layer's saved place at one moment. Between
+ * keyframes the values are interpolated; after the last one they run on
+ * to the first (at its time + the loop length), so keyframed motion always
+ * closes the loop. `fx` scales the strength of the layer's effects.
+ */
+export type Keyframe = {
+  id: string;
+  /** Seconds from the start of the loop (0 ≤ t < duration), on a frame. */
+  t: number;
+  dx: number;
+  dy: number;
+  /** 1 = saved size. */
+  scale: number;
+  rotate: number;
+  /** 0–1, multiplies the layer's opacity. */
+  opacity: number;
+  /** 0–1, multiplies the strength of the layer's effects. */
+  fx: number;
+  /** How it travels to the next keyframe. */
+  easing: "linear" | "easeInOut";
 };
 
 export type LayerMotion = {
   stack: MotionItem[];
+  /** Keyframed transform / opacity / effect strength, on top of the effects. */
+  keys?: Keyframe[];
+  /** When the layer is on screen (seconds); outside it the layer is hidden. Omitted = the whole loop. */
+  window?: { start: number; end: number };
+  /** Hidden in the video (the design keeps the layer). */
+  hidden?: boolean;
+  /** Locked in Animate: its motion and position can't be changed here. */
+  locked?: boolean;
   /** Overrides the layer's role for animation only (template metadata is untouched). */
   role?: Role;
   muted?: boolean;
@@ -52,10 +103,13 @@ export type Animation = {
   readableLock: boolean;
   recipe: string | null;
   layers: Record<string, LayerMotion>;
+  /** Other sizes for export: how the flyer sits in each (never stretched). */
+  formats?: Partial<Record<"story" | "portrait" | "square", { mode: "fit" | "crop"; x: number; y: number; zoom: number }>>;
 };
 
 export const DURATIONS = [6, 8, 10, 15] as const;
 export const MAX_STACK = 4;
+export const MAX_KEYS = 24;
 
 export function emptyAnimation(): Animation {
   return { v: ANIMATION_VERSION, enabled: true, duration: 8, fps: 30, intensity: "balanced", readableLock: true, recipe: null, layers: {} };
@@ -78,6 +132,8 @@ export type MotionState = {
   shadow: { dx: number; dy: number; color: string; blur: number; opacity: number } | null;
   /** Light, vignette and particles drawn over the layer, inside its box. */
   overlays: OverlayDraw[];
+  /** Pixel effects on the layer's own pixels, in order (glitch, grain, shine, masked reveal). */
+  raster: RasterOp[];
 };
 
 export type OverlayDraw =
@@ -86,4 +142,4 @@ export type OverlayDraw =
   | { kind: "leak"; color: string; alpha: number; cx: number; cy: number; radius: number; blend: OverlayBlend }
   | { kind: "particles"; style: "dust" | "sparkle"; color: string; blend: OverlayBlend; items: { x: number; y: number; r: number; a: number }[] };
 
-export const IDENTITY: MotionState = { dx: 0, dy: 0, scale: 1, rotate: 0, opacity: 1, inner: null, reveal: null, trackingEm: 0, shadow: null, overlays: [] };
+export const IDENTITY: MotionState = { dx: 0, dy: 0, scale: 1, rotate: 0, opacity: 1, inner: null, reveal: null, trackingEm: 0, shadow: null, overlays: [], raster: [] };

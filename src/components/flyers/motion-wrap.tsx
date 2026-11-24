@@ -1,9 +1,11 @@
 "use client";
 
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { Group, Shape as KShape } from "react-konva";
 import type Konva from "konva";
 import type { FlyerNode } from "@/lib/flyers/types";
 import type { MotionState, OverlayBlend, OverlayDraw } from "@/lib/flyers/motion/types";
+import { applyRaster, rasterPad, type RasterOp } from "@/lib/flyers/motion/raster";
 
 /**
  * Applies one layer's motion around the layer exactly as it's normally
@@ -93,7 +95,65 @@ function drawOverlay(c: CanvasRenderingContext2D, o: OverlayDraw, w: number, h: 
   }
 }
 
-export function MotionWrap({ node, st, children }: { node: FlyerNode; st: MotionState; children: React.ReactNode }) {
+/** Konva filter: this frame's pixel ops on the layer's cached pixels (see raster.ts). */
+function rasterFilter(this: Konva.Node, img: ImageData) {
+  const ops = this.getAttr("rasterOps") as RasterOp[] | undefined;
+  if (ops?.length) applyRaster(img, ops, (this.getAttr("rasterPx") as number) || 1);
+}
+
+/**
+ * Draws its children into a cached bitmap (at the preview's or the export's
+ * resolution), runs the frame's pixel ops on it, and draws that in their
+ * place. Re-cached on every frame and whenever the layer changes. While a
+ * layer is being dragged or resized the cache is dropped so it follows the
+ * pointer live.
+ */
+function RasterGroup({ ops, px, children }: { ops: RasterOp[]; px: number; children: React.ReactNode }) {
+  const ref = useRef<Konva.Group>(null);
+  const recache = () => {
+    const g = ref.current;
+    if (!g || g.getAttr("rasterHold")) return;
+    g.setAttrs({ rasterOps: ops, rasterPx: px });
+    try {
+      g.clearCache();
+      g.cache({ pixelRatio: px, offset: rasterPad(ops) });
+      g.filters([rasterFilter]);
+    } catch {
+      // nothing drawn yet (zero size): draw the layer plainly
+      g.clearCache();
+    }
+    g.getLayer()?.batchDraw();
+  };
+  useLayoutEffect(recache);
+  // Pictures and fonts that finish loading after this frame: draw them in too.
+  useEffect(() => {
+    const h = setTimeout(recache, 350);
+    return () => clearTimeout(h);
+  });
+  useEffect(() => {
+    const g = ref.current;
+    return () => {
+      g?.clearCache();
+    };
+  }, []);
+  const hold = () => {
+    const g = ref.current;
+    if (!g) return;
+    g.setAttr("rasterHold", true);
+    g.clearCache();
+  };
+  const release = () => {
+    ref.current?.setAttr("rasterHold", false);
+    recache();
+  };
+  return (
+    <Group ref={ref} onDragStart={hold} onTransformStart={hold} onDragEnd={release} onTransformEnd={release}>
+      {children}
+    </Group>
+  );
+}
+
+export function MotionWrap({ node, st, px = 1, children }: { node: FlyerNode; st: MotionState; px?: number; children: React.ReactNode }) {
   const cx = node.x + node.width / 2;
   const cy = node.y + node.height / 2;
   const inner = st.inner;
@@ -116,7 +176,13 @@ export function MotionWrap({ node, st, children }: { node: FlyerNode; st: Motion
   const centre = node.kind === "text" && node.pivot === "center";
   return (
     <Group x={cx + st.dx} y={cy + st.dy} offsetX={cx} offsetY={cy} scaleX={st.scale} scaleY={st.scale} rotation={st.rotate} opacity={st.opacity}>
-      {body}
+      {st.raster.length ? (
+        <RasterGroup ops={st.raster} px={px}>
+          {body}
+        </RasterGroup>
+      ) : (
+        body
+      )}
       {st.overlays.length > 0 && (
         <Group
           x={centre ? cx : node.x}

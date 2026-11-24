@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type Konva from "konva";
-import { Layer, Stage } from "react-konva";
+import { Group, Layer, Rect, Stage } from "react-konva";
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 import { SceneNodes } from "../flyer-canvas";
 import { loadSceneFonts, loadSceneImages, type SrcContext } from "../loaders";
 import type { Scene } from "@/lib/flyers/types";
 import { evaluateFrame, frameCount, frameTime } from "@/lib/flyers/motion/engine";
 import type { Animation } from "@/lib/flyers/motion/types";
+import type { Framing } from "@/lib/flyers/motion/formats";
 
 /**
  * MP4 export, frame by frame (never a real-time screen recording):
@@ -40,7 +41,8 @@ export async function pickCodec(width: number, height: number, fps: number): Pro
 
 const yieldFrame = () => new Promise<void>((r) => setTimeout(r, 0));
 
-export function VideoRenderer({ scene, ctx: ctxIn, anim, onProgress, cancelRef }: { scene: Scene; ctx: SrcContext; anim: Animation; onProgress: (p: ExportProgress) => void; cancelRef: React.RefObject<boolean> }) {
+export function VideoRenderer({ scene, ctx: ctxIn, anim, onProgress, cancelRef, out }: { scene: Scene; ctx: SrcContext; anim: Animation; onProgress: (p: ExportProgress) => void; cancelRef: React.RefObject<boolean>; /** Output size and how the flyer sits in it (other formats); default: the flyer's own size. */ out?: Framing }) {
+  const F: Framing = out ?? { width: scene.width, height: scene.height, scale: 1, ox: 0, oy: 0 };
   const ctx = useMemo(() => ({ ...ctxIn, fxScale: 1 }), [ctxIn]);
   const stageRef = useRef<Konva.Stage>(null);
   const [t, setT] = useState(0);
@@ -80,8 +82,8 @@ export function VideoRenderer({ scene, ctx: ctxIn, anim, onProgress, cancelRef }
     if (!imageIds.every((id) => pending.current.get(id))) return;
     started.current = true;
     void (async () => {
-      const W = scene.width;
-      const H = scene.height;
+      const W = F.width;
+      const H = F.height;
       let encoder: VideoEncoder | null = null;
       try {
         const cfg = await pickCodec(W, H, anim.fps);
@@ -144,14 +146,17 @@ export function VideoRenderer({ scene, ctx: ctxIn, anim, onProgress, cancelRef }
         report.current({ phase: "error", frame: 0, frames: N, message: e instanceof Error ? e.message : "The video couldn't be made." });
       }
     })();
-  }, [ready, tick, imageIds, scene, anim, N, cancelRef]);
+  }, [ready, tick, imageIds, scene, anim, N, cancelRef, F.width, F.height, F.ox, F.oy, F.scale]);
 
   if (!ready) return null;
   return (
-    <div aria-hidden style={{ position: "fixed", left: -30000, top: 0, width: scene.width, height: scene.height, pointerEvents: "none", opacity: 0 }}>
-      <Stage ref={stageRef} width={scene.width} height={scene.height}>
+    <div aria-hidden style={{ position: "fixed", left: -30000, top: 0, width: F.width, height: F.height, pointerEvents: "none", opacity: 0 }}>
+      <Stage ref={stageRef} width={F.width} height={F.height}>
         <Layer>
-          <SceneNodes scene={scene} ctx={ctx} exporting act={null} fontsKey={1} onStatus={onStatus} motion={motion} />
+          <Rect width={F.width} height={F.height} fill={scene.background} />
+          <Group x={F.ox} y={F.oy} scaleX={F.scale} scaleY={F.scale} clipX={0} clipY={0} clipWidth={scene.width} clipHeight={scene.height}>
+            <SceneNodes scene={scene} ctx={ctx} exporting act={null} fontsKey={1} onStatus={onStatus} motion={motion} />
+          </Group>
         </Layer>
       </Stage>
     </div>
