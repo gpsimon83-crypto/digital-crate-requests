@@ -243,6 +243,11 @@ export type TextNode = Base & {
   trackingEm?: number | null;
   /** Horizontal stretch of the letters (1 = as designed; 1.6 = 60% wider), like an extended font. */
   stretch?: number;
+  /**
+   * Curved text: how far the middle of the baseline rises above its ends, in
+   * px (negative curves down). Null/0 = straight. See lib/flyers/arc.ts.
+   */
+  arc?: number | null;
   /** Optional box behind the text. */
   panel?: { enabled: boolean; color: string; opacity: number; padding: number; radius: number } | null;
 };

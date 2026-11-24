@@ -1,4 +1,5 @@
 "use client";
+import { arcGeometry } from "@/lib/flyers/arc";
 
 import { useId, useRef, useState } from "react";
 import {
@@ -375,6 +376,20 @@ function TextProps({ n, set, canEdit, canStyle, mode, textRef }: { n: TextNode; 
             <Num label="Letter spacing" value={n.letterSpacing} min={-20} max={80} step={0.5} onChange={(v) => set({ letterSpacing: v }, "letterSpacing")} disabled={!canStyle} suffix="px" />
           )}
           <Num label="Stretch" value={Math.round((n.stretch ?? 1) * 100)} min={40} max={300} step={5} onChange={(v) => set({ stretch: v / 100 }, "stretch")} disabled={!canStyle} suffix="%" />
+          <Num
+            label="Curve"
+            value={Math.round(n.arc ?? 0)}
+            min={-600}
+            max={600}
+            step={5}
+            onChange={(v) => {
+              // Keep the box sized to the curve so it still selects and snaps where the letters are.
+              const arc = Math.abs(v) < 1 ? null : v;
+              set({ arc, height: arc ? arcGeometry(n.width, n.fontSize, arc, n.padding ?? 0).boxHeight : n.fontSize * n.lineHeight, ...(arc ? { pivot: "center" as const } : {}) }, "arc");
+            }}
+            disabled={!canStyle}
+            suffix="px"
+          />
         </div>
         <button
           className="self-start text-[11px] font-medium text-gold-dim underline disabled:opacity-40"

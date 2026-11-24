@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import KonvaLib from "konva";
 import type Konva from "konva";
-import { Ellipse, Group, Image as KImage, Layer, Line, Rect, Stage, Text as KText, Transformer } from "react-konva";
+import { Ellipse, Group, Image as KImage, Layer, Line, Rect, Stage, Text as KText, Shape as KShape, Transformer } from "react-konva";
+import { arcGeometry, placeOnArc } from "@/lib/flyers/arc";
 import { imageLayout } from "@/lib/flyers/scene";
 import { boundsOf, snapBox, type Guide } from "@/lib/flyers/snap";
 import { applyFeather, hiddenOverlay, needsProcessing, processedImage } from "@/lib/flyers/feather";
@@ -295,6 +296,23 @@ export function textLayout(node: TextNode, fontsReady = true): TextLay {
   const oneLine = !!node.shrink;
   const min = Math.max(6, Math.min(node.minFontSize ?? 12, node.fontSize));
   const box = (size: number, height: number, overflow = false): TextLay => ({ size, height, overflow, spacing: sp(size), boxHeight: node.fitBox ? node.height : (oneLine ? node.fontSize * node.lineHeight * lines : height) + pad * 2, oneLine });
+  if (node.arc) {
+    // Curved: one line along the arch, shrunk (not below the smallest size) when the words outgrow the curve.
+    const flat = text.replace(/\n+/g, " ");
+    let size = node.fontSize;
+    let overflow = false;
+    if (typeof document !== "undefined" && fontsReady) {
+      const widthAt = (z: number) => probeText({ text: flat, family: f.family, style: f.style, size: z, spacing: sp(z) }).width;
+      // Stretched letters take `stretch` times their width along the arch.
+      const st = node.stretch ?? 1;
+      const room = arcGeometry(node.width, node.fontSize, node.arc, pad).length;
+      const w = widthAt(size) * st;
+      if (w > room) size = Math.max(min, Math.floor(((size * room) / w) * 0.99 * 100) / 100);
+      overflow = widthAt(size) * st > room + 0.5;
+    }
+    const g = arcGeometry(node.width, node.fontSize, node.arc, pad);
+    return { size, height: g.boxHeight - pad * 2, overflow, spacing: sp(size), boxHeight: g.boxHeight, oneLine: true };
+  }
   if (typeof document === "undefined" || !fontsReady) return box(node.fontSize, node.fontSize * node.lineHeight * lines);
   const base = { text, family: f.family, style: f.style, lineHeight: node.lineHeight };
 
@@ -373,6 +391,7 @@ function TextLayer({ node, act, fontsKey, ctx, exporting }: { node: TextNode; ac
   const panel = node.panel?.enabled ? node.panel : null;
   const stretch = node.stretch ?? 1;
   useLayerEffects(textRef, node, Math.min(3, Math.max(0.1, ctx.fxScale ?? 1)), exporting, fontsKey);
+  if (node.arc) return <ArcTextLayer node={node} act={act} lay={lay} fontsKey={fontsKey} text={shown.replace(/\n+/g, " ")} />;
   return (
     <>
       {panel && (
@@ -435,6 +454,90 @@ function TextLayer({ node, act, fontsKey, ctx, exporting }: { node: TextNode; ac
         onDblTap={() => act?.onEditText?.(node.id)}
       />
     </>
+  );
+}
+
+/**
+ * Curved text: a group (the layer's box, turning around its centre) holding
+ * the words on the arch. The box catches clicks and drags; double-click
+ * edits the words in the panel like any text layer.
+ */
+function ArcTextLayer({ node, act, lay, fontsKey, text }: { node: TextNode; act: Interact | null; lay: TextLay; fontsKey: number; text: string }) {
+  const f = fontString(node);
+  const movable = !!act && act.interactive && !node.locked && act.canMove(node);
+  const pad = node.padding ?? 0;
+  // The arch stays put; smaller (shrunk) letters sit on the same baseline.
+  const g = arcGeometry(node.width, node.fontSize, node.arc ?? 0, pad);
+  const w = node.width;
+  const h = g.boxHeight;
+  const st = node.stretch ?? 1;
+  const font = `${f.style === "normal" ? "" : f.style} ${lay.size}px ${f.family}, sans-serif`.trim();
+  const stroke = node.stroke.enabled && node.stroke.width > 0 ? node.stroke : null;
+  const sh = node.shadow.enabled ? node.shadow : null;
+  return (
+    <Group
+      id={node.id}
+      name="flyer-node"
+      x={node.x + w / 2}
+      y={node.y + h / 2}
+      offsetX={w / 2}
+      offsetY={h / 2}
+      rotation={node.rotation}
+      opacity={node.opacity}
+      draggable={movable}
+      listening={!!act?.interactive && !node.locked}
+      onMouseDown={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey, "down")}
+      onClick={(e) => act?.onSelect(node.id, e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey, "click")}
+      onTap={() => act?.onSelect(node.id, false, "tap")}
+      onDblClick={() => act?.onEditText?.(node.id)}
+      onDblTap={() => act?.onEditText?.(node.id)}
+    >
+      <Rect width={w} height={h} fill="rgba(0,0,0,0)" />
+      {act?.interactive && lay.overflow && <Rect width={w} height={h} stroke="#e5484d" strokeWidth={3} dash={[10, 6]} listening={false} />}
+      <KShape
+        key={fontsKey}
+        listening={false}
+        globalCompositeOperation={blendOp(node.blend)}
+        sceneFunc={(kctx) => {
+          // Each letter on the arch, turned to the curve and widened along it (like SVG textLength).
+          const c = (kctx as unknown as { _context: CanvasRenderingContext2D })._context;
+          c.save();
+          c.font = font;
+          c.textAlign = "center";
+          c.textBaseline = "alphabetic";
+          const chars = [...text];
+          const widths = chars.map((ch) => c.measureText(ch).width);
+          const { glyphs } = placeOnArc(g, widths, { spacing: lay.spacing, stretch: st, align: node.align });
+          if (sh) {
+            c.shadowColor = sh.color;
+            c.shadowBlur = sh.blur;
+            c.shadowOffsetX = sh.offsetX;
+            c.shadowOffsetY = sh.offsetY;
+            c.globalAlpha = c.globalAlpha * 1;
+          }
+          for (const pass of stroke ? (["stroke", "fill"] as const) : (["fill"] as const)) {
+            glyphs.forEach((p, i) => {
+              c.save();
+              c.translate(p.x, p.y);
+              c.rotate(p.angle);
+              c.scale(st, 1);
+              if (pass === "stroke" && stroke) {
+                c.lineJoin = "round";
+                c.lineWidth = stroke.width / st;
+                c.strokeStyle = stroke.color;
+                c.strokeText(chars[i], 0, 0);
+              } else {
+                if (stroke) c.shadowColor = "transparent";
+                c.fillStyle = node.fill;
+                c.fillText(chars[i], 0, 0);
+              }
+              c.restore();
+            });
+          }
+          c.restore();
+        }}
+      />
+    </Group>
   );
 }
 
@@ -578,6 +681,24 @@ export function FlyerStage({
       if (n.kind === "image" || n.kind === "shape") {
         patch.width = Math.max(8, Math.round(n.width * sx));
         patch.height = Math.max(8, Math.round(n.height * sy));
+      } else if (n.arc) {
+        // Curved text: the box turns around its centre; resizing changes the width, and the letters and curve with the height.
+        const w = Math.max(20, Math.round(n.width * sx));
+        const tp = patch as Partial<TextNode>;
+        tp.width = w;
+        let size = n.fontSize;
+        let arc = n.arc;
+        if (Math.abs(sy - 1) > 0.001) {
+          size = Math.max(6, Math.round(n.fontSize * sy * 10) / 10);
+          arc = Math.round(n.arc * sy * 10) / 10;
+          tp.fontSize = size;
+          tp.arc = arc;
+          if (n.minFontSize) tp.minFontSize = Math.max(6, Math.round(n.minFontSize * sy * 10) / 10);
+        }
+        const bh = arcGeometry(w, size, arc, n.padding ?? 0).boxHeight;
+        tp.height = bh;
+        patch.x = Math.round((k.x() - w / 2) * 10) / 10;
+        patch.y = Math.round((k.y() - bh / 2) * 10) / 10;
       } else {
         const pad = n.padding ?? 0;
         // Stretched text carries its stretch as scaleX: only the change beyond it is a resize.
@@ -597,7 +718,7 @@ export function FlyerStage({
           patch.y = Math.round((k.y() - bh / 2) * 10) / 10;
         }
       }
-      k.scaleX(n.kind === "text" ? (n.stretch ?? 1) : 1);
+      k.scaleX(n.kind === "text" && !n.arc ? (n.stretch ?? 1) : 1);
       k.scaleY(1);
       return [{ id: n.id, patch }];
     });
@@ -692,7 +813,7 @@ export function FlyerStage({
             // Side handles on text change the box width, not the letter shapes.
             const k = trRef.current?.nodes()[0];
             const anchor = trRef.current?.getActiveAnchor();
-            if (single?.kind === "text" && k && (anchor === "middle-left" || anchor === "middle-right")) {
+            if (single?.kind === "text" && !single.arc && k && (anchor === "middle-left" || anchor === "middle-right")) {
               // Keep the left edge where the handle put it while the width (not the letters) changes.
               const before = k.getTransform().point({ x: 0, y: k.offsetY() });
               k.width(Math.max(20, k.width() * k.scaleX()));

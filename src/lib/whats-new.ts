@@ -19,6 +19,20 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-23-north48-template",
+    date: "2026-11-23",
+    area: "CRM",
+    title: "New flyer template: North 48 – Blackout, plus curved text",
+    summary: "A story-size flyer in black and cream with orange accents: NORTH 48 on an arch, a stacked date, BLACKOUT WEDNESDAY and the DJ name on an orange brush stroke. Every word is its own editable layer, and text layers can now curve.",
+    bullets: [
+      "Fills in from the booking: venue name (on the arch), weekday, month, day, time, the DJs, drink specials (hidden on nights without any) and the venue address",
+      "The title lines and DJ name keep their slight tilt and the month runs up the side; move, resize or reword any of them",
+      "New Curve setting on every text layer (Text → Curve): bend any line into an arch or a smile, in the editor and the exports",
+      "Shared with all DJs to start; change it with the Share button on the template"
+    ],
+    link: { href: "/admin/flyers", label: "Open Flyer Templates" }
+  },
+  {
     id: "2026-11-23-flyer-template-sharing",
     date: "2026-11-23",
     area: "CRM",

@@ -7,6 +7,7 @@ import { accountRole, isStaffRole } from "@/lib/roles";
 import { SAMPLE_TEMPLATE_SLUG, sampleTemplateContent } from "./sample-template";
 import type { Scene, TemplateContent } from "./types";
 import { DJ_NIGHT_SLUG, djNightTemplateContent } from "./templates/dj-night";
+import { NORTH48_SLUG, north48TemplateContent } from "./templates/north48";
 import { djRowForUser, viewAsDjIdFor } from "@/lib/view-as";
 
 export const FLYER_BUCKET = "flyer-assets";
@@ -93,6 +94,12 @@ const BUILT_IN: { slug: string; name: string; description: string; content: () =
     name: "DJ Night Party",
     description: "Red and yellow on deep green: big DJ NIGHT title, script Party, concert photo with a soft fade, lineup and venue panels. Portrait and story.",
     content: djNightTemplateContent
+  },
+  {
+    slug: NORTH48_SLUG,
+    name: "North 48 – Blackout",
+    description: "Black and cream with orange accents on worn paper: NORTH 48 on an arch, stacked date, BLACKOUT WEDNESDAY, DJ name on an orange brush stroke. Story size.",
+    content: north48TemplateContent
   }
 ];
 

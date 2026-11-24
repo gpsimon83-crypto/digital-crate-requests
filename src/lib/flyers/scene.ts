@@ -269,6 +269,7 @@ const textSchema = z.object({
   pivot: z.preprocess((v) => (v === "center" || v === "topLeft" ? v : undefined), z.enum(["center", "topLeft"]).optional()),
   trackingEm: z.preprocess((v) => (typeof v === "number" && Number.isFinite(v) ? Math.min(1, Math.max(-0.3, v)) : null), z.number().nullable().optional()),
   stretch: z.preprocess((v) => (typeof v === "number" && Number.isFinite(v) && Math.abs(v - 1) > 0.001 ? Math.min(3, Math.max(0.4, v)) : undefined), z.number().optional()),
+  arc: z.preprocess((v) => (typeof v === "number" && Number.isFinite(v) && Math.abs(v) >= 0.5 ? Math.min(1200, Math.max(-1200, Math.round(v * 10) / 10)) : undefined), z.number().optional()),
   panel: z.preprocess(
     (v) => (v && typeof v === "object" ? v : null),
     z.object({ enabled: bool(false), color: color("#000000"), opacity: num(0, 1, 0.6), padding: num(0, 200, 24), radius: num(0, 400, 12) }).nullable()
@@ -512,7 +513,7 @@ export function withGroup(nodes: FlyerNode[], id: string): string[] {
 /* ---------------- DJ permission check (server side) ---------------- */
 
 const MOVE_KEYS = ["x", "y", "width", "height", "rotation"] as const;
-const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend", "fitBox", "minFontSize", "panel", "valign", "padding", "trackingEm", "stretch", "effects"] as const;
+const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend", "fitBox", "minFontSize", "panel", "valign", "padding", "trackingEm", "stretch", "arc", "effects"] as const;
 const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "mask", "shadow", "opacity", "blend", "effects"] as const;
 const STYLE_KEYS_SHAPE = ["shape", "fillEnabled", "fill", "stroke", "radius", "keepRatio", "shadow", "opacity", "blend", "effects"] as const;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);

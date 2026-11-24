@@ -18,6 +18,26 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-23-north48-template": [
+    {
+      path: "/admin/flyers",
+      target: '[data-tour="flyer-tpl-edit"], main',
+      title: "North 48 – Blackout",
+      body: "The new template is in your list. Edit opens it: NORTH 48 sits on an arch, linked to the venue name, and every word is its own layer."
+    },
+    {
+      path: "/admin/flyers",
+      target: '[data-tour="flyer-tpl-share"], main',
+      title: "Choose who gets it",
+      body: "It starts out shared with all DJs. Use this button to limit it to chosen DJs or keep it office-only."
+    },
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-office-templates"], main',
+      title: "DJs start from it here",
+      body: "DJs find it under Templates from the office. Their booking's venue, date, time, DJs and specials fill in, and the Curve setting under Text bends any line."
+    }
+  ],
   "2026-11-23-flyer-template-sharing": [
     {
       path: "/admin/flyers",
