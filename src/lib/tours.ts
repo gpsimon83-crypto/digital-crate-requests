@@ -18,6 +18,58 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-23-flyer-animate": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "Animate is in the flyer editor. Click Next to open your first flyer, or click any flyer.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-animate"]',
+      title: "Animate",
+      body: "Click Animate to add motion. Your design stays as it is; motion is added on top and saved with the flyer.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-styles"]',
+      title: "Pick a motion style",
+      body: "Preview plays a style without changing anything. Apply uses it (you can undo). If layers already have motion, you're asked before it's replaced."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-intensity"]',
+      title: "How much movement",
+      body: "Subtle, Balanced or High Energy scales every effect within safe limits. Keep event details readable holds the venue, date, time and address steady."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-preview"]',
+      title: "Play and scrub",
+      body: "Press Play (or the space bar) to watch the loop; drag the slider to any frame. Reduced motion preview shows a gentler version."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-mode"]',
+      title: "Advanced",
+      body: "Advanced shows every layer, the motion library and the timeline. Select a layer, add up to 4 effects, tune them, copy them to another layer or save them as your own preset."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-check-loop"]',
+      title: "Check loop",
+      body: "Plays the video 3 times and puts the last and first frame side by side, so you can see the loop has no jump."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-export"]',
+      title: "Export MP4",
+      body: "Makes the video on your device, frame by frame: 30 fps, no sound, at the flyer's size. Keep the tab open until Download appears."
+    }
+  ],
   "2026-11-23-north48-template": [
     {
       path: "/admin/flyers",

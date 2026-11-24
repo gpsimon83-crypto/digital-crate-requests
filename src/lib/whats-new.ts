@@ -19,6 +19,23 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-23-flyer-animate",
+    date: "2026-11-23",
+    area: "Members area",
+    title: "Animate: turn a flyer into a looping video (MP4)",
+    summary: "A new Animate button in the flyer editor adds motion to the flyer's own layers and exports a seamless looping MP4 for Stories and posts. The flyer itself is never changed: motion sits on top, and the PNG and PDF exports stay exactly as before.",
+    bullets: [
+      "Simple: pick a motion style (Clean Promo, Club Energy, Luxury Wedding or Vintage Print), preview it, set Subtle, Balanced or High Energy, then export",
+      "Keep event details readable (on by default): venue, date, time and address stay visible and steady",
+      "Advanced: choose motion per layer from the library (text, photos, backgrounds, overlays), stack up to 4, tune strength, cycles, timing, colour and seed, copy and paste motion, save your own presets, mute or solo layers, scrub the timeline",
+      "Check loop plays it 3 times and shows the last and first frame side by side",
+      "Export: 6, 8, 10 or 15 seconds at 30 fps, H.264 MP4 with no sound, made frame by frame on your device (keep the tab open; about 30 seconds for an 8-second story)",
+      "Saved on the flyer, so it's there when you come back"
+    ],
+    link: { href: "/dj-dashboard/flyers", label: "Open Flyers" },
+    action: "Run supabase/migrations/0069_flyer_animation.sql in Supabase so motion settings are saved. Until then you can still preview and export."
+  },
+  {
     id: "2026-11-23-north48-template",
     date: "2026-11-23",
     area: "CRM",

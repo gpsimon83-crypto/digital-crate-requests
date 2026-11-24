@@ -8,6 +8,7 @@ import { resolveTemplate } from "@/lib/flyers/activation";
 import { templateAccess } from "@/lib/flyers/sharing";
 import { findCalendarNight, isCalendarKey, type CalendarNightRef } from "@/lib/flyers/calendar-nights";
 import { applyTemplateKeepingOverrides } from "@/lib/flyers/links";
+import { parseAnimation } from "@/lib/flyers/motion/schema";
 import type { FormatKey, Scene, TemplateContent } from "@/lib/flyers/types";
 
 type Params = { params: Promise<{ id: string }> };
@@ -113,12 +114,23 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   try {
     const row = await load(actor, (await params).id);
     if (row instanceof NextResponse) return row;
-    const b = (await req.json().catch(() => ({}))) as { scene?: unknown; title?: unknown; baseUpdatedAt?: unknown; eventId?: unknown; venueId?: unknown; djSlots?: unknown; exported?: unknown; applyTemplate?: unknown };
+    const b = (await req.json().catch(() => ({}))) as { scene?: unknown; title?: unknown; baseUpdatedAt?: unknown; eventId?: unknown; venueId?: unknown; djSlots?: unknown; exported?: unknown; applyTemplate?: unknown; animation?: unknown };
     const update: Record<string, unknown> = { updated_by: actor.user.id, updated_at: new Date().toISOString() };
     const db = createAdminClient();
     const linkChange = b.eventId !== undefined || b.venueId !== undefined || b.djSlots !== undefined;
 
     if (typeof b.title === "string") update.title = b.title.trim().slice(0, 80) || "Untitled flyer";
+
+    // Animate mode settings (stored beside the layout; null turns animation off).
+    if (b.animation !== undefined) {
+      if (!("animation" in row)) return NextResponse.json({ error: "Animate mode needs migration 0069_flyer_animation.sql in Supabase.", setup: true }, { status: 503 });
+      const a = parseAnimation(b.animation);
+      if (!a.ok) return NextResponse.json({ error: a.error }, { status: 400 });
+      update.animation = a.value;
+      update.animation_updated_at = new Date().toISOString();
+      // Animation alone doesn't change the layout: keep updated_at, so the editor's save-conflict check isn't tripped.
+      if (Object.keys(b).every((k) => k === "animation")) delete update.updated_at;
+    }
 
     // Link the flyer to an event (the event's venue and DJs then fill it). Read only: the event isn't changed.
     let night: CalendarNightRef | null = null;

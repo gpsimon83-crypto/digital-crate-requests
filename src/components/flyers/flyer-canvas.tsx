@@ -5,6 +5,9 @@ import KonvaLib from "konva";
 import type Konva from "konva";
 import { Ellipse, Group, Image as KImage, Layer, Line, Rect, Stage, Text as KText, Shape as KShape, Transformer } from "react-konva";
 import { arcGeometry, placeOnArc } from "@/lib/flyers/arc";
+import { MotionWrap } from "./motion-wrap";
+import type { MotionState } from "@/lib/flyers/motion/types";
+import { graphemes, revealCount } from "@/lib/flyers/motion/graphemes";
 import { imageLayout } from "@/lib/flyers/scene";
 import { boundsOf, snapBox, type Guide } from "@/lib/flyers/snap";
 import { applyFeather, hiddenOverlay, needsProcessing, processedImage } from "@/lib/flyers/feather";
@@ -375,7 +378,7 @@ export function textGeometry(node: TextNode, lay: TextLay) {
   return { pad, bw, bh, px, py, x: node.x + px, y: node.y + py, offsetX: px - pad, offsetY: py - pad - dy };
 }
 
-function TextLayer({ node, act, fontsKey, ctx, exporting }: { node: TextNode; act: Interact | null; fontsKey: number; ctx: SrcContext; exporting: boolean }) {
+function TextLayer({ node, act, fontsKey, ctx, exporting, reveal = null }: { node: TextNode; act: Interact | null; fontsKey: number; ctx: SrcContext; exporting: boolean; reveal?: MotionState["reveal"] }) {
   const f = fontString(node);
   const textRef = useRef<Konva.Text>(null);
   const movable = !!act && act.interactive && !node.locked && act.canMove(node);
@@ -391,7 +394,7 @@ function TextLayer({ node, act, fontsKey, ctx, exporting }: { node: TextNode; ac
   const panel = node.panel?.enabled ? node.panel : null;
   const stretch = node.stretch ?? 1;
   useLayerEffects(textRef, node, Math.min(3, Math.max(0.1, ctx.fxScale ?? 1)), exporting, fontsKey);
-  if (node.arc) return <ArcTextLayer node={node} act={act} lay={lay} fontsKey={fontsKey} text={shown.replace(/\n+/g, " ")} />;
+  if (node.arc) return <ArcTextLayer node={node} act={act} lay={lay} fontsKey={fontsKey} text={shown.replace(/\n+/g, " ")} reveal={reveal} />;
   return (
     <>
       {panel && (
@@ -416,6 +419,7 @@ function TextLayer({ node, act, fontsKey, ctx, exporting }: { node: TextNode; ac
       {act?.interactive && lay.overflow && (
         <Rect x={g.x} y={g.y} offsetX={g.px} offsetY={g.py} rotation={node.rotation} width={g.bw} height={g.bh} stroke="#e5484d" strokeWidth={3} dash={[10, 6]} listening={false} />
       )}
+      <RevealClip textRef={textRef} reveal={reveal}>
       <KText
         key={fontsKey}
         ref={textRef}
@@ -453,7 +457,62 @@ function TextLayer({ node, act, fontsKey, ctx, exporting }: { node: TextNode; ac
         onDblClick={() => act?.onEditText?.(node.id)}
         onDblTap={() => act?.onEditText?.(node.id)}
       />
+      </RevealClip>
     </>
+  );
+}
+
+/**
+ * Letter / word reveal (Animate): shows the first whole graphemes of each
+ * line, measured on the line as drawn, so kerning, line breaks and
+ * stretched letters are exactly as in the static text.
+ */
+let revealMeasure: CanvasRenderingContext2D | null = null;
+
+function RevealClip({ textRef, reveal, children }: { textRef: React.RefObject<Konva.Text | null>; reveal: MotionState["reveal"]; children: React.ReactNode }) {
+  if (!reveal || reveal.amount >= 1) return <>{children}</>;
+  return (
+    <Group
+      clipFunc={(kctx: Konva.Context) => {
+        const t = textRef.current;
+        if (!t) return;
+        const c = (kctx as unknown as { _context: CanvasRenderingContext2D })._context;
+        const lines = (t as unknown as { textArr: { text: string; width: number }[] }).textArr ?? [];
+        const joined = lines.map((l) => l.text).join("\n");
+        let left = revealCount(joined, reveal.mode, reveal.amount);
+        const lh = t.fontSize() * t.lineHeight();
+        const total = lh * lines.length;
+        const boxH = t.height();
+        const y0 = t.verticalAlign() === "middle" ? (boxH - total) / 2 : t.verticalAlign() === "bottom" ? boxH - total : 0;
+        const w = t.width();
+        // Measured with the text's own font, then scaled to the line as Konva laid it out (exact at both ends).
+        const mc = (revealMeasure ??= document.createElement("canvas").getContext("2d")!);
+        mc.font = (t as unknown as { _getContextFont: () => string })._getContextFont();
+        (mc as unknown as { letterSpacing: string }).letterSpacing = `${t.letterSpacing()}px`;
+        const measure = (s: string, line: { text: string; width: number }) => {
+          const full = mc.measureText(line.text).width;
+          return full > 0 ? (mc.measureText(s).width / full) * line.width : 0;
+        };
+        c.save();
+        const m = t.getTransform().getMatrix();
+        c.transform(m[0], m[1], m[2], m[3], m[4], m[5]);
+        const pad = t.fontSize();
+        lines.forEach((l, i) => {
+          const g = graphemes(l.text);
+          const k = Math.max(0, Math.min(g.length, left));
+          left -= g.length + (i < lines.length - 1 ? 1 : 0);
+          if (k <= 0) return;
+          const lx = t.align() === "center" ? (w - l.width) / 2 : t.align() === "right" ? w - l.width : 0;
+          const shownW = k >= g.length ? l.width + pad : measure(g.slice(0, k).join(""), l);
+          const top = y0 + i * lh - (i === 0 ? pad : 0);
+          const bottom = y0 + (i + 1) * lh + (i === lines.length - 1 ? pad : 0);
+          kctx.rect(lx - pad, top, shownW + pad, bottom - top);
+        });
+        c.restore();
+      }}
+    >
+      {children}
+    </Group>
   );
 }
 
@@ -462,7 +521,7 @@ function TextLayer({ node, act, fontsKey, ctx, exporting }: { node: TextNode; ac
  * the words on the arch. The box catches clicks and drags; double-click
  * edits the words in the panel like any text layer.
  */
-function ArcTextLayer({ node, act, lay, fontsKey, text }: { node: TextNode; act: Interact | null; lay: TextLay; fontsKey: number; text: string }) {
+function ArcTextLayer({ node, act, lay, fontsKey, text, reveal = null }: { node: TextNode; act: Interact | null; lay: TextLay; fontsKey: number; text: string; reveal?: MotionState["reveal"] }) {
   const f = fontString(node);
   const movable = !!act && act.interactive && !node.locked && act.canMove(node);
   const pad = node.padding ?? 0;
@@ -505,7 +564,7 @@ function ArcTextLayer({ node, act, lay, fontsKey, text }: { node: TextNode; act:
           c.font = font;
           c.textAlign = "center";
           c.textBaseline = "alphabetic";
-          const chars = [...text];
+          const chars = graphemes(text);
           const widths = chars.map((ch) => c.measureText(ch).width);
           const { glyphs } = placeOnArc(g, widths, { spacing: lay.spacing, stretch: st, align: node.align });
           if (sh) {
@@ -515,8 +574,10 @@ function ArcTextLayer({ node, act, lay, fontsKey, text }: { node: TextNode; act:
             c.shadowOffsetY = sh.offsetY;
             c.globalAlpha = c.globalAlpha * 1;
           }
+          // Letter / word reveal: only the first whole graphemes are drawn.
+          const show = reveal && reveal.amount < 1 ? revealCount(text, reveal.mode, reveal.amount) : glyphs.length;
           for (const pass of stroke ? (["stroke", "fill"] as const) : (["fill"] as const)) {
-            glyphs.forEach((p, i) => {
+            glyphs.slice(0, show).forEach((p, i) => {
               c.save();
               c.translate(p.x, p.y);
               c.rotate(p.angle);
@@ -597,20 +658,47 @@ function NameFallback({ node, name }: { node: ImageNode; name: string }) {
 }
 
 /** The layers themselves, drawn the same way in the editor, the preview and every export. */
-export function SceneNodes({ scene, ctx, exporting, act, fontsKey, onStatus }: { scene: Scene; ctx: SrcContext; exporting: boolean; act: Interact | null; fontsKey: number; onStatus?: (id: string, done: boolean) => void }) {
+/** A text layer at one moment of its motion: added letter spacing and a drifting shadow (the saved layer is untouched). */
+function textInMotion(n: TextNode, st: MotionState | undefined): TextNode {
+  if (!st || (!st.trackingEm && !st.shadow)) return n;
+  const out: TextNode = { ...n };
+  if (st.trackingEm) out.trackingEm = (n.trackingEm ?? n.letterSpacing / Math.max(1, n.fontSize)) + st.trackingEm;
+  if (st.shadow) {
+    const base = n.shadow.enabled ? n.shadow : { enabled: true, color: st.shadow.color, blur: st.shadow.blur, offsetX: 0, offsetY: 0, opacity: st.shadow.opacity };
+    out.shadow = { ...base, enabled: true, offsetX: base.offsetX + st.shadow.dx, offsetY: base.offsetY + st.shadow.dy };
+  }
+  return out;
+}
+
+/**
+ * The layers themselves, drawn the same way in the editor, the preview and
+ * every export. `motion` (Animate mode) adds each layer's offsets at one
+ * moment of the timeline; without it this is exactly the static flyer.
+ */
+export function SceneNodes({ scene, ctx, exporting, act, fontsKey, onStatus, motion }: { scene: Scene; ctx: SrcContext; exporting: boolean; act: Interact | null; fontsKey: number; onStatus?: (id: string, done: boolean) => void; motion?: Map<string, MotionState> | null }) {
   return (
     <>
       <Rect width={scene.width} height={scene.height} fill={scene.background} listening={false} />
-      {scene.nodes.map((n) =>
+      {scene.nodes.map((n) => {
         // Hidden by the user, or by its data ("only show when…", empty "hide when empty" text).
-        !shownByData(n, ctx.values) ? null : n.kind === "image" ? (
-          <ImageLayer key={n.id} node={n} ctx={ctx} exporting={exporting} act={act} onStatus={onStatus} />
-        ) : n.kind === "shape" ? (
-          <ShapeLayer key={n.id} node={n} act={act} ctx={ctx} exporting={exporting} />
+        if (!shownByData(n, ctx.values)) return null;
+        const st = motion?.get(n.id);
+        const el =
+          n.kind === "image" ? (
+            <ImageLayer key={n.id} node={n} ctx={ctx} exporting={exporting} act={act} onStatus={onStatus} />
+          ) : n.kind === "shape" ? (
+            <ShapeLayer key={n.id} node={n} act={act} ctx={ctx} exporting={exporting} />
+          ) : (
+            <TextLayer key={n.id} node={textInMotion(n, st)} act={act} fontsKey={fontsKey} ctx={ctx} exporting={exporting} reveal={st?.reveal ?? null} />
+          );
+        return st ? (
+          <MotionWrap key={n.id} node={n} st={st}>
+            {el}
+          </MotionWrap>
         ) : (
-          <TextLayer key={n.id} node={n} act={act} fontsKey={fontsKey} ctx={ctx} exporting={exporting} />
-        )
-      )}
+          el
+        );
+      })}
     </>
   );
 }
@@ -937,7 +1025,7 @@ export function ExportStage({ scene, ctx: ctxIn, mime, quality, onDone, pixelRat
 /* ---------------- thumbnail ---------------- */
 
 /** A small, read-only rendering of a scene (template browser, flyer list). */
-export function ScenePreview({ scene, width, ctx }: { scene: Scene; width: number; ctx?: SrcContext }) {
+export function ScenePreview({ scene, width, ctx, motion = null }: { scene: Scene; width: number; ctx?: SrcContext; /** Animate: one moment of the motion. */ motion?: Map<string, MotionState> | null }) {
   const [fontsKey, setFontsKey] = useState(0);
   useEffect(() => {
     let live = true;
@@ -951,7 +1039,7 @@ export function ScenePreview({ scene, width, ctx }: { scene: Scene; width: numbe
   return (
     <Stage width={Math.round(scene.width * z)} height={Math.round(scene.height * z)} scaleX={z} scaleY={z} listening={false}>
       <Layer listening={false}>
-        <SceneNodes scene={scene} ctx={small} exporting={false} act={null} fontsKey={fontsKey} />
+        <SceneNodes scene={scene} ctx={small} exporting={false} act={null} fontsKey={fontsKey} motion={motion} />
       </Layer>
     </Stage>
   );

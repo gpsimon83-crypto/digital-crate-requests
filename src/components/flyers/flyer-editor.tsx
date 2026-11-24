@@ -20,6 +20,7 @@ import {
   SlidersHorizontal,
   Undo2,
   X,
+  Clapperboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -72,6 +73,10 @@ import { countNumbers, emptyMask, MAX_MASK_NUMBERS, MAX_MASK_STROKES, sanitizeMa
 import type { MaskEdit, MaskTool } from "./mask-tools";
 import { MaskPanel, type MaskApi } from "./mask-panel";
 import { importSvg } from "./svg-import";
+import dynamic from "next/dynamic";
+
+// Animate is loaded only when opened (it brings the video encoder with it).
+const AnimateWorkspace = dynamic(() => import("./motion/animate-workspace").then((m) => m.AnimateWorkspace), { ssr: false });
 
 export type Scenes = Partial<Record<FormatKey, Scene>>;
 export type SaveResult =
@@ -197,6 +202,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
   const [zoomMode, setZoomMode] = useState<"fit" | number>("fit");
   const [fitZoom, setFitZoom] = useState(0.4);
   const [fontsKey, setFontsKey] = useState(0);
+  const [animOpen, setAnimOpen] = useState(false);
   const [showGuides, setShowGuides] = useState(true);
   const [savedKey, setSavedKey] = useState(() =>
     JSON.stringify({ s: props.scenes, t: props.title }),
@@ -1401,6 +1407,19 @@ export function FlyerEditor(props: FlyerEditorProps) {
           >
             <Save size={15} /> Save
           </button>
+          {mode === "design" && props.link && (
+            <button
+              className={cn(iconBtn, "border-gold/60")}
+              onClick={() => {
+                if (currentKey !== savedKey) void doSave();
+                setAnimOpen(true);
+              }}
+              data-tour="flyer-animate"
+              title="Add motion and export a looping video"
+            >
+              <Clapperboard size={15} /> Animate
+            </button>
+          )}
           <div className="hidden items-center gap-1.5 lg:flex">
             {exportBtns}
           </div>
@@ -1729,6 +1748,15 @@ export function FlyerEditor(props: FlyerEditorProps) {
             </button>
           </div>
         </div>
+      )}
+      {animOpen && props.link && (
+        <AnimateWorkspace
+          designId={props.link.designId}
+          scene={scene}
+          ctx={{ ...ctx, maskView: null }}
+          title={title}
+          onClose={() => setAnimOpen(false)}
+        />
       )}
       {sendOpen && props.link && (
         <SendToVenueDialog
