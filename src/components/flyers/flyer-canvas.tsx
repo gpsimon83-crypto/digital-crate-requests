@@ -16,6 +16,8 @@ import { MaskTools, type MaskEdit } from "./mask-tools";
 import { applyEffects, effectsOn, resolveParams, type PhotoEffects } from "@/lib/flyers/effects";
 import { runEffects, keyFor } from "./fx-runner";
 import { setFxStatus } from "./fx-status";
+import { paintEcho } from "./echo-paint";
+import { echoOn, type EchoInput } from "@/lib/flyers/echo";
 import { shownByData } from "@/lib/flyers/links";
 import type { FlyerNode, ImageNode, Scene, ShapeNode, TextNode } from "@/lib/flyers/types";
 import { fontString, loadSceneFonts, loadSceneImages, slotDjId, srcFor, useImage, type SrcContext } from "./loaders";
@@ -117,7 +119,10 @@ function cloneCanvas(c: HTMLCanvasElement) {
 const shadowProps = (s: { enabled: boolean; color: string; blur: number; offsetX: number; offsetY: number; opacity: number }) =>
   s.enabled ? { shadowEnabled: true, shadowColor: s.color, shadowBlur: s.blur, shadowOffsetX: s.offsetX, shadowOffsetY: s.offsetY, shadowOpacity: s.opacity } : { shadowEnabled: false };
 
-function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; ctx: SrcContext; exporting: boolean; act: Interact | null; onStatus?: (id: string, done: boolean) => void }) {
+/** Echo to draw on a picture layer: Animate's moment of it, else the layer's own (still) echo. */
+export type EchoAt = EchoInput & { u: number; amount: number };
+
+function ImageLayer({ node, ctx, exporting, act, onStatus, echoAt }: { node: ImageNode; ctx: SrcContext; exporting: boolean; act: Interact | null; onStatus?: (id: string, done: boolean) => void; echoAt?: EchoAt | null }) {
   const url = srcFor(node.source, ctx);
   const { img, status } = useImage(url);
   const lay = img ? imageLayout(node, { width: img.naturalWidth, height: img.naturalHeight }, node.fit, node.crop) : null;
@@ -133,13 +138,16 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
   const mv = !exporting && ctx.maskView?.id === node.id ? ctx.maskView : null;
   const mask = mv?.hold ? null : maskOn(node.mask) ? node.mask : null;
   const natural = img ? { width: img.naturalWidth, height: img.naturalHeight } : null;
+  // Echo: Animate's moment of it, else the layer's own still echo (u = 0, not moving).
+  const echo: EchoAt | null = echoAt ?? (echoOn(node.echo) ? { ...node.echo, u: 0, amount: 0 } : null);
+  const echoWanted = !!echo;
   const soft = useMemo(
     () =>
-      img && lay && natural && (fx || needsProcessing(feather, recolor, mask))
+      img && lay && natural && (fx || echoWanted || needsProcessing(feather, recolor, mask))
         ? processedImage(img, node, lay, node.flipX, node.flipY, feather, recolor, { scale: fxScale, withFeather: !fx, mask: { mask, natural, owner: node.id } })
         : null,
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [img, lay?.x, lay?.y, lay?.width, lay?.height, node.width, node.height, node.flipX, node.flipY, featherKey, recolor.mode, recolor.color, recolor.knockoutWhite, fxOn, fxScale, mask]
+    [img, lay?.x, lay?.y, lay?.width, lay?.height, node.width, node.height, node.flipX, node.flipY, featherKey, recolor.mode, recolor.color, recolor.knockoutWhite, fxOn, fxScale, mask, echoWanted]
   );
   // Mask editing: what's hidden, tinted, so it's easy to see (editor only).
   const overlay = useMemo(
@@ -186,13 +194,27 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
   const plainSoft = useMemo(() => (fx && soft ? applyFeather(cloneCanvas(soft), feather, fxScale) : null), [soft, fxOn]); // eslint-disable-line react-hooks/exhaustive-deps
   // While a mask is being brushed, the picture follows the brush straight away (effects catch up when it stops).
   const shown = fx ? (fxOut?.key === fxKey ? fxOut.canvas : mv ? plainSoft : (fxOut?.canvas ?? plainSoft)) : soft;
+  // Echoes are copies of the picture as shown (cutout, mask, feather and photo effects included), drawn behind it.
+  const echoPic = echo ? (shown ?? null) : null;
+  const echoKey = echo ? `${echo.preset}|${JSON.stringify(echo.params ?? {})}|${echo.seed ?? 7}|${echo.u.toFixed(4)}|${echo.amount.toFixed(3)}` : "";
+  const echoDraw = useMemo(() => (echo && echoPic ? paintEcho(echoPic, node.width, node.height, echo, fxScale, echo.u, echo.amount) : null), [echoPic, echoKey, node.width, node.height, fxScale]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hideOriginal = !!echoDraw && !echoDraw.original;
   // An export waits until the effects at full resolution are done.
   useEffect(() => {
     onStatus?.(node.id, status !== "loading" && !fxPending);
   }, [node.id, status, onStatus, fxPending]);
   const movable = !!act && act.interactive && !node.locked && act.canMove(node);
   const label = node.source.type === "dj_photo" ? "DJ photo" : node.source.type === "dj_logo" ? "DJ name logo" : node.source.type === "venue_logo" ? "Venue logo" : "Image";
+  // The echoes sit in their own group behind the layer (same place, turn and opacity), so the
+  // selection box and hit area stay the layer's own frame.
+  const echoGroup = echoDraw ? (
+    <Group x={node.x} y={node.y} rotation={node.rotation} opacity={node.opacity} globalCompositeOperation={blendOp(node.blend)} listening={false}>
+      <KImage image={echoDraw.canvas} x={echoDraw.x} y={echoDraw.y} width={echoDraw.w} height={echoDraw.h} listening={false} />
+    </Group>
+  ) : null;
   return (
+    <>
+    {echoGroup}
     <Group
       id={node.id}
       name="flyer-node"
@@ -209,7 +231,7 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
     >
       {/* Full-size hit area so empty or transparent frames are still easy to grab. */}
       <Rect width={node.width} height={node.height} fill="rgba(0,0,0,0)" />
-      <Group clipFunc={roundedClip(node.width, node.height, r)} listening={false}>
+      <Group clipFunc={roundedClip(node.width, node.height, r)} listening={false} visible={!hideOriginal}>
         {shown ? (
           <KImage image={shown} x={0} y={0} width={node.width} height={node.height} {...(node.frame.enabled && node.frame.width > 0 ? { shadowEnabled: false } : shadowProps(node.shadow))} />
         ) : img && lay && (
@@ -266,6 +288,7 @@ function ImageLayer({ node, ctx, exporting, act, onStatus }: { node: ImageNode; 
         <Rect width={node.width} height={node.height} cornerRadius={r} stroke={node.frame.color} strokeWidth={node.frame.width} {...shadowProps(node.shadow)} listening={false} />
       )}
     </Group>
+    </>
   );
 }
 
@@ -685,7 +708,7 @@ export function SceneNodes({ scene, ctx, exporting, act, fontsKey, onStatus, mot
     const nn = clone ? ({ ...n, id: k } as FlyerNode) : n;
     const el =
       nn.kind === "image" ? (
-        <ImageLayer key={k} node={nn} ctx={ctx} exporting={exporting} act={clone ? null : act} onStatus={clone ? undefined : onStatus} />
+        <ImageLayer key={k} node={nn} ctx={ctx} exporting={exporting} act={clone ? null : act} onStatus={clone ? undefined : onStatus} echoAt={st?.echo ?? null} />
       ) : nn.kind === "shape" ? (
         <ShapeLayer key={k} node={nn} act={clone ? null : act} ctx={ctx} exporting={exporting} />
       ) : (

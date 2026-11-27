@@ -1,6 +1,7 @@
 import type { FlyerNode, Role } from "../types";
 import type { BurnOrigin, Direction, EffectOpts, Easing, GlitchParams, MotionItem, MotionState, OverlayBlend } from "./types";
 import { burstAt } from "./raster";
+import { ECHO_CONTROLS, ECHO_PRESETS, resolveEcho, type EchoKey } from "../echo";
 
 /**
  * The motion library. Every preset here is implemented and loop-safe:
@@ -14,7 +15,7 @@ import { burstAt } from "./raster";
  * PLANNED with the reason, and are never shown as working buttons.
  */
 
-export type Category = "text" | "photos" | "backgrounds" | "overlays" | "fx";
+export type Category = "text" | "photos" | "echo" | "backgrounds" | "overlays" | "fx";
 export type LoopStrategy = "periodic" | "ping-pong" | "wrapped-envelope" | "wrapped-pass" | "seeded-periodic";
 export type ParamKey = "strength" | "cycles" | "phase" | "easing" | "direction" | "color" | "blend" | "seed" | "timing" | "glitch";
 
@@ -811,11 +812,53 @@ export const MOTION_PRESETS: Preset[] = [
   }
 ];
 
+/**
+ * Echo: copies of a picture layer behind it (Effects → Echo on the still
+ * flyer). Here they move: trails breathe, outlines and zoom copies flow
+ * outward one copy per cycle, orbits turn once per cycle, slices slide. The
+ * drawing is the same as the still flyer's (lib/flyers/echo.ts); Strength
+ * is how much they move (0 = the still echo).
+ */
+const ECHO_MOTION_NOTE: Record<string, string> = {
+  silhouette_trail: "the trail stretches and shimmers",
+  rgb_echo: "the colour copies spread and gather",
+  outline_echo: "outlines keep rippling outward",
+  mirror_echo: "the mirrored copies sway in and out",
+  zoom_echo: "copies keep growing out of the subject and fading",
+  orbit_echo: "the copies circle the subject",
+  slice_echo: "the strips slide in and out",
+  long_exposure: "the streak stretches and settles"
+};
+const echoControl = (k: EchoKey, def: number | string | boolean): Control => {
+  const c = ECHO_CONTROLS[k];
+  return { key: k, label: c.label, kind: c.kind === "color" ? "color" : c.kind === "bool" ? "toggle" : "range", def, min: c.min, max: c.max, step: c.step, unit: c.unit, hint: c.hint };
+};
+export const ECHO_MOTION: Preset[] = ECHO_PRESETS.map((e) => {
+  const d = resolveEcho({ preset: e.id });
+  return {
+    id: `echo.${e.id.replace(/_/g, "-")}`,
+    name: e.name,
+    category: "echo" as const,
+    description: `${e.blurb}; ${ECHO_MOTION_NOTE[e.id]}. Strength is how much it moves`,
+    loop: "periodic" as const,
+    params: ["strength", "cycles", "phase"] as ParamKey[],
+    defaults: { strength: 0.6, cycles: 1, phase: 0, easing: "linear" as const, seed: 7 },
+    needs: e.needsCutout ? ("cutout" as const) : undefined,
+    controls: e.controls.map((k) => echoControl(k, d[k])),
+    fits: isPicture,
+    apply: (s: MotionState, c: EvalCtx) => {
+      s.echo = { preset: e.id, params: c.opts, seed: c.item.seed ?? 7, u: c.u, amount: c.amount };
+    }
+  };
+});
+MOTION_PRESETS.push(...ECHO_MOTION);
+
 /** Reference IDs from the design library that are the same effect as one built under another name. */
 export const PRESET_ALIASES: Record<string, string> = {
   "text.glitch": "fx.digital-slice",
   "photos.grain": "fx.grain",
-  "overlays.vhs": "fx.vhs"
+  "overlays.vhs": "fx.vhs",
+  "photos.echo": "echo.silhouette-trail"
 };
 
 export const PRESET_BY_ID = new Map<string, Preset>([...MOTION_PRESETS.map((p) => [p.id, p] as [string, Preset]), ...Object.entries(PRESET_ALIASES).map(([a, id]) => [a, MOTION_PRESETS.find((p) => p.id === id)!] as [string, Preset])]);
@@ -837,7 +880,6 @@ export const PLANNED: { id: string; name: string; why: string }[] = [
   { id: "photos.rim", name: "Rim Light Sweep", why: "needs a subject cutout (alpha mask)" },
   { id: "photos.grade", name: "Color Grade Breathe", why: "needs the photo effects to blend per frame" },
   { id: "photos.flash", name: "Soft Flash", why: "needs an exposure pass that keeps the photo treatment" },
-  { id: "photos.echo", name: "Silhouette Echo", why: "needs a subject cutout (alpha mask)" },
   { id: "photos.focus", name: "Focus Settle", why: "needs a per-frame blur pass that keeps the photo treatment" },
   { id: "backgrounds.gradient", name: "Gradient Drift", why: "needs gradient fills on backgrounds" },
   { id: "backgrounds.texture", name: "Paper Texture Drift", why: "needs a tileable paper texture asset" },

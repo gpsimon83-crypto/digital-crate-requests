@@ -18,6 +18,42 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-27-photo-echo": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "Echo is in the flyer editor. Click Next to open your first flyer, or click any flyer with a DJ photo.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-tab-effects"]',
+      title: "Effects tab",
+      body: "Open Effects, then click the DJ photo on the flyer (or tick it in the list) and click Add an effect.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="fx-echo-tab"]',
+      title: "Echo",
+      body: "Picture layers have two kinds of effect: Looks (colour grades, prints) and Echo. Click Echo.",
+      waitHint: "Open Effects, pick a photo and click Add an effect to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="fx-echo-presets"]',
+      title: "Pick an echo",
+      body: "Every card is the same sample DJ, so you can compare them. Click one to see it on your photo; its settings open underneath. Silhouette Trail and Outline Echo need a cut-out photo or a mask. Apply keeps it; Cancel puts it back.",
+      waitHint: "Click Echo to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-animate"]',
+      title: "Make it move",
+      body: "In Animate, the Echo tab has the same eight. Pick your photo and an echo: it starts from the one you set here, and Strength sets how much it moves."
+    }
+  ],
   "2026-11-27-animate-image-effects": [
     {
       path: "/dj-dashboard/flyers",

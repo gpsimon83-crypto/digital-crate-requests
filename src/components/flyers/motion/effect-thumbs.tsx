@@ -7,7 +7,7 @@ import { ScenePreview, SceneNodes } from "../flyer-canvas";
 import { loadSceneFonts, type SrcContext } from "../loaders";
 import { loadRasterImage } from "../motion-wrap";
 import { newImage, newText } from "@/lib/flyers/scene";
-import { THUMB_SAMPLE } from "@/lib/flyers/sample-assets";
+import { ECHO_SAMPLE, THUMB_SAMPLE } from "@/lib/flyers/sample-assets";
 import type { FlyerNode, Scene } from "@/lib/flyers/types";
 import { PRESET_BY_ID, imagesUsed, type Preset } from "@/lib/flyers/motion/presets";
 import { evaluateFrame, frameCount, frameTime } from "@/lib/flyers/motion/engine";
@@ -27,7 +27,7 @@ import { emptyAnimation, type Animation, type MotionItem, type MotionState } fro
 /** The sample: dj-01 (a cutout) over charcoal-studio, as two separate layers. Bump THUMB_V when it changes. */
 const SAMPLE_PORTRAIT = THUMB_SAMPLE.portrait;
 const SAMPLE_BACKDROP = THUMB_SAMPLE.background;
-const THUMB_V = 3;
+const THUMB_V = 6;
 const W = THUMB_SAMPLE.size;
 const H = THUMB_SAMPLE.size;
 const SIZE = { width: W, height: H };
@@ -38,10 +38,19 @@ export const SAMPLE_IDS = { bg: "s-bg", dj: "s-dj", title: "s-title" };
 
 const sampleCache = new Map<string, Scene>();
 /** The sample flyer the thumbnails use (with a headline only where an effect needs one). */
-export function sampleScene(withTitle = false): Scene {
-  const key = withTitle ? "t" : "-";
+export function sampleScene(withTitle: boolean | "echo" = false): Scene {
+  const key = withTitle === "echo" ? "e" : withTitle ? "t" : "-";
   const hit = sampleCache.get(key);
   if (hit) return hit;
+  if (withTitle === "echo") {
+    // Echo cards: the same portrait and background, the portrait smaller so the echoes have room.
+    const P = ECHO_SAMPLE.portrait;
+    const ebg = newImage("background", { type: "static", src: SAMPLE_BACKDROP }, SIZE, { id: SAMPLE_IDS.bg, name: "Background", locked: false, x: 0, y: ECHO_SAMPLE.backgroundY, width: W, height: H, fit: "cover" });
+    const edj = newImage("portrait", { type: "static", src: SAMPLE_PORTRAIT }, SIZE, { id: SAMPLE_IDS.dj, name: "DJ photo", x: P.x, y: P.y, width: P.w, height: P.h, fit: "contain" });
+    const esc = { version: 1, format: "portrait", width: ECHO_SAMPLE.width, height: ECHO_SAMPLE.height, background: "#1c1c1c", safeMargin: 16, nodes: [ebg, edj] } as Scene;
+    sampleCache.set(key, esc);
+    return esc;
+  }
   const bg = newImage("background", { type: "static", src: SAMPLE_BACKDROP }, SIZE, { id: SAMPLE_IDS.bg, name: "Background", locked: false, x: 0, y: 0, width: W, height: H, fit: "cover" });
   const title = newText("title", SIZE, { id: SAMPLE_IDS.title, name: "Headline", text: "DJ NIGHT", x: 20, y: 60, width: 587, height: 150, fontSize: 130, fill: "#f4eee2", align: "center", uppercase: true, minFontSize: 50 });
   const dj = newImage("portrait", { type: "static", src: SAMPLE_PORTRAIT }, SIZE, { id: SAMPLE_IDS.dj, name: "DJ photo", x: 0, y: 0, width: W, height: H, fit: "contain" });
@@ -51,7 +60,7 @@ export function sampleScene(withTitle = false): Scene {
   sampleCache.set(key, sc);
   return sc;
 }
-const sceneFor = (p: Preset | undefined) => sampleScene(p?.id === "text.occlude");
+const sceneFor = (p: Preset | undefined) => sampleScene(p?.category === "echo" ? "echo" : p?.id === "text.occlude");
 
 /** Which sample layer shows a preset best. */
 export function thumbTarget(p: Preset): string {
@@ -80,6 +89,7 @@ function magnitude(st: MotionState | undefined) {
   if (st.reveal) m += Math.min(st.reveal.amount, 1 - st.reveal.amount) * 300;
   m += st.trackingEm * 800 + (st.shadow ? Math.hypot(st.shadow.dx, st.shadow.dy) : 0);
   for (const o of st.overlays) m += o.kind === "particles" ? o.items.reduce((a, p) => a + p.a, 0) * 4 : o.kind === "sweep" ? (o.pos > 0.2 && o.pos < 0.8 ? o.alpha * 300 : 0) : o.alpha * 300;
+  if (st.echo) m += 1;
   for (const r of st.raster) {
     if (r.kind === "slices") m += r.bands.reduce((a, b) => a + Math.abs(b.dx), 0) * 0.5;
     else if (r.kind === "rgb") m += (Math.abs(r.rdx) + Math.abs(r.bdx)) * 6;
@@ -255,7 +265,9 @@ export function cropTo(scene: Scene, node: FlyerNode, room = 0.08): Scene {
  * picture or text. Nothing is added until Apply.
  */
 export function Compare({ scene, node, ctx, base, item, width }: { scene: Scene; node: FlyerNode; ctx: SrcContext; base: Animation; item: MotionItem; width: number }) {
-  const crop = useMemo(() => cropTo(scene, node), [scene, node]);
+  // Echoes reach past the layer's frame: show more of the flyer around it.
+  const room = PRESET_BY_ID.get(item.preset)?.category === "echo" ? 0.6 : 0.08;
+  const crop = useMemo(() => cropTo(scene, node, room), [scene, node, room]);
   const anim = useMemo<Animation>(() => {
     const l = base.layers[node.id] ?? { stack: [] };
     return { ...base, layers: { [node.id]: { ...l, muted: false, solo: false, stack: [...l.stack.filter((x) => x.preset !== item.preset).slice(-3), item] } } };

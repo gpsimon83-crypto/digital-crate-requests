@@ -170,6 +170,8 @@ export type MotionState = {
   raster: RasterOp[];
   /** Occlusion reveal: hide this layer wherever another layer (a cutout) covers it, edge softened by `soft` px. */
   occlude?: { nodeId: string; soft: number } | null;
+  /** Echo copies behind a picture layer at this moment (replaces the layer's still echo while animating). */
+  echo?: { preset: string; params: EffectOpts; seed: number; u: number; amount: number } | null;
 };
 
 export type OverlayDraw =

@@ -14,6 +14,8 @@
  * grain and scratches don't change between preview, save and export.
  */
 
+import { silhouetteOffsets } from "./echo";
+
 export const EFFECTS_VERSION = 1;
 
 export type PresetId =
@@ -755,11 +757,7 @@ export function applyEffects(src: Pixels, fx: PhotoEffects, scale = 1): Pixels {
   // 11. Silhouette echoes behind the subject (alternating right/left).
   if (P.echoCount > 0 && P.echoOpacity > 0 && isCutout) {
     const ec = hex(P.echoColor);
-    for (let e = 1; e <= Math.round(P.echoCount); e++) {
-      const side = e % 2 ? 1 : -1;
-      const off = Math.ceil(e / 2) * P.echoOffset * s * side;
-      under(ec, shifted(A, w, h, off, 0), (P.echoOpacity / 100) * (1 - (e - 1) / (P.echoCount + 1)));
-    }
+    for (const o of silhouetteOffsets(P.echoCount, P.echoOffset * s)) under(ec, shifted(A, w, h, o.dx, 0), (P.echoOpacity / 100) * o.fade);
   }
   // 12. Subject shadow (direct flash): the cutout, offset down-right and softened.
   if (P.shadowOn && P.shadowOpacity > 0 && isCutout) {

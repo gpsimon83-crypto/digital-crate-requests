@@ -1,6 +1,8 @@
 "use client";
 
-import { THUMB_SAMPLE } from "@/lib/flyers/sample-assets";
+import { ECHO_SAMPLE, THUMB_SAMPLE } from "@/lib/flyers/sample-assets";
+import { ECHO_CONTROLS, ECHO_PRESETS, echoOn, echoPresetById, newEcho, resolveEcho, type EchoKey, type EchoPresetId, type EchoSettings } from "@/lib/flyers/echo";
+import { paintEcho } from "./echo-paint";
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import KonvaLib from "konva";
 import { Eye, Loader2, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
@@ -26,8 +28,11 @@ export type FxApi = {
   apply: () => void;
   cancel: () => void;
   hold: (on: boolean) => void;
-  /** Commit right away (Remove effects outside the editor). */
+  /** Commit right away (Remove effects outside the editor; null also removes the echo). */
   quick: (ids: string[], fx: PhotoEffects | null) => void;
+  /** The echo being adjusted (picture layers), applied with the look; undefined when not editing. */
+  echoDraft: EchoSettings | null | undefined;
+  changeEcho: (e: EchoSettings | null) => void;
 };
 
 const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-1";
@@ -211,6 +216,166 @@ function Thumbs({ value, onPick }: { base?: HTMLCanvasElement | null; scale?: nu
   );
 }
 
+/* ---------------- Echo ---------------- */
+
+const ECHO_THUMB_V = 3;
+const ET_SCALE = 0.5; // thumbnail pixels per sample pixel (627 × 300 → 314 × 150)
+let echoSample: Promise<{ portrait: HTMLImageElement; background: HTMLImageElement }> | null = null;
+/**
+ * An Echo card: the sample portrait (dj-01, a cutout) at the same size and place on
+ * the same charcoal background for every preset, with the echo drawn by the same
+ * code as the flyer and its export, at the preset's shipping settings.
+ */
+function echoThumb(id: EchoPresetId | null) {
+  echoSample ??= Promise.all([loadImg(THUMB_SAMPLE.portrait), loadImg(THUMB_SAMPLE.background)]).then(([portrait, background]) => ({ portrait, background }));
+  return echoSample.then(({ portrait, background }) => {
+    const E = ECHO_SAMPLE;
+    const P = E.portrait;
+    const c = document.createElement("canvas");
+    c.width = Math.round(E.width * ET_SCALE);
+    c.height = Math.round(E.height * ET_SCALE);
+    const g = c.getContext("2d")!;
+    g.imageSmoothingQuality = "high";
+    g.scale(ET_SCALE, ET_SCALE);
+    g.drawImage(background, 0, E.backgroundY, THUMB_SAMPLE.size, THUMB_SAMPLE.size);
+    const d = id ? paintEcho(portrait, P.w, P.h, newEcho(id), ET_SCALE) : null;
+    if (d) g.drawImage(d.canvas, P.x + d.x, P.y + d.y, d.w, d.h);
+    if (!d || d.original) g.drawImage(portrait, P.x, P.y, P.w, P.h);
+    return c.toDataURL("image/webp", 0.85);
+  });
+}
+const echoThumbs = new Map<string, string>();
+function cachedEchoThumb(id: string) {
+  if (echoThumbs.has(id)) return echoThumbs.get(id)!;
+  try {
+    const v = localStorage.getItem(`dcdj-echothumb-v${ECHO_THUMB_V}:${id}`);
+    if (v) echoThumbs.set(id, v);
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+function EchoThumbs({ value, onPick, disabled }: { value: EchoPresetId | null; onPick: (p: EchoPresetId | null) => void; disabled?: boolean }) {
+  const ids = ["none", ...ECHO_PRESETS.map((p) => p.id)];
+  const [urls, setUrls] = useState<Record<string, string>>(() => Object.fromEntries(ids.map((id) => [id, cachedEchoThumb(id) ?? ""]).filter(([, v]) => v)));
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      for (const id of ids) {
+        if (cachedEchoThumb(id)) continue;
+        try {
+          const url = await echoThumb(id === "none" ? null : (id as EchoPresetId));
+          if (!live) return;
+          echoThumbs.set(id, url);
+          try {
+            localStorage.setItem(`dcdj-echothumb-v${ECHO_THUMB_V}:${id}`, url);
+          } catch {
+            // storage full: kept for this visit
+          }
+          setUrls((m) => ({ ...m, [id]: url }));
+        } catch {
+          // leave the tile on its label
+        }
+      }
+    })();
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const tiles: { id: EchoPresetId | null; name: string }[] = [{ id: null, name: "No echo" }, ...ECHO_PRESETS.map((p) => ({ id: p.id, name: p.name }))];
+  return (
+    <div className="grid grid-cols-2 gap-1.5" role="radiogroup" aria-label="Echo presets" data-tour="fx-echo-presets">
+      {tiles.map((t) => {
+        const url = urls[t.id ?? "none"];
+        const on = value === t.id;
+        return (
+          <button key={t.id ?? "none"} role="radio" aria-checked={on} disabled={disabled} data-echo={t.id ?? "none"} onClick={() => onPick(t.id)} className={cn("flex flex-col overflow-hidden rounded-[8px] border bg-white text-left disabled:opacity-50", on ? "border-gold ring-2 ring-gold/50" : "border-black/10 hover:border-gold", FOCUS)}>
+            <span className="relative block aspect-[627/300] w-full bg-[#1c1c1c]">
+              {url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+              ) : (
+                <Loader2 size={14} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 animate-spin text-white/60" />
+              )}
+            </span>
+            <span className="truncate px-1.5 py-1 text-[10.5px] leading-tight">{t.name}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function EchoCtrl({ k, value, onChange, disabled }: { k: EchoKey; value: number | string | boolean; onChange: (v: number | string | boolean) => void; disabled?: boolean }) {
+  const id = useId();
+  const info = ECHO_CONTROLS[k];
+  if (info.kind === "bool")
+    return (
+      <label className={cn("flex min-h-8 cursor-pointer items-center gap-2 text-sm", disabled && "opacity-50")} title={info.hint}>
+        <input type="checkbox" className={cn("h-4 w-4 accent-[#c99428]", FOCUS)} checked={!!value} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+        {info.label}
+      </label>
+    );
+  if (info.kind === "color")
+    return (
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={id} className="text-xs">
+          {info.label}
+        </label>
+        <input id={id} type="color" className={cn("h-8 w-12 cursor-pointer rounded border border-black/12 bg-white p-0.5", FOCUS)} value={String(value)} disabled={disabled} onChange={(e) => onChange(e.target.value)} />
+      </div>
+    );
+  return (
+    <div title={info.hint}>
+      <div className="flex items-center justify-between">
+        <label htmlFor={id} className={labelCls}>
+          {info.label}
+        </label>
+        <span className="text-[11px] tabular-nums text-muted">
+          {Number(value) % 1 ? Number(value).toFixed(1) : Number(value)}
+          {info.unit ?? ""}
+        </span>
+      </div>
+      <input id={id} type="range" className={cn("w-full accent-[#c99428]", FOCUS)} min={info.min} max={info.max} step={info.step ?? 1} value={Number(value)} disabled={disabled} onChange={(e) => onChange(parseFloat(e.target.value))} />
+    </div>
+  );
+}
+
+/** Effects → Echo: the eight echo presets for a picture layer, and every setting of the chosen one. */
+function EchoEditor({ api, canStyle, cutout, isImage }: { api: FxApi; canStyle: boolean; cutout: boolean; isImage: boolean }) {
+  const e = api.echoDraft ?? null;
+  const preset = e ? echoPresetById(e.preset) : null;
+  const P = e ? resolveEcho(e) : null;
+  if (!isImage) return <p className="text-[11px] text-muted">Echo goes on picture layers (a photo or cutout). Pick one to add an echo.</p>;
+  return (
+    <div className="flex flex-col gap-3" data-tour="fx-echo">
+      <EchoThumbs value={e?.preset ?? null} disabled={!canStyle} onPick={(id) => api.changeEcho(id ? { ...newEcho(id, e?.seed ?? 7) } : null)} />
+      {e && preset && P && (
+        <>
+          <p className="text-[11px] text-muted">
+            {preset.blurb}. The sharp photo stays on top; the echoes reach past its frame. In Animate, the Echo tab makes them move.
+          </p>
+          {preset.needsCutout && !cutout && (
+            <p className="rounded-[8px] bg-[#fff4e0] p-2 text-[11px] text-[#7a4b00]" role="note">
+              {preset.name} follows the subject&rsquo;s outline, so it needs a cut-out photo (a PNG with a transparent background) or a layer mask (Mask). On this photo it shows the whole frame&rsquo;s shape.
+            </p>
+          )}
+          <div className="flex flex-col gap-2.5 rounded-[8px] border border-black/8 px-2.5 py-2" data-tour="fx-echo-controls">
+            {preset.controls.map((k) => (
+              <EchoCtrl key={k} k={k} value={P[k]} disabled={!canStyle} onChange={(v) => api.changeEcho({ ...e, params: { ...e.params, [k]: v } })} />
+            ))}
+            <button type="button" className={cn(btn, "self-start")} disabled={!canStyle || !Object.keys(e.params).length} onClick={() => api.changeEcho({ ...e, params: {} })}>
+              <RotateCcw size={13} /> Reset to the preset
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Ctrl({ k, value, onChange, disabled }: { k: ControlKey; value: number | string | boolean; onChange: (v: number | string | boolean) => void; disabled?: boolean }) {
   const id = useId();
   const info = CONTROL_INFO[k];
@@ -258,19 +423,23 @@ export function PhotoEffectsSection({ nodes, api, canStyle }: { nodes: FlyerNode
   const status = useFxStatus(n.id);
   const looks = new Set(nodes.map((x) => (x.effects && effectsOn(x.effects) ? `${x.effects.custom ?? presetById(x.effects.preset)?.name} · ${Math.round(x.effects.strength * 100)}%` : "")));
   const current = n.effects && effectsOn(n.effects) ? n.effects : null;
-  const anyOn = nodes.some((x) => x.effects && effectsOn(x.effects));
+  const echoName = nodes.map((x) => (x.kind === "image" && echoOn(x.echo) ? echoPresetById(x.echo.preset)?.name : null)).find(Boolean);
+  const anyOn = nodes.some((x) => (x.effects && effectsOn(x.effects)) || (x.kind === "image" && echoOn(x.echo)));
 
   if (!api.editing)
     return (
       <div className="flex flex-col gap-2" data-tour="fx-section">
         {anyOn ? (
-          <p className="text-sm">{looks.size > 1 ? "These layers have different looks; adjusting gives them all the same one." : <span className="font-semibold">{[...looks][0] || "No effect"}</span>}</p>
+          <p className="text-sm">
+            {looks.size > 1 ? "These layers have different looks; adjusting gives them all the same one." : <span className="font-semibold">{[...looks][0] || (echoName ? "" : "No effect")}</span>}
+            {echoName && <span className="font-semibold">{[...looks][0] ? " + " : ""}{echoName}</span>}
+          </p>
         ) : (
-          <p className="text-[11px] text-muted">Color grades, duotones, print and VHS looks. The layers themselves stay as they are; the look is a setting you can change or remove.</p>
+          <p className="text-[11px] text-muted">Color grades, duotones, print and VHS looks, and Echo copies behind photos. The layers themselves stay as they are; the look is a setting you can change or remove.</p>
         )}
         <div className="flex flex-wrap gap-1.5">
           <button className={cn(btn, "flex-1")} disabled={!canStyle} onClick={() => api.start()} data-tour="fx-open">
-            <Sparkles size={14} /> {current ? "Adjust effects" : "Add an effect"}
+            <Sparkles size={14} /> {current || echoName ? "Adjust effects" : "Add an effect"}
           </button>
           {anyOn && (
             <button className={btn} disabled={!canStyle} onClick={() => api.quick(nodes.map((x) => x.id), null)}>
@@ -289,6 +458,8 @@ function Editor({ n, api, canStyle, status }: { n: FlyerNode; api: FxApi; canSty
   const fx = api.draft ?? null;
   const { base, status: imgStatus, cutout, scale } = useThumbBase(n, api.ctx);
   const [seed] = useState(() => fx?.seed ?? Math.floor(Math.random() * 2 ** 31));
+  // Looks (colour grades and prints) or Echo (copies behind a picture); opens on Echo when that's all the layer has.
+  const [cat, setCat] = useState<"looks" | "echo">(() => (!fx && api.echoDraft ? "echo" : "looks"));
   const [saved, setSaved] = useState<Saved[] | null>(null);
   const [saveName, setSaveName] = useState("");
   const [savingOpen, setSavingOpen] = useState(false);
@@ -335,9 +506,18 @@ function Editor({ n, api, canStyle, status }: { n: FlyerNode; api: FxApi; canSty
     <div className="flex flex-col gap-3" data-tour="fx-editor">
       {imgStatus === "failed" && <p className="text-[11px] text-[#b42318]">This photo couldn&rsquo;t be loaded, so there&rsquo;s nothing to apply effects to.</p>}
       {imgStatus === "none" && <p className="text-[11px] text-muted">Pick a photo for this layer first.</p>}
-      <Thumbs base={base} scale={scale} seed={fx?.seed ?? seed} value={fx?.preset ?? null} onPick={pick} />
+      {n.kind === "image" && (
+        <div role="tablist" aria-label="Effect type" className="grid grid-cols-2 gap-1 rounded-[8px] bg-black/5 p-1" data-tour="fx-categories">
+          {(["looks", "echo"] as const).map((c) => (
+            <button key={c} role="tab" aria-selected={cat === c} onClick={() => setCat(c)} className={cn("rounded-[6px] px-2 py-1.5 text-xs", cat === c ? "bg-white font-semibold shadow-sm" : "text-muted hover:text-foreground", FOCUS)} data-tour={c === "echo" ? "fx-echo-tab" : undefined}>
+              {c === "looks" ? "Looks" : `Echo${api.echoDraft ? " · on" : ""}`}
+            </button>
+          ))}
+        </div>
+      )}
+      {cat === "echo" && n.kind === "image" ? <EchoEditor api={api} canStyle={canStyle} cutout={cutout} isImage /> : <Thumbs base={base} scale={scale} seed={fx?.seed ?? seed} value={fx?.preset ?? null} onPick={pick} />}
 
-      {fx && preset && P && (
+      {cat === "looks" && fx && preset && P && (
         <>
           <p className="text-[11px] text-muted">{preset.blurb}.</p>
           <div data-tour="fx-strength">
@@ -384,11 +564,11 @@ function Editor({ n, api, canStyle, status }: { n: FlyerNode; api: FxApi; canSty
       )}
 
       <div className="flex flex-wrap gap-1.5">
-        <button type="button" className={btn} {...hold} disabled={!fx} aria-label="View original (hold)" data-tour="fx-original">
+        <button type="button" className={btn} {...hold} disabled={!fx && !api.echoDraft} aria-label="View original (hold)" data-tour="fx-original">
           <Eye size={14} /> Hold to view original
         </button>
         <button type="button" className={btn} disabled={!fx} onClick={() => api.change(null)}>
-          <RotateCcw size={14} /> Reset effects
+          <RotateCcw size={14} /> {cat === "echo" ? "Reset look" : "Reset effects"}
         </button>
       </div>
 

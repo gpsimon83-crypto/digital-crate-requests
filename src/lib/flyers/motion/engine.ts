@@ -1,4 +1,5 @@
 import type { FlyerNode, Scene } from "../types";
+import { echoCopies } from "../echo";
 import { IDENTITY, MAX_KEYS, MAX_SPEED_POINTS, MAX_STACK, type Animation, type Intensity, type Keyframe, type LayerMotion, type MotionItem, type MotionState, type SpeedPoint } from "./types";
 import { PRESET_BY_ID, clamp, isProtected, optsFor, presetFits, roleOf } from "./presets";
 
@@ -271,6 +272,24 @@ function vector(s: MotionState): number[] {
     else if (r.kind === "mblur") fx[10] += Math.hypot(r.dx, r.dy);
   }
   v.push(...fx);
+  // Echo: where its copies are, weighted by how visible each one is (order-free, so a copy flowing
+  // out at the end of a cycle and a new one appearing at the start compare as the same frame).
+  if (s.echo) {
+    const { copies } = echoCopies(s.echo, 100, 100, s.echo.u, s.echo.amount);
+    let ox = 0,
+      oy = 0,
+      os = 0,
+      oa = 0,
+      or = 0;
+    for (const c of copies) {
+      ox += c.opacity * c.dx;
+      oy += c.opacity * c.dy;
+      os += c.opacity * c.scale * 100;
+      or += c.opacity * Math.sin((c.rotate * Math.PI) / 180) * 100;
+      oa += c.opacity * 100;
+    }
+    v.push(ox, oy, os, oa, or);
+  } else v.push(0, 0, 0, 0, 0);
   return v;
 }
 const scaleOf = (i: number) => (i === 2 || i === 4 || i === 5 || i === 8 ? 100 : 1); // ratios in %, others in px

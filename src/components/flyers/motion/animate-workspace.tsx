@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveEcho } from "@/lib/flyers/echo";
 import { LayerTiming, useHasCutout } from "./animate-parts";
 import { Compare, LiveThumb, ThumbFactory, useThumb } from "./effect-thumbs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -34,6 +35,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: "styles", label: "Styles" },
   { key: "text", label: "Text" },
   { key: "photos", label: "Photos" },
+  { key: "echo", label: "Echo" },
   { key: "backgrounds", label: "Backgrounds" },
   { key: "overlays", label: "Overlays" },
   { key: "fx", label: "Glitch" }
@@ -420,6 +422,12 @@ export function AnimateWorkspace({
   const pendingItem = (presetId: string) => {
     const it = newItem(presetId);
     const p = PRESET_BY_ID.get(presetId);
+    // An echo the layer already has on the still flyer: animate it with the same settings.
+    if (p?.category === "echo" && sel?.echo && `echo.${sel.echo.preset.replace(/_/g, "-")}` === presetId) {
+      const d = resolveEcho(sel.echo);
+      it.opts = { ...(it.opts ?? {}), ...Object.fromEntries((p.controls ?? []).map((c) => [c.key, d[c.key as keyof typeof d]])) };
+      it.seed = sel.echo.seed;
+    }
     if (p?.needs === "occluder" && sel) {
       const i = scene.nodes.findIndex((n) => n.id === sel.id);
       const above = scene.nodes.slice(i + 1).find((n) => n.kind === "image" && n.visible && n.role !== "background" && n.role !== "overlay" && n.x < sel.x + sel.width && n.x + n.width > sel.x && n.y < sel.y + sel.height && n.y + n.height > sel.y);

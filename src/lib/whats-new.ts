@@ -19,6 +19,22 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-27-photo-echo",
+    date: "2026-11-27",
+    area: "Members area",
+    title: "Echo effects for DJ photos",
+    summary: "A new Echo category in Effects puts copies of a photo behind it: Silhouette Trail, RGB Echo, Outline Echo, Mirror Echo, Zoom Echo, Orbit Echo, Slice Echo and Long Exposure. The sharp photo stays on top, the echoes can reach past its frame, and every setting can be changed. In Animate, the same eight are in an Echo tab and move: trails stretch, outlines ripple out, orbits circle.",
+    bullets: [
+      "Effects → pick a photo → Add an effect → Echo. Each card shows the echo on the same sample DJ and background, so they're easy to compare",
+      "Silhouette Trail and Outline Echo follow the subject's outline: use a cut-out photo (transparent background) or a layer mask",
+      "Change copies, spacing, direction, colours, glow and more; untick \"Sharp original on top\" to show only the echoes",
+      "Works with a look too (an echo of a Neon Duotone photo is duotone), and Remove clears both",
+      "Animate → Echo: starts from the echo the photo already has. Strength is how much it moves, and frame one is the still flyer",
+      "The editor, the PNG / JPEG export and the video all draw echoes with the same code"
+    ],
+    link: { href: "/dj-dashboard/flyers", label: "Open your flyers" }
+  },
+  {
     id: "2026-11-27-animate-image-effects",
     date: "2026-11-27",
     area: "Members area",

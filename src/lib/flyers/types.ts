@@ -1,4 +1,5 @@
 import type { PhotoEffects } from "./effects";
+import type { EchoSettings } from "./echo";
 import type { ImageMask } from "./mask";
 
 /**
@@ -159,6 +160,8 @@ type Base = {
    * Any layer can have them. Missing on older flyers = no effects.
    */
   effects?: PhotoEffects | null;
+  /** Echo copies behind a picture layer (Effects → Echo). Missing on older flyers = none. */
+  echo?: EchoSettings | null;
 };
 
 export type ImageNode = Base & {

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { sanitizeEffects, type PhotoEffects } from "./effects";
+import { sanitizeEcho, type EchoSettings } from "./echo";
 import { sanitizeMask, type ImageMask } from "./mask";
 import { DEFAULT_FONT, FLYER_FONTS } from "./fonts";
 import { linkScene, resolveScene } from "./links";
@@ -166,6 +167,7 @@ const groupSchema = z.preprocess((v) => (typeof v === "string" && /^[A-Za-z0-9_-
 const base = {
   // Effects on any layer; older flyers have none. "No effects" is stored as nothing at all (so permission checks compare equal).
   effects: z.preprocess((v) => sanitizeEffects(v) ?? undefined, z.custom<PhotoEffects>().optional()),
+  echo: z.preprocess((v) => sanitizeEcho(v) ?? undefined, z.custom<EchoSettings>().optional()),
   id: idSchema,
   name: str(60, "Layer"),
   role: roleSchema,
@@ -514,7 +516,7 @@ export function withGroup(nodes: FlyerNode[], id: string): string[] {
 
 const MOVE_KEYS = ["x", "y", "width", "height", "rotation"] as const;
 const STYLE_KEYS_TEXT = ["font", "weight", "italic", "fontSize", "lineHeight", "letterSpacing", "align", "uppercase", "shrink", "fill", "stroke", "shadow", "opacity", "blend", "fitBox", "minFontSize", "panel", "valign", "padding", "trackingEm", "stretch", "arc", "effects"] as const;
-const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "mask", "shadow", "opacity", "blend", "effects"] as const;
+const STYLE_KEYS_IMAGE = ["fit", "crop", "flipX", "flipY", "frame", "feather", "recolor", "mask", "shadow", "opacity", "blend", "effects", "echo"] as const;
 const STYLE_KEYS_SHAPE = ["shape", "fillEnabled", "fill", "stroke", "radius", "keepRatio", "shadow", "opacity", "blend", "effects"] as const;
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 

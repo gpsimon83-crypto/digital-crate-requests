@@ -69,6 +69,7 @@ import {
 import { loadSceneFonts, type SrcContext } from "./loaders";
 import type { PhotoEffects } from "@/lib/flyers/effects";
 import { EffectsTab, type FxApi } from "./photo-effects-panel";
+import type { EchoSettings } from "@/lib/flyers/echo";
 import { countNumbers, emptyMask, MAX_MASK_NUMBERS, MAX_MASK_STROKES, sanitizeMask, type ImageMask, type MaskFade, type MaskStroke } from "@/lib/flyers/mask";
 import type { MaskEdit, MaskTool } from "./mask-tools";
 import { MaskPanel, type MaskApi } from "./mask-panel";
@@ -234,7 +235,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
   const [replacing, setReplacing] = useState<string | null>(null);
   // Photo Effects being adjusted (not in the history until Apply), and "View original" while held.
   // Effects being adjusted (not in the history until Apply), the layers they go on, and "View original" while held.
-  const [fxDraft, setFxDraft] = useState<{ fx: PhotoEffects | null } | null>(null);
+  const [fxDraft, setFxDraft] = useState<{ fx: PhotoEffects | null; echo: EchoSettings | null } | null>(null);
   const [fxTargets, setFxTargets] = useState<string[] | null>(null);
   const [fxHold, setFxHold] = useState(false);
   // Mask editing: its own step-by-step history until Apply (one undo step in the flyer), Cancel drops it.
@@ -889,7 +890,7 @@ export function FlyerEditor(props: FlyerEditorProps) {
     return {
       ...base,
       nodes: base.nodes.map((n) =>
-        holdIds.includes(n.id) ? { ...n, effects: null } : activeFx?.ids.includes(n.id) ? { ...n, effects: activeFx.fx } : n,
+        holdIds.includes(n.id) ? { ...n, effects: null, echo: null } : activeFx?.ids.includes(n.id) ? { ...n, effects: activeFx.fx, ...(n.kind === "image" ? { echo: activeFx.echo } : {}) } : n,
       ),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1046,18 +1047,24 @@ export function FlyerEditor(props: FlyerEditorProps) {
     start: () => {
       // Start from the first chosen layer's current look.
       const n = scene.nodes.find((x) => x.id === fxIds[0]);
-      setFxDraft({ fx: n?.effects ?? null });
+      setFxDraft({ fx: n?.effects ?? null, echo: n?.echo ?? null });
     },
-    change: (fx) => setFxDraft({ fx }),
+    change: (fx) => setFxDraft((d) => ({ fx, echo: d?.echo ?? null })),
+    echoDraft: activeFx ? activeFx.echo : undefined,
+    changeEcho: (echo) => setFxDraft((d) => ({ fx: d?.fx ?? null, echo })),
     apply: () => {
       if (!activeFx) return;
       // One undo step for the whole adjustment, on every chosen layer, however many sliders moved.
-      applyPatches(activeFx.ids.map((id) => ({ id, patch: { effects: activeFx.fx } })), `fx:${Date.now()}`);
+      applyPatches(
+        activeFx.ids.map((id) => ({ id, patch: scene.nodes.find((n) => n.id === id)?.kind === "image" ? { effects: activeFx.fx, echo: activeFx.echo } : { effects: activeFx.fx } })),
+        `fx:${Date.now()}`,
+      );
       setFxDraft(null);
     },
     cancel: () => setFxDraft(null),
     hold: setFxHold,
-    quick: (ids, fx) => applyPatches(ids.map((id) => ({ id, patch: { effects: fx } })), `fx:${Date.now()}`),
+    // Remove (fx = null) clears the look and any echo.
+    quick: (ids, fx) => applyPatches(ids.map((id) => ({ id, patch: fx ? { effects: fx } : { effects: null, echo: null } })), `fx:${Date.now()}`),
   };
 
   /* ---- mask ---- */

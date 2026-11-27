@@ -24,3 +24,10 @@ export const SAMPLE_BACKGROUNDS: SampleAsset[] = [
 
 /** The before-and-after effect thumbnails: this portrait over this background, as two layers. */
 export const THUMB_SAMPLE = { portrait: SAMPLE_PORTRAITS[0].src, background: SAMPLE_BACKGROUNDS[0].src, size: 627 };
+
+/**
+ * Echo thumbnails (Effects → Echo in the Flyer Creator, and Animate's Echo tab): the same
+ * sample, smaller in a wide 627 × 300 view, so there's room around the portrait for the echoes.
+ * Units are sample pixels (the background is the 627 px square, 24 px up, as on the other cards).
+ */
+export const ECHO_SAMPLE = { width: 627, height: 300, backgroundY: -24, portrait: { x: 178, y: 132, w: 270, h: 270 } };
