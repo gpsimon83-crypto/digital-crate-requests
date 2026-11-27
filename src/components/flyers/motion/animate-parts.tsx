@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Diamond, Download, Eye, EyeOff, Film, Image as ImageIcon, Infinity as InfinityIcon, Layers, Lock, LockOpen, Magnet, Maximize2, Play, Redo2, RefreshCw, SlidersHorizontal, Trash2, Type, Undo2, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronDown, Diamond, Download, Gauge, MapPin, Eye, EyeOff, Film, Image as ImageIcon, Infinity as InfinityIcon, Layers, Lock, LockOpen, Magnet, Maximize2, Play, Redo2, RefreshCw, SlidersHorizontal, Trash2, Type, Undo2, X, ZoomIn, ZoomOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScenePreview } from "../flyer-canvas";
-import type { SrcContext } from "../loaders";
+import { srcFor, type SrcContext } from "../loaders";
 import { FORMATS, FORMAT_KEYS, type FlyerNode, type FormatKey, type Scene } from "@/lib/flyers/types";
-import { PRESET_BY_ID, isProtected, roleOf, type ParamKey } from "@/lib/flyers/motion/presets";
-import { checkLoop, evaluateFrame, frameCount, frameTime, keyValues, type LoopReport } from "@/lib/flyers/motion/engine";
+import { PRESET_BY_ID, isProtected, optsFor, roleOf, type Control, type ParamKey } from "@/lib/flyers/motion/presets";
+import { beatGrid, checkLoop, evaluateFrame, frameCount, frameTime, keyValues, type LoopReport } from "@/lib/flyers/motion/engine";
 import { newItemId } from "@/lib/flyers/motion/recipes";
-import { MAX_KEYS, type Animation, type Keyframe, type LayerMotion, type MotionItem } from "@/lib/flyers/motion/types";
+import { MAX_KEYS, MAX_SPEED_POINTS, type Animation, type Keyframe, type LayerMotion, type MotionItem, type SpeedPoint } from "@/lib/flyers/motion/types";
 import { DEFAULT_FRAMING, cutOff, framingFor, safeArea, type FormatFraming } from "@/lib/flyers/motion/formats";
 import { VideoRenderer, type ExportProgress } from "./video-export";
 
@@ -72,7 +72,8 @@ export function Timeline({
   redo,
   undoLabel,
   redoLabel,
-  compact
+  compact,
+  setAnim
 }: {
   nodes: FlyerNode[];
   anim: Animation;
@@ -89,17 +90,24 @@ export function Timeline({
   undoLabel: string | null;
   redoLabel: string | null;
   compact: boolean;
+  /** Changes to the whole animation (markers, beat grid), undoable. */
+  setAnim: (fn: (a: Animation) => Animation, label: string, key?: string | null) => void;
 }) {
   const [zoomT, setZoomT] = useState(1);
   const [snap, setSnap] = useState(true);
+  const [selMarker, setSelMarker] = useState<string | null>(null);
+  const taps = useRef<number[]>([]);
   const D = anim.duration;
   const fps = anim.fps;
   const playT = frame / fps;
   const toFrame = (t: number) => Math.round(t * fps) / fps;
+  const grid = beatGrid(anim);
+  const beatTimes = grid && anim.bpm?.show ? Array.from({ length: grid.beats }, (_, i) => grid.offset + i * grid.period).filter((t) => t < D) : [];
+  const markerTimes = (anim.markers ?? []).map((m) => m.t);
   const snapT = (t: number, others: number[]) => {
     let v = Math.min(D - 1 / fps, Math.max(0, t));
     if (snap) {
-      const near = [Math.round(v * 4) / 4, playT, ...others].reduce((best, c) => (Math.abs(c - v) < Math.abs(best - v) ? c : best), Infinity);
+      const near = [Math.round(v * 4) / 4, playT, ...others, ...markerTimes, ...beatTimes].reduce((best, c) => (Math.abs(c - v) < Math.abs(best - v) ? c : best), Infinity);
       if (Math.abs(near - v) < (D / zoomT) * 0.02) v = near;
     }
     return Math.min(D - 1 / fps, toFrame(v));
@@ -134,6 +142,50 @@ export function Timeline({
     setLayer(id, (x) => ({ ...x, keys: [...(x.keys ?? []), k] }), "Add keyframe");
   };
   const minor = Array.from({ length: Math.floor(D * 4) + 1 }, (_, i) => i / 4);
+  const addMarker = (at?: number) => {
+    // Markers snap to the beat grid when it's on, otherwise to frames.
+    let t = toFrame(at ?? playT);
+    if (snap && beatTimes.length) {
+      const b = beatTimes.reduce((best, c) => (Math.abs(c - t) < Math.abs(best - t) ? c : best), Infinity);
+      if (Math.abs(b - t) < 0.12) t = toFrame(b);
+    }
+    if ((anim.markers ?? []).some((m) => Math.abs(m.t - t) < 0.5 / fps)) return;
+    if ((anim.markers?.length ?? 0) >= 64) return;
+    const id = newItemId();
+    setSelMarker(id);
+    setAnim((a) => ({ ...a, markers: [...(a.markers ?? []), { id, t }].sort((x, y) => x.t - y.t) }), "Add beat marker");
+  };
+  const removeMarker = (id: string) => setAnim((a) => ({ ...a, markers: (a.markers ?? []).filter((m) => m.id !== id) }), "Delete beat marker");
+  /** Tap tempo: the average gap of the last taps (a pause of 2.5 s starts over). */
+  const tap = () => {
+    const now = performance.now();
+    const ts = taps.current.filter((x) => now - x < 2500 * 8);
+    if (ts.length && now - ts[ts.length - 1] > 2500) ts.length = 0;
+    ts.push(now);
+    taps.current = ts.slice(-8);
+    if (taps.current.length >= 3) {
+      const gaps = taps.current.slice(1).map((x, i) => x - taps.current[i]);
+      const bpm = Math.round((60000 / (gaps.reduce((a, b) => a + b, 0) / gaps.length)) * 10) / 10;
+      if (bpm >= 40 && bpm <= 240) setAnim((a) => ({ ...a, bpm: { bpm, offset: playT, show: true } }), "Tap tempo", "bpm");
+    }
+  };
+  // M adds a beat marker at the playhead (also while playing); Delete removes the picked one.
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement)?.closest("input, textarea, select, [contenteditable]")) return;
+      if (e.key === "m" || e.key === "M") {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        e.preventDefault();
+        addMarker();
+      } else if ((e.key === "Delete" || e.key === "Backspace") && selMarker) {
+        e.preventDefault();
+        removeMarker(selMarker);
+        setSelMarker(null);
+      }
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  });
   return (
     <section className={cn(T.panel, "flex min-h-0 flex-col")} aria-label="Timeline" data-tour="animate-timeline">
       <div className={cn("flex flex-wrap items-center gap-1 border-b px-3 py-2", T.line)}>
@@ -160,6 +212,36 @@ export function Timeline({
           <button className={cn(T.btn, snap && "border-[#c6f432]/70 text-[#c6f432]")} onClick={() => setSnap((v) => !v)} aria-pressed={snap} title="Snap to ¼ seconds, the playhead and other keyframes">
             <Magnet size={13} /> Snap
           </button>
+          <span className="flex items-center gap-1" data-tour="animate-beats">
+            <button className={T.btn} onClick={() => addMarker()} title="Add a beat marker at the playhead (M). Effects set to play on markers fire here.">
+              <MapPin size={12} /> Marker
+            </button>
+            <label className={cn("flex items-center gap-1 text-[11px]", T.muted)} title="Beats per minute. Adjusted a little so a whole number of beats fills the loop.">
+              BPM
+              <input
+                type="number"
+                min={40}
+                max={240}
+                step={0.1}
+                value={anim.bpm?.bpm ?? ""}
+                placeholder="—"
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setAnim((a) => (e.target.value === "" ? { ...a, bpm: undefined } : v >= 40 && v <= 240 ? { ...a, bpm: { bpm: v, offset: a.bpm?.offset ?? 0, show: a.bpm?.show ?? true } } : a), "Set BPM", "bpm");
+                }}
+                className={cn(T.input, "h-8 w-16")}
+                aria-label="Beats per minute"
+              />
+            </label>
+            <button className={T.btn} onClick={tap} title="Tap along to the music (3 taps or more) to set the BPM; beats line up with your last tap">
+              Tap
+            </button>
+            {grid && (
+              <button className={cn(T.btn, anim.bpm?.show && "border-[#c6f432]/70 text-[#c6f432]")} onClick={() => setAnim((a) => ({ ...a, bpm: a.bpm ? { ...a.bpm, show: !a.bpm.show } : a.bpm }), "Beat grid")} aria-pressed={!!anim.bpm?.show} title={`${grid.beats} beats per loop at ${grid.bpm.toFixed(1)} BPM (adjusted so the loop closes on a beat)`}>
+                Grid {grid.bpm.toFixed(1)}
+              </button>
+            )}
+          </span>
           <button className={T.btn} disabled={!selected || !!anim.layers[selected ?? ""]?.locked} onClick={() => selected && addKey(selected)} title="Add a keyframe for the selected layer at the playhead" data-tour="animate-add-key">
             <Diamond size={12} /> Keyframe
           </button>
@@ -168,6 +250,7 @@ export function Timeline({
       <div className={cn("flex min-h-0 flex-1 overflow-y-auto", compact ? "max-h-[15vh]" : "max-h-[20vh] [@media(min-height:900px)]:max-h-[24vh]")}>
         <div className="w-60 shrink-0 pl-3">
           <div className="h-9" />
+          <div className={cn("flex h-6 items-center text-[11px]", T.muted)}>Beat markers{anim.markers?.length ? ` (${anim.markers.length})` : ""}</div>
           {nodes.map((n) => {
             const l = anim.layers[n.id] ?? { stack: [] };
             return (
@@ -223,6 +306,41 @@ export function Timeline({
                 );
               })}
             </div>
+            {/* Beat markers: click to pick, drag to move, double-click (or Delete) to remove; double-click the lane to add. */}
+            <div
+              className={cn("relative h-6 border-b", T.line)}
+              onDoubleClick={(e) => {
+                if ((e.target as HTMLElement).dataset.marker) return;
+                addMarker(timeAt(e, e.currentTarget));
+              }}
+              title="Double-click to add a beat marker"
+            >
+              {(anim.markers ?? []).map((m) => (
+                <button
+                  key={m.id}
+                  data-marker="1"
+                  className={cn("absolute top-0.5 z-20 -translate-x-1/2 text-[#f5b83d]", selMarker === m.id && "text-white")}
+                  style={{ left: `${(m.t / D) * 100}%` }}
+                  aria-label={`Beat marker at ${m.t.toFixed(2)} s`}
+                  title={`${m.t.toFixed(2)} s: drag to move, double-click to delete`}
+                  onPointerDown={(e) => {
+                    setSelMarker(m.id);
+                    const lane = e.currentTarget.parentElement!;
+                    drag(e, lane, (t) => {
+                      const v = snapT(t, []);
+                      setAnim((a) => ({ ...a, markers: (a.markers ?? []).map((x) => (x.id === m.id ? { ...x, t: v } : x)) }), "Move beat marker", `marker:${m.id}`);
+                    });
+                  }}
+                  onDoubleClick={() => removeMarker(m.id)}
+                >
+                  <MapPin size={15} fill="currentColor" />
+                </button>
+              ))}
+            </div>
+            {/* Beat grid lines across the tracks. */}
+            {beatTimes.map((t, i) => (
+              <span key={i} className={cn("pointer-events-none absolute bottom-0 top-9 border-l", i % 4 === 0 ? "border-white/20" : "border-white/[0.07]")} style={{ left: `${(t / D) * 100}%` }} aria-hidden />
+            ))}
             {nodes.map((n, row) => {
               const l = anim.layers[n.id] ?? { stack: [] };
               const ws = l.window ? l.window.start : 0;
@@ -385,10 +503,124 @@ function SliderRow({ label, value, min, max, step, onChange, shown, box }: { lab
  * (whole cycles per loop, so it always loops), Start offset (seconds) and
  * Loop mode, then that effect's own settings.
  */
-export function EffectControls({ item, duration, layerName, onChange, onRemove }: { item: MotionItem; duration: number; layerName: string; onChange: (p: Partial<MotionItem>, key: string) => void; onRemove: () => void }) {
+/**
+ * Does this picture layer have a cutout (transparent pixels) or a mask? null = can't tell yet.
+ * Looks at a small copy of the picture once per source.
+ */
+const cutoutCache = new Map<string, boolean>();
+export function useHasCutout(node: FlyerNode | null | undefined, ctx: SrcContext): boolean | null {
+  const url = node?.kind === "image" ? srcFor(node.source, ctx) : null;
+  const masked = node?.kind === "image" && !!node.mask && ((node.mask.strokes?.length ?? 0) > 0 || !!node.mask.fade);
+  const [res, setRes] = useState<{ url: string; v: boolean | null } | null>(null);
+  useEffect(() => {
+    if (!url || cutoutCache.has(url)) return;
+    let live = true;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      try {
+        const c = document.createElement("canvas");
+        c.width = 48;
+        c.height = 48;
+        const g = c.getContext("2d", { willReadFrequently: true })!;
+        g.drawImage(img, 0, 0, 48, 48);
+        const d = g.getImageData(0, 0, 48, 48).data;
+        let clear = 0;
+        for (let i = 3; i < d.length; i += 4) if (d[i] < 32) clear++;
+        const yes = clear / (48 * 48) > 0.05;
+        cutoutCache.set(url, yes);
+        if (live) setRes({ url, v: yes });
+      } catch {
+        if (live) setRes({ url, v: null });
+      }
+    };
+    img.onerror = () => live && setRes({ url, v: null });
+    img.src = url;
+    return () => {
+      live = false;
+    };
+  }, [url]);
+  const v = url ? (cutoutCache.get(url) ?? (res?.url === url ? res.v : null)) : null;
+  return masked ? true : v;
+}
+
+function Prereq({ children, tone = "warn" }: { children: React.ReactNode; tone?: "warn" | "ok" }) {
+  return <p className={cn("mb-2 rounded-[8px] border px-2.5 py-1.5 text-[11px] leading-snug", tone === "warn" ? "border-[#e8a33a]/40 bg-[#e8a33a]/10 text-[#f3c987]" : "border-[#c6f432]/30 bg-[#c6f432]/5 text-[#d9e9a8]")}>{children}</p>;
+}
+
+/** One of an effect's own settings (see the preset's `controls`). */
+function OptRow({ c, value, onChange, layers }: { c: Control; value: number | string | boolean; onChange: (v: number | string | boolean) => void; layers: FlyerNode[] }) {
+  if (c.kind === "range") {
+    const v = Number(value);
+    const digits = (c.step ?? 1) < 1 ? ((c.step ?? 1) < 0.1 ? 2 : 1) : 0;
+    return <SliderRow label={c.label} value={v} min={c.min ?? 0} max={c.max ?? 1} step={c.step ?? 0.01} onChange={(x) => onChange(x)} shown={`${v.toFixed(digits)}${c.unit ? (c.unit.length <= 2 ? c.unit : ` ${c.unit}`) : ""}`} />;
+  }
+  const row = "grid grid-cols-[6.5rem_1fr] items-center gap-3 text-[13px]";
+  if (c.kind === "color")
+    return (
+      <label className={row} title={c.hint}>
+        <span>{c.label}</span>
+        <input type="color" value={String(value)} onChange={(e) => onChange(e.target.value)} className="h-7 w-12 rounded bg-transparent" aria-label={c.label} />
+      </label>
+    );
+  if (c.kind === "toggle")
+    return (
+      <label className={row} title={c.hint}>
+        <span>{c.label}</span>
+        <input type="checkbox" checked={!!value} onChange={(e) => onChange(e.target.checked)} className={T.range} />
+      </label>
+    );
+  const opts = c.kind === "layer" ? [{ value: "", label: "Pick a cutout layer…" }, ...layers.map((n) => ({ value: n.id, label: n.name }))] : (c.options ?? []);
+  return (
+    <label className={row} title={c.hint}>
+      <span>{c.label}</span>
+      <select value={String(value)} onChange={(e) => onChange(e.target.value)} className={cn(T.input, "h-8")} aria-label={c.label}>
+        {opts.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+export function EffectControls({
+  item,
+  duration,
+  layerName,
+  onChange,
+  onRemove,
+  node,
+  nodes,
+  ctx,
+  anim,
+  onApplyGroup
+}: {
+  item: MotionItem;
+  duration: number;
+  layerName: string;
+  onChange: (p: Partial<MotionItem>, key: string) => void;
+  onRemove: () => void;
+  /** The layer it's on, the flyer's layers (for "behind which layer"), and the animation (markers / beats). */
+  node: FlyerNode;
+  nodes: FlyerNode[];
+  ctx: SrcContext;
+  anim: Animation;
+  /** The layer is in a group: put the same effect (same seed, same moments) on every layer of the group. */
+  onApplyGroup?: () => void;
+}) {
   const p = PRESET_BY_ID.get(item.preset);
   const [more, setMore] = useState(false);
+  const opts = p ? optsFor(p, item) : {};
+  const occluderId = p?.needs === "occluder" ? String(opts.occluder ?? "") : "";
+  const occluder = occluderId ? nodes.find((n) => n.id === occluderId) : null;
+  const selfCutout = useHasCutout(p?.needs === "cutout" ? node : null, ctx);
+  const occCutout = useHasCutout(occluder, ctx);
   if (!p) return null;
+  const setOpt = (k: string, v: number | string | boolean) => onChange({ opts: { ...opts, [k]: v } }, `opt.${k}`);
+  const pictureLayers = nodes.filter((n) => n.kind === "image" && n.id !== node.id && n.role !== "background");
+  const grid = beatGrid(anim);
   const has = (k: ParamKey) => p.params.includes(k);
   const cycleLen = duration / Math.max(1, item.cycles);
   const g = { ...(p.defaults.glitch ?? { bursts: 3, burstLen: 0.3, slices: 12, maxShift: 60, rgb: 8, noise: 0.1 }), ...(item.glitch ?? {}) };
@@ -414,6 +646,14 @@ export function EffectControls({ item, duration, layerName, onChange, onRemove }
       <p className={cn("-mt-1.5 mb-2 truncate text-[11px]", T.muted)} title={p.description}>
         {p.description}
       </p>
+      {p.needs === "cutout" && selfCutout === false && <Prereq>Needs a subject cutout: this picture has no transparent background, so the second image fills the whole frame. Use a cutout photo, or add a mask to it in Design.</Prereq>}
+      {p.needs === "occluder" && !occluder && <Prereq>Pick the DJ cutout it should come out from behind (below, &ldquo;Behind&rdquo;).</Prereq>}
+      {p.needs === "occluder" && occluder && occCutout === false && <Prereq>&ldquo;{occluder.name}&rdquo; has no transparent background, so the text hides behind its whole frame. Use a cutout, or add a mask to it in Design.</Prereq>}
+      {onApplyGroup && (
+        <button className={cn(T.btn, "mb-2")} onClick={onApplyGroup} title="Same effect, same seed and moments, on every layer in this layer's group">
+          <Layers size={13} /> Apply to the whole group
+        </button>
+      )}
       <div className="flex flex-col gap-2">
         {has("strength") && <SliderRow label="Strength" value={item.strength} min={0} max={1} step={0.01} onChange={(v) => onChange({ strength: v }, "strength")} box={{ value: Math.round(item.strength * 100), suffix: "%", toValue: (b) => b / 100 }} />}
         {has("cycles") && <SliderRow label="Speed" value={item.cycles} min={1} max={8} step={1} onChange={(v) => onChange({ cycles: Math.round(v) }, "cycles")} box={{ value: item.cycles, suffix: "×", toValue: (b) => Math.round(b) }} />}
@@ -429,7 +669,38 @@ export function EffectControls({ item, duration, layerName, onChange, onRemove }
             <ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#c9cbc0]" aria-hidden />
           </span>
         </label>
-        {has("glitch") && G.map(([k, label, lo, hi, step, f]) => <SliderRow key={k} label={label} value={g[k]} min={lo} max={hi} step={step} onChange={(v) => onChange({ glitch: { ...g, [k]: v } }, `glitch.${k}`)} shown={f(g[k])} />)}
+        {(p.controls ?? []).map((c) => (
+          <OptRow key={c.key} c={c} value={opts[c.key]} onChange={(v) => setOpt(c.key, v)} layers={pictureLayers} />
+        ))}
+        {has("glitch") && G.map(([k, label, lo, hi, step, f]) => <SliderRow key={k} label={k === "bursts" && item.trigger ? "Bursts (own schedule)" : label} value={g[k]} min={lo} max={hi} step={step} onChange={(v) => onChange({ glitch: { ...g, [k]: v } }, `glitch.${k}`)} shown={f(g[k])} />)}
+        {/* Timing: its own loop, or fired by beat markers / the beat grid. */}
+        <div className={cn("mt-1 rounded-[10px] border p-2.5", T.line)} data-tour="animate-trigger">
+          <label className="grid grid-cols-[6.5rem_1fr] items-center gap-3 text-[13px]">
+            <span>Plays</span>
+            <select
+              value={item.trigger ? item.trigger.on : "loop"}
+              onChange={(e) => {
+                const v = e.target.value;
+                onChange({ trigger: v === "loop" ? undefined : { on: v as "markers" | "beats", every: item.trigger?.every ?? 1, offset: item.trigger?.offset ?? 0, length: item.trigger?.length ?? (p.defaults.glitch?.burstLen ?? 0.5) } }, "trigger");
+              }}
+              className={cn(T.input, "h-8")}
+              aria-label="When it plays"
+            >
+              <option value="loop">On its own loop</option>
+              <option value="markers">On beat markers</option>
+              <option value="beats">On the beat grid</option>
+            </select>
+          </label>
+          {item.trigger && (
+            <div className="mt-2 flex flex-col gap-2">
+              {item.trigger.on === "markers" && !(anim.markers?.length) && <p className={cn("text-[11px]", "text-[#f3c987]")}>No markers yet: add some in the timeline (the ◆ Marker button, or press M while playing).</p>}
+              {item.trigger.on === "beats" && !grid && <p className={cn("text-[11px]", "text-[#f3c987]")}>Set a BPM in the timeline (type it, or tap along).</p>}
+              {item.trigger.on === "beats" && <SliderRow label="Every" value={item.trigger.every} min={1} max={16} step={1} onChange={(v) => onChange({ trigger: { ...item.trigger!, every: Math.round(v) } }, "trigger.every")} shown={`${item.trigger.every} beat${item.trigger.every > 1 ? "s" : ""}`} />}
+              <SliderRow label="Offset" value={item.trigger.offset} min={-1} max={1} step={0.01} onChange={(v) => onChange({ trigger: { ...item.trigger!, offset: v } }, "trigger.offset")} shown={`${item.trigger.offset >= 0 ? "+" : ""}${item.trigger.offset.toFixed(2)} s`} />
+              <SliderRow label="Length" value={item.trigger.length} min={0.05} max={Math.min(4, duration)} step={0.05} onChange={(v) => onChange({ trigger: { ...item.trigger!, length: v } }, "trigger.length")} shown={`${item.trigger.length.toFixed(2)} s`} />
+            </div>
+          )}
+        </div>
         {(has("direction") || has("color") || has("blend") || has("seed") || has("easing") || has("timing")) && (
           <button className={cn("self-start text-xs underline", T.muted)} onClick={() => setMore((m) => !m)} aria-expanded={more}>
             {more ? "Fewer settings" : "More settings"}
@@ -960,5 +1231,70 @@ export function ExportQueue({ designId, scene, ctx, anim, title, onClose, onForm
       )}
       {run && runFraming && <VideoRenderer key={run.key} scene={scene} ctx={ctx} anim={anim} out={runFraming} onProgress={onProgress} cancelRef={cancel} />}
     </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Layer timing: speed ramp, freeze, motion blur                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A layer's own clock: speed points (0 = freeze), drawn as a small graph,
+ * and motion blur. Ramps are normalised so the loop still closes.
+ */
+export function LayerTiming({ layer, duration, playT, onChange }: { layer: LayerMotion; duration: number; playT: number; onChange: (fn: (l: LayerMotion) => LayerMotion, label: string, key?: string | null) => void }) {
+  const pts = [...(layer.speed ?? [])].sort((a, b) => a.t - b.t);
+  const D = duration;
+  const at = (t: number) => Math.round(Math.min(D - 1 / 30, Math.max(0, t)) * 30) / 30;
+  const set = (next: SpeedPoint[], label: string, key?: string) => onChange((l) => ({ ...l, speed: next.length ? next.slice(0, MAX_SPEED_POINTS) : undefined }), label, key ?? null);
+  const max = Math.max(1.5, ...pts.map((p) => p.speed));
+  const line = pts.length
+    ? [...pts.map((p) => [p.t, p.speed]), [pts[0].t + D, pts[0].speed]].map(([t, v]) => `${(t / D) * 100},${40 - (v / max) * 36}`)
+    : ["0,16", "100,16"];
+  const pre = pts.length ? `${((pts[pts.length - 1].t - D) / D) * 100},${40 - (pts[pts.length - 1].speed / max) * 36} ` : "";
+  return (
+    <section className={cn("mt-3 rounded-[10px] border p-2.5", T.line)} aria-label="Layer timing" data-tour="animate-layer-timing">
+      <p className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold">
+        <Gauge size={13} /> Layer timing
+      </p>
+      <svg viewBox="0 0 100 42" preserveAspectRatio="none" className="h-12 w-full rounded bg-black/30" aria-label="Speed over the loop">
+        <polyline points={pre + line.join(" ")} fill="none" stroke="#c6f432" strokeWidth={1.4} vectorEffect="non-scaling-stroke" />
+        <line x1={(playT / D) * 100} x2={(playT / D) * 100} y1={0} y2={42} stroke="#ffffff55" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+      </svg>
+      <div className="mt-1.5 flex flex-wrap gap-1">
+        <button className={T.btn} disabled={pts.length >= MAX_SPEED_POINTS - 3} onClick={() => set([...pts.filter((p) => Math.abs(p.t - playT) > 0.6), { t: at(playT - 0.3), speed: 1 }, { t: at(playT), speed: 0 }, { t: at(playT + 0.5), speed: 0 }, { t: at(playT + 0.8), speed: 1 }].sort((a, b) => a.t - b.t), "Freeze hold")} title="Hold the layer still for half a second at the playhead (it eases in and out of the freeze)">
+          Freeze here
+        </button>
+        <button className={T.btn} disabled={pts.length >= MAX_SPEED_POINTS - 3} onClick={() => set([...pts.filter((p) => Math.abs(p.t - playT) > 0.6), { t: at(playT - 0.4), speed: 1 }, { t: at(playT), speed: 0.3 }, { t: at(playT + 0.4), speed: 1 }].sort((a, b) => a.t - b.t), "Slow motion")} title="Slow the layer's motion down around the playhead">
+          Slow-mo here
+        </button>
+        <button className={T.btn} disabled={pts.length >= MAX_SPEED_POINTS - 3} onClick={() => set([...pts.filter((p) => Math.abs(p.t - playT) > 0.6), { t: at(playT - 0.4), speed: 1 }, { t: at(playT), speed: 2.5 }, { t: at(playT + 0.4), speed: 1 }].sort((a, b) => a.t - b.t), "Speed up")} title="Speed the layer's motion up around the playhead">
+          Speed up here
+        </button>
+        {pts.length > 0 && (
+          <button className={cn(T.btn, "text-[#ff8a8a]")} onClick={() => set([], "Clear speed ramp")}>
+            Clear
+          </button>
+        )}
+      </div>
+      {pts.length > 0 && (
+        <ul className="mt-1.5 flex flex-col gap-1">
+          {pts.map((p, i) => (
+            <li key={i} className="grid grid-cols-[3.2rem_1fr_3rem_1.2rem] items-center gap-2 text-[11px]">
+              <span className={cn("tabular-nums", T.muted)}>{p.t.toFixed(2)} s</span>
+              <input type="range" min={0} max={4} step={0.05} value={p.speed} onChange={(e) => set(pts.map((x, j) => (j === i ? { ...x, speed: Number(e.target.value) } : x)), "Change speed", `speed:${i}`)} className={T.range} aria-label={`Speed at ${p.t.toFixed(2)} s`} />
+              <span className="text-right tabular-nums">{p.speed === 0 ? "freeze" : `${p.speed.toFixed(2)}×`}</span>
+              <button onClick={() => set(pts.filter((_, j) => j !== i), "Remove speed point")} aria-label={`Remove speed point at ${p.t.toFixed(2)} s`} className="text-[#8e9087] hover:text-white">
+                <X size={12} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="mt-2">
+        <SliderRow label="Motion blur" value={layer.blur ?? 0} min={0} max={1} step={0.05} onChange={(v) => onChange((l) => ({ ...l, blur: v > 0 ? v : undefined }), "Motion blur", "blur")} shown={layer.blur ? `${Math.round(layer.blur * 100)}%` : "Off"} />
+      </div>
+      <p className={cn("mt-1 text-[10px] leading-snug", T.muted)}>Speed changes this layer&apos;s own motion (keyframes and effects); the whole loop still takes {D} s, so it closes. Blur follows how far the layer moves each frame.</p>
+    </section>
   );
 }

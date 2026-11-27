@@ -5,7 +5,7 @@ import KonvaLib from "konva";
 import type Konva from "konva";
 import { Ellipse, Group, Image as KImage, Layer, Line, Rect, Stage, Text as KText, Shape as KShape, Transformer } from "react-konva";
 import { arcGeometry, placeOnArc } from "@/lib/flyers/arc";
-import { MotionWrap } from "./motion-wrap";
+import { MotionWrap, OccludeGroup, useRasterImages } from "./motion-wrap";
 import type { MotionState } from "@/lib/flyers/motion/types";
 import { graphemes, revealCount } from "@/lib/flyers/motion/graphemes";
 import { imageLayout } from "@/lib/flyers/scene";
@@ -676,6 +676,29 @@ function textInMotion(n: TextNode, st: MotionState | undefined): TextNode {
  * moment of the timeline; without it this is exactly the static flyer.
  */
 export function SceneNodes({ scene, ctx, exporting, act, fontsKey, onStatus, motion }: { scene: Scene; ctx: SrcContext; exporting: boolean; act: Interact | null; fontsKey: number; onStatus?: (id: string, done: boolean) => void; motion?: Map<string, MotionState> | null }) {
+  useRasterImages(motion);
+  const px = Math.min(1, Math.max(0.2, ctx.fxScale ?? 1));
+  /** A layer as drawn on the flyer, with its motion. `clone`: a second copy (for occlusion), not pickable. */
+  const draw = (n: FlyerNode, clone = false) => {
+    const st = motion?.get(n.id);
+    const k = clone ? `${n.id}__occ` : n.id;
+    const nn = clone ? ({ ...n, id: k } as FlyerNode) : n;
+    const el =
+      nn.kind === "image" ? (
+        <ImageLayer key={k} node={nn} ctx={ctx} exporting={exporting} act={clone ? null : act} onStatus={clone ? undefined : onStatus} />
+      ) : nn.kind === "shape" ? (
+        <ShapeLayer key={k} node={nn} act={clone ? null : act} ctx={ctx} exporting={exporting} />
+      ) : (
+        <TextLayer key={k} node={textInMotion(nn, st)} act={clone ? null : act} fontsKey={fontsKey} ctx={ctx} exporting={exporting} reveal={st?.reveal ?? null} />
+      );
+    return st ? (
+      <MotionWrap key={k} node={nn} st={st} px={px}>
+        {el}
+      </MotionWrap>
+    ) : (
+      el
+    );
+  };
   return (
     <>
       <Rect width={scene.width} height={scene.height} fill={scene.background} listening={false} />
@@ -683,21 +706,15 @@ export function SceneNodes({ scene, ctx, exporting, act, fontsKey, onStatus, mot
         // Hidden by the user, or by its data ("only show when…", empty "hide when empty" text).
         if (!shownByData(n, ctx.values)) return null;
         const st = motion?.get(n.id);
-        const el =
-          n.kind === "image" ? (
-            <ImageLayer key={n.id} node={n} ctx={ctx} exporting={exporting} act={act} onStatus={onStatus} />
-          ) : n.kind === "shape" ? (
-            <ShapeLayer key={n.id} node={n} act={act} ctx={ctx} exporting={exporting} />
-          ) : (
-            <TextLayer key={n.id} node={textInMotion(n, st)} act={act} fontsKey={fontsKey} ctx={ctx} exporting={exporting} reveal={st?.reveal ?? null} />
+        const occ = st?.occlude ? scene.nodes.find((o) => o.id === st.occlude!.nodeId && o.visible && shownByData(o, ctx.values)) : null;
+        if (occ) {
+          return (
+            <OccludeGroup key={n.id} soft={st!.occlude!.soft} px={px} occluder={draw(occ, true)}>
+              {draw(n)}
+            </OccludeGroup>
           );
-        return st ? (
-          <MotionWrap key={n.id} node={n} st={st} px={Math.min(1, Math.max(0.2, ctx.fxScale ?? 1))}>
-            {el}
-          </MotionWrap>
-        ) : (
-          el
-        );
+        }
+        return draw(n);
       })}
     </>
   );

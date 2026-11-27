@@ -1,5 +1,6 @@
 "use client";
 
+import { THUMB_SAMPLE } from "@/lib/flyers/sample-assets";
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import KonvaLib from "konva";
 import { Eye, Loader2, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
@@ -93,21 +94,89 @@ function useThumbBase(layer: FlyerNode, ctx: SrcContext) {
   return { base, status: isImg ? status : base ? "ready" : "loading", cutout, scale: 132 / Math.max(layer.width, layer.height) };
 }
 
-function Thumbs({ base, scale, seed, value, onPick }: { base: HTMLCanvasElement | null; scale: number; seed: number; value: PresetId | null; onPick: (p: PresetId | null) => void }) {
-  const [urls, setUrls] = useState<{ base: HTMLCanvasElement; map: Record<string, string> } | null>(null);
+/**
+ * The sample the preset cards all use: dj-01 (a cutout) over charcoal-studio,
+ * as two layers (same subject and crop on every card). The effect runs on the
+ * portrait layer, as it does on a flyer, then sits over the background.
+ */
+const SAMPLE_W = 192;
+const SAMPLE_H = 240;
+const FX_THUMB_V = 2;
+/** 4:5 crop of the 627 px square sample, centred on the subject. */
+const SRC_CROP = { x: 63, y: 0, w: 501, h: 627 };
+function loadImg(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+function cropped(img: HTMLImageElement) {
+  const c = document.createElement("canvas");
+  c.width = SAMPLE_W;
+  c.height = SAMPLE_H;
+  c.getContext("2d")!.drawImage(img, SRC_CROP.x, SRC_CROP.y, SRC_CROP.w, SRC_CROP.h, 0, 0, SAMPLE_W, SAMPLE_H);
+  return c;
+}
+let sampleLayers: Promise<{ portrait: HTMLCanvasElement; background: HTMLCanvasElement }> | null = null;
+function sampleCanvases() {
+  sampleLayers ??= Promise.all([loadImg(THUMB_SAMPLE.portrait), loadImg(THUMB_SAMPLE.background)]).then(([p, b]) => ({ portrait: cropped(p), background: cropped(b) }));
+  return sampleLayers;
+}
+/** The processed portrait layer over the background layer. */
+function composite(background: HTMLCanvasElement, portrait: HTMLCanvasElement) {
+  const c = document.createElement("canvas");
+  c.width = SAMPLE_W;
+  c.height = SAMPLE_H;
+  const g = c.getContext("2d")!;
+  g.drawImage(background, 0, 0);
+  g.drawImage(portrait, 0, 0, SAMPLE_W, SAMPLE_H);
+  return c.toDataURL("image/webp", 0.85);
+}
+const fxThumbs = new Map<string, string>();
+function cachedThumb(id: string) {
+  if (fxThumbs.has(id)) return fxThumbs.get(id)!;
+  try {
+    const v = localStorage.getItem(`dcdj-fxthumb-v${FX_THUMB_V}:${id}`);
+    if (v) fxThumbs.set(id, v);
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Preset cards: each preset on the same sample DJ portrait, at its shipping
+ * defaults, made by the real effect code (cached in this browser). Picking
+ * one shows it on your own photo on the canvas, with "View original" to
+ * compare, before you apply it.
+ */
+function Thumbs({ value, onPick }: { base?: HTMLCanvasElement | null; scale?: number; seed?: number; value: PresetId | null; onPick: (p: PresetId | null) => void }) {
+  const [urls, setUrls] = useState<Record<string, string>>(() => Object.fromEntries(["none", ...PRESETS.map((p) => p.id)].map((id) => [id, cachedThumb(id) ?? ""]).filter(([, v]) => v)));
   useEffect(() => {
-    if (!base) return;
     let live = true;
     (async () => {
-      const map: Record<string, string> = { none: base.toDataURL() };
-      setUrls({ base, map: { ...map } });
-      for (const p of PRESETS) {
+      const layers = await sampleCanvases().catch(() => null);
+      if (!layers || !live) return;
+      const base = layers.portrait;
+      const put = (id: string, url: string) => {
+        fxThumbs.set(id, url);
         try {
-          // Same sizes as on the flyer, scaled down with the thumbnail.
-          const c = await runEffects(base, { ...newEffects(p.id, seed), strength: 1 }, scale);
+          localStorage.setItem(`dcdj-fxthumb-v${FX_THUMB_V}:${id}`, url);
+        } catch {
+          // storage full: kept for this visit
+        }
+        setUrls((m) => ({ ...m, [id]: url }));
+      };
+      if (!cachedThumb("none")) put("none", composite(layers.background, base));
+      for (const p of PRESETS) {
+        if (cachedThumb(p.id)) continue;
+        try {
+          // Same sizes as on a flyer, scaled down with the thumbnail (the sample is 960 px wide).
+          const c = await runEffects(base, { ...newEffects(p.id, 7), strength: 1 }, SAMPLE_W / 960);
           if (!live) return;
-          map[p.id] = c.toDataURL();
-          setUrls({ base, map: { ...map } });
+          put(p.id, composite(layers.background, c));
         } catch {
           // leave the tile on its label
         }
@@ -116,8 +185,8 @@ function Thumbs({ base, scale, seed, value, onPick }: { base: HTMLCanvasElement 
     return () => {
       live = false;
     };
-  }, [base, seed, scale]);
-  const map = urls?.base === base ? urls.map : {};
+  }, []);
+  const map = urls;
   const tiles: { id: PresetId | null; name: string }[] = [{ id: null, name: "Original" }, ...PRESETS.map((p) => ({ id: p.id, name: p.name }))];
   return (
     <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:grid lg:grid-cols-3 lg:overflow-visible lg:px-0 lg:pb-0" role="radiogroup" aria-label="Effect presets" data-tour="fx-presets">

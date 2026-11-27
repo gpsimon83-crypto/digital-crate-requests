@@ -32,7 +32,32 @@ export type RasterOp =
   /** A bright band across the layer, only where the layer has pixels (text shine). */
   | { kind: "shine"; pos: number; width: number; angle: number; alpha: number; color: [number, number, number] }
   /** Soft wipe that reveals the layer (0 = hidden, 1 = shown), following its own cutout edges. */
-  | { kind: "wipe"; amount: number; dir: "left" | "right" | "up" | "down"; soft: number };
+  | { kind: "wipe"; amount: number; dir: "left" | "right" | "up" | "down"; soft: number }
+  /**
+   * Refraction: the layer seen through angled glass bands. Each band shifts what's
+   * behind it along the band's normal (a sawtooth, like reeded glass); red and blue
+   * shift a little more / less (dispersion). `pos` slides the bands (flyer px).
+   * `window` limits it to one soft band of the layer (Prism Sweep).
+   */
+  | { kind: "refract"; angle: number; band: number; disp: number; disperse: number; pos: number; window?: { centre: number; width: number } | null }
+  /**
+   * Double exposure: a second picture blended inside the layer's own silhouette.
+   * `box` is the layer's frame (flyer px); the picture covers it, scaled and moved
+   * by scale / ox / oy. Faded at the silhouette edge (feather, px) and around the
+   * face (a soft ellipse) so the face stays readable.
+   */
+  | { kind: "double"; src: string; box: { x: number; y: number; w: number; h: number }; blend: DoubleBlend; opacity: number; scale: number; ox: number; oy: number; feather: number; face: { x: number; y: number; size: number; amount: number } }
+  /** Motion blur: a short smear along the way the layer moved this frame (flyer px). */
+  | { kind: "mblur"; dx: number; dy: number };
+
+export type DoubleBlend = "screen" | "multiply" | "overlay" | "soft-light" | "lighten" | "normal";
+
+/**
+ * Decoded second pictures for double exposure, by source path. The page
+ * loads them (and waits for them before exporting); tests put pixels in
+ * directly. A missing picture just skips the effect for that frame.
+ */
+export const RASTER_IMAGES = new Map<string, Pixels>();
 
 export type Pixels = { data: Uint8ClampedArray; width: number; height: number };
 
@@ -53,11 +78,17 @@ export function rasterPad(ops: RasterOp[]) {
     if (o.kind === "slices") for (const b of o.bands) p = Math.max(p, Math.abs(b.dx));
     else if (o.kind === "rgb") p = Math.max(p, Math.abs(o.rdx), Math.abs(o.rdy), Math.abs(o.bdx), Math.abs(o.bdy));
     else if (o.kind === "rowwave") p = Math.max(p, Math.abs(o.amp));
+    else if (o.kind === "refract") p = Math.max(p, Math.abs(o.disp) + Math.abs(o.disperse));
+    else if (o.kind === "mblur") p = Math.max(p, Math.hypot(o.dx, o.dy) / 2);
   }
   return Math.ceil(p) + 2;
 }
 
-export function applyRaster(img: Pixels, ops: RasterOp[], px: number) {
+/**
+ * `origin`: where the first pixel of `img` sits on the flyer (flyer px), for the
+ * ops that depend on the layer's frame (double exposure, refraction bands).
+ */
+export function applyRaster(img: Pixels, ops: RasterOp[], px: number, origin: { x: number; y: number } = { x: 0, y: 0 }) {
   for (const o of ops) {
     switch (o.kind) {
       case "slices":
@@ -83,6 +114,15 @@ export function applyRaster(img: Pixels, ops: RasterOp[], px: number) {
         break;
       case "wipe":
         wipe(img, o);
+        break;
+      case "refract":
+        refract(img, o, px, origin);
+        break;
+      case "double":
+        double(img, o, px, origin);
+        break;
+      case "mblur":
+        mblur(img, o, px);
         break;
     }
   }
@@ -254,6 +294,200 @@ function wipe(img: Pixels, o: { amount: number; dir: "left" | "right" | "up" | "
       const p = o.dir === "right" ? x / w : o.dir === "left" ? 1 - x / w : o.dir === "down" ? y / h : 1 - y / h;
       const k = Math.min(1, Math.max(0, (edge + soft - p) / soft));
       data[i + 3] = data[i + 3] * k;
+    }
+  }
+}
+
+const fracP = (v: number) => v - Math.floor(v);
+
+function refract(img: Pixels, o: Extract<RasterOp, { kind: "refract" }>, px: number, origin: { x: number; y: number }) {
+  const { data, width: w, height: h } = img;
+  const band = Math.max(4, o.band);
+  if (!o.disp && !o.disperse) return;
+  const src = data.slice();
+  const a = (o.angle * Math.PI) / 180;
+  const nx = Math.cos(a);
+  const ny = Math.sin(a);
+  // Across the layer (for the Prism Sweep window): its extent along the normal.
+  const span = Math.abs(w * nx) + Math.abs(h * ny) || 1;
+  const sample = (x: number, y: number, c: number) => {
+    const xi = Math.round(x);
+    const yi = Math.round(y);
+    if (xi < 0 || yi < 0 || xi >= w || yi >= h) return -1;
+    return (yi * w + xi) * 4 + c;
+  };
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      // Position along the band normal, in flyer px (so bands sit the same at any preview size).
+      const X = origin.x + x / px;
+      const Y = origin.y + y / px;
+      const along = X * nx + Y * ny + o.pos;
+      let k = 1;
+      if (o.window) {
+        const rel = ((x - w / 2) * nx + (y - h / 2) * ny) / span + 0.5; // 0..1 across the layer
+        const d = Math.abs(rel - o.window.centre) / Math.max(0.01, o.window.width / 2);
+        k = d >= 1 ? 0 : 0.5 + 0.5 * Math.cos(Math.PI * d);
+        if (!k) continue;
+      }
+      const f = fracP(along / band);
+      const shift = o.disp * (f - 0.5) * 2 * k * px;
+      const disp = o.disperse * k * px;
+      const i = (y * w + x) * 4;
+      const g = sample(x - nx * shift, y - ny * shift, 0);
+      const r = sample(x - nx * (shift + disp), y - ny * (shift + disp), 0);
+      const b = sample(x - nx * (shift - disp), y - ny * (shift - disp), 0);
+      if (g < 0) {
+        data[i + 3] = 0;
+        continue;
+      }
+      const ag = src[g + 3];
+      const ar = r >= 0 ? src[r + 3] : 0;
+      const ab = b >= 0 ? src[b + 3] : 0;
+      const al = Math.max(ar, ag, ab);
+      if (!al) {
+        data[i + 3] = 0;
+        continue;
+      }
+      data[i] = r >= 0 ? (src[r] * ar) / al : 0;
+      data[i + 1] = (src[g + 1] * ag) / al;
+      data[i + 2] = b >= 0 ? (src[b + 2] * ab) / al : 0;
+      data[i + 3] = al;
+    }
+  }
+}
+
+/** Box blur of an alpha channel (for soft edges), radius in pixels. */
+function blurAlpha(a: Float32Array, w: number, h: number, r: number) {
+  if (r < 1) return a;
+  const tmp = new Float32Array(a.length);
+  const out = new Float32Array(a.length);
+  const R = Math.round(r);
+  for (let y = 0; y < h; y++) {
+    let acc = 0;
+    for (let x = -R; x <= R; x++) acc += a[y * w + Math.min(w - 1, Math.max(0, x))];
+    for (let x = 0; x < w; x++) {
+      tmp[y * w + x] = acc / (2 * R + 1);
+      acc += a[y * w + Math.min(w - 1, x + R + 1)] - a[y * w + Math.max(0, x - R)];
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    let acc = 0;
+    for (let y = -R; y <= R; y++) acc += tmp[Math.min(h - 1, Math.max(0, y)) * w + x];
+    for (let y = 0; y < h; y++) {
+      out[y * w + x] = acc / (2 * R + 1);
+      acc += tmp[Math.min(h - 1, y + R + 1) * w + x] - tmp[Math.max(0, y - R) * w + x];
+    }
+  }
+  return out;
+}
+
+/**
+ * The silhouette's softened edge, reused while the layer's shape stays the
+ * same (a still cutout: every frame), so a playing double exposure doesn't
+ * re-blur it each frame. Keyed by size, radius and a sample of the alpha.
+ */
+const softCache = new Map<string, Float32Array>();
+function softAlpha(data: Uint8ClampedArray, w: number, h: number, r: number) {
+  let sig = 0;
+  for (let i = 3; i < data.length; i += 4 * 97) sig = (sig * 31 + data[i]) | 0;
+  const key = `${w}x${h}:${r.toFixed(2)}:${sig}`;
+  const hit = softCache.get(key);
+  if (hit) return hit;
+  const alpha = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) alpha[i] = data[i * 4 + 3] / 255;
+  const out = blurAlpha(alpha, w, h, r);
+  if (softCache.size > 6) softCache.delete(softCache.keys().next().value!);
+  softCache.set(key, out);
+  return out;
+}
+
+const BLEND: Record<DoubleBlend, (a: number, b: number) => number> = {
+  screen: (a, b) => 1 - (1 - a) * (1 - b),
+  multiply: (a, b) => a * b,
+  overlay: (a, b) => (a < 0.5 ? 2 * a * b : 1 - 2 * (1 - a) * (1 - b)),
+  "soft-light": (a, b) => (1 - 2 * b) * a * a + 2 * b * a,
+  lighten: (a, b) => Math.max(a, b),
+  normal: (_a, b) => b
+};
+
+function double(img: Pixels, o: Extract<RasterOp, { kind: "double" }>, px: number, origin: { x: number; y: number }) {
+  const pic = RASTER_IMAGES.get(o.src);
+  if (!pic || o.opacity <= 0) return;
+  const { data, width: w, height: h } = img;
+  // Soft silhouette edge: the picture fades in from the edge over `feather` px.
+  const soft = o.feather * px >= 1 ? softAlpha(data, w, h, o.feather * px) : null;
+  // The picture covers the layer's frame (like "fill"), then scale and move.
+  const cover = Math.max(o.box.w / pic.width, o.box.h / pic.height) * Math.max(0.2, o.scale);
+  const pw = pic.width * cover;
+  const ph = pic.height * cover;
+  const left = o.box.x + (o.box.w - pw) / 2 + o.ox * o.box.w * 0.5;
+  const top = o.box.y + (o.box.h - ph) / 2 + o.oy * o.box.h * 0.5;
+  const fn = BLEND[o.blend] ?? BLEND.screen;
+  const fx = o.box.x + o.face.x * o.box.w;
+  const fy = o.box.y + o.face.y * o.box.h;
+  const fr = Math.max(1, o.face.size * Math.min(o.box.w, o.box.h));
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (!data[i + 3]) continue;
+      const X = origin.x + x / px;
+      const Y = origin.y + y / px;
+      const sx = Math.floor(((X - left) / pw) * pic.width);
+      const sy = Math.floor(((Y - top) / ph) * pic.height);
+      if (sx < 0 || sy < 0 || sx >= pic.width || sy >= pic.height) continue;
+      // Edge feather (deep inside = 1) and the face fade (centre of the ellipse = 1 − amount).
+      let k = soft ? Math.min(1, Math.max(0, (soft[y * w + x] - 0.5) * 2)) : 1;
+      if (o.face.amount > 0) {
+        const d = Math.hypot((X - fx) / fr, (Y - fy) / (fr * 1.25));
+        const inside = d >= 1 ? 0 : 0.5 + 0.5 * Math.cos(Math.PI * d);
+        k *= 1 - o.face.amount * inside;
+      }
+      k *= o.opacity;
+      if (k <= 0) continue;
+      const j = (sy * pic.width + sx) * 4;
+      for (let c = 0; c < 3; c++) {
+        const a = data[i + c] / 255;
+        const b = pic.data[j + c] / 255;
+        data[i + c] = clamp255((a + (fn(a, b) - a) * k) * 255);
+      }
+    }
+  }
+}
+
+function mblur(img: Pixels, o: { dx: number; dy: number }, px: number) {
+  const len = Math.hypot(o.dx, o.dy) * px;
+  if (len < 1) return;
+  const { data, width: w, height: h } = img;
+  const src = data.slice();
+  const n = Math.min(12, Math.max(2, Math.ceil(len / 2)));
+  const sx = (o.dx * px) / (n - 1);
+  const sy = (o.dy * px) / (n - 1);
+  const x0 = -(o.dx * px) / 2;
+  const y0 = -(o.dy * px) / 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let r = 0, g = 0, b = 0, a = 0;
+      for (let k = 0; k < n; k++) {
+        const xi = Math.round(x + x0 + sx * k);
+        const yi = Math.round(y + y0 + sy * k);
+        if (xi < 0 || yi < 0 || xi >= w || yi >= h) continue;
+        const j = (yi * w + xi) * 4;
+        const al = src[j + 3];
+        r += src[j] * al;
+        g += src[j + 1] * al;
+        b += src[j + 2] * al;
+        a += al;
+      }
+      const i = (y * w + x) * 4;
+      // Premultiplied average: transparent pixels add no dark fringe.
+      if (!a) {
+        data[i + 3] = 0;
+        continue;
+      }
+      data[i] = r / a;
+      data[i + 1] = g / a;
+      data[i + 2] = b / a;
+      data[i + 3] = a / n;
     }
   }
 }

@@ -685,6 +685,8 @@ export function FlyerEditor(props: FlyerEditorProps) {
         void doSave();
         return;
       }
+      // Animate is open on top: it has its own undo, nudging and delete. The design's shortcuts stay quiet.
+      if (animOpen) return;
       if (maskNode) {
         // Sliders and buttons don't take Ctrl+Z, so mask undo works right after moving one.
         const el = e.target as HTMLInputElement | null;

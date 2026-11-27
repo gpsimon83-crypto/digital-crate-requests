@@ -1,5 +1,7 @@
 "use client";
 
+import { LayerTiming, useHasCutout } from "./animate-parts";
+import { Compare, LiveThumb, ThumbFactory, useThumb } from "./effect-thumbs";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AudioWaveform, Check, ChevronDown, Copy, Download, Eye, EyeOff, GripVertical, Infinity as InfinityIcon, Layers, Lock, Maximize, Minimize, Pause, Play, Plus, SkipBack, SkipForward, Sparkles, Trash2, VolumeX, X, Zap } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -91,6 +93,9 @@ export function AnimateWorkspace({
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  /** An effect being looked at before it's added: Original / Effect on the selected layer, Apply or Cancel. */
+  const [pendingState, setPending] = useState<{ id: string; item: MotionItem; layer: string } | null>(null);
+  const [hoverTile, setHoverTile] = useState<string | null>(null);
   const [quality, setQuality] = useState<"draft" | "normal" | "full">("normal");
   const [tab, setTab] = useState<Tab>("styles");
   const [preview, setPreview] = useState<Animation | null>(null);
@@ -406,16 +411,34 @@ export function AnimateWorkspace({
     const existing = layerOf(sel.id).stack.find((x) => x.preset === presetId);
     if (existing) return setSelectedItem(existing.id);
     if (layerOf(sel.id).stack.length >= MAX_STACK) return;
-    const it = newItem(presetId);
+    const it = pendingItem(presetId);
+    setPending(null);
     setLayer(sel.id, (l) => ({ ...l, stack: [...l.stack, it] }), `Add ${PRESET_BY_ID.get(presetId)?.name}`);
     setSelectedItem(it.id);
   };
+  /** A new effect for the selected layer, at its defaults (an occlusion reveal starts behind the DJ cutout above it, if there is one). */
+  const pendingItem = (presetId: string) => {
+    const it = newItem(presetId);
+    const p = PRESET_BY_ID.get(presetId);
+    if (p?.needs === "occluder" && sel) {
+      const i = scene.nodes.findIndex((n) => n.id === sel.id);
+      const above = scene.nodes.slice(i + 1).find((n) => n.kind === "image" && n.visible && n.role !== "background" && n.role !== "overlay" && n.x < sel.x + sel.width && n.x + n.width > sel.x && n.y < sel.y + sel.height && n.y + n.height > sel.y);
+      const any = above ?? scene.nodes.find((n) => n.kind === "image" && n.id !== sel.id && (n.role === "portrait" || n.role === "image"));
+      if (any) it.opts = { ...(it.opts ?? {}), occluder: any.id };
+    }
+    return it;
+  };
+  const pending = pendingState && sel && pendingState.layer === sel.id ? pendingState.id : null;
+  const pendingTrial = pending ? pendingState!.item : null;
   const sample =
     sel?.kind === "text"
       ? ((sel.uppercase ? sel.text.toUpperCase() : sel.text).replace(/\{\{[^}|]*\|?([^}]*)\}\}/g, "$1").replace(/\s+/g, " ").trim().split(" ")[0] || "TEXT").slice(0, 9)
       : "TEXT";
   const sampleFont = sel?.kind === "text" ? fontString(sel) : null;
   const libPresets = tab === "styles" ? [] : MOTION_PRESETS.filter((p) => p.category === tab || p.also?.includes(tab));
+  // Image effects get photo cards (everything outside the Text tab).
+  const photoTab = tab !== "styles" && tab !== "text";
+
   const pct = ((frame % N) / Math.max(1, N - 1)) * 100;
 
   return (
@@ -678,22 +701,42 @@ export function AnimateWorkspace({
                       <li key={p.id}>
                         <button
                           disabled={fits !== true || (!added && (selLayer?.stack.length ?? 0) >= MAX_STACK)}
-                          title={fits !== true ? fits : `${p.description}. Point to preview, click to add.`}
-                          onClick={() => pickEffect(p.id)}
-                          onMouseEnter={() => fits === true && !added && tryPreset(p.id)}
-                          onMouseLeave={() => tryPreset(null)}
-                          onFocus={() => fits === true && !added && tryPreset(p.id)}
-                          onBlur={() => tryPreset(null)}
+                          title={fits !== true ? fits : `${p.description}. Click to compare on ${sel.name}; double-click to add.`}
+                          onClick={() => (added ? pickEffect(p.id) : (tryPreset(null), setSelectedKey(null), setPending({ id: p.id, item: pendingItem(p.id), layer: sel.id })))}
+                          onDoubleClick={() => !added && pickEffect(p.id)}
+                          onMouseEnter={() => {
+                            setHoverTile(p.id);
+                            if (fits === true && !added && !pending) tryPreset(p.id);
+                          }}
+                          onMouseLeave={() => {
+                            setHoverTile(null);
+                            tryPreset(null);
+                          }}
+                          onFocus={() => {
+                            setHoverTile(p.id);
+                            if (fits === true && !added && !pending) tryPreset(p.id);
+                          }}
+                          onBlur={() => {
+                            setHoverTile(null);
+                            tryPreset(null);
+                          }}
                           className={cn(
-                            "motion-card group relative flex h-[96px] w-full flex-col items-center justify-end overflow-hidden rounded-[12px] border bg-[#1b1c18] px-1 pb-2.5 text-[14px] disabled:opacity-35",
+                            "motion-card group relative flex h-[96px] [&_*]:pointer-events-none w-full flex-col items-center justify-end overflow-hidden rounded-[12px] border bg-[#1b1c18] px-1 pb-2.5 text-[14px] disabled:opacity-35",
                             on ? "border-[#c6f432] ring-1 ring-[#c6f432]" : "border-[#2a2b26] hover:border-[#55574f] focus-visible:border-[#c6f432] focus-visible:outline-none"
                           )}
                           data-preset={p.id}
                           aria-pressed={added}
                         >
-                          <span className="absolute inset-x-1 bottom-8 top-2 flex items-center justify-center overflow-hidden" aria-hidden>
-                            <Thumb id={p.id} text={sample} font={sampleFont} />
-                          </span>
+                          {photoTab ? (
+                            // Image effects: the same sample DJ portrait on every card, with the real effect (plays on hover / focus).
+                            <span className="absolute inset-x-0 bottom-7 top-0 overflow-hidden" aria-hidden>
+                              <PhotoArt id={p.id} live={hoverTile === p.id} />
+                            </span>
+                          ) : (
+                            <span className="absolute inset-x-1 bottom-8 top-2 flex items-center justify-center overflow-hidden" aria-hidden>
+                              <Thumb id={p.id} text={sample} font={sampleFont} />
+                            </span>
+                          )}
                           <span className="relative truncate">{p.name}</span>
                           {added && <Check size={13} className="absolute right-2 top-2 text-[#c6f432]" aria-label="On this layer" />}
                         </button>
@@ -759,7 +802,23 @@ export function AnimateWorkspace({
                   </div>
                 )}
                 <div className="shrink-0 overflow-y-auto lg:max-h-[46%]">
-                {selectedKey && selLayer?.keys?.some((k) => k.id === selectedKey) ? (
+                {pending && pendingTrial && PRESET_BY_ID.get(pending) ? (
+                  <section className={cn("border-t px-4 pb-3 pt-2.5", T.line)} aria-label="Compare before adding">
+                    <div className="mb-2 flex items-center gap-2">
+                      <h3 className="flex-1 text-[15px] font-semibold">
+                        {PRESET_BY_ID.get(pending)!.name} <span className="font-normal text-[#c9cbc0]">on {sel.name}</span>
+                      </h3>
+                      <button className={T.btn} onClick={() => setPending(null)}>
+                        Cancel
+                      </button>
+                      <button className={T.limeBtn} onClick={() => pickEffect(pending)} data-tour="animate-apply-effect">
+                        Apply
+                      </button>
+                    </div>
+                    <PendingPrereq presetId={pending} node={sel} item={pendingTrial} nodes={scene.nodes} ctx={ctx} />
+                    <Compare scene={scene} node={sel} ctx={ctx} base={anim} item={pendingTrial} width={460} />
+                  </section>
+                ) : selectedKey && selLayer?.keys?.some((k) => k.id === selectedKey) ? (
                   <KeyInspector layer={selLayer} keyId={selectedKey} duration={anim.duration} fps={anim.fps} onChange={(fn, label, key) => setLayer(sel.id, fn, label, key)} onClose={() => setSelectedKey(null)} />
                 ) : item ? (
                   <EffectControls
@@ -768,6 +827,31 @@ export function AnimateWorkspace({
                     layerName={sel.name}
                     onChange={(p, key) => setLayer(sel.id, (l) => ({ ...l, stack: l.stack.map((x) => (x.id === item.id ? { ...x, ...p } : x)) }), "Adjust effect", `item:${item.id}:${key}`)}
                     onRemove={() => removeItem(sel.id, item.id)}
+                    node={sel}
+                    nodes={scene.nodes}
+                    ctx={ctx}
+                    anim={anim}
+                    onApplyGroup={
+                      sel.groupId && scene.nodes.filter((n) => n.groupId === sel.groupId).length > 1
+                        ? () =>
+                            change(
+                              (a) => {
+                                const layers = { ...a.layers };
+                                for (const n of scene.nodes) {
+                                  if (n.groupId !== sel.groupId || n.id === sel.id) continue;
+                                  const p = PRESET_BY_ID.get(item.preset);
+                                  if (p && presetFits(p, n, roleOf(n, layers[n.id]?.role), a.readableLock) !== true) continue;
+                                  const l = layers[n.id] ?? { stack: [] };
+                                  // Same settings and seed: the whole group glitches at the same moments.
+                                  const rest = l.stack.filter((x) => x.preset !== item.preset);
+                                  layers[n.id] = { ...l, stack: [...rest, { ...item, id: newItemId() }].slice(-MAX_STACK) };
+                                }
+                                return { ...a, layers };
+                              },
+                              `Apply ${PRESET_BY_ID.get(item.preset)?.name ?? "effect"} to the group`
+                            )
+                        : undefined
+                    }
                   />
                 ) : null}
                 {selLayer && (
@@ -788,6 +872,7 @@ export function AnimateWorkspace({
                         <Lock size={11} /> Kept readable: no disappearing or glitch, movement is limited.
                       </p>
                     )}
+                    {!selLayer.locked && <LayerTiming layer={selLayer} duration={anim.duration} playT={(frame % N) / anim.fps} onChange={(fn, label, key) => setLayer(sel.id, fn, label, key)} />}
                     {selLayer.stack.length > 0 && (
                       <form
                         className="mt-2 flex gap-1"
@@ -852,10 +937,12 @@ export function AnimateWorkspace({
             undoLabel={undoLabel}
             redoLabel={redoLabel}
             compact={mode === "simple"}
+            setAnim={change}
           />
         </div>
       </div>
 
+      {photoTab && <ThumbFactory ids={THUMB_IDS} />}
       {loopOpen && <LoopCheck scene={scene} ctx={ctx} anim={anim} reduced={reduced} onClose={() => setLoopOpen(false)} onPlay={() => (setFrame(0), setPlaying(true))} />}
       {exportOpen && <ExportQueue designId={source.kind === "design" ? source.id : null} scene={scene} ctx={ctx} anim={anim} title={title} onClose={() => setExportOpen(false)} onFormats={(f) => change((a) => ({ ...a, formats: f }), "Change video sizes", "formats")} />}
       <style>{CSS}</style>
@@ -1206,3 +1293,54 @@ const CSS = `
 @keyframes thSlice { 0% { transform: none } 50% { transform: translateX(4px) } }
 @keyframes thRgb { 50% { text-shadow: 4px 0 #ff2a6d, -4px 0 #2ad4ff } }
 `;
+
+/** Image effects (everything that isn't text-only) get a photo thumbnail. */
+const THUMB_IDS = MOTION_PRESETS.filter((p) => p.category !== "text" || p.also?.some((c) => c !== "text")).map((p) => p.id);
+
+/** A card's photo: the cached thumbnail, or the effect playing while the card is pointed at / focused. */
+function PhotoArt({ id, live }: { id: string; live: boolean }) {
+  const url = useThumb(id);
+  const box = useRef<HTMLSpanElement>(null);
+  const [w, setW] = useState(150);
+  useEffect(() => {
+    if (box.current) setW(box.current.clientWidth || 150);
+  }, [live]);
+  return (
+    // The picture never swaps under the pointer: the live preview sits on top of it, and none of it takes clicks
+    // (a press that starts on an element replaced mid-click would never reach the card's button).
+    <span ref={box} className="pointer-events-none relative flex h-full w-full items-center justify-center bg-[#0f0a17]">
+      {url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" className="h-full w-full object-cover object-top" draggable={false} />
+      ) : (
+        !live && <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#c6f432]/30 border-t-[#c6f432]" />
+      )}
+      {live && (
+        <span className="absolute inset-0 overflow-hidden" style={{ width: w }}>
+          <LiveThumb id={id} width={w} />
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** What the selected layer needs before an effect looks right (cutout, or the layer it hides behind). */
+function PendingPrereq({ presetId, node, item, nodes, ctx }: { presetId: string; node: FlyerNode; item: MotionItem; nodes: FlyerNode[]; ctx: SrcContext }) {
+  const p = PRESET_BY_ID.get(presetId);
+  const occ = p?.needs === "occluder" ? nodes.find((n) => n.id === item.opts?.occluder) : null;
+  const selfCut = useHasCutout(p?.needs === "cutout" ? node : null, ctx);
+  const occCut = useHasCutout(occ, ctx);
+  const msg =
+    p?.needs === "cutout" && selfCut === false
+      ? "Needs a subject cutout: this picture has no transparent background, so the second image covers the whole frame. Use a cutout photo, or add a mask in Design."
+      : p?.needs === "occluder" && !occ
+        ? "Needs a DJ cutout to hide behind: add one to the flyer (or pick it in the effect's settings after applying)."
+        : p?.needs === "occluder" && occ && occCut === false
+          ? `“${occ.name}” has no transparent background, so the text hides behind its whole frame. Use a cutout, or add a mask in Design.`
+          : p?.needs === "occluder" && occ
+            ? `Comes out from behind “${occ.name}”.`
+            : null;
+  if (!msg) return null;
+  const ok = p?.needs === "occluder" && occ && occCut !== false;
+  return <p className={cn("mb-2 rounded-[8px] border px-2.5 py-1.5 text-[11px]", ok ? "border-[#c6f432]/30 bg-[#c6f432]/5 text-[#d9e9a8]" : "border-[#e8a33a]/40 bg-[#e8a33a]/10 text-[#f3c987]")}>{msg}</p>;
+}

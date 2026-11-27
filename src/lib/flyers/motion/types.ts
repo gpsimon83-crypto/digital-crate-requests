@@ -13,6 +13,7 @@ export type Easing = "easeInOut" | "linear" | "easeOut";
 export type Direction = "left" | "right" | "up" | "down";
 export type Intensity = "subtle" | "balanced" | "high";
 export type OverlayBlend = "normal" | "screen" | "overlay" | "soft-light" | "multiply";
+export type BurnOrigin = "left" | "right" | "top" | "bottom" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
 export type MotionItem = {
   /** Unique within the layer's stack. */
@@ -36,7 +37,25 @@ export type MotionItem = {
   glitch?: GlitchParams;
   /** Repeat: each cycle plays forward. Ping-pong: forward then backward, so any effect closes the loop smoothly. */
   loop?: "repeat" | "pingpong";
+  /** Settings particular to one effect (see the preset's `controls`), e.g. refraction angle or the double-exposure image. */
+  opts?: EffectOpts;
+  /** Play on beat markers / the BPM grid instead of looping on its own: each trigger plays one cycle. */
+  trigger?: Trigger;
 };
+
+export type EffectOpts = Record<string, number | string | boolean>;
+
+export type Trigger = {
+  /** Fire on the timeline's markers, or on the beat grid every `every` beats. */
+  on: "markers" | "beats";
+  every: number;
+  /** Seconds after each marker / beat (may be negative, to land just before it). */
+  offset: number;
+  /** Seconds each trigger plays for. */
+  length: number;
+};
+
+export type Marker = { id: string; t: number; label?: string };
 
 export type GlitchParams = {
   /** Bursts per loop (whole number, so every repeat glitches at the same moments). */
@@ -90,7 +109,18 @@ export type LayerMotion = {
   role?: Role;
   muted?: boolean;
   solo?: boolean;
+  /**
+   * Speed ramp for this layer's motion: points (seconds, speed 0–4; 0 = freeze)
+   * joined by straight lines, wrapping around the loop. The layer's own clock is
+   * rescaled so one loop still takes exactly one loop (so it always closes).
+   */
+  speed?: SpeedPoint[];
+  /** Motion blur, 0–1 (how long the virtual shutter stays open). Based on how far the layer moves each frame. */
+  blur?: number;
 };
+
+export type SpeedPoint = { t: number; speed: number };
+export const MAX_SPEED_POINTS = 12;
 
 export type Animation = {
   v: typeof ANIMATION_VERSION;
@@ -103,6 +133,10 @@ export type Animation = {
   readableLock: boolean;
   recipe: string | null;
   layers: Record<string, LayerMotion>;
+  /** Beat markers on the timeline (work without any sound). */
+  markers?: Marker[];
+  /** Beat grid: BPM is adjusted so a whole number of beats fills the loop (shown as `beats`). */
+  bpm?: { bpm: number; offset: number; show: boolean };
   /** Other sizes for export: how the flyer sits in each (never stretched). */
   formats?: Partial<Record<"story" | "portrait" | "square", { mode: "fit" | "crop"; x: number; y: number; zoom: number }>>;
 };
@@ -134,12 +168,16 @@ export type MotionState = {
   overlays: OverlayDraw[];
   /** Pixel effects on the layer's own pixels, in order (glitch, grain, shine, masked reveal). */
   raster: RasterOp[];
+  /** Occlusion reveal: hide this layer wherever another layer (a cutout) covers it, edge softened by `soft` px. */
+  occlude?: { nodeId: string; soft: number } | null;
 };
 
 export type OverlayDraw =
   | { kind: "vignette"; color: string; alpha: number; blend: OverlayBlend }
   | { kind: "sweep"; color: string; alpha: number; pos: number; width: number; angle: number; blend: OverlayBlend }
   | { kind: "leak"; color: string; alpha: number; cx: number; cy: number; radius: number; blend: OverlayBlend }
+  /** Film burn: a hot exposure bloom coming in from an edge, white core with a warm fringe. */
+  | { kind: "burn"; origin: BurnOrigin; spread: number; exposure: number; tint: string; alpha: number; wobble: number; blend: OverlayBlend }
   | { kind: "particles"; style: "dust" | "sparkle"; color: string; blend: OverlayBlend; items: { x: number; y: number; r: number; a: number }[] };
 
 export const IDENTITY: MotionState = { dx: 0, dy: 0, scale: 1, rotate: 0, opacity: 1, inner: null, reveal: null, trackingEm: 0, shadow: null, overlays: [], raster: [] };

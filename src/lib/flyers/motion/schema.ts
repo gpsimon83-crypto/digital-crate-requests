@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { ROLES, type Role } from "../types";
 import { PRESET_BY_ID } from "./presets";
-import { ANIMATION_VERSION, DURATIONS, MAX_KEYS, MAX_STACK, type Animation } from "./types";
+import { ANIMATION_VERSION, DURATIONS, MAX_KEYS, MAX_SPEED_POINTS, MAX_STACK, type Animation } from "./types";
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const num = (lo: number, hi: number, d: number) => z.preprocess((v) => (typeof v === "number" && Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d), z.number());
@@ -22,7 +22,18 @@ const item = z.object({
     .object({ bursts: num(1, 6, 3), burstLen: num(0.1, 1.2, 0.3), slices: num(2, 30, 12), maxShift: num(0, 160, 60), rgb: num(0, 40, 8), noise: num(0, 1, 0.1) })
     .optional()
     .catch(undefined),
-  loop: z.enum(["repeat", "pingpong"]).optional().catch(undefined)
+  loop: z.enum(["repeat", "pingpong"]).optional().catch(undefined),
+  // Per-effect settings: short keys, numbers / short strings / booleans only. Image and
+  // layer references are checked by the effect (only the app's own pictures, only this flyer's layers).
+  opts: z
+    .record(z.string().regex(/^[a-zA-Z]{1,20}$/), z.union([z.number().finite().min(-100000).max(100000), z.string().max(200), z.boolean()]))
+    .refine((o) => Object.keys(o).length <= 24, "Too many settings")
+    .optional()
+    .catch(undefined),
+  trigger: z
+    .object({ on: z.enum(["markers", "beats"]), every: num(1, 16, 1), offset: num(-4, 4, 0), length: num(0.05, 8, 0.4) })
+    .optional()
+    .catch(undefined)
 });
 
 const key = z.object({
@@ -45,7 +56,9 @@ const layer = z.object({
   locked: z.boolean().optional().catch(undefined),
   role: z.enum(Object.keys(ROLES) as [Role, ...Role[]]).optional().catch(undefined),
   muted: z.boolean().optional().catch(undefined),
-  solo: z.boolean().optional().catch(undefined)
+  solo: z.boolean().optional().catch(undefined),
+  speed: z.array(z.object({ t: num(0, 15, 0), speed: num(0, 4, 1) })).max(MAX_SPEED_POINTS).optional().catch(undefined),
+  blur: num(0, 1, 0).optional()
 });
 
 const animation = z.object({
@@ -57,6 +70,8 @@ const animation = z.object({
   readableLock: z.boolean().catch(true),
   recipe: z.string().max(40).nullable().catch(null),
   layers: z.record(z.string().max(60), layer).refine((l) => Object.keys(l).length <= 80, "Too many animated layers"),
+  markers: z.array(z.object({ id: z.string().min(1).max(40), t: num(0, 15, 0), label: z.string().max(40).optional().catch(undefined) })).max(64).optional().catch(undefined),
+  bpm: z.object({ bpm: num(40, 240, 120), offset: num(0, 15, 0), show: z.boolean().catch(true) }).optional().catch(undefined),
   formats: z
     .record(z.enum(["story", "portrait", "square"]), z.object({ mode: z.enum(["fit", "crop"]).catch("crop"), x: num(-1, 1, 0), y: num(-1, 1, 0), zoom: num(1, 3, 1) }))
     .optional()

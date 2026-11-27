@@ -1,5 +1,5 @@
 import type { FlyerNode, Role } from "../types";
-import type { Direction, Easing, GlitchParams, MotionItem, MotionState, OverlayBlend } from "./types";
+import type { BurnOrigin, Direction, EffectOpts, Easing, GlitchParams, MotionItem, MotionState, OverlayBlend } from "./types";
 import { burstAt } from "./raster";
 
 /**
@@ -36,6 +36,33 @@ export type EvalCtx = {
   duration: number;
   fps: number;
   role: Role;
+  /**
+   * Played by a trigger (beat marker / beat grid): which trigger and how far
+   * through it (0..1). Glitches use it as their burst; `undefined` = their own
+   * seeded schedule.
+   */
+  burst?: { k: number; local: number } | null;
+  /** This effect's own settings, with defaults filled in (see `controls`). */
+  opts: EffectOpts;
+};
+
+/**
+ * A setting particular to one effect, shown in Effect Controls. `def` is what a
+ * newly added effect starts with; `legacy` is used for effects saved before the
+ * setting existed, so old flyers look exactly as they did.
+ */
+export type Control = {
+  key: string;
+  label: string;
+  kind: "range" | "select" | "color" | "layer" | "image" | "toggle";
+  def: number | string | boolean;
+  legacy?: number | string | boolean;
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+  options?: { value: string; label: string }[];
+  hint?: string;
 };
 
 export type Preset = {
@@ -54,6 +81,10 @@ export type Preset = {
   distorts?: boolean;
   /** Also listed under these library tabs (whole-layer effects that suit several layer types). */
   also?: Category[];
+  /** Settings particular to this effect. */
+  controls?: Control[];
+  /** What the layer needs for this effect to look right (shown as a prerequisite in the picker). */
+  needs?: "cutout" | "occluder";
   apply: (s: MotionState, c: EvalCtx) => void;
 };
 
@@ -136,6 +167,65 @@ function glitchOf(c: EvalCtx): GlitchParams {
     noise: lim("noise", g.noise)
   };
 }
+
+/** The burst to draw now: a trigger's, or the effect's own seeded schedule. */
+function burstOf(c: EvalCtx, g: GlitchParams, seed: number) {
+  return c.burst !== undefined ? c.burst : burstAt(c.loopU, seed, g.bursts, g.burstLen / c.duration);
+}
+
+/** Hard horizontal slices jumping sideways, colour split and a bounded nudge (Digital Slice, RGB Slice Glitch). */
+function sliceGlitch(s: MotionState, c: EvalCtx, seedDef: number, rgbK: number) {
+  const g = glitchOf(c);
+  const seed = c.item.seed ?? seedDef;
+  const b = burstOf(c, g, seed);
+  if (!b) return;
+  const env = Math.sin(Math.PI * b.local);
+  // The pattern holds for 2 frames at a time (digital, not jelly).
+  const steps = Math.max(2, Math.round((g.burstLen * c.fps) / 2));
+  const step = Math.min(steps - 1, Math.floor(b.local * steps));
+  const R = rng(seed * 31 + b.k * 1013 + step * 7919);
+  const shift = g.maxShift * c.amount * env;
+  const cuts = Array.from({ length: Math.max(1, g.slices - 1) }, () => R()).sort((x, y) => x - y);
+  const edges = [0, ...cuts, 1];
+  const bands: { y0: number; y1: number; dx: number }[] = [];
+  for (let i = 0; i < edges.length - 1; i++) if (R() < 0.45) bands.push({ y0: edges[i], y1: edges[i + 1], dx: (R() * 2 - 1) * shift });
+  s.raster.push({ kind: "slices", bands });
+  const sep = g.rgb * rgbK * c.amount * env;
+  if (sep >= 0.5) s.raster.push({ kind: "rgb", rdx: sep, rdy: 0, bdx: -sep, bdy: 0 });
+  if (g.noise > 0) s.raster.push({ kind: "noise", amount: g.noise * 0.35 * env, seed: b.k * 97 + step, mono: false });
+  // Brief, bounded nudge of the whole layer.
+  s.dx += (R() - 0.5) * shift * 0.12;
+}
+
+const num = (c: EvalCtx, k: string, d: number) => (typeof c.opts[k] === "number" ? (c.opts[k] as number) : d);
+const str = (c: EvalCtx, k: string, d: string) => (typeof c.opts[k] === "string" ? (c.opts[k] as string) : d);
+
+/** App-owned pictures offered as the second image of a double exposure. */
+export const DOUBLE_IMAGES = [
+  { value: "/flyers/dj-night/concert-photo.jpg", label: "Crowd and stage lights" },
+  { value: "/project/covers/event-02.jpg", label: "Dance floor, purple" },
+  { value: "/project/covers/cover-04.jpg", label: "Disco ball dance floor" },
+  { value: "/project/covers/event-04.jpg", label: "DJ decks, gold lights" },
+  { value: "/project/covers/cover-02.jpg", label: "Red stage" },
+  { value: "/project/covers/venue-03.jpg", label: "Venue: waterfront lounge" },
+  { value: "/project/covers/venue-01.jpg", label: "Venue: chandelier ballroom" },
+  { value: "/flyers/sample/club-night-portrait.jpg", label: "Club light beams" },
+  { value: "/flyers/sample/backgrounds/violet-nightclub.png", label: "Violet nightclub" },
+  { value: "/flyers/sample/backgrounds/gold-ballroom.png", label: "Gold ballroom" },
+  { value: "/flyers/sample/backgrounds/tropical-patio.png", label: "Tropical patio" },
+  { value: "/flyers/sample/backgrounds/charcoal-studio.png", label: "Charcoal studio" }
+];
+
+const ORIGINS: { value: BurnOrigin; label: string }[] = [
+  { value: "left", label: "Left edge" },
+  { value: "right", label: "Right edge" },
+  { value: "top", label: "Top edge" },
+  { value: "bottom", label: "Bottom edge" },
+  { value: "top-left", label: "Top-left corner" },
+  { value: "top-right", label: "Top-right corner" },
+  { value: "bottom-left", label: "Bottom-left corner" },
+  { value: "bottom-right", label: "Bottom-right corner" }
+];
 
 export const MOTION_PRESETS: Preset[] = [
   // ---------------- text ----------------
@@ -467,27 +557,7 @@ export const MOTION_PRESETS: Preset[] = [
     defaults: { strength: 0.6, cycles: 1, phase: 0, easing: "linear", seed: 48, glitch: { bursts: 3, burstLen: 0.3, slices: 14, maxShift: 70, rgb: 6, noise: 0.1 } },
     fits: anyLayer,
     distorts: true,
-    apply: (s, c) => {
-      const g = glitchOf(c);
-      const b = burstAt(c.loopU, c.item.seed ?? 48, g.bursts, g.burstLen / c.duration);
-      if (!b) return;
-      const env = Math.sin(Math.PI * b.local);
-      // The pattern holds for 2 frames at a time (digital, not jelly).
-      const steps = Math.max(2, Math.round((g.burstLen * c.fps) / 2));
-      const step = Math.min(steps - 1, Math.floor(b.local * steps));
-      const R = rng((c.item.seed ?? 48) * 31 + b.k * 1013 + step * 7919);
-      const shift = g.maxShift * c.amount * env;
-      const cuts = Array.from({ length: Math.max(1, g.slices - 1) }, () => R()).sort((x, y) => x - y);
-      const edges = [0, ...cuts, 1];
-      const bands: { y0: number; y1: number; dx: number }[] = [];
-      for (let i = 0; i < edges.length - 1; i++) if (R() < 0.45) bands.push({ y0: edges[i], y1: edges[i + 1], dx: (R() * 2 - 1) * shift });
-      s.raster.push({ kind: "slices", bands });
-      const sep = g.rgb * 0.5 * c.amount * env;
-      if (sep >= 0.5) s.raster.push({ kind: "rgb", rdx: sep, rdy: 0, bdx: -sep, bdy: 0 });
-      if (g.noise > 0) s.raster.push({ kind: "noise", amount: g.noise * 0.35 * env, seed: b.k * 97 + step, mono: false });
-      // Brief, bounded nudge of the whole layer.
-      s.dx += (R() - 0.5) * shift * 0.12;
-    }
+    apply: (s, c) => sliceGlitch(s, c, 48, 0.5)
   },
   {
     id: "fx.rgb-signal",
@@ -501,7 +571,7 @@ export const MOTION_PRESETS: Preset[] = [
     distorts: true,
     apply: (s, c) => {
       const g = glitchOf(c);
-      const b = burstAt(c.loopU, c.item.seed ?? 21, g.bursts, g.burstLen / c.duration);
+      const b = burstOf(c, g, c.item.seed ?? 21);
       if (!b) return;
       const env = Math.sin(Math.PI * b.local);
       // Smooth within the burst: the channels swing apart and back (analog feel, no blocks).
@@ -518,27 +588,45 @@ export const MOTION_PRESETS: Preset[] = [
     id: "fx.vhs",
     name: "Analog VHS",
     category: "fx",
-    description: "A steady tape look (scanlines, colour bleed, a rolling tracking line, soft noise) with occasional tracking tears",
+    description: "A tape look: scanlines, colour bleed, rolling tracking lines, a little line jitter and brief signal tears",
     loop: "seeded-periodic",
     params: ["strength", "seed", "glitch"],
     defaults: { strength: 0.5, cycles: 1, phase: 0, easing: "linear", seed: 7, glitch: { bursts: 2, burstLen: 0.5, slices: 3, maxShift: 50, rgb: 4, noise: 0.2 } },
+    also: ["overlays"],
+    // Tracking: added later. Older saved VHS effects keep exactly their look (the `legacy` values).
+    controls: [
+      { key: "rolls", label: "Tracking rolls", kind: "range", def: 2, legacy: 2, min: 1, max: 6, step: 1, unit: "per loop", hint: "Tracking lines rolling down the picture (whole numbers, so the loop closes)." },
+      { key: "jitter", label: "Line jitter", kind: "range", def: 0.15, legacy: 0, min: 0, max: 1, step: 0.05, hint: "Small sideways wobble of thin lines." },
+      { key: "tear", label: "Signal tears", kind: "range", def: 0.5, legacy: 1, min: 0, max: 1, step: 0.05, hint: "How far the picture tears during each burst." }
+    ],
     fits: anyLayer,
     distorts: true,
     apply: (s, c) => {
       const g = glitchOf(c);
       const a = c.amount;
+      const seed = c.item.seed ?? 7;
+      const rolls = Math.max(1, Math.round(num(c, "rolls", 2)));
+      const jitter = clamp(num(c, "jitter", 0), 0, 1);
+      const tear = clamp(num(c, "tear", 1), 0, 1);
       // Always on, and periodic over the loop: whole numbers of scanline scrolls and tracking rolls.
       s.raster.push({ kind: "rgb", rdx: 1 + g.rgb * 0.5 * a, rdy: 0, bdx: -(0.6 + g.rgb * 0.3 * a), bdy: 0 });
-      const band = c.loopU * 2 - Math.floor(c.loopU * 2);
+      const band = c.loopU * rolls - Math.floor(c.loopU * rolls);
       s.raster.push({ kind: "rowwave", y0: band - 0.05, y1: band + 0.05, amp: 4 + 10 * a, freq: 1, phase: 0 });
       // Head-switching wobble along the bottom edge.
       s.raster.push({ kind: "slices", bands: [{ y0: 0.965, y1: 1, dx: (3 + 6 * a) * Math.sin(TAU * 15 * c.loopU) }] });
-      const b = burstAt(c.loopU, c.item.seed ?? 7, g.bursts, g.burstLen / c.duration);
-      if (b) {
+      if (jitter > 0) {
+        // Thin lines nudged sideways, a new pattern 15 times a second (repeats identically every loop).
+        const R = rng(seed * 7 + Math.floor(c.loopU * c.duration * 15) * 131);
+        const bands: { y0: number; y1: number; dx: number }[] = [];
+        for (let y = 0; y < 1; y += 1 / 60) if (R() < 0.35) bands.push({ y0: y, y1: y + 1 / 120, dx: (R() * 2 - 1) * 5 * jitter * (0.5 + a) });
+        s.raster.push({ kind: "slices", bands });
+      }
+      const b = burstOf(c, g, seed);
+      if (b && tear > 0) {
         const env = Math.sin(Math.PI * b.local);
-        const R = rng((c.item.seed ?? 7) * 13 + b.k * 211);
+        const R = rng(seed * 13 + b.k * 211);
         const y = 0.15 + R() * 0.6;
-        s.raster.push({ kind: "rowwave", y0: y, y1: y + 0.12 + 0.05 * g.slices / 10, amp: g.maxShift * a * env, freq: 1.5, phase: b.local * 0.5 });
+        s.raster.push({ kind: "rowwave", y0: y, y1: y + 0.12 + 0.05 * g.slices / 10, amp: g.maxShift * a * env * tear, freq: 1.5, phase: b.local * 0.5 });
       }
       s.raster.push({ kind: "scan", alpha: 0.1 + 0.15 * a, spacing: 4, offset: c.loopU * 4 * 30 });
       s.raster.push({ kind: "noise", amount: g.noise * 0.3 * a, seed: Math.floor(c.loopU * c.duration * 15), mono: false });
@@ -559,10 +647,188 @@ export const MOTION_PRESETS: Preset[] = [
       // A new grain pattern 12 times a second, from the frame's place in the loop (identical every repeat).
       s.raster.push({ kind: "noise", amount: Math.min(c.locked ? 0.06 : 0.25, 0.03 + c.amount * 0.2), seed: 1000 + Math.floor(c.loopU * c.duration * 12), mono: true });
     }
+  },
+  {
+    id: "photos.rgb-slice",
+    name: "RGB Slice Glitch",
+    category: "photos",
+    description: "One short burst: the photo splits into red / blue and slides in slices, then settles back into a clean portrait",
+    loop: "seeded-periodic",
+    params: ["strength", "seed", "glitch"],
+    defaults: { strength: 0.65, cycles: 1, phase: 0, easing: "linear", seed: 5, glitch: { bursts: 1, burstLen: 0.45, slices: 16, maxShift: 56, rgb: 14, noise: 0.06 } },
+    also: ["fx"],
+    fits: isLayer,
+    distorts: true,
+    apply: (s, c) => sliceGlitch(s, c, 5, 1)
+  },
+  {
+    id: "photos.refraction",
+    name: "Refraction",
+    category: "photos",
+    description: "The picture seen through angled glass bands that slowly slide across it, with a little colour dispersion",
+    loop: "periodic",
+    params: ["strength"],
+    defaults: { strength: 0.6, cycles: 1, phase: 0, easing: "linear" },
+    also: ["backgrounds", "fx"],
+    controls: [
+      { key: "angle", label: "Angle", kind: "range", def: 24, min: -90, max: 90, step: 1, unit: "°" },
+      { key: "band", label: "Band width", kind: "range", def: 90, min: 12, max: 320, step: 2, unit: "px" },
+      { key: "disp", label: "Displacement", kind: "range", def: 20, min: 0, max: 60, step: 1, unit: "px" },
+      { key: "disperse", label: "Dispersion", kind: "range", def: 4, min: 0, max: 20, step: 0.5, unit: "px", hint: "Red and blue bend a little differently: rainbow edges." },
+      { key: "sweeps", label: "Sweep speed", kind: "range", def: 1, min: 0, max: 6, step: 1, unit: "bands per loop", hint: "Whole bands per loop, so the loop closes. 0 = still glass." }
+    ],
+    fits: anyLayer,
+    distorts: true,
+    apply: (s, c) => {
+      const band = clamp(num(c, "band", 90), 12, 320);
+      const k = c.locked ? 0.3 : 1;
+      s.raster.push({ kind: "refract", angle: num(c, "angle", 24), band, disp: clamp(num(c, "disp", 20), 0, 60) * c.amount * k, disperse: clamp(num(c, "disperse", 4), 0, 20) * c.amount * k, pos: c.loopU * Math.round(num(c, "sweeps", 1)) * band });
+    }
+  },
+  {
+    id: "overlays.prism",
+    name: "Prism Sweep",
+    category: "overlays",
+    description: "A band of prism glass passes over the layer, bending it with rainbow edges, then it's clear again",
+    loop: "wrapped-pass",
+    params: ["strength", "cycles", "phase", "easing"],
+    defaults: { strength: 0.7, cycles: 1, phase: 0, easing: "easeInOut" },
+    also: ["photos", "fx"],
+    controls: [
+      { key: "angle", label: "Angle", kind: "range", def: 70, min: -90, max: 90, step: 1, unit: "°" },
+      { key: "width", label: "Sweep width", kind: "range", def: 0.35, min: 0.1, max: 0.8, step: 0.05 },
+      { key: "band", label: "Band width", kind: "range", def: 48, min: 12, max: 200, step: 2, unit: "px" },
+      { key: "disp", label: "Displacement", kind: "range", def: 16, min: 0, max: 50, step: 1, unit: "px" },
+      { key: "disperse", label: "Dispersion", kind: "range", def: 10, min: 0, max: 24, step: 0.5, unit: "px" }
+    ],
+    fits: anyLayer,
+    distorts: true,
+    apply: (s, c) => {
+      // Crosses in the first 60% of each cycle, off the layer before and after: an invisible wrap.
+      const k = c.u / 0.6;
+      if (k >= 1) return;
+      const w = clamp(num(c, "width", 0.35), 0.1, 0.8);
+      const lk = c.locked ? 0.3 : 1;
+      s.raster.push({ kind: "refract", angle: num(c, "angle", 70), band: clamp(num(c, "band", 48), 12, 200), disp: num(c, "disp", 16) * c.amount * lk, disperse: num(c, "disperse", 10) * c.amount * lk, pos: k * 120, window: { centre: -w / 2 + (1 + w) * ease(k, c.item.easing), width: w } });
+    }
+  },
+  {
+    id: "overlays.burn",
+    name: "Film Burn",
+    category: "overlays",
+    description: "A hot exposure blooms in from an edge with a warm fringe, then fades. On the background it stays behind all text",
+    loop: "wrapped-envelope",
+    params: ["strength", "cycles", "phase"],
+    defaults: { strength: 0.8, cycles: 1, phase: 0.1, easing: "easeOut" },
+    also: ["photos", "backgrounds"],
+    controls: [
+      { key: "origin", label: "Origin", kind: "select", def: "right", options: ORIGINS },
+      { key: "spread", label: "Spread", kind: "range", def: 0.75, min: 0.2, max: 1.6, step: 0.05 },
+      { key: "exposure", label: "Exposure", kind: "range", def: 0.75, min: 0, max: 1, step: 0.05, hint: "How white-hot the centre gets." },
+      { key: "tint", label: "Tint", kind: "color", def: "#ff6a1a" },
+      { key: "length", label: "Duration", kind: "range", def: 1.8, min: 0.4, max: 6, step: 0.1, unit: "s" },
+      { key: "curve", label: "Reveal curve", kind: "select", def: "fast", options: [{ value: "fast", label: "Flash in, slow fade" }, { value: "smooth", label: "Smooth swell" }, { value: "slow", label: "Slow burn" }] }
+    ],
+    fits: (n, r) => (n.kind === "image" || r === "background" || r === "overlay" ? true : "Film Burn goes on a picture or the background (so text stays readable on top)."),
+    apply: (s, c) => {
+      const cycleLen = c.duration / c.cycles;
+      const active = clamp(num(c, "length", 1.8) / cycleLen, 0.05, 0.95);
+      const k = c.u / active;
+      if (k >= 1) return;
+      const curve = str(c, "curve", "fast");
+      const env = curve === "fast" ? (k < 0.12 ? ease(k / 0.12, "easeOut") : 1 - ease((k - 0.12) / 0.88, "easeInOut")) : curve === "slow" ? (k < 0.6 ? ease(k / 0.6, "easeInOut") : 1 - ease((k - 0.6) / 0.4, "easeInOut")) : Math.sin(Math.PI * k);
+      s.overlays.push({ kind: "burn", origin: str(c, "origin", "right") as BurnOrigin, spread: clamp(num(c, "spread", 0.75), 0.2, 1.6) * (0.75 + 0.25 * env), exposure: clamp(num(c, "exposure", 0.75), 0, 1), tint: str(c, "tint", "#ff6a1a"), alpha: Math.min(1, c.amount * 1.1) * env, wobble: Math.sin(TAU * 2.5 * k), blend: blendOf(c.item, "screen") });
+    }
+  },
+  {
+    id: "photos.double",
+    name: "Double Exposure",
+    category: "photos",
+    description: "A second picture (a crowd, a venue) blended inside the DJ's silhouette, faded around the face so it stays readable",
+    loop: "ping-pong",
+    params: ["strength"],
+    defaults: { strength: 0.85, cycles: 1, phase: 0, easing: "easeInOut" },
+    needs: "cutout",
+    controls: [
+      { key: "image", label: "Second image", kind: "image", def: DOUBLE_IMAGES[0].value, options: DOUBLE_IMAGES },
+      { key: "blend", label: "Blend", kind: "select", def: "screen", options: [{ value: "screen", label: "Screen (light)" }, { value: "lighten", label: "Lighten" }, { value: "overlay", label: "Overlay" }, { value: "soft-light", label: "Soft light" }, { value: "multiply", label: "Multiply (dark)" }, { value: "normal", label: "Normal" }] },
+      { key: "opacity", label: "Opacity", kind: "range", def: 0.8, min: 0, max: 1, step: 0.05 },
+      { key: "scale", label: "Image size", kind: "range", def: 1.15, min: 0.5, max: 3, step: 0.05 },
+      { key: "x", label: "Image across", kind: "range", def: 0, min: -1, max: 1, step: 0.02 },
+      { key: "y", label: "Image up/down", kind: "range", def: 0, min: -1, max: 1, step: 0.02 },
+      { key: "feather", label: "Edge feather", kind: "range", def: 16, min: 0, max: 80, step: 1, unit: "px" },
+      { key: "faceFade", label: "Face fade", kind: "range", def: 0.85, min: 0, max: 1, step: 0.05, hint: "Keeps the face clear of the second image." },
+      { key: "faceX", label: "Face across", kind: "range", def: 0.5, min: 0, max: 1, step: 0.01 },
+      { key: "faceY", label: "Face up/down", kind: "range", def: 0.26, min: 0, max: 1, step: 0.01 },
+      { key: "faceSize", label: "Face size", kind: "range", def: 0.28, min: 0.08, max: 0.8, step: 0.01 },
+      { key: "drift", label: "Image drift", kind: "range", def: 0.25, min: 0, max: 1, step: 0.05, hint: "Slow drift of the second image (back and forth, so the loop closes)." }
+    ],
+    fits: isPicture,
+    apply: (s, c) => {
+      const n = c.node;
+      const drift = clamp(num(c, "drift", 0.25), 0, 1) * pingPong(c.u, "easeInOut");
+      s.raster.push({
+        kind: "double",
+        src: str(c, "image", DOUBLE_IMAGES[0].value),
+        box: { x: n.x, y: n.y, w: n.width, h: n.height },
+        blend: str(c, "blend", "screen") as "screen",
+        opacity: clamp(num(c, "opacity", 0.8), 0, 1) * Math.min(1, c.amount / 0.85),
+        scale: clamp(num(c, "scale", 1.15), 0.5, 3) * (1 + 0.06 * drift),
+        ox: clamp(num(c, "x", 0), -1, 1),
+        oy: clamp(num(c, "y", 0), -1, 1) - 0.08 * drift,
+        feather: clamp(num(c, "feather", 16), 0, 80),
+        face: { x: num(c, "faceX", 0.5), y: num(c, "faceY", 0.26), size: num(c, "faceSize", 0.28), amount: clamp(num(c, "faceFade", 0.85), 0, 1) }
+      });
+    }
+  },
+  {
+    id: "text.occlude",
+    name: "Occlusion Reveal",
+    category: "text",
+    description: "The text (or a logo) slides out from behind the DJ cutout, hidden wherever the portrait covers it",
+    loop: "wrapped-envelope",
+    params: ["direction", "cycles", "phase", "easing", "timing"],
+    defaults: { strength: 1, cycles: 1, phase: 0, easing: "easeInOut", direction: "right", timing: { in: 0.22, out: 0.18 } },
+    also: ["photos"],
+    needs: "occluder",
+    controls: [
+      { key: "occluder", label: "Behind", kind: "layer", def: "", hint: "The cutout it hides behind (a photo with a transparent background, or with a mask)." },
+      { key: "travel", label: "Travel", kind: "range", def: 320, min: 20, max: 1200, step: 10, unit: "px" },
+      { key: "soft", label: "Edge softness", kind: "range", def: 6, min: 0, max: 40, step: 1, unit: "px" }
+    ],
+    fits: (n, r) => (r === "background" ? "Pick the text or logo that should come out from behind the portrait." : n.kind === "text" || n.kind === "image" ? true : "Needs a text or logo layer."),
+    hidesContent: true,
+    apply: (s, c) => {
+      const env = envelope(c.u, c.item.easing, c.item.timing);
+      const [dx, dy] = DIR[c.item.direction ?? "right"];
+      const travel = clamp(num(c, "travel", 320), 0, 1200);
+      // At rest when fully out; `travel` px back behind the portrait before / after.
+      s.dx -= dx * travel * (1 - env);
+      s.dy -= dy * travel * (1 - env);
+      const occ = str(c, "occluder", "");
+      if (occ && occ !== c.node.id) s.occlude = { nodeId: occ, soft: clamp(num(c, "soft", 6), 0, 40) };
+    }
   }
 ];
 
-export const PRESET_BY_ID = new Map(MOTION_PRESETS.map((p) => [p.id, p]));
+/** Reference IDs from the design library that are the same effect as one built under another name. */
+export const PRESET_ALIASES: Record<string, string> = {
+  "text.glitch": "fx.digital-slice",
+  "photos.grain": "fx.grain",
+  "overlays.vhs": "fx.vhs"
+};
+
+export const PRESET_BY_ID = new Map<string, Preset>([...MOTION_PRESETS.map((p) => [p.id, p] as [string, Preset]), ...Object.entries(PRESET_ALIASES).map(([a, id]) => [a, MOTION_PRESETS.find((p) => p.id === id)!] as [string, Preset])]);
+
+/** This effect's settings: saved values, else (for settings added later) the legacy value, else the default. */
+export function optsFor(p: Preset, item: MotionItem): EffectOpts {
+  const out: EffectOpts = {};
+  for (const k of p.controls ?? []) {
+    const v = item.opts?.[k.key];
+    out[k.key] = v !== undefined && typeof v === typeof k.def ? v : (k.legacy ?? k.def);
+  }
+  return out;
+}
 
 /** In the design spec, not built yet (never shown as working). */
 export const PLANNED: { id: string; name: string; why: string }[] = [
@@ -581,7 +847,6 @@ export const PLANNED: { id: string; name: string; why: string }[] = [
   { id: "backgrounds.orbit", name: "Ambient Light Orbit", why: "next increment" },
   { id: "overlays.smoke", name: "Smoke Drift", why: "needs loop-ready transparent smoke footage or a noise renderer" },
   { id: "overlays.scratch", name: "Film Scratches", why: "next increment" },
-  { id: "overlays.prism", name: "Prism Sweep", why: "next increment" },
   { id: "overlays.paper", name: "Paper Flicker", why: "needs a paper texture asset" },
   { id: "overlays.scribble", name: "Scribble Draw", why: "needs vector paths or a masked wipe" },
   { id: "overlays.confetti", name: "Confetti Drift", why: "next increment" }
@@ -606,4 +871,15 @@ export function presetFits(p: Preset, n: FlyerNode, role: Role, lock: boolean): 
   if (lock && p.hidesContent && isProtected(n, role)) return "Keeps event details readable: turn off the lock to let this layer disappear.";
   if (lock && p.distorts && isProtected(n, role)) return "Keeps event details readable: turn off the lock to glitch this layer.";
   return true;
+}
+
+/** Every second picture (double exposure) this animation uses, so an export can load them first. */
+export function imagesUsed(layers: Record<string, { stack: MotionItem[] }>) {
+  const out = new Set<string>();
+  for (const l of Object.values(layers))
+    for (const it of l.stack) {
+      const p = PRESET_BY_ID.get(it.preset);
+      for (const c of p?.controls ?? []) if (c.kind === "image") out.add(String(it.opts?.[c.key] ?? c.def));
+    }
+  return [...out];
 }

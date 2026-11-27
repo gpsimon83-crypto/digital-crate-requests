@@ -1,4 +1,5 @@
 "use client";
+import { SAMPLE_BACKGROUNDS, SAMPLE_PORTRAITS } from "@/lib/flyers/sample-assets";
 import { arcGeometry } from "@/lib/flyers/arc";
 
 import { useId, useRef, useState } from "react";
@@ -1148,6 +1149,8 @@ export function LibraryPanel({
               <p className={labelCls}>Built-in</p>
               <div className="grid grid-cols-3 gap-2">
                 {[
+                  ...SAMPLE_PORTRAITS.map((a) => [a.src, a.name, a.role]),
+                  ...SAMPLE_BACKGROUNDS.map((a) => [a.src, a.name, a.role]),
                   ["/flyers/sample/gold-halo.png", "Gold halo", "overlay"],
                   ["/flyers/sample/sparks.png", "Sparkles", "overlay"],
                   ["/flyers/sample/club-night-square.jpg", "Club lights (square)", "background"],

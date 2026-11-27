@@ -10,6 +10,8 @@ import { loadSceneFonts, loadSceneImages, type SrcContext } from "../loaders";
 import type { Scene } from "@/lib/flyers/types";
 import { evaluateFrame, frameCount, frameTime } from "@/lib/flyers/motion/engine";
 import type { Animation } from "@/lib/flyers/motion/types";
+import { imagesUsed } from "@/lib/flyers/motion/presets";
+import { loadRasterImage } from "../motion-wrap";
 import type { Framing } from "@/lib/flyers/motion/formats";
 
 /**
@@ -69,13 +71,14 @@ export function VideoRenderer({ scene, ctx: ctxIn, anim, onProgress, cancelRef, 
   useEffect(() => {
     let live = true;
     report.current({ phase: "preparing", frame: 0, frames: N });
-    Promise.all([loadSceneFonts([scene]), loadSceneImages(scene, ctx), document.fonts.ready])
+    // Fonts, the flyer's pictures and any second pictures (double exposure), all before frame 0.
+    Promise.all([loadSceneFonts([scene]), loadSceneImages(scene, ctx), document.fonts.ready, ...imagesUsed(anim.layers).map(loadRasterImage)])
       .then(() => live && setReady(true))
       .catch(() => live && report.current({ phase: "error", frame: 0, frames: N, message: "A font or picture couldn't load. Check your connection and try again." }));
     return () => {
       live = false;
     };
-  }, [scene, ctx, N]);
+  }, [scene, ctx, N, anim.layers]);
 
   useEffect(() => {
     if (!ready || started.current) return;

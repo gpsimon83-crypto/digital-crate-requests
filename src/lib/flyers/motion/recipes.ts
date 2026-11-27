@@ -63,7 +63,9 @@ export const newItemId = () => `m${Date.now().toString(36)}${(n++).toString(36)}
 
 export function newItem(preset: string, patch: Partial<MotionItem> = {}): MotionItem {
   const p = PRESET_BY_ID.get(preset);
-  return { id: newItemId(), preset, strength: 0.25, cycles: 1, phase: 0, easing: "easeInOut", ...(p?.defaults ?? {}), ...patch } as MotionItem;
+  // New effects start with every setting at its default (old saved ones fall back to their legacy look).
+  const opts = p?.controls?.length ? Object.fromEntries(p.controls.map((c) => [c.key, c.def])) : undefined;
+  return { id: newItemId(), preset, strength: 0.25, cycles: 1, phase: 0, easing: "easeInOut", ...(p?.defaults ?? {}), ...(opts ? { opts } : {}), ...patch } as MotionItem;
 }
 
 /** The layers a recipe would animate, and with what (for the preview and the "replace?" question). */

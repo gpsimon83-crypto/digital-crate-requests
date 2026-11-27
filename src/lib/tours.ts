@@ -18,6 +18,40 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-27-animate-image-effects": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "Click Next to open your first flyer, or click any flyer.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-animate"]',
+      title: "Open the Flyer Animator",
+      body: "Click Animate.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-library"]',
+      title: "Photo effect cards",
+      body: "Pick your DJ photo, then the Photos, Overlays or Glitch tab. Every card shows the real effect on the same sample DJ. Point to one to play it; click it to see Original / Effect on your own photo, then Apply. Cards like Double Exposure and Occlusion Reveal say when they need a cutout."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-beats"]',
+      title: "Beat markers and BPM",
+      body: "◆ Marker drops a marker at the playhead (or press M while it plays). Type a BPM or Tap it, and Grid shows the beats. In an effect's controls, \"When it plays\" can fire it on markers or every few beats."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="animate-timeline"]',
+      title: "Speed ramps and motion blur",
+      body: "Pick a layer with motion and look under its effects for Layer timing: Freeze here, Slow-mo here and Speed up here work at the playhead, and Motion blur smooths fast moves. The export plays exactly what you scrub."
+    }
+  ],
   "2026-11-24-animate-templates": [
     {
       path: "/admin/flyers",
