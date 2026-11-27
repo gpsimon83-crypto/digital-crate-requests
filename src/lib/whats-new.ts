@@ -27,7 +27,7 @@ export const UPDATES: UpdateEntry[] = [
     bullets: [
       "New: RGB Slice Glitch (a short burst that settles), Refraction (angled glass bands), Double Exposure (a club or venue photo inside the DJ cutout, with a face fade), Film Burn (from any edge, can sit behind your event details), Occlusion Reveal (text slides out from behind the DJ cutout) and Prism Sweep",
       "VHS Scanlines now has tracking rolls, jitter and signal tearing (subtle by default; older flyers look the same)",
-      "Beat markers: add them with ◆ Marker or press M while playing, or set a BPM / Tap tempo. Any effect can play on markers or every N beats, with an offset and length",
+      "Beat markers: add them with the Marker button or press M while playing, or set a BPM / Tap tempo. Any effect can play on markers or every N beats, with an offset and length",
       "Layer timing: Freeze here, Slow-mo here and Speed up here, plus motion blur. Scrubbing and the exported video match frame for frame",
       "Four new sample DJ cutouts and four backgrounds are in Art → Built-in (Assets in the Template editor); each one goes on as its own layer"
     ],

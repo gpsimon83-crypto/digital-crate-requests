@@ -693,7 +693,7 @@ export function EffectControls({
           </label>
           {item.trigger && (
             <div className="mt-2 flex flex-col gap-2">
-              {item.trigger.on === "markers" && !(anim.markers?.length) && <p className={cn("text-[11px]", "text-[#f3c987]")}>No markers yet: add some in the timeline (the ◆ Marker button, or press M while playing).</p>}
+              {item.trigger.on === "markers" && !(anim.markers?.length) && <p className={cn("text-[11px]", "text-[#f3c987]")}>No markers yet: add some in the timeline (the Marker button, or press M while playing).</p>}
               {item.trigger.on === "beats" && !grid && <p className={cn("text-[11px]", "text-[#f3c987]")}>Set a BPM in the timeline (type it, or tap along).</p>}
               {item.trigger.on === "beats" && <SliderRow label="Every" value={item.trigger.every} min={1} max={16} step={1} onChange={(v) => onChange({ trigger: { ...item.trigger!, every: Math.round(v) } }, "trigger.every")} shown={`${item.trigger.every} beat${item.trigger.every > 1 ? "s" : ""}`} />}
               <SliderRow label="Offset" value={item.trigger.offset} min={-1} max={1} step={0.01} onChange={(v) => onChange({ trigger: { ...item.trigger!, offset: v } }, "trigger.offset")} shown={`${item.trigger.offset >= 0 ? "+" : ""}${item.trigger.offset.toFixed(2)} s`} />

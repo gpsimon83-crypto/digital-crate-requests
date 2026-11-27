@@ -43,7 +43,7 @@ export const TOURS: Record<string, TourStep[]> = {
       path: "/dj-dashboard/flyers/*",
       target: '[data-tour="animate-beats"]',
       title: "Beat markers and BPM",
-      body: "◆ Marker drops a marker at the playhead (or press M while it plays). Type a BPM or Tap it, and Grid shows the beats. In an effect's controls, \"When it plays\" can fire it on markers or every few beats."
+      body: "Marker drops a marker at the playhead (or press M while it plays). Type a BPM or Tap it, and Grid shows the beats. In an effect's controls, \"When it plays\" can fire it on markers or every few beats."
     },
     {
       path: "/dj-dashboard/flyers/*",
