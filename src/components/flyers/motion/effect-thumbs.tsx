@@ -27,7 +27,7 @@ import { emptyAnimation, type Animation, type MotionItem, type MotionState } fro
 /** The sample: dj-01 (a cutout) over charcoal-studio, as two separate layers. Bump THUMB_V when it changes. */
 const SAMPLE_PORTRAIT = THUMB_SAMPLE.portrait;
 const SAMPLE_BACKDROP = THUMB_SAMPLE.background;
-const THUMB_V = 6;
+const THUMB_V = 7;
 const W = THUMB_SAMPLE.size;
 const H = THUMB_SAMPLE.size;
 const SIZE = { width: W, height: H };

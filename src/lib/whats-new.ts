@@ -19,6 +19,21 @@ export interface UpdateEntry {
 
 export const UPDATES: UpdateEntry[] = [
   {
+    id: "2026-11-28-echo-colour",
+    date: "2026-11-28",
+    area: "Members area",
+    title: "Colour for every Echo",
+    summary: "Every Echo effect can now be coloured. Make the copies solid colour shapes, keep the photo but colour it, run a gradient from the nearest copy to the furthest, add a glow, or set Blend to Screen or Add so the echoes light up on dark flyers.",
+    bullets: [
+      "Copies are: The photo, The photo coloured, or Solid colour (Mirror, Zoom, Orbit, Slice and Long Exposure included)",
+      "Colour gradient across copies: nearest in Colour, furthest in Second colour",
+      "Glow works on every echo, in the copies' colour",
+      "Blend: Screen or Add (neon glow) for dark backgrounds",
+      "The same options are in Animate's Echo tab; echoes you've already made look the same"
+    ],
+    link: { href: "/dj-dashboard/flyers", label: "Open your flyers" }
+  },
+  {
     id: "2026-11-27-photo-echo",
     date: "2026-11-27",
     area: "Members area",

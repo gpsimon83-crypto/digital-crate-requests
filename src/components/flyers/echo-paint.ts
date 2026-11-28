@@ -11,7 +11,7 @@
  */
 import { echoBounds, echoCopies, type EchoCopy, type EchoInput } from "@/lib/flyers/echo";
 
-export type EchoDrawing = { canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number; original: boolean };
+export type EchoDrawing = { canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number; original: boolean; blend: "normal" | "screen" | "add" };
 
 type Variant = { c: HTMLCanvasElement; pad: number };
 const variants = new WeakMap<CanvasImageSource, Map<string, Variant>>();
@@ -129,6 +129,23 @@ function variantOf(src: CanvasImageSource, c: EchoCopy, s: number): Variant {
       p.getContext("2d")!.drawImage(img, pad, pad);
       v = { c: blurred(p, c.blur * s), pad: pad / s };
     } else v = { c: img, pad: 0 };
+    if (c.glow > 0) {
+      // A coloured halo behind the photo copy (the copy's shape, softened).
+      const gp = Math.ceil(c.glow * 2 * s);
+      const out = canvas(v.c.width + gp * 2, v.c.height + gp * 2);
+      const halo = canvas(out.width, out.height);
+      const hg = halo.getContext("2d")!;
+      hg.drawImage(v.c, gp, gp);
+      hg.globalCompositeOperation = "source-in";
+      hg.fillStyle = c.color ?? "#ffffff";
+      hg.fillRect(0, 0, halo.width, halo.height);
+      const o = out.getContext("2d")!;
+      o.globalAlpha = 0.9;
+      o.drawImage(blurred(halo, c.glow * s), 0, 0);
+      o.globalAlpha = 1;
+      o.drawImage(v.c, gp, gp);
+      v = { c: out, pad: v.pad + gp / s };
+    }
   }
   m.set(key, v);
   if (m.size > 48) m.delete(m.keys().next().value!);
@@ -179,5 +196,8 @@ export function paintEcho(src: CanvasImageSource | null | undefined, w: number, 
     } else g.drawImage(v.c, -W / 2, -H / 2, W, H);
     g.restore();
   }
-  return { canvas: out, x: b.x, y: b.y, w: b.w, h: b.h, original };
+  return { canvas: out, x: b.x, y: b.y, w: b.w, h: b.h, original, blend: extra.blend };
 }
+
+/** How the echo drawing goes onto the flyer: Screen / Add light up dark backgrounds. */
+export const echoOp = (blend: EchoDrawing["blend"]): GlobalCompositeOperation | undefined => (blend === "screen" ? "screen" : blend === "add" ? "lighter" : undefined);

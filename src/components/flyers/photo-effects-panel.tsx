@@ -2,7 +2,7 @@
 
 import { ECHO_SAMPLE, THUMB_SAMPLE } from "@/lib/flyers/sample-assets";
 import { ECHO_CONTROLS, ECHO_PRESETS, echoOn, echoPresetById, newEcho, resolveEcho, type EchoKey, type EchoPresetId, type EchoSettings } from "@/lib/flyers/echo";
-import { paintEcho } from "./echo-paint";
+import { echoOp, paintEcho } from "./echo-paint";
 import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import KonvaLib from "konva";
 import { Eye, Loader2, RotateCcw, Save, Sparkles, Trash2, X } from "lucide-react";
@@ -218,7 +218,7 @@ function Thumbs({ value, onPick }: { base?: HTMLCanvasElement | null; scale?: nu
 
 /* ---------------- Echo ---------------- */
 
-const ECHO_THUMB_V = 3;
+const ECHO_THUMB_V = 4;
 const ET_SCALE = 0.5; // thumbnail pixels per sample pixel (627 × 300 → 314 × 150)
 let echoSample: Promise<{ portrait: HTMLImageElement; background: HTMLImageElement }> | null = null;
 /**
@@ -239,7 +239,11 @@ function echoThumb(id: EchoPresetId | null) {
     g.scale(ET_SCALE, ET_SCALE);
     g.drawImage(background, 0, E.backgroundY, THUMB_SAMPLE.size, THUMB_SAMPLE.size);
     const d = id ? paintEcho(portrait, P.w, P.h, newEcho(id), ET_SCALE) : null;
-    if (d) g.drawImage(d.canvas, P.x + d.x, P.y + d.y, d.w, d.h);
+    if (d) {
+      g.globalCompositeOperation = echoOp(d.blend) ?? "source-over";
+      g.drawImage(d.canvas, P.x + d.x, P.y + d.y, d.w, d.h);
+      g.globalCompositeOperation = "source-over";
+    }
     if (!d || d.original) g.drawImage(portrait, P.x, P.y, P.w, P.h);
     return c.toDataURL("image/webp", 0.85);
   });
@@ -317,6 +321,21 @@ function EchoCtrl({ k, value, onChange, disabled }: { k: EchoKey; value: number 
         <input type="checkbox" className={cn("h-4 w-4 accent-[#c99428]", FOCUS)} checked={!!value} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
         {info.label}
       </label>
+    );
+  if (info.kind === "select")
+    return (
+      <div className="flex items-center justify-between gap-2" title={info.hint} data-tour={k === "fill" ? "fx-echo-fill" : undefined}>
+        <label htmlFor={id} className="text-xs">
+          {info.label}
+        </label>
+        <select id={id} className={cn("h-8 min-w-0 flex-1 rounded border border-black/12 bg-white px-1.5 text-xs", FOCUS)} value={String(value)} disabled={disabled} onChange={(e) => onChange(e.target.value)}>
+          {info.options!.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </div>
     );
   if (info.kind === "color")
     return (

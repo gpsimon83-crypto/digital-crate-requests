@@ -16,7 +16,7 @@ import { MaskTools, type MaskEdit } from "./mask-tools";
 import { applyEffects, effectsOn, resolveParams, type PhotoEffects } from "@/lib/flyers/effects";
 import { runEffects, keyFor } from "./fx-runner";
 import { setFxStatus } from "./fx-status";
-import { paintEcho } from "./echo-paint";
+import { echoOp, paintEcho } from "./echo-paint";
 import { echoOn, type EchoInput } from "@/lib/flyers/echo";
 import { shownByData } from "@/lib/flyers/links";
 import type { FlyerNode, ImageNode, Scene, ShapeNode, TextNode } from "@/lib/flyers/types";
@@ -209,7 +209,7 @@ function ImageLayer({ node, ctx, exporting, act, onStatus, echoAt }: { node: Ima
   // selection box and hit area stay the layer's own frame.
   const echoGroup = echoDraw ? (
     <Group x={node.x} y={node.y} rotation={node.rotation} opacity={node.opacity} globalCompositeOperation={blendOp(node.blend)} listening={false}>
-      <KImage image={echoDraw.canvas} x={echoDraw.x} y={echoDraw.y} width={echoDraw.w} height={echoDraw.h} listening={false} />
+      <KImage image={echoDraw.canvas} x={echoDraw.x} y={echoDraw.y} width={echoDraw.w} height={echoDraw.h} listening={false} globalCompositeOperation={echoOp(echoDraw.blend)} />
     </Group>
   ) : null;
   return (

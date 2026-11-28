@@ -831,7 +831,7 @@ const ECHO_MOTION_NOTE: Record<string, string> = {
 };
 const echoControl = (k: EchoKey, def: number | string | boolean): Control => {
   const c = ECHO_CONTROLS[k];
-  return { key: k, label: c.label, kind: c.kind === "color" ? "color" : c.kind === "bool" ? "toggle" : "range", def, min: c.min, max: c.max, step: c.step, unit: c.unit, hint: c.hint };
+  return { key: k, label: c.label, kind: c.kind === "color" ? "color" : c.kind === "bool" ? "toggle" : c.kind === "select" ? "select" : "range", def, min: c.min, max: c.max, step: c.step, unit: c.unit, hint: c.hint, options: c.options };
 };
 export const ECHO_MOTION: Preset[] = ECHO_PRESETS.map((e) => {
   const d = resolveEcho({ preset: e.id });

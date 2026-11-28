@@ -18,6 +18,36 @@ export interface TourStep {
 }
 
 export const TOURS: Record<string, TourStep[]> = {
+  "2026-11-28-echo-colour": [
+    {
+      path: "/dj-dashboard/flyers",
+      target: '[data-tour="flyer-design-link"]',
+      title: "Open a flyer",
+      body: "Click Next to open your first flyer, or click any flyer with a DJ photo.",
+      follow: '[data-tour="flyer-design-link"]'
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="flyer-tab-effects"]',
+      title: "Effects → Echo",
+      body: "Open Effects, click the DJ photo, then Add an effect and the Echo tab.",
+      waitHint: "Open any flyer to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="fx-echo-presets"]',
+      title: "Pick an echo",
+      body: "Pick any echo card; its settings open underneath.",
+      waitHint: "Open Effects → Add an effect → Echo to continue."
+    },
+    {
+      path: "/dj-dashboard/flyers/*",
+      target: '[data-tour="fx-echo-fill"]',
+      title: "Colour it",
+      body: "Copies are: Solid colour makes coloured shapes, The photo coloured keeps the detail. Tick Colour gradient across copies for a two-colour fade, raise Glow, and set Blend to Screen or Add to make them glow on a dark flyer. Apply keeps it.",
+      waitHint: "Pick an echo card to continue."
+    }
+  ],
   "2026-11-27-photo-echo": [
     {
       path: "/dj-dashboard/flyers",

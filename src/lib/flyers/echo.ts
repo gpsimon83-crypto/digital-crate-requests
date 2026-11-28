@@ -59,9 +59,18 @@ export type EchoParams = {
   mono: boolean;
   flip: boolean;
   ring: boolean;
+  /** What the copies are made of: the photo, the photo in a colour, or a solid colour shape. */
+  fill: EchoFill;
+  /** Copies blend from Colour (nearest) to Second colour (furthest). */
+  gradient: boolean;
+  /** How the echoes mix with what's behind them ("screen"/"add" light them up on dark flyers). */
+  blend: EchoBlend;
   /** Draw the sharp original on top. */
   original: boolean;
 };
+
+export type EchoFill = "photo" | "tint" | "solid";
+export type EchoBlend = "normal" | "screen" | "add";
 
 export type EchoSettings = { v: typeof ECHO_VERSION; preset: EchoPresetId; params: Partial<EchoParams>; seed: number };
 
@@ -95,7 +104,7 @@ export type EchoCopy = {
   band: { y0: number; y1: number } | null;
 };
 
-export type EchoExtra = { ring: { cx: number; cy: number; r: number; color: string; glow: number; opacity: number } | null };
+export type EchoExtra = { ring: { cx: number; cy: number; r: number; color: string; glow: number; opacity: number } | null; blend: EchoBlend };
 
 const BASE: EchoParams = {
   count: 3,
@@ -119,10 +128,13 @@ const BASE: EchoParams = {
   mono: false,
   flip: false,
   ring: false,
+  fill: "photo",
+  gradient: false,
+  blend: "normal",
   original: true
 };
 
-export const ECHO_CONTROLS: Record<EchoKey, { label: string; kind?: "color" | "bool"; min?: number; max?: number; step?: number; unit?: string; hint?: string }> = {
+export const ECHO_CONTROLS: Record<EchoKey, { label: string; kind?: "color" | "bool" | "select"; options?: { value: string; label: string }[]; min?: number; max?: number; step?: number; unit?: string; hint?: string }> = {
   count: { label: "Copies", min: 1, max: 16, step: 1 },
   spacing: { label: "Spacing", min: 0, max: 60, step: 0.5, unit: "%" },
   angle: { label: "Direction", min: -180, max: 180, step: 1, unit: "°", hint: "0° = right, 180° = left, −90° = up." },
@@ -144,7 +156,36 @@ export const ECHO_CONTROLS: Record<EchoKey, { label: string; kind?: "color" | "b
   mono: { label: "Black and white copies", kind: "bool" },
   flip: { label: "Mirror the copies", kind: "bool" },
   ring: { label: "Glow ring", kind: "bool" },
+  fill: {
+    label: "Copies are",
+    kind: "select",
+    options: [
+      { value: "photo", label: "The photo" },
+      { value: "tint", label: "The photo, coloured" },
+      { value: "solid", label: "Solid colour" }
+    ],
+    hint: "Solid colour fills each copy's shape with Colour (or the gradient)."
+  },
+  gradient: { label: "Colour gradient across copies", kind: "bool", hint: "Nearest copy in Colour, furthest in Second colour." },
+  blend: {
+    label: "Blend",
+    kind: "select",
+    options: [
+      { value: "normal", label: "Normal" },
+      { value: "screen", label: "Screen (lighten)" },
+      { value: "add", label: "Add (neon glow)" }
+    ],
+    hint: "Screen and Add make the echoes glow on dark backgrounds."
+  },
   original: { label: "Sharp original on top", kind: "bool", hint: "Off: only the echoes show." }
+};
+
+/** The colour settings every preset offers (after its own). */
+const COLOR_KEYS: EchoKey[] = ["fill", "color", "gradient", "color2", "tint", "glow", "blend"];
+const withColor = (own: EchoKey[], skip: EchoKey[] = []) => {
+  const keys: EchoKey[] = own.filter((k) => k !== "original");
+  for (const k of COLOR_KEYS) if (!keys.includes(k) && !skip.includes(k)) keys.push(k);
+  return [...keys, "original" as EchoKey];
 };
 
 export type EchoPreset = {
@@ -163,64 +204,64 @@ export const ECHO_PRESETS: EchoPreset[] = [
     name: "Silhouette Trail",
     blurb: "Solid-colour silhouettes trailing behind the subject",
     needsCutout: true,
-    defaults: { count: 4, spacing: 13, angle: 185, opacity: 85, falloff: 60, color: "#19c2a8", glow: 20 },
-    controls: ["count", "spacing", "angle", "opacity", "falloff", "color", "glow", "original"]
+    defaults: { count: 4, spacing: 13, angle: 185, opacity: 85, falloff: 60, color: "#19c2a8", color2: "#7b3cff", glow: 20, fill: "solid", tint: 80 },
+    controls: withColor(["count", "spacing", "angle", "opacity", "falloff", "fill", "color", "glow", "original"])
   },
   {
     id: "rgb_echo",
     name: "RGB Echo",
     blurb: "Blue, green and red copies stepping away from the subject",
     needsCutout: false,
-    defaults: { count: 3, spacing: 14, angle: 180, opacity: 92, falloff: 12, color: "#2f5bff", color2: "#1fd655", color3: "#ff2d3d", tint: 72 },
-    controls: ["count", "spacing", "angle", "opacity", "falloff", "tint", "color", "color2", "color3", "original"]
+    defaults: { count: 3, spacing: 14, angle: 180, opacity: 92, falloff: 12, color: "#2f5bff", color2: "#1fd655", color3: "#ff2d3d", tint: 72, fill: "tint" },
+    controls: withColor(["count", "spacing", "angle", "opacity", "falloff", "fill", "tint", "color", "color2", "color3", "original"], ["gradient"])
   },
   {
     id: "outline_echo",
     name: "Outline Echo",
     blurb: "Glowing outlines of the subject stepping out to one side",
     needsCutout: true,
-    defaults: { count: 3, spacing: 7, angle: 0, opacity: 95, falloff: 35, color: "#ffc94a", width: 3, glow: 60 },
-    controls: ["count", "spacing", "angle", "width", "glow", "color", "opacity", "falloff", "original"]
+    defaults: { count: 3, spacing: 7, angle: 0, opacity: 95, falloff: 35, color: "#ffc94a", color2: "#ff5a36", width: 3, glow: 60 },
+    controls: withColor(["count", "spacing", "angle", "width", "glow", "color", "gradient", "color2", "opacity", "falloff", "original"], ["fill", "tint"])
   },
   {
     id: "mirror_echo",
     name: "Mirror Echo",
     blurb: "Mirrored, darker copies on either side",
     needsCutout: false,
-    defaults: { count: 2, spacing: 30, opacity: 75, falloff: 25, dim: 45, scaleStep: -8, flip: true },
-    controls: ["count", "spacing", "scaleStep", "opacity", "dim", "falloff", "flip", "original"]
+    defaults: { count: 2, spacing: 30, opacity: 75, falloff: 25, dim: 45, scaleStep: -8, flip: true, color: "#ff3d8b", color2: "#3d7bff", tint: 70 },
+    controls: withColor(["count", "spacing", "scaleStep", "opacity", "dim", "falloff", "flip", "original"])
   },
   {
     id: "zoom_echo",
     name: "Zoom Echo",
     blurb: "Bigger, fainter black-and-white copies rising behind",
     needsCutout: false,
-    defaults: { count: 2, spacing: 12, angle: -90, opacity: 55, falloff: 40, scaleStep: 34, mono: true, dim: 20 },
-    controls: ["count", "scaleStep", "spacing", "angle", "opacity", "falloff", "dim", "mono", "original"]
+    defaults: { count: 2, spacing: 12, angle: -90, opacity: 55, falloff: 40, scaleStep: 34, mono: true, dim: 20, color: "#c6f432", color2: "#19c2a8", tint: 70 },
+    controls: withColor(["count", "scaleStep", "spacing", "angle", "opacity", "falloff", "dim", "mono", "original"])
   },
   {
     id: "orbit_echo",
     name: "Orbit Echo",
     blurb: "Small copies circling the subject, with a glow ring",
     needsCutout: false,
-    defaults: { count: 5, radius: 44, scaleStep: 36, spread: 220, angle: -90, opacity: 90, falloff: 0, ring: true, color: "#b06cff", glow: 55 },
-    controls: ["count", "radius", "scaleStep", "spread", "angle", "opacity", "ring", "color", "glow", "original"]
+    defaults: { count: 5, radius: 44, scaleStep: 36, spread: 220, angle: -90, opacity: 90, falloff: 0, ring: true, color: "#b06cff", color2: "#3dd9ff", glow: 55, tint: 70 },
+    controls: withColor(["count", "radius", "scaleStep", "spread", "angle", "opacity", "ring", "color", "glow", "original"])
   },
   {
     id: "slice_echo",
     name: "Slice Echo",
     blurb: "Strips of the portrait pulled out to both sides",
     needsCutout: false,
-    defaults: { slices: 8, spacing: 42, jitter: 40, opacity: 95, dim: 8 },
-    controls: ["slices", "spacing", "jitter", "opacity", "dim", "original"]
+    defaults: { slices: 8, spacing: 42, jitter: 40, opacity: 95, dim: 8, color: "#ffc94a", color2: "#ff3d8b", tint: 70 },
+    controls: withColor(["slices", "spacing", "jitter", "opacity", "dim", "original"])
   },
   {
     id: "long_exposure",
     name: "Long Exposure",
     blurb: "A warm motion streak, like a slow shutter",
     needsCutout: false,
-    defaults: { count: 8, spacing: 5, angle: 0, opacity: 72, falloff: 55, color: "#ffb347", tint: 45, smear: 30 },
-    controls: ["count", "spacing", "angle", "opacity", "falloff", "smear", "tint", "color", "original"]
+    defaults: { count: 8, spacing: 5, angle: 0, opacity: 72, falloff: 55, color: "#ffb347", color2: "#ff3d8b", tint: 45, smear: 30, fill: "tint" },
+    controls: withColor(["count", "spacing", "angle", "opacity", "falloff", "smear", "fill", "tint", "color", "original"])
   }
 ];
 
@@ -250,7 +291,9 @@ export function sanitizeEchoParams(raw: unknown): Partial<EchoParams> {
     const def = BASE[k as EchoKey];
     const info = ECHO_CONTROLS[k as EchoKey];
     if (typeof def === "boolean" && typeof v === "boolean") out[k] = v;
-    else if (typeof def === "string" && typeof v === "string" && HEX.test(v)) out[k] = v.toLowerCase();
+    else if (typeof def === "string" && typeof v === "string" && info.kind === "select") {
+      if (info.options!.some((o) => o.value === v)) out[k] = v;
+    } else if (typeof def === "string" && typeof v === "string" && HEX.test(v)) out[k] = v.toLowerCase();
     else if (typeof def === "number" && typeof v === "number" && Number.isFinite(v)) out[k] = clamp(v, info.min ?? -1000, info.max ?? 1000);
   }
   return out as Partial<EchoParams>;
@@ -270,6 +313,14 @@ export function silhouetteOffsets(count: number, offset: number) {
   const out: { dx: number; fade: number }[] = [];
   for (let e = 1; e <= Math.round(count); e++) out.push({ dx: Math.ceil(e / 2) * offset * (e % 2 ? 1 : -1), fade: 1 - (e - 1) / (count + 1) });
   return out;
+}
+
+/** Blends two #rrggbb colours (t = 0 → a, 1 → b). */
+export function mixHex(a: string, b: string, t: number) {
+  const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) || 0);
+  const A = p(a),
+    B = p(b);
+  return "#" + A.map((v, i) => Math.round(v + (B[i] - v) * clamp(t, 0, 1)).toString(16).padStart(2, "0")).join("");
 }
 
 /** Deterministic random numbers from a seed (mulberry32). */
@@ -311,7 +362,7 @@ export function echoCopies(e: EchoInput, w: number, h: number, u = 0, amount = 0
   const ux = Math.cos(rad(P.angle)),
     uy = Math.sin(rad(P.angle));
   const copies: EchoCopy[] = [];
-  const extra: EchoExtra = { ring: null };
+  const extra: EchoExtra = { ring: null, blend: P.blend };
   const base = (o: Partial<EchoCopy>): EchoCopy => ({ mode: "image", dx: 0, dy: 0, scale: 1, rotate: 0, flipX: false, opacity: 1, color: null, tint: 0, dim: 0, mono: false, width: 0, glow: 0, blur: 0, band: null, ...o });
   // Periodic in u and 0 at u = 0 (so frame 0 is the still echo).
   const wave = (ph: number) => (moving ? (Math.sin(TAU * (u + ph)) - Math.sin(TAU * ph)) * a : 0);
@@ -406,6 +457,32 @@ export function echoCopies(e: EchoInput, w: number, h: number, u = 0, amount = 0
       break;
     }
   }
+  // Colour, the same for every preset: what the copies are made of, a gradient from nearest to
+  // furthest, and a glow. (RGB Echo keeps its three colours unless the gradient is on.)
+  const n = copies.length;
+  copies.forEach((c, i) => {
+    const t = n > 1 ? i / (n - 1) : 0;
+    const col = P.gradient ? mixHex(P.color, P.color2, t) : preset?.id === "rgb_echo" && c.color ? c.color : P.color;
+    c.glow = (P.glow / 100) * (c.mode === "outline" ? 0.05 : 0.06) * w;
+    if (c.mode === "outline") {
+      c.color = col;
+      return;
+    }
+    if (P.fill === "solid") {
+      c.mode = "silhouette";
+      c.color = col;
+      c.tint = 0;
+    } else if (P.fill === "tint") {
+      c.mode = "image";
+      c.color = col;
+      c.tint = P.tint / 100;
+    } else {
+      c.mode = "image";
+      // A plain photo copy; its glow still takes the colour.
+      c.color = P.glow > 0 ? col : null;
+      c.tint = 0;
+    }
+  });
   // (While flowing, copy 0 is at the subject with opacity 0, so the frame at u = 1 has the same copies as u = 0.)
   // Furthest first (drawn first, so nearer copies sit over them).
   copies.reverse();

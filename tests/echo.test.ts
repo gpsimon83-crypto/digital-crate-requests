@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { newImage, newText } from "@/lib/flyers/scene";
 import type { Scene } from "@/lib/flyers/types";
-import { ECHO_PRESETS, echoBounds, echoCopies, newEcho, resolveEcho, sanitizeEcho, silhouetteOffsets } from "@/lib/flyers/echo";
+import { ECHO_PRESETS, mixHex, echoBounds, echoCopies, newEcho, resolveEcho, sanitizeEcho, silhouetteOffsets } from "@/lib/flyers/echo";
 import { checkLoop, evaluateFrame } from "@/lib/flyers/motion/engine";
 import { ECHO_MOTION, MOTION_PRESETS, PRESET_BY_ID, PLANNED, optsFor, presetFits } from "@/lib/flyers/motion/presets";
 import { newItem } from "@/lib/flyers/motion/recipes";
@@ -80,6 +80,40 @@ describe("Echo presets", () => {
     const withEcho = { ...sc, nodes: sc.nodes.map((n) => (n.id === "dj" ? { ...n, echo: { v: 1, preset: "orbit_echo", params: { count: 6 }, seed: 9 } } : n)) };
     const back = parse(JSON.parse(JSON.stringify(withEcho)))!;
     expect(back.nodes.find((n) => n.id === "dj")!.echo).toEqual({ v: 1, preset: "orbit_echo", params: { count: 6 }, seed: 9 });
+  });
+});
+
+describe("Echo colour", () => {
+  it("every preset can colour its copies, blend them and glow", () => {
+    for (const p of ECHO_PRESETS) {
+      for (const k of ["color", "glow", "blend"]) expect(p.controls, `${p.id} ${k}`).toContain(k);
+      if (p.id !== "outline_echo") expect(p.controls, p.id).toContain("fill");
+      expect(p.controls[p.controls.length - 1]).toBe("original");
+    }
+  });
+  it("solid colour turns photo copies into coloured shapes; tint keeps the photo", () => {
+    const solid = echoCopies({ preset: "mirror_echo", params: { fill: "solid", color: "#ff0000" } }, 500, 500).copies;
+    expect(solid.every((c) => c.mode === "silhouette" && c.color === "#ff0000")).toBe(true);
+    const tint = echoCopies({ preset: "slice_echo", params: { fill: "tint", color: "#00ff00", tint: 50 } }, 500, 500).copies;
+    expect(tint.every((c) => c.mode === "image" && c.color === "#00ff00" && c.tint === 0.5)).toBe(true);
+  });
+  it("the gradient runs from Colour (nearest) to Second colour (furthest)", () => {
+    const c = echoCopies({ preset: "silhouette_trail", params: { gradient: true, count: 3, color: "#000000", color2: "#ffffff" } }, 500, 500).copies;
+    // drawn furthest first
+    expect(c.map((x) => x.color)).toEqual(["#ffffff", "#808080", "#000000"]);
+    expect(mixHex("#ff0000", "#0000ff", 0.5)).toBe("#800080");
+  });
+  it("defaults look as before (older echoes are unchanged)", () => {
+    const m = (id: string) => echoCopies(newEcho(id as never), 500, 500).copies;
+    expect(new Set(m("silhouette_trail").map((c) => c.mode))).toEqual(new Set(["silhouette"]));
+    expect(m("silhouette_trail").every((c) => c.color === "#19c2a8")).toBe(true);
+    expect(m("rgb_echo").map((c) => c.color).reverse()).toEqual(["#2f5bff", "#1fd655", "#ff2d3d"]);
+    expect(m("mirror_echo").every((c) => c.mode === "image" && c.color === null && c.tint === 0 && c.glow === 0)).toBe(true);
+    expect(echoCopies(newEcho("rgb_echo"), 500, 500).extra.blend).toBe("normal");
+  });
+  it("blend and fill are kept only when valid", () => {
+    expect(sanitizeEcho({ preset: "zoom_echo", params: { blend: "add", fill: "solid" } })!.params).toEqual({ blend: "add", fill: "solid" });
+    expect(sanitizeEcho({ preset: "zoom_echo", params: { blend: "xor", fill: "#ffffff" } })!.params).toEqual({});
   });
 });
 
